@@ -1,0 +1,5 @@
+*tmp
+**/.DS_Store
+test_results/*
+.idea
+.env.sh

@@ -1,0 +1,23 @@
+FROM golang:1.11.5
+
+ARG GPG_PUB_KEY_FILE
+ARG GPG_SEC_KEY_FILE
+ARG GPG_RPM_USER
+ARG GPG_RPM_EMAIL
+ARG BCDA_GPG_RPM_PASSPHRASE
+
+RUN apt-get update
+RUN apt-get install -y build-essential ruby ruby-dev rpm git
+RUN gem install --no-ri --no-rdoc fpm etc
+RUN go get -u github.com/golang/dep/cmd/dep
+
+WORKDIR /go/src/github.com/CMSgov/bcda-ssas-app
+COPY . .
+
+RUN dep ensure
+
+WORKDIR /go/src/github.com/CMSgov/bcda-ssas-app/ops
+RUN chmod u+x build_and_package.sh
+
+ENTRYPOINT ["sh", "build_and_package.sh"]
+CMD []
