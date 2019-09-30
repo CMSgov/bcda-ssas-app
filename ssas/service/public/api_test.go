@@ -13,8 +13,8 @@ import (
 	"github.com/pborman/uuid"
 	"github.com/stretchr/testify/require"
 
-	"github.com/CMSgov/bcda-app/ssas"
-	"github.com/CMSgov/bcda-app/ssas/service"
+	"github.com/CMSgov/bcda-ssas-app/ssas"
+	"github.com/CMSgov/bcda-ssas-app/ssas/service"
 
 	"github.com/jinzhu/gorm"
 	"github.com/stretchr/testify/assert"

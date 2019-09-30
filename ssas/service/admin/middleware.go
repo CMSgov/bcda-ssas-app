@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/CMSgov/bcda-app/ssas"
+	"github.com/CMSgov/bcda-ssas-app/ssas"
 )
 
 func requireBasicAuth(next http.Handler) http.Handler {

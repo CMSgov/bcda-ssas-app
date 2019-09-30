@@ -16,8 +16,8 @@ import (
 	"github.com/go-chi/render"
 	"github.com/pborman/uuid"
 
-	"github.com/CMSgov/bcda-app/ssas"
-	"github.com/CMSgov/bcda-app/ssas/service"
+	"github.com/CMSgov/bcda-ssas-app/ssas"
+	"github.com/CMSgov/bcda-ssas-app/ssas/service"
 )
 
 type Key struct {

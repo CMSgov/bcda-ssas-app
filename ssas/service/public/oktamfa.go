@@ -13,9 +13,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/CMSgov/bcda-app/ssas"
-	"github.com/CMSgov/bcda-app/ssas/cfg"
-	"github.com/CMSgov/bcda-app/ssas/okta"
+	"github.com/CMSgov/bcda-ssas-app/ssas"
+	"github.com/CMSgov/bcda-ssas-app/ssas/cfg"
+	"github.com/CMSgov/bcda-ssas-app/ssas/okta"
 )
 
 type OktaUser struct {

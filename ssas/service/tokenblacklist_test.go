@@ -1,7 +1,7 @@
 package service
 
 import (
-	"github.com/CMSgov/bcda-app/ssas"
+	"github.com/CMSgov/bcda-ssas-app/ssas"
 	"github.com/jinzhu/gorm"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"

@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
-	"github.com/CMSgov/bcda-app/ssas"
+	"github.com/CMSgov/bcda-ssas-app/ssas"
 )
 
 type MainTestSuite struct {

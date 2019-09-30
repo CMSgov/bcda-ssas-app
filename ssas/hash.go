@@ -12,7 +12,7 @@ import (
 
 	"golang.org/x/crypto/pbkdf2"
 
-	"github.com/CMSgov/bcda-app/ssas/cfg"
+	"github.com/CMSgov/bcda-ssas-app/ssas/cfg"
 )
 
 var (

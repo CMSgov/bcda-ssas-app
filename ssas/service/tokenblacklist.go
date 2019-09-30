@@ -2,8 +2,8 @@ package service
 
 import (
 	"fmt"
-	"github.com/CMSgov/bcda-app/ssas"
-	"github.com/CMSgov/bcda-app/ssas/cfg"
+	"github.com/CMSgov/bcda-ssas-app/ssas"
+	"github.com/CMSgov/bcda-ssas-app/ssas/cfg"
 	"github.com/patrickmn/go-cache"
 	"github.com/pborman/uuid"
 	"time"

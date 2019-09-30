@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/CMSgov/bcda-app/ssas/okta"
+	"github.com/CMSgov/bcda-ssas-app/ssas/okta"
 	"github.com/pborman/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"

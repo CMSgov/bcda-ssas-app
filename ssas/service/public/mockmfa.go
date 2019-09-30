@@ -5,7 +5,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/CMSgov/bcda-app/ssas"
+	"github.com/CMSgov/bcda-ssas-app/ssas"
 )
 
 type MockMFAPlugin struct{}

@@ -26,4 +26,4 @@ CREDS=($(docker-compose exec api sh -c 'tmp/bcda generate-client-credentials --c
 CLIENT_ID=${CREDS[0]}
 CLIENT_SECRET=${CREDS[1]}
 
-CLIENT_ID=$CLIENT_ID CLIENT_SECRET=$CLIENT_SECRET docker-compose -f docker-compose.test.yml run --rm -w /go/src/github.com/CMSgov/bcda-app/test/smoke_test tests sh smoke_test.sh
+CLIENT_ID=$CLIENT_ID CLIENT_SECRET=$CLIENT_SECRET docker-compose -f docker-compose.test.yml run --rm -w /go/src/github.com/CMSgov/bcda-ssas-app/test/smoke_test tests sh smoke_test.sh

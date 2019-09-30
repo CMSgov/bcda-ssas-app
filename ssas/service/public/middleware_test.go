@@ -2,7 +2,7 @@ package public
 
 import (
 	"context"
-	"github.com/CMSgov/bcda-app/ssas/service"
+	"github.com/CMSgov/bcda-ssas-app/ssas/service"
 	"github.com/go-chi/chi"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"

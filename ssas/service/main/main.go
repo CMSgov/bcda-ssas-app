@@ -12,10 +12,10 @@ import (
 	"github.com/go-chi/chi"
 	"github.com/jinzhu/gorm"
 
-	"github.com/CMSgov/bcda-app/ssas"
-	"github.com/CMSgov/bcda-app/ssas/service"
-	"github.com/CMSgov/bcda-app/ssas/service/admin"
-	"github.com/CMSgov/bcda-app/ssas/service/public"
+	"github.com/CMSgov/bcda-ssas-app/ssas"
+	"github.com/CMSgov/bcda-ssas-app/ssas/service"
+	"github.com/CMSgov/bcda-ssas-app/ssas/service/admin"
+	"github.com/CMSgov/bcda-ssas-app/ssas/service/public"
 )
 
 var doMigrate bool

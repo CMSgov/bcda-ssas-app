@@ -11,8 +11,8 @@ package:
 	-v ${PWD}:/go/src/github.com/CMSgov/bcda-ssas-app packaging $(version)
 
 lint:
-	docker-compose -f docker-compose.test.yml run --rm tests golangci-lint run ./ssas/...
-	docker-compose -f docker-compose.test.yml run --rm tests gosec ./ssas/...
+	docker-compose -f docker-compose.test.yml run --rm tests golangci-lint run ./...
+	docker-compose -f docker-compose.test.yml run --rm tests gosec ./...
 
 # The following vars are available to tests needing SSAS admin credentials; currently they are used in smoke-test-ssas, postman-ssas, and unit-test-ssas
 # Note that these variables should only be used for smoke tests, must be set before the api starts, and cannot be changed after the api starts
@@ -54,10 +54,10 @@ unit-test:
 	docker-compose -f docker-compose.test.yml run --rm tests bash unit_test_ssas.sh
 
 test:
-	$(MAKE) lint-ssas
-	$(MAKE) unit-test-ssas
-	$(MAKE) postman-ssas
-	$(MAKE) smoke-test-ssas
+	$(MAKE) lint
+	$(MAKE) unit-test
+	$(MAKE) postman
+	$(MAKE) smoke-test
 
 load-fixtures:
 	docker-compose up -d db

@@ -9,8 +9,8 @@ import (
 	"github.com/go-chi/chi"
 	"github.com/pborman/uuid"
 
-	"github.com/CMSgov/bcda-app/ssas"
-	"github.com/CMSgov/bcda-app/ssas/service"
+	"github.com/CMSgov/bcda-ssas-app/ssas"
+	"github.com/CMSgov/bcda-ssas-app/ssas/service"
 )
 
 func createGroup(w http.ResponseWriter, r *http.Request) {

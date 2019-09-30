@@ -9,7 +9,7 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/CMSgov/bcda-app/ssas/service"
+	"github.com/CMSgov/bcda-ssas-app/ssas/service"
 )
 
 type PublicTokenTestSuite struct {

@@ -57,7 +57,7 @@ fi
 
 if [ -z "$GITHUB_REPO_PATH" ]
 then
-  echo "Please export GITHUB_REPO_PATH to continue (i.e., /CMSgov/bcda-app">&2
+  echo "Please export GITHUB_REPO_PATH to continue (i.e., /CMSgov/bcda-ssas-app">&2
   exit 1
 fi
 

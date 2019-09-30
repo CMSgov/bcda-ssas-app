@@ -14,8 +14,8 @@ import (
 	"github.com/go-chi/render"
 	"github.com/pborman/uuid"
 
-	"github.com/CMSgov/bcda-app/ssas"
-	"github.com/CMSgov/bcda-app/ssas/cfg"
+	"github.com/CMSgov/bcda-ssas-app/ssas"
+	"github.com/CMSgov/bcda-ssas-app/ssas/cfg"
 )
 
 // Server configures and provisions an SSAS server

@@ -4,21 +4,21 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/CMSgov/bcda-app/ssas/service"
+	"github.com/CMSgov/bcda-ssas-app/ssas/service"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
 	"strings"
 	"testing"
 
-	"github.com/CMSgov/bcda-app/ssas"
+	"github.com/CMSgov/bcda-ssas-app/ssas"
 	"github.com/go-chi/chi"
 	"github.com/jinzhu/gorm"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 )
 
-const SampleGroup string = `{  
+const SampleGroup string = `{
   "group_id":"%s",
   "name": "ACO Corp Systems",
   "resources": [

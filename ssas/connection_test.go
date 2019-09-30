@@ -34,7 +34,7 @@ func (suite *ConnectionTestSuite) TestDbConnections() {
 	// set the database URL to a bogus value to test negative scenarios
 	os.Setenv("DATABASE_URL", "fake_db_url")
 
-	// attempt to open DB connection swith the bogus DB string
+	// attempt to open DB connection with the bogus DB string
 	suite.db = GetDbConnection()
 	suite.gormdb = GetGORMDbConnection()
 

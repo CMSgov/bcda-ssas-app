@@ -14,7 +14,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/CMSgov/bcda-app/ssas"
+	"github.com/CMSgov/bcda-ssas-app/ssas"
 )
 
 var OktaBaseUrl string

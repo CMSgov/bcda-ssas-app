@@ -10,7 +10,7 @@ import (
 	"github.com/go-chi/chi/middleware"
 	"github.com/sirupsen/logrus"
 
-	"github.com/CMSgov/bcda-app/ssas"
+	"github.com/CMSgov/bcda-ssas-app/ssas"
 )
 
 // https://github.com/go-chi/chi/blob/master/_examples/logging/main.go
