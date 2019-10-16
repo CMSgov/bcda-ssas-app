@@ -40,8 +40,7 @@ CLIENT_ID ?= $(shell echo $(clientTemp) |awk '{print $$1}')
 CLIENT_SECRET ?= $(shell echo $(clientTemp) |awk '{print $$2}')
 
 smoke-test:
-	BCDA_SSAS_CLIENT_ID=$(SSAS_ADMIN_CLIENT_ID) BCDA_SSAS_SECRET=$(SSAS_ADMIN_CLIENT_SECRET) docker-compose -f docker-compose.test.yml run --rm -w postman_test test/postman_test/SSAS_Smoke_Test.postman_collection.json -e test/postman_test/ssas-local.postman_environment.json --global-var "token=$(token)" --global-var adminClientId=$(SSAS_ADMIN_CLIENT_ID) --global-var adminClientSecret=$(SSAS_ADMIN_CLIENT_SECRET)
-	BCDA_SSAS_CLIENT_ID=$(SSAS_ADMIN_CLIENT_ID) BCDA_SSAS_SECRET=$(SSAS_ADMIN_CLIENT_SECRET) test/smoke_test/ssas_test.sh
+	docker-compose -f docker-compose.test.yml run --rm postman_test test/postman_test/SSAS_Smoke_Test.postman_collection.json -e test/postman_test/ssas-local.postman_environment.json --global-var "token=$(token)" --global-var adminClientId=$(SSAS_ADMIN_CLIENT_ID) --global-var adminClientSecret=$(SSAS_ADMIN_CLIENT_SECRET)
 
 postman:
 	# This target should be executed by passing in an argument for the environment (dev/test/sbx)
@@ -51,7 +50,7 @@ postman:
 	docker-compose -f docker-compose.test.yml run --rm postman_test test/postman_test/SSAS.postman_collection.json -e test/postman_test/ssas-local.postman_environment.json --global-var adminClientId=$(SSAS_ADMIN_CLIENT_ID) --global-var adminClientSecret=$(SSAS_ADMIN_CLIENT_SECRET)
 
 unit-test:
-	docker-compose -f docker-compose.test.yml run --rm tests bash unit_test_ssas.sh
+	docker-compose -f docker-compose.test.yml run --rm tests bash unit_test.sh
 
 test:
 	$(MAKE) lint
