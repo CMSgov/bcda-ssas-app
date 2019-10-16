@@ -55,8 +55,8 @@ services:
     volumes:
       - .:/go/src/github.com/CMSgov/bcda-ssas-app
     ports:
-      - "3003:3003"
-      - "3004:3004"
-      - "3005:3005"
+      - "3103:3003"
+      - "3104:3004"
+      - "3105:3005"
     depends_on:
       - db
