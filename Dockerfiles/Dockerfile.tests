@@ -16,3 +16,4 @@ RUN apt-get update
 
 WORKDIR /go/src/github.com/CMSgov/bcda-ssas-app
 ENTRYPOINT []
+
