@@ -31,7 +31,7 @@ services:
       - SSAS_PUBLIC_URL=http://ssas:3003
     volumes:
       - .:/go/src/github.com/CMSgov/bcda-ssas-app
-  postman_test_ssas:
+  postman_test:
     build:
       context: .
       dockerfile: Dockerfiles/Dockerfile.postman_test
