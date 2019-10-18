@@ -112,7 +112,7 @@ func ListGroups(trackingID string) (list GroupList, err error)  {
 		gs.XData = group.XData
 		gs.CreatedAt = group.CreatedAt
 
-		systems := []System{}
+		var systems []System
 		systems, err = GetSystemsByGroupID(group.GroupID)
 		if err != nil {
 			return

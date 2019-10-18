@@ -117,6 +117,7 @@ func (s *GroupsTestSuite) TestListGroups() {
 	assert.Nil(s.T(), err)
 
 	groupList, err := ListGroups("test-list-groups")
+	assert.Nil(s.T(), err)
 	assert.Len(s.T(), groupList.Groups, 2+startingCount)
 
 	err = CleanDatabase(g1)
