@@ -115,18 +115,17 @@ func (s *GroupsTestSuite) TestListGroups() {
 	g2, err := CreateGroup(gd)
 	assert.Nil(s.T(), err)
 
-	groups, err := ListGroups("test-list-groups")
-	assert.Nil(s.T(), err)
-	assert.Len(s.T(), groups, 2+startingCount)
+	groupList, err := ListGroups("test-list-groups")
+	assert.Len(s.T(), groupList.Groups, 2+startingCount)
 
 	err = CleanDatabase(g1)
 	assert.Nil(s.T(), err)
 	err = CleanDatabase(g2)
 	assert.Nil(s.T(), err)
 
-	groups, err = ListGroups("test-list-groups")
+	groupList, err = ListGroups("test-list-groups")
 	assert.Nil(s.T(), err)
-	assert.Len(s.T(), groups, startingCount)
+	assert.Len(s.T(), groupList.Groups, startingCount)
 }
 
 func (s *GroupsTestSuite) TestUpdateGroup() {
