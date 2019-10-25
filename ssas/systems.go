@@ -57,8 +57,8 @@ func InitializeSystemModels() *gorm.DB {
 
 type System struct {
 	gorm.Model
-	GID		       uint            `json:"g_id"`
-	GroupID		   string		   `json:"group_id"`
+	GID            uint            `json:"g_id"`
+	GroupID        string          `json:"group_id"`
 	ClientID       string          `json:"client_id"`
 	SoftwareID     string          `json:"software_id"`
 	ClientName     string          `json:"client_name"`
@@ -339,8 +339,8 @@ func RegisterSystem(clientName string, groupID string, scope string, publicKeyPE
 	}
 
 	system := System{
-		GID:	    group.ID,
-		GroupID:	groupID,
+		GID:        group.ID,
+		GroupID:    groupID,
 		ClientID:   clientID,
 		ClientName: clientName,
 		APIScope:   scope,

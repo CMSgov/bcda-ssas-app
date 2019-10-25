@@ -787,8 +787,8 @@
 			  "pm.test(\"response is 200 and at least 2 fixture groups in response\", function () {",
 			  "    pm.response.to.have.status(200);",
 			  "    var jsonData = pm.response.json();",
-			  "    pm.expect(jsonData[0].group_id).to.eql(\"admin\");",
-			  "    pm.expect(jsonData[1].group_id).to.eql(\"0c527d2e-2e8a-4808-b11d-0fa06baf8254\");",
+			  "    pm.expect(jsonData.groups[0].group_id).to.eql(\"admin\");",
+			  "    pm.expect(jsonData.groups[1].group_id).to.eql(\"0c527d2e-2e8a-4808-b11d-0fa06baf8254\");",
 			  "});"
 			],
 			"type": "text/javascript"
