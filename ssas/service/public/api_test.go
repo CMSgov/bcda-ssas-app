@@ -142,7 +142,7 @@ func (s *APITestSuite) TestResetSecretSuccess() {
 	if err := s.db.Create(&group).Error; err != nil {
 		s.FailNow("unable to create group: " + err.Error())
 	}
-	system := ssas.System{GroupID: group.GroupID, ClientID: "abcd1234"}
+	system := ssas.System{GID: group.ID, GroupID: group.GroupID, ClientID: "abcd1234"}
 	if err := s.db.Create(&system).Error; err != nil {
 		s.FailNow("unable to create system: " + err.Error())
 	}

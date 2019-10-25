@@ -203,7 +203,7 @@ type GroupData struct {
 
 // Value implements the driver.Value interface for GroupData.
 func (gd GroupData) Value() (driver.Value, error) {
-	systems, _ := GetSystemsByGroupID(gd.GroupID)
+	systems, _ := GetSystemsByGroupIDString(gd.GroupID)
 
 	gd.Systems = systems
 
@@ -220,7 +220,7 @@ func (gd *GroupData) Scan(value interface{}) error {
 	if err := json.Unmarshal(b, &gd); err != nil {
 		return err
 	}
-	systems, _ := GetSystemsByGroupID(gd.GroupID)
+	systems, _ := GetSystemsByGroupIDString(gd.GroupID)
 
 	gd.Systems = systems
 

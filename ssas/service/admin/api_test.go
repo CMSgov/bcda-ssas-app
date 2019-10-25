@@ -267,7 +267,7 @@ func (s *APITestSuite) TestCreateSystem_MissingRequiredParam() {
 func (s *APITestSuite) TestResetCredentials() {
 	group := ssas.Group{GroupID: "test-reset-creds-group"}
 	s.db.Create(&group)
-	system := ssas.System{GroupID: group.GroupID, ClientID: "test-reset-creds-client"}
+	system := ssas.System{GID: group.ID, ClientID: "test-reset-creds-client"}
 	s.db.Create(&system)
 	secret := ssas.Secret{Hash: "test-reset-creds-hash", SystemID: system.ID}
 	s.db.Create(&secret)
@@ -325,7 +325,7 @@ func (s *APITestSuite) TestGetPublicKey() {
 		s.FailNow(err.Error())
 	}
 
-	system := ssas.System{GroupID: group.GroupID, ClientID: "api-test-get-public-key-client"}
+	system := ssas.System{GID: group.ID, ClientID: "api-test-get-public-key-client"}
 	err = s.db.Create(&system).Error
 	if err != nil {
 		s.FailNow(err.Error())
@@ -374,7 +374,7 @@ func (s *APITestSuite) TestGetPublicKey_Rotation() {
 		s.FailNow(err.Error())
 	}
 
-	system := ssas.System{GroupID: group.GroupID, ClientID: "api-test-get-public-key-client"}
+	system := ssas.System{GID: group.ID, ClientID: "api-test-get-public-key-client"}
 	err = s.db.Create(&system).Error
 	if err != nil {
 		s.FailNow(err.Error())
@@ -434,7 +434,7 @@ func (s *APITestSuite) TestDeactivateSystemCredentialsNotFound() {
 func (s *APITestSuite) TestDeactivateSystemCredentials() {
 	group := ssas.Group{GroupID: "test-deactivate-creds-group"}
 	s.db.Create(&group)
-	system := ssas.System{GroupID: group.GroupID, ClientID: "test-deactivate-creds-client"}
+	system := ssas.System{GID: group.ID, ClientID: "test-deactivate-creds-client"}
 	s.db.Create(&system)
 	secret := ssas.Secret{Hash: "test-deactivate-creds-hash", SystemID: system.ID}
 	s.db.Create(&secret)

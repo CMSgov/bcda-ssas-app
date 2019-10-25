@@ -140,7 +140,13 @@ func makeSystem(db *gorm.DB, groupID, clientID, clientName, scope, hash string) 
 	XK354CNpCdyRYUAUvr4rORIAUmcIFjaR3J4y/Dh2JIyDToOHg7vjpCtNnNoS+ON2
 	HwIDAQAB
 	-----END PUBLIC KEY-----`
-	system := ssas.System{GroupID: groupID, ClientID: clientID, ClientName: clientName, APIScope: scope}
+
+	g, err := ssas.GetGroupByGroupID(groupID)
+	if err != nil {
+		ssas.Logger.Warn(err)
+	}
+
+	system := ssas.System{GID: g.ID, GroupID: groupID, ClientID: clientID, ClientName: clientName, APIScope: scope}
 	if err := db.Save(&system).Error; err != nil {
 		ssas.Logger.Warn(err)
 	}
