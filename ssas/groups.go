@@ -5,25 +5,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
 	"strconv"
 	"time"
 
 	"github.com/jinzhu/gorm"
 )
-
-// InitializeGroupModels creates and updates the schema for groups
-func InitializeGroupModels() *gorm.DB {
-	log.Println("Initialize group models")
-	db := GetGORMDbConnection()
-	defer Close(db)
-
-	db.AutoMigrate(
-		&Group{},
-	)
-
-	return db
-}
 
 type Group struct {
 	gorm.Model

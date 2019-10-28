@@ -11,7 +11,7 @@ package:
 	-v ${PWD}:/go/src/github.com/CMSgov/bcda-ssas-app packaging $(version)
 
 lint:
-	docker-compose -f docker-compose.test.yml run --rm tests golangci-lint run ./...
+	docker-compose -f docker-compose.test.yml run --rm tests golangci-lint --deadline=3m run ./...
 	docker-compose -f docker-compose.test.yml run --rm tests gosec ./...
 
 # The following vars are available to tests needing SSAS admin credentials; currently they are used in smoke-test-ssas, postman-ssas, and unit-test-ssas
@@ -29,6 +29,9 @@ postman:
 	# For example: make postman env=test token=<MY_TOKEN>
 	docker-compose -f docker-compose.test.yml run --rm postman_test test/postman_test/SSAS.postman_collection.json -e test/postman_test/ssas-local.postman_environment.json --global-var adminClientId=$(SSAS_ADMIN_CLIENT_ID) --global-var adminClientSecret=$(SSAS_ADMIN_CLIENT_SECRET)
 
+migrations-test:
+	docker-compose -f docker-compose.test.yml run --rm tests bash ops/migrations_test.sh
+
 unit-test:
 	docker-compose -f docker-compose.test.yml run --rm tests bash unit_test.sh
 
@@ -37,10 +40,11 @@ test:
 	$(MAKE) unit-test
 	$(MAKE) postman
 	$(MAKE) smoke-test
+	$(MAKE) migrations-test
 
 load-fixtures:
-	docker-compose run ssas sh -c 'tmp/ssas-service --migrate'
-	docker-compose run ssas sh -c 'tmp/ssas-service --add-fixture-data'
+	docker-compose -f docker-compose.test.yml run --rm -w /go/src/github.com/CMSgov/bcda-ssas-app/db/migrations tests migrate -database "postgres://postgres:toor@db:5432/bcda?sslmode=disable" -path ./ up
+	docker-compose -f docker-compose.yml run ssas sh -c 'tmp/ssas-service --add-fixture-data'
 
 docker-build:
 	docker-compose build --force-rm
@@ -52,4 +56,4 @@ docker-bootstrap:
 	sleep 40
 	$(MAKE) load-fixtures
 
-.PHONY: docker-build docker-bootstrap load-fixtures test package release smoke-test postman unit-test lint
+.PHONY: docker-build docker-bootstrap load-fixtures test package release smoke-test postman unit-test lint migrations-test
