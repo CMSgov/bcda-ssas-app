@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 	"strconv"
+	"time"
 
 	"github.com/jinzhu/gorm"
 )
@@ -29,6 +30,27 @@ type Group struct {
 	GroupID string    `gorm:"unique;not null" json:"group_id"`
 	XData   string    `gorm:"type:text" json:"xdata"`
 	Data    GroupData `gorm:"type:jsonb" json:"data"`
+}
+
+type SystemSummary struct {
+	ID			uint		`json:"id"`
+	ClientName	string		`json:"client_name"`
+	ClientID	string		`json:"client_id"`
+	UpdatedAt	time.Time	`json:"updated_at"`
+}
+
+type GroupSummary struct {
+	ID			uint		`json:"id"`
+	GroupID		string		`json:"group_id"`
+	XData		string		`json:"xdata"`
+	CreatedAt	time.Time	`json:"created_at"`
+	Systems		[]SystemSummary	`json:"systems"`
+}
+
+type GroupList struct {
+	Count 		int				`json:"count"`
+	ReportedAt	time.Time		`json:"reported_at"`
+	Groups		[]GroupSummary	`json:"groups"`
 }
 
 func CreateGroup(gd GroupData) (Group, error) {
@@ -67,22 +89,49 @@ func CreateGroup(gd GroupData) (Group, error) {
 	return g, nil
 }
 
-func ListGroups(trackingID string) ([]Group, error) {
+func ListGroups(trackingID string) (list GroupList, err error)  {
 	event := Event{Op: "ListGroups", TrackingID: trackingID}
 	OperationStarted(event)
 
 	groups := []Group{}
 	db := GetGORMDbConnection()
 	defer Close(db)
-	err := db.Find(&groups).Error
+	err = db.Find(&groups).Error
 	if err != nil {
 		event.Help = err.Error()
 		OperationFailed(event)
-		return []Group{}, err
+		return
+	}
+
+	list.Count = len(groups)
+	list.ReportedAt = time.Now()
+	for _, group := range groups {
+		gs := GroupSummary{}
+		gs.ID = group.ID
+		gs.GroupID = group.GroupID
+		gs.XData = group.XData
+		gs.CreatedAt = group.CreatedAt
+
+		var systems []System
+		systems, err = GetSystemsByGroupID(group.GroupID)
+		if err != nil {
+			return
+		}
+		for _, system := range systems {
+			ss := SystemSummary{}
+			ss.ID = system.ID
+			ss.ClientName = system.ClientName
+			ss.ClientID = system.ClientID
+			ss.UpdatedAt = system.UpdatedAt
+
+			gs.Systems = append(gs.Systems, ss)
+		}
+
+		list.Groups = append(list.Groups, gs)
 	}
 
 	OperationSucceeded(event)
-	return groups, nil
+	return list, nil
 }
 
 func UpdateGroup(id string, gd GroupData) (Group, error) {
@@ -209,14 +258,18 @@ type GroupData struct {
 	GroupID   string     `json:"group_id"`
 	Name      string     `json:"name"`
 	XData     string     `json:"xdata"`
-	Users     []string   `json:"users"`
-	Scopes    []string   `json:"scopes"`
-	System    System     `gorm:"foreignkey:GroupID;association_foreignkey:GroupID" json:"system"`
-	Resources []Resource `json:"resources"`
+	Users     []string   `json:"users,omitempty"`
+	Scopes    []string   `json:"scopes,omitempty"`
+	Systems   []System   `gorm:"-" json:"systems,omitempty"`
+	Resources []Resource `json:"resources,omitempty"`
 }
 
 // Value implements the driver.Value interface for GroupData.
 func (gd GroupData) Value() (driver.Value, error) {
+	systems, _ := GetSystemsByGroupID(gd.GroupID)
+
+	gd.Systems = systems
+
 	return json.Marshal(gd)
 }
 
@@ -227,7 +280,14 @@ func (gd *GroupData) Scan(value interface{}) error {
 		return errors.New("type assertion to []byte failed")
 	}
 
-	return json.Unmarshal(b, &gd)
+	if err := json.Unmarshal(b, &gd); err != nil {
+		return err
+	}
+	systems, _ := GetSystemsByGroupID(gd.GroupID)
+
+	gd.Systems = systems
+
+	return nil
 }
 
 type Resource struct {

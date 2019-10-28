@@ -131,10 +131,10 @@ func (s *APITestSuite) TestListGroups() {
 	handler.ServeHTTP(rr, req)
 	assert.Equal(s.T(), http.StatusOK, rr.Result().StatusCode)
 	assert.Equal(s.T(), "application/json", rr.Result().Header.Get("Content-Type"))
-	groups := []ssas.Group{}
-	err = json.Unmarshal(rr.Body.Bytes(), &groups)
+	groupList := ssas.GroupList{}
+	err = json.Unmarshal(rr.Body.Bytes(), &groupList)
 	assert.Nil(s.T(), err)
-	assert.True(s.T(), len(groups) == 2+startingCount)
+	assert.True(s.T(), len(groupList.Groups) == 2+startingCount)
 
 	err = ssas.CleanDatabase(g1)
 	assert.Nil(s.T(), err)
@@ -241,10 +241,8 @@ func (s *APITestSuite) TestCreateSystem() {
 	assert.Equal(s.T(), "application/json", rr.Result().Header.Get("Content-Type"))
 	var result map[string]interface{}
 	_ = json.Unmarshal(rr.Body.Bytes(), &result)
-	assert.NotNil(s.T(), result["user_id"])
 	assert.NotEmpty(s.T(), result["client_id"])
 	assert.NotEmpty(s.T(), result["client_secret"])
-	assert.NotNil(s.T(), result["token"])
 	assert.Equal(s.T(), "Test Client", result["client_name"])
 
 	err = ssas.CleanDatabase(group)

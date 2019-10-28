@@ -40,6 +40,7 @@ const SampleGroup string = `{
     "l0vckYyfyow4TZ0zOKek",
     "HqtEi2khroEZkH4sdIzj"
   ],
+  "systems": [],
   "xdata": %s
 }`
 
@@ -115,18 +116,18 @@ func (s *GroupsTestSuite) TestListGroups() {
 	g2, err := CreateGroup(gd)
 	assert.Nil(s.T(), err)
 
-	groups, err := ListGroups("test-list-groups")
+	groupList, err := ListGroups("test-list-groups")
 	assert.Nil(s.T(), err)
-	assert.Len(s.T(), groups, 2+startingCount)
+	assert.Len(s.T(), groupList.Groups, 2+startingCount)
 
 	err = CleanDatabase(g1)
 	assert.Nil(s.T(), err)
 	err = CleanDatabase(g2)
 	assert.Nil(s.T(), err)
 
-	groups, err = ListGroups("test-list-groups")
+	groupList, err = ListGroups("test-list-groups")
 	assert.Nil(s.T(), err)
-	assert.Len(s.T(), groups, startingCount)
+	assert.Len(s.T(), groupList.Groups, startingCount)
 }
 
 func (s *GroupsTestSuite) TestUpdateGroup() {
@@ -179,9 +180,9 @@ func (s *GroupsTestSuite) TestDeleteGroup() {
 }
 
 func (s *GroupsTestSuite) TestGetAuthorizedGroupsForOktaID() {
-	group1bytes := []byte(`{"group_id":"T0001","users":["abcdef","qrstuv"],"scopes":[],"resources":[],"system":{},"name":""}`)
-	group2bytes := []byte(`{"group_id":"T0002","users":["abcdef","qrstuv"],"scopes":[],"resources":[],"system":{},"name":""}`)
-	group3bytes := []byte(`{"group_id":"T0003","users":["qrstuv"],"scopes":[],"resources":[],"system":{},"name":""}`)
+	group1bytes := []byte(`{"group_id":"T0001","users":["abcdef","qrstuv"],"scopes":[],"resources":[],"systems":[],"name":""}`)
+	group2bytes := []byte(`{"group_id":"T0002","users":["abcdef","qrstuv"],"scopes":[],"resources":[],"systems":[],"name":""}`)
+	group3bytes := []byte(`{"group_id":"T0003","users":["qrstuv"],"scopes":[],"resources":[],"systems":[],"name":""}`)
 
 	g1 := GroupData{}
 	err := json.Unmarshal(group1bytes, &g1)
