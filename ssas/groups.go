@@ -19,24 +19,24 @@ type Group struct {
 }
 
 type SystemSummary struct {
-	ID			uint		`json:"id"`
-	ClientName	string		`json:"client_name"`
-	ClientID	string		`json:"client_id"`
-	UpdatedAt	time.Time	`json:"updated_at"`
+	ID         uint      `json:"id"`
+	ClientName string    `json:"client_name"`
+	ClientID   string    `json:"client_id"`
+	UpdatedAt  time.Time `json:"updated_at"`
 }
 
 type GroupSummary struct {
-	ID			uint		`json:"id"`
-	GroupID		string		`json:"group_id"`
-	XData		string		`json:"xdata"`
-	CreatedAt	time.Time	`json:"created_at"`
-	Systems		[]SystemSummary	`json:"systems"`
+	ID        uint            `json:"id"`
+	GroupID   string          `json:"group_id"`
+	XData     string          `json:"xdata"`
+	CreatedAt time.Time       `json:"created_at"`
+	Systems   []SystemSummary `json:"systems"`
 }
 
 type GroupList struct {
-	Count 		int				`json:"count"`
-	ReportedAt	time.Time		`json:"reported_at"`
-	Groups		[]GroupSummary	`json:"groups"`
+	Count      int            `json:"count"`
+	ReportedAt time.Time      `json:"reported_at"`
+	Groups     []GroupSummary `json:"groups"`
 }
 
 func CreateGroup(gd GroupData) (Group, error) {
@@ -75,7 +75,7 @@ func CreateGroup(gd GroupData) (Group, error) {
 	return g, nil
 }
 
-func ListGroups(trackingID string) (list GroupList, err error)  {
+func ListGroups(trackingID string) (list GroupList, err error) {
 	event := Event{Op: "ListGroups", TrackingID: trackingID}
 	OperationStarted(event)
 
@@ -99,7 +99,7 @@ func ListGroups(trackingID string) (list GroupList, err error)  {
 		gs.CreatedAt = group.CreatedAt
 
 		var systems []System
-		systems, err = GetSystemsByGroupID(group.GroupID)
+		systems, err = GetSystemsByGroupID(group.ID)
 		if err != nil {
 			return
 		}
@@ -252,7 +252,7 @@ type GroupData struct {
 
 // Value implements the driver.Value interface for GroupData.
 func (gd GroupData) Value() (driver.Value, error) {
-	systems, _ := GetSystemsByGroupID(gd.GroupID)
+	systems, _ := GetSystemsByGroupIDString(gd.GroupID)
 
 	gd.Systems = systems
 
@@ -269,7 +269,7 @@ func (gd *GroupData) Scan(value interface{}) error {
 	if err := json.Unmarshal(b, &gd); err != nil {
 		return err
 	}
-	systems, _ := GetSystemsByGroupID(gd.GroupID)
+	systems, _ := GetSystemsByGroupIDString(gd.GroupID)
 
 	gd.Systems = systems
 
@@ -300,9 +300,9 @@ func GetGroupByGroupID(groupID string) (Group, error) {
 // GetGroupByID returns the group associated with the provided ID
 func GetGroupByID(id string) (Group, error) {
 	var (
-		db     = GetGORMDbConnection()
+		db    = GetGORMDbConnection()
 		group Group
-		err    error
+		err   error
 	)
 	defer Close(db)
 

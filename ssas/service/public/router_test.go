@@ -41,7 +41,7 @@ func (s *PublicRouterTestSuite) SetupSuite() {
 	if err != nil {
 		s.FailNow("unable to create group: " + err.Error())
 	}
-	s.system = ssas.System{GroupID: s.group.GroupID, ClientID: "abcd1234"}
+	s.system = ssas.System{GID: s.group.ID, GroupID: s.group.GroupID, ClientID: "abcd1234"}
 	if err := s.db.Create(&s.system).Error; err != nil {
 		s.FailNow("unable to create system: " + err.Error())
 	}

@@ -48,7 +48,7 @@ func InitializeSystemModels() *gorm.DB {
 	db := GetGORMDbConnection()
 	defer Close(db)
 
-	db.Model(&System{}).AddForeignKey("group_id", "groups(group_id)", "RESTRICT", "RESTRICT")
+	db.Model(&System{}).AddForeignKey("g_id", "groups(id)", "RESTRICT", "RESTRICT")
 	db.Model(&EncryptionKey{}).AddForeignKey("system_id", "systems(id)", "RESTRICT", "RESTRICT")
 	db.Model(&Secret{}).AddForeignKey("system_id", "systems(id)", "RESTRICT", "RESTRICT")
 
@@ -57,8 +57,9 @@ func InitializeSystemModels() *gorm.DB {
 
 type System struct {
 	gorm.Model
+	GID            uint            `json:"g_id"`
 	GroupID        string          `json:"group_id"`
-	ClientID       string          `json:"client_id" gorm:"unique_index:idx_client"`
+	ClientID       string          `json:"client_id"`
 	SoftwareID     string          `json:"software_id"`
 	ClientName     string          `json:"client_name"`
 	APIScope       string          `json:"api_scope"`
@@ -330,7 +331,15 @@ func RegisterSystem(clientName string, groupID string, scope string, publicKeyPE
 		return creds, errors.New("error in public key")
 	}
 
+	group, err := GetGroupByGroupID(groupID)
+	if err != nil {
+		regEvent.Help = "unable to find group with id " + groupID
+		OperationFailed(regEvent)
+		return creds, errors.New("no group found")
+	}
+
 	system := System{
+		GID:        group.ID,
 		GroupID:    groupID,
 		ClientID:   clientID,
 		ClientName: clientName,
@@ -406,7 +415,7 @@ func RegisterSystem(clientName string, groupID string, scope string, publicKeyPE
 
 // DataForSystem returns the group extra data associated with this system
 func XDataFor(system System) (string, error) {
-	group, err := GetGroupByGroupID(system.GroupID)
+	group, err := GetGroupByID(strconv.Itoa(int(system.GID)))
 	if err != nil {
 		return "", fmt.Errorf("no group for system %d; %s", system.ID, err)
 	}
@@ -415,8 +424,8 @@ func XDataFor(system System) (string, error) {
 	return group.XData, nil
 }
 
-//	GetSystemsByGroupID returns the systems associated with the provided group_id
-func GetSystemsByGroupID(groupId string) ([]System, error) {
+//	GetSystemsByGroupID returns the systems associated with the provided groups.id
+func GetSystemsByGroupID(groupId uint) ([]System, error) {
 	var (
 		db      = GetGORMDbConnection()
 		systems []System
@@ -424,7 +433,22 @@ func GetSystemsByGroupID(groupId string) ([]System, error) {
 	)
 	defer Close(db)
 
-	if err = db.Where("group_id = ?", groupId).Find(&systems).Error; err != nil {
+	if err = db.Where("g_id = ?", groupId).Find(&systems).Error; err != nil {
+		err = fmt.Errorf("no Systems found with g_id %d", groupId)
+	}
+	return systems, err
+}
+
+//	GetSystemsByGroupIDString returns the systems associated with the provided groups.group_id
+func GetSystemsByGroupIDString(groupId string) ([]System, error) {
+	var (
+		db      = GetGORMDbConnection()
+		systems []System
+		err     error
+	)
+	defer Close(db)
+
+	if err = db.Where("group_id = ? AND deleted_at IS NULL", groupId).Find(&systems).Error; err != nil {
 		err = fmt.Errorf("no Systems found with group_id %s", groupId)
 	}
 	return systems, err
@@ -529,13 +553,14 @@ func CleanDatabase(group Group) error {
 		return fmt.Errorf("invalid group.ID")
 	}
 
-	foundGroup := Group{GroupID: group.GroupID}
+	foundGroup := Group{}
+	foundGroup.ID = group.ID
 	err := db.Unscoped().Find(&foundGroup).Error
 	if err != nil {
-		return fmt.Errorf("unable to find group %s: %s", group.GroupID, err.Error())
+		return fmt.Errorf("unable to find group %d: %s", group.ID, err.Error())
 	}
 
-	err = db.Table("systems").Where("group_id = ?", group.GroupID).Pluck("ID", &systemIds).Error
+	err = db.Table("systems").Where("g_id = ?", group.ID).Pluck("ID", &systemIds).Error
 	if err != nil {
 		Logger.Errorf("unable to find associated systems: %s", err.Error())
 	} else {

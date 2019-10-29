@@ -138,7 +138,7 @@ func (s *RouterTestSuite) TestDeactivateSystemCredentials() {
 	defer db.Close()
 	group := ssas.Group{GroupID: "delete-system-credentials-test-group"}
 	db.Create(&group)
-	system := ssas.System{GroupID: group.GroupID, ClientID: "delete-system-credentials-test-system"}
+	system := ssas.System{GID: group.ID, ClientID: "delete-system-credentials-test-system"}
 	db.Create(&system)
 	systemID := strconv.FormatUint(uint64(system.ID), 10)
 
@@ -158,7 +158,7 @@ func (s *RouterTestSuite) TestPutSystemCredentials() {
 	defer db.Close()
 	group := ssas.Group{GroupID: "put-system-credentials-test-group"}
 	db.Create(&group)
-	system := ssas.System{GroupID: group.GroupID, ClientID: "put-system-credentials-test-system"}
+	system := ssas.System{GID: group.ID, ClientID: "put-system-credentials-test-system"}
 	db.Create(&system)
 	systemID := strconv.FormatUint(uint64(system.ID), 10)
 

@@ -43,7 +43,7 @@ func (s *SystemsTestSuite) TestRevokeSystemKeyPair() {
 
 	group := Group{GroupID: "A00001"}
 	s.db.Save(&group)
-	system := System{GroupID: group.GroupID, ClientID: "test-revoke-system-key-pair-client"}
+	system := System{GID: group.ID, ClientID: "test-revoke-system-key-pair-client"}
 
 	err := system.RevokeSystemKeyPair()
 	assert.NotNil(err)
@@ -71,7 +71,7 @@ func (s *SystemsTestSuite) TestGenerateSystemKeyPair() {
 		s.FailNow(err.Error())
 	}
 
-	system := System{GroupID: group.GroupID}
+	system := System{GID: group.ID}
 	err = s.db.Create(&system).Error
 	if err != nil {
 		s.FailNow(err.Error())
@@ -115,7 +115,7 @@ func (s *SystemsTestSuite) TestGenerateSystemKeyPair_AlreadyExists() {
 		s.FailNow(err.Error())
 	}
 
-	system := System{GroupID: group.GroupID}
+	system := System{GID: group.ID}
 	err = s.db.Create(&system).Error
 	if err != nil {
 		s.FailNow(err.Error())
@@ -145,7 +145,7 @@ func (s *SystemsTestSuite) TestGetEncryptionKey() {
 		s.FailNow(err.Error())
 	}
 
-	system := System{GroupID: group.GroupID}
+	system := System{GID: group.ID}
 	err = s.db.Create(&system).Error
 	if err != nil {
 		s.FailNow(err.Error())
@@ -187,7 +187,7 @@ func (s *SystemsTestSuite) TestSystemSavePublicKey() {
 	group := Group{GroupID: groupID}
 	err := s.db.Create(&group).Error
 	assert.Nil(err)
-	system := System{ClientID: clientID, GroupID: groupID}
+	system := System{ClientID: clientID, GID: group.ID}
 	err = s.db.Create(&system).Error
 	assert.Nil(err)
 
@@ -228,7 +228,7 @@ func (s *SystemsTestSuite) TestSystemSavePublicKeyInvalidKey() {
 	group := Group{GroupID: groupID}
 	err := s.db.Create(&group).Error
 	assert.Nil(err)
-	system := System{ClientID: clientID, GroupID: groupID}
+	system := System{ClientID: clientID, GID: group.ID}
 	err = s.db.Create(&system).Error
 	assert.Nil(err)
 
@@ -279,7 +279,7 @@ func (s *SystemsTestSuite) TestSystemPublicKeyEmpty() {
 	group := Group{GroupID: groupID}
 	err := s.db.Create(&group).Error
 	assert.Nil(err)
-	system := System{ClientID: clientID, GroupID: groupID}
+	system := System{ClientID: clientID, GID: group.ID}
 	err = s.db.Create(&system).Error
 	assert.Nil(err)
 
@@ -313,7 +313,7 @@ func (s *SystemsTestSuite) TestEncryptionKeyModel() {
 	group := Group{GroupID: "A00000"}
 	s.db.Save(&group)
 
-	system := System{GroupID: "A00000"}
+	system := System{GID: group.ID}
 	s.db.Save(&system)
 
 	systemIDStr := strconv.FormatUint(uint64(system.ID), 10)
@@ -338,7 +338,7 @@ func (s *SystemsTestSuite) TestGetSystemByClientIDSuccess() {
 		s.FailNow(err.Error())
 	}
 
-	system := System{GroupID: group.GroupID, ClientID: "987654zyxwvu", ClientName: "Client with System"}
+	system := System{GID: group.ID, ClientID: "987654zyxwvu", ClientName: "Client with System"}
 	err = s.db.Create(&system).Error
 	if err != nil {
 		s.FailNow(err.Error())
@@ -368,13 +368,13 @@ func (s *SystemsTestSuite) TestSystemClientGroupDuplicate() {
 		s.FailNow(err.Error())
 	}
 
-	system := System{GroupID: group1.GroupID, ClientID: "498765uzyxwv", ClientName: "First Client"}
+	system := System{GID: group1.ID, ClientID: "498765uzyxwv", ClientName: "First Client"}
 	err = s.db.Create(&system).Error
 	if err != nil {
 		s.FailNow(err.Error())
 	}
 
-	system = System{GroupID: group2.GroupID, ClientID: "498765uzyxwv", ClientName: "Duplicate Client"}
+	system = System{GID: group2.ID, ClientID: "498765uzyxwv", ClientName: "Duplicate Client"}
 	err = s.db.Create(&system).Error
 	assert.EqualError(err, "pq: duplicate key value violates unique constraint \"idx_client\"")
 
@@ -492,7 +492,7 @@ func (s *SystemsTestSuite) TestSaveSecret() {
 		s.FailNow(err.Error())
 	}
 
-	system := System{GroupID: group.GroupID, ClientID: "test-save-secret-client"}
+	system := System{GID: group.ID, ClientID: "test-save-secret-client"}
 	err = s.db.Create(&system).Error
 	if err != nil {
 		s.FailNow(err.Error())
@@ -543,7 +543,7 @@ func (s *SystemsTestSuite) TestSaveSecret() {
 func (s *SystemsTestSuite) TestDeactivateSecrets() {
 	group := Group{GroupID: "test-deactivate-secrets-group"}
 	s.db.Create(&group)
-	system := System{GroupID: group.GroupID, ClientID: "test-deactivate-secrets-client"}
+	system := System{GID: group.ID, ClientID: "test-deactivate-secrets-client"}
 	s.db.Create(&system)
 	secret := Secret{Hash: "test-deactivate-secrets-hash", SystemID: system.ID}
 	s.db.Create(&secret)
@@ -563,7 +563,7 @@ func (s *SystemsTestSuite) TestDeactivateSecrets() {
 func (s *SystemsTestSuite) TestResetSecret() {
 	group := Group{GroupID: "group-12345"}
 	s.db.Create(&group)
-	system := System{GroupID: group.GroupID, ClientID: "client-12345"}
+	system := System{GID: group.ID, ClientID: "client-12345"}
 	s.db.Create(&system)
 	secret := Secret{Hash: "foo", SystemID: system.ID}
 	s.db.Create(&secret)
@@ -616,7 +616,7 @@ func makeTestSystem(db *gorm.DB) (Group, System, error) {
 	if err := db.Save(&group).Error; err != nil {
 		return Group{}, System{}, err
 	}
-	system := System{GroupID: group.GroupID, ClientID: "system-for-test-group-" + groupID}
+	system := System{GID: group.ID, GroupID: groupID, ClientID: "system-for-test-group-" + groupID}
 	if err := db.Save(&system).Error; err != nil {
 		return Group{}, System{}, err
 	}
@@ -630,7 +630,7 @@ func (s *SystemsTestSuite) TestGetSystemByIDWithKnownSystem() {
 	systemFromID, err := GetSystemByID(fmt.Sprint(system.ID))
 	assert.Nil(s.T(), err, "unexpected error ", err)
 	assert.Equal(s.T(), system.ID, systemFromID.ID)
-	assert.Equal(s.T(), system.GroupID, systemFromID.GroupID)
+	assert.Equal(s.T(), system.GID, systemFromID.GID)
 	_ = CleanDatabase(g)
 }
 
@@ -667,18 +667,21 @@ func (s *SystemsTestSuite) TestGetSystemByClientIDWithNonNumberID() {
 	require.NotNil(s.T(), err, "found system for non-number id")
 }
 
-func (s *SystemsTestSuite) TestGetSystemsByGroupIDWithEmptyID() {
-	systems, _ := GetSystemsByGroupID("")
+func (s *SystemsTestSuite) TestGetSystemsByGroupIDWithZeroID() {
+	systems, _ := GetSystemsByGroupID(0)
 	assert.Empty(s.T(), systems, "found system for empty group id")
 }
 
 func (s *SystemsTestSuite) TestGetSystemsByGroupIDWithNonexistentID() {
+	var badGroupID uint
+
 	// make sure there's at least one system
 	g, _, err := makeTestSystem(s.db)
 	assert.Nil(s.T(), err, "can't make test system")
-	randomGroupID := RandomHexID()[:4]
-	systems, _ := GetSystemsByGroupID(randomGroupID)
-	assert.Empty(s.T(), systems, "should not have found system for ID: " + randomGroupID)
+
+	badGroupID = 99999
+	systems, _ := GetSystemsByGroupID(badGroupID)
+	assert.Empty(s.T(), systems, fmt.Sprintf("should not have found system for ID %d", badGroupID))
 	_ = CleanDatabase(g)
 }
 
@@ -686,7 +689,7 @@ func (s *SystemsTestSuite) TestGetSystemsByGroupIDWithKnownSystem() {
 	g, system, err := makeTestSystem(s.db)
 
 	require.Nil(s.T(), err, "unexpected error ", err)
-	systemsFromGroupID, err := GetSystemsByGroupID(g.GroupID)
+	systemsFromGroupID, err := GetSystemsByGroupID(g.ID)
 	assert.Nil(s.T(), err, "unexpected error ", err)
 
 	assert.Len(s.T(), systemsFromGroupID, 1, "should find exactly one system")
@@ -695,7 +698,7 @@ func (s *SystemsTestSuite) TestGetSystemsByGroupIDWithKnownSystem() {
 	// assertions unless the previous one was true.
 	if len(systemsFromGroupID) == 1 {
 		assert.Equal(s.T(), system.ID, systemsFromGroupID[0].ID)
-		assert.Equal(s.T(), system.GroupID, systemsFromGroupID[0].GroupID)
+		assert.Equal(s.T(), system.GID, systemsFromGroupID[0].GID)
 	}
 
 	_ = CleanDatabase(g)

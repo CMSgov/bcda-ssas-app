@@ -160,7 +160,7 @@ func (s *GroupsTestSuite) TestDeleteGroup() {
 	err := s.db.Create(&group).Error
 	require.Nil(s.T(), err, "unexpected error")
 
-	system := System{GroupID: group.GroupID, ClientID: "groups-test-delete-client-id"}
+	system := System{GID: group.ID, ClientID: "groups-test-delete-client-id"}
 	err = s.db.Create(&system).Error
 	require.Nil(s.T(), err, "unexpected error")
 
