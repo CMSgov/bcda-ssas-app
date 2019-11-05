@@ -75,7 +75,7 @@ func (s *ServerTestSuite) TestGetVersion() {
 
 	assert.Equal(s.T(), http.StatusOK, rr.Result().StatusCode)
 	b, _ := ioutil.ReadAll(rr.Result().Body)
-	assert.Contains(s.T(), string(b), "9.99.999")
+	assert.Contains(s.T(), string(b), `{"version":"9.99.999"}`)
 }
 
 func (s *ServerTestSuite) TestGetHealthCheck() {

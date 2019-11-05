@@ -26,7 +26,7 @@ fi
 cd ../ssas
 go clean
 echo "Building ssas..."
-go build -o ssas ./service/main
+go build -ldflags "-X github.com/CMSgov/bcda-ssas-app/ssas/constants.Version=$VERSION" -o ssas ./service/main
 echo "Packaging ssas binary into RPM..."
 fpm -v $VERSION -s dir -t rpm -n ssas ssas=/usr/local/bin/ssas
 
