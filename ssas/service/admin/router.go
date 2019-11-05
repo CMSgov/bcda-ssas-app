@@ -7,10 +7,10 @@ import (
 
 	"github.com/go-chi/chi"
 
+	"github.com/CMSgov/bcda-ssas-app/ssas/constants"
 	"github.com/CMSgov/bcda-ssas-app/ssas/service"
 )
 
-var version = "latest"
 var infoMap map[string][]string
 var adminSigningKeyPath string
 var server *service.Server
@@ -23,7 +23,7 @@ func init() {
 // Server creates an SSAS admin server
 func Server() *service.Server {
 	unsafeMode := os.Getenv("HTTP_ONLY") == "true"
-	server = service.NewServer("admin", ":3004", version, infoMap, routes(), unsafeMode, adminSigningKeyPath, 20*time.Minute)
+	server = service.NewServer("admin", ":3004", constants.Version, infoMap, routes(), unsafeMode, adminSigningKeyPath, 20*time.Minute)
 	if server != nil {
 		r, _ := server.ListRoutes()
 		infoMap["banner"] = []string{fmt.Sprintf("%s server running on port %s", "admin", ":3004")}

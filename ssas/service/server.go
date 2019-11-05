@@ -126,7 +126,7 @@ func (s *Server) getInfo(w http.ResponseWriter, r *http.Request) {
 func (s *Server) getVersion(w http.ResponseWriter, r *http.Request) {
 	respMap := make(map[string]string)
 	respMap["version"] = fmt.Sprintf("%v", s.version)
-	render.JSON(w, r, s.version)
+	render.JSON(w, r, respMap)
 }
 
 func (s *Server) getHealthCheck(w http.ResponseWriter, r *http.Request) {
