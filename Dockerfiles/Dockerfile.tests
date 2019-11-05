@@ -6,6 +6,7 @@ RUN go get -u github.com/xo/usql
 RUN go get -u github.com/securego/gosec/cmd/gosec
 RUN go get -u gotest.tools/gotestsum
 RUN go get -u github.com/tsenart/vegeta
+RUN go get -tags 'postgres' -u github.com/golang-migrate/migrate/cmd/migrate
 
 WORKDIR /go/src/github.com/CMSgov/bcda-ssas-app
 COPY . .
@@ -13,12 +14,6 @@ COPY . .
 RUN dep ensure
 
 RUN apt-get update
-RUN apt-get install apt-transport-https ca-certificates libunwind8 icu-devtools python-pip -y
-
-RUN curl -L https://packagecloud.io/golang-migrate/migrate/gpgkey | apt-key add -
-RUN echo "deb https://packagecloud.io/golang-migrate/migrate/debian/ stretch main" > /etc/apt/sources.list.d/migrate.list
-RUN apt-get update
-RUN apt-get install migrate -y
 
 WORKDIR /go/src/github.com/CMSgov/bcda-ssas-app
 ENTRYPOINT []
