@@ -43,8 +43,7 @@ test:
 	$(MAKE) migrations-test
 
 load-fixtures:
-	docker pull migrate/migrate
-	docker run --rm --network=bcda-ssas-app_default -v ${PWD}:/go/src/github.com/CMSgov/bcda-ssas-app migrate/migrate -database "postgres://postgres:toor@db:5432/bcda?sslmode=disable" -path /go/src/github.com/CMSgov/bcda-ssas-app/db/migrations up
+	docker-compose -f docker-compose.migrate.yml run --rm migrate  -database "postgres://postgres:toor@db:5432/bcda?sslmode=disable" -path /go/src/github.com/CMSgov/bcda-ssas-app/db/migrations up
 	docker-compose -f docker-compose.yml run ssas sh -c 'tmp/ssas-service --add-fixture-data'
 
 docker-build:
