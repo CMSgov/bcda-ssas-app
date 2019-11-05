@@ -8,10 +8,10 @@ import (
 	"github.com/go-chi/chi"
 
 	"github.com/CMSgov/bcda-ssas-app/ssas"
+        "github.com/CMSgov/bcda-ssas-app/ssas/constants"
 	"github.com/CMSgov/bcda-ssas-app/ssas/service"
 )
 
-var version = "latest"
 var infoMap map[string][]string
 var publicSigningKeyPath string
 var server *service.Server
@@ -24,7 +24,7 @@ func init() {
 
 func Server() (*service.Server) {
 	unsafeMode := os.Getenv("HTTP_ONLY") == "true"
-	server = service.NewServer("public", ":3003", version, infoMap, routes(), unsafeMode, publicSigningKeyPath, 20 * time.Minute)
+	server = service.NewServer("public", ":3003", constants.Version, infoMap, routes(), unsafeMode, publicSigningKeyPath, 20 * time.Minute)
 	if server != nil {
 		r, _ := server.ListRoutes()
 		infoMap["banner"] = []string{fmt.Sprintf("%s server running on port %s", "public", ":3003")}
