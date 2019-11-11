@@ -293,9 +293,8 @@ func RegisterSystem(clientName string, groupID string, scope string, publicKeyPE
 	db := GetGORMDbConnection()
 	defer Close(db)
 
-	// A system is not valid without an active public key and a hashed secret.  However, they are stored separately in the
-	// encryption_keys and secrets tables, requiring multiple INSERT statement.  To ensure we do not get into an invalid state,
-	// wrap the two INSERT statements in a transaction.
+	// The public key and hashed secret are stored separately in the encryption_keys and secrets tables, requiring
+	// multiple INSERT statements.  To ensure we do not get into an invalid state, wrap the two INSERT statements in a transaction.
 	tx := db.Begin()
 	defer func() {
 		if r := recover(); r != nil {
@@ -324,13 +323,6 @@ func RegisterSystem(clientName string, groupID string, scope string, publicKeyPE
 		return creds, errors.New(regEvent.Help)
 	}
 
-	_, err := ReadPublicKey(publicKeyPEM)
-	if err != nil {
-		regEvent.Help = "error in public key: " + err.Error()
-		OperationFailed(regEvent)
-		return creds, errors.New("error in public key")
-	}
-
 	group, err := GetGroupByGroupID(groupID)
 	if err != nil {
 		regEvent.Help = "unable to find group with id " + groupID
@@ -355,24 +347,37 @@ func RegisterSystem(clientName string, groupID string, scope string, publicKeyPE
 		return creds, errors.New("internal system error")
 	}
 
-	encryptionKey := EncryptionKey{
-		Body:     publicKeyPEM,
-		SystemID: system.ID,
-	}
+	// The public key is optional
+	if publicKeyPEM != "" {
+		_, err = ReadPublicKey(publicKeyPEM)
+		if err != nil {
+			regEvent.Help = "error in public key: " + err.Error()
+			OperationFailed(regEvent)
+			tx.Rollback()
+			return creds, errors.New("error in public key")
+		}
 
-	// While the createEncryptionKey method below _could_ be called here (and system.SaveSecret() below),
-	// we would lose the benefit of the transaction.
-	err = tx.Create(&encryptionKey).Error
-	if err != nil {
-		regEvent.Help = fmt.Sprintf("could not save public key for clientID %s, groupID %s: %s", clientID, groupID, err.Error())
-		OperationFailed(regEvent)
-		return creds, errors.New("internal system error")
+		encryptionKey := EncryptionKey{
+			Body:     publicKeyPEM,
+			SystemID: system.ID,
+		}
+
+		// While the createEncryptionKey method below _could_ be called here (and system.SaveSecret() below),
+		// we would lose the benefit of the transaction.
+		err = tx.Create(&encryptionKey).Error
+		if err != nil {
+			regEvent.Help = fmt.Sprintf("could not save public key for clientID %s, groupID %s: %s", clientID, groupID, err.Error())
+			OperationFailed(regEvent)
+			tx.Rollback()
+			return creds, errors.New("internal system error")
+		}
 	}
 
 	clientSecret, err := GenerateSecret()
 	if err != nil {
 		regEvent.Help = fmt.Sprintf("cannot generate secret for clientID %s: %s", system.ClientID, err.Error())
 		OperationFailed(regEvent)
+		tx.Rollback()
 		return creds, errors.New("internal system error")
 	}
 
@@ -380,6 +385,7 @@ func RegisterSystem(clientName string, groupID string, scope string, publicKeyPE
 	if err != nil {
 		regEvent.Help = fmt.Sprintf("cannot generate hash of secret for clientID %s: %s", system.ClientID, err.Error())
 		OperationFailed(regEvent)
+		tx.Rollback()
 		return creds, errors.New("internal system error")
 	}
 
@@ -392,6 +398,7 @@ func RegisterSystem(clientName string, groupID string, scope string, publicKeyPE
 	if err != nil {
 		regEvent.Help = fmt.Sprintf("cannot save secret for clientID %s: %s", system.ClientID, err.Error())
 		OperationFailed(regEvent)
+		tx.Rollback()
 		return creds, errors.New("internal system error")
 	}
 	SecretCreated(regEvent)

@@ -248,6 +248,52 @@ func (s *APITestSuite) TestCreateSystem() {
 	assert.Nil(s.T(), err)
 }
 
+func (s *APITestSuite) TestCreateSystemEmptyKey() {
+	group := ssas.Group{GroupID: "test-group-id"}
+	err := s.db.Save(&group).Error
+	if err != nil {
+		s.FailNow("Error creating test data", err.Error())
+	}
+
+	req := httptest.NewRequest("POST", "/auth/system", strings.NewReader(`{"client_name": "Test Client", "group_id": "test-group-id", "scope": "bcda-api", "public_key": "", "tracking_id": "T00000"}`))
+	handler := http.HandlerFunc(createSystem)
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+	assert.Equal(s.T(), http.StatusCreated, rr.Result().StatusCode)
+	assert.Equal(s.T(), "application/json", rr.Result().Header.Get("Content-Type"))
+	var result map[string]interface{}
+	_ = json.Unmarshal(rr.Body.Bytes(), &result)
+	assert.NotEmpty(s.T(), result["client_id"])
+	assert.NotEmpty(s.T(), result["client_secret"])
+	assert.Equal(s.T(), "Test Client", result["client_name"])
+
+	err = ssas.CleanDatabase(group)
+	assert.Nil(s.T(), err)
+}
+
+func (s *APITestSuite) TestCreateSystemNoKey() {
+	group := ssas.Group{GroupID: "test-group-id"}
+	err := s.db.Save(&group).Error
+	if err != nil {
+		s.FailNow("Error creating test data", err.Error())
+	}
+
+	req := httptest.NewRequest("POST", "/auth/system", strings.NewReader(`{"client_name": "Test Client", "group_id": "test-group-id", "scope": "bcda-api", "tracking_id": "T00000"}`))
+	handler := http.HandlerFunc(createSystem)
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+	assert.Equal(s.T(), http.StatusCreated, rr.Result().StatusCode)
+	assert.Equal(s.T(), "application/json", rr.Result().Header.Get("Content-Type"))
+	var result map[string]interface{}
+	_ = json.Unmarshal(rr.Body.Bytes(), &result)
+	assert.NotEmpty(s.T(), result["client_id"])
+	assert.NotEmpty(s.T(), result["client_secret"])
+	assert.Equal(s.T(), "Test Client", result["client_name"])
+
+	err = ssas.CleanDatabase(group)
+	assert.Nil(s.T(), err)
+}
+
 func (s *APITestSuite) TestCreateSystem_InvalidRequest() {
 	req := httptest.NewRequest("POST", "/auth/system", strings.NewReader("{ badJSON }"))
 	handler := http.HandlerFunc(createSystem)

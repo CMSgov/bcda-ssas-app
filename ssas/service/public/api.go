@@ -336,6 +336,7 @@ func RegisterSystem(w http.ResponseWriter, r *http.Request) {
 		err            error
 		reg            RegistrationRequest
 		publicKeyBytes []byte
+		publicKeyPEM   string
 		trackingID     string
 	)
 
@@ -362,21 +363,23 @@ func RegisterSystem(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if reg.JSONWebKeys.Keys == nil || len(reg.JSONWebKeys.Keys) > 1 {
-		jsonError(w, "invalid_client_metadata", "Exactly one JWK must be presented")
-		return
-	}
+	if reg.JSONWebKeys.Keys != nil {
+		if len(reg.JSONWebKeys.Keys) > 1 {
+			jsonError(w, "invalid_client_metadata", "Exactly one JWK must be presented")
+			return
+		}
 
-	publicKeyBytes, err = json.Marshal(reg.JSONWebKeys.Keys[0])
-	if err != nil {
-		jsonError(w, "invalid_client_metadata", "Unable to read JWK")
-		return
-	}
+		publicKeyBytes, err = json.Marshal(reg.JSONWebKeys.Keys[0])
+		if err != nil {
+			jsonError(w, "invalid_client_metadata", "Unable to read JWK")
+			return
+		}
 
-	publicKeyPEM, err := ssas.ConvertJWKToPEM(string(publicKeyBytes))
-	if err != nil {
-		jsonError(w, "invalid_client_metadata", "Unable to process JWK")
-		return
+		publicKeyPEM, err = ssas.ConvertJWKToPEM(string(publicKeyBytes))
+		if err != nil {
+			jsonError(w, "invalid_client_metadata", "Unable to process JWK")
+			return
+		}
 	}
 
 	// Log the source of the call for this operation.  Remaining logging will be in ssas.RegisterSystem() below.
