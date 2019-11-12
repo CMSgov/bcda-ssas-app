@@ -50,12 +50,8 @@ pipeline {
     stage('Build and Package') {
      steps {
         build job: 'BCDA - Build and Package',
-        /*
-          This will be enabled as part of BCDA-2018.  Until then, a parameter for SSAS_GIT_VERSION does not exist.
+        // Since this is being triggered by a code delivery to SSAS repo, it should always be built with BCDA master
         parameters: [string(string(name: 'SSAS_GIT_VERSION', value: "${env.BRANCH_NAME}"), name: 'BCDA_GIT_VERSION', value: "master"),  string(name: 'DEPLOY', value: "${DEPLOY}")],
-        */
-        // Since this is being triggered by a delivery to SSAS repo, it should always be built with BCDA master
-        parameters: [string(name: 'BCDA_GIT_VERSION', value: "master"), string(name: 'DEPLOY', value: "${DEPLOY}")],
         wait: true,
         propagate: true
      }
