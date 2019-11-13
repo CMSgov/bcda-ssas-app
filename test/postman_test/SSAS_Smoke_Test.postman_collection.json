@@ -1,6 +1,6 @@
 {
 	"info": {
-		"_postman_id": "dee5abdb-c9d0-476b-9fe7-f4907c710d11",
+		"_postman_id": "5448aa97-6ff1-405b-982b-9600e949ffcb",
 		"name": "SSAS Smoke Test",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
 	},
@@ -549,89 +549,90 @@
 			},
 			"response": []
 		},
-	  {
-		"name": "list group (present)",
-		"event": [
-		  {
-			"listen": "test",
-			"script": {
-			  "id": "f4740e30-67e2-4ec7-bfae-9d44f7aa84fc",
-			  "exec": [
-				"var schema = {",
-				"    \"properties\": {",
-				"        \"count\": { \"type\": \"integer\" },",
-				"        \"groups\": {",
-				"            \"type\": \"array\", \"items\": {",
-				"                \"properties\": {",
-				"                    \"id\": { \"type\": \"integer\" },                                ",
-				"                    \"group_id\": { \"type\": \"string\" },",
-				"                    \"xdata\": { \"type\": \"string\" },",
-				"                    \"systems\": {",
-				"                        \"type\": \"array\", \"items\": {",
-				"                            \"properties\": {",
-				"                                \"id\": { \"type\": \"integer\" },                                ",
-				"                                \"client_name\": { \"type\": \"string\" },",
-				"                                \"client_id\": { \"type\": \"string\" }",
-				"                            }",
-				"                        }",
-				"                    }",
-				"                }",
-				"            }",
-				"        }",
-				"    }",
-				"};",
-				"var Ajv = require('ajv');",
-				"var ajv = new Ajv({schemas: [schema]});",
-				"",
-				"pm.test(\"Response is 'ok'\", function () {",
-				"    pm.response.to.have.status(200);",
-				"});",
-				"",
-				"pm.test('Schema is valid', function() {",
-				"    pm.expect(ajv.validate(schema, pm.response.text())).to.be.true;",
-				"});",
-				"",
-				"pm.test(\"Response includes Group.group_id\", function() {",
-				"    pm.expect(pm.response.text()).to.include(pm.environment.get(\"group.group_id\"));",
-				"});",
-				"",
-				""
-			  ],
-			  "type": "text/javascript"
-			}
-		  }
-		],
-		"request": {
-		  "auth": {
-			"type": "basic",
-			"basic": [
-			  {
-				"key": "password",
-				"value": "{{adminClientSecret}}",
-				"type": "string"
-			  },
-			  {
-				"key": "username",
-				"value": "{{adminClientId}}",
-				"type": "string"
-			  }
-			]
-		  },
-		  "method": "GET",
-		  "header": [],
-		  "url": {
-			"raw": "{{scheme}}://{{host}}:{{admin-port}}/group",
-			"protocol": "{{scheme}}",
-			"host": [
-			  "{{host}}"
-					],			"port": "{{admin-port}}",
-			"path": [
-			  "group"
-			]
-		  }
+		{
+			"name": "list group (present)",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"id": "f4740e30-67e2-4ec7-bfae-9d44f7aa84fc",
+						"exec": [
+							"var schema = {",
+							"    \"properties\": {",
+							"        \"count\": { \"type\": \"integer\" },",
+							"        \"groups\": {",
+							"            \"type\": \"array\", \"items\": {",
+							"                \"properties\": {",
+							"                    \"id\": { \"type\": \"integer\" },                                ",
+							"                    \"group_id\": { \"type\": \"string\" },",
+							"                    \"xdata\": { \"type\": \"string\" },",
+							"                    \"systems\": {",
+							"                        \"type\": \"array\", \"items\": {",
+							"                            \"properties\": {",
+							"                                \"id\": { \"type\": \"integer\" },                                ",
+							"                                \"client_name\": { \"type\": \"string\" },",
+							"                                \"client_id\": { \"type\": \"string\" }",
+							"                            }",
+							"                        }",
+							"                    }",
+							"                }",
+							"            }",
+							"        }",
+							"    }",
+							"};",
+							"var Ajv = require('ajv');",
+							"var ajv = new Ajv({schemas: [schema]});",
+							"",
+							"pm.test(\"Response is 'ok'\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"",
+							"pm.test('Schema is valid', function() {",
+							"    pm.expect(ajv.validate(schema, pm.response.text())).to.be.true;",
+							"});",
+							"",
+							"pm.test(\"Response includes Group.group_id\", function() {",
+							"    pm.expect(pm.response.text()).to.include(pm.environment.get(\"group.group_id\"));",
+							"});",
+							"",
+							""
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"auth": {
+					"type": "basic",
+					"basic": [
+						{
+							"key": "password",
+							"value": "{{adminClientSecret}}",
+							"type": "string"
+						},
+						{
+							"key": "username",
+							"value": "{{adminClientId}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{scheme}}://{{host}}:{{admin-port}}/group",
+					"protocol": "{{scheme}}",
+					"host": [
+						"{{host}}"
+					],
+					"port": "{{admin-port}}",
+					"path": [
+						"group"
+					]
+				}
 			},
-		"response": []
-	  },
+			"response": []
+		},
 		{
 			"name": "create system",
 			"event": [
@@ -657,7 +658,7 @@
 							"});",
 							"",
 							"pm.test(\"client_name has expected value\", function () {",
-							"    pm.response.to.have.jsonBody(\"client_name\", \"System for group \" + pm.environment.get(\"group.group_id\"))",
+							"    pm.response.to.have.jsonBody(\"client_name\", \"System 1 for group \" + pm.environment.get(\"group.group_id\"))",
 							"});",
 							"",
 							"pm.test('Schema is valid', function() {",
@@ -711,7 +712,102 @@
 				],
 				"body": {
 					"mode": "raw",
-					"raw": "{\n    \"client_name\": \"System for group {{group.group_id}}\",\n    \"group_id\": \"{{group.group_id}}\",\n    \"scope\": \"bcda-api\",\n    \"public_key\": \"-----BEGIN PUBLIC KEY-----\\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEArhxobShmNifzW3xznB+L\\nI8+hgaePpSGIFCtFz2IXGU6EMLdeufhADaGPLft9xjwdN1ts276iXQiaChKPA2CK\\n/CBpuKcnU3LhU8JEi7u/db7J4lJlh6evjdKVKlMuhPcljnIKAiGcWln3zwYrFCeL\\ncN0aTOt4xnQpm8OqHawJ18y0WhsWT+hf1DeBDWvdfRuAPlfuVtl3KkrNYn1yqCgQ\\nlT6v/WyzptJhSR1jxdR7XLOhDGTZUzlHXh2bM7sav2n1+sLsuCkzTJqWZ8K7k7cI\\nXK354CNpCdyRYUAUvr4rORIAUmcIFjaR3J4y/Dh2JIyDToOHg7vjpCtNnNoS+ON2\\nHwIDAQAB\\n-----END PUBLIC KEY-----\",\n    \"tracking_id\": \"{{tracking_id}}\"\n}"
+					"raw": "{\n    \"client_name\": \"System 1 for group {{group.group_id}}\",\n    \"group_id\": \"{{group.group_id}}\",\n    \"scope\": \"bcda-api\",\n    \"tracking_id\": \"{{tracking_id}}\"\n}"
+				},
+				"url": {
+					"raw": "{{scheme}}://{{host}}:{{admin-port}}/system",
+					"protocol": "{{scheme}}",
+					"host": [
+						"{{host}}"
+					],
+					"port": "{{admin-port}}",
+					"path": [
+						"system"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "create system with public key",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"id": "20ed753f-bd64-4270-9993-305d4efc1372",
+						"exec": [
+							"var schema = {",
+							"    \"properties\": {",
+							"        \"client_id\": { \"type\": \"string\" },",
+							"        \"client_secret\": { \"type\": \"string\" },",
+							"        \"client_name\": { \"type\": \"string\" },",
+							"        \"system_id\": { \"type\": \"string\" },",
+							"        \"expires_at\": { \"type\": \"string\", \"format\": \"time\" }",
+							"    }",
+							"};",
+							"var Ajv = require('ajv');",
+							"var ajv = new Ajv({schemas: [schema]});",
+							"",
+							"pm.test(\"Response is 'created'\", function () {",
+							"    pm.response.to.have.status(201);",
+							"});",
+							"",
+							"pm.test(\"client_name has expected value\", function () {",
+							"    pm.response.to.have.jsonBody(\"client_name\", \"System 2 for group \" + pm.environment.get(\"group.group_id\"))",
+							"});",
+							"",
+							"pm.test('Schema is valid', function() {",
+							"    pm.expect(ajv.validate(schema, pm.response.text())).to.be.true;",
+							"});",
+							"",
+							"var respJson = pm.response.json();",
+							"pm.environment.set(\"client_id\", respJson.client_id);",
+							"pm.environment.set(\"client_secret\", respJson.client_secret);",
+							"pm.environment.set(\"system_id\", respJson.system_id);"
+						],
+						"type": "text/javascript"
+					}
+				},
+				{
+					"listen": "prerequest",
+					"script": {
+						"id": "6d53fcea-1dfa-4739-b2af-64eca365b31e",
+						"exec": [
+							"const uuid = require('uuid')",
+							"pm.environment.set(\"tracking_id\", uuid());"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"auth": {
+					"type": "basic",
+					"basic": [
+						{
+							"key": "password",
+							"value": "{{adminClientSecret}}",
+							"type": "string"
+						},
+						{
+							"key": "username",
+							"value": "{{adminClientId}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"name": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"client_name\": \"System 2 for group {{group.group_id}}\",\n    \"group_id\": \"{{group.group_id}}\",\n    \"scope\": \"bcda-api\",\n    \"public_key\": \"-----BEGIN PUBLIC KEY-----\\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEArhxobShmNifzW3xznB+L\\nI8+hgaePpSGIFCtFz2IXGU6EMLdeufhADaGPLft9xjwdN1ts276iXQiaChKPA2CK\\n/CBpuKcnU3LhU8JEi7u/db7J4lJlh6evjdKVKlMuhPcljnIKAiGcWln3zwYrFCeL\\ncN0aTOt4xnQpm8OqHawJ18y0WhsWT+hf1DeBDWvdfRuAPlfuVtl3KkrNYn1yqCgQ\\nlT6v/WyzptJhSR1jxdR7XLOhDGTZUzlHXh2bM7sav2n1+sLsuCkzTJqWZ8K7k7cI\\nXK354CNpCdyRYUAUvr4rORIAUmcIFjaR3J4y/Dh2JIyDToOHg7vjpCtNnNoS+ON2\\nHwIDAQAB\\n-----END PUBLIC KEY-----\",\n    \"tracking_id\": \"{{tracking_id}}\"\n}"
 				},
 				"url": {
 					"raw": "{{scheme}}://{{host}}:{{admin-port}}/system",
@@ -1500,5 +1596,6 @@
 				]
 			}
 		}
-	]
+	],
+	"protocolProfileBehavior": {}
 }

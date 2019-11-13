@@ -460,23 +460,22 @@ func (s *SystemsTestSuite) TestRegisterSystemBadKey() {
 	pubKey, err := generatePublicKey(1024)
 	assert.Nil(err)
 
-	// Blank key
+	// Blank key ok
 	creds, err := RegisterSystem("Register System Failure", groupID, DefaultScope, "", trackingID)
-	assert.EqualError(err, "error in public key")
-	assert.Empty(creds)
+	assert.Nil(err, "error in public key")
+	assert.NotEmpty(creds)
 
-	// Invalid key
+	// Invalid key not ok
 	creds, err = RegisterSystem("Register System Failure", groupID, DefaultScope, "NotAKey", trackingID)
 	assert.EqualError(err, "error in public key")
 	assert.Empty(creds)
 
-	// Key length too low
+	// Low key length not ok
 	creds, err = RegisterSystem("Register System Failure", groupID, DefaultScope, pubKey, trackingID)
 	assert.EqualError(err, "error in public key")
 	assert.Empty(creds)
 
-	err = s.db.Unscoped().Delete(&group).Error
-	assert.Nil(err)
+	assert.Nil(CleanDatabase(group))
 }
 
 func generatePublicKey(bits int) (string, error) {

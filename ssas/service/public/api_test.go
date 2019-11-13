@@ -92,6 +92,34 @@ func (s *APITestSuite) TestAuthRegisterSuccess() {
 	assert.Nil(s.T(), err)
 }
 
+
+func (s *APITestSuite) TestAuthRegisterNoKey() {
+	groupID := "T12123"
+	group := ssas.Group{GroupID: groupID}
+	err := s.db.Create(&group).Error
+	if err != nil {
+		s.FailNow(err.Error())
+	}
+
+	regBody := strings.NewReader(fmt.Sprintf(`{"client_id":"my_client_id","client_name":"my_client_name","scope":"%s"}`,
+		ssas.DefaultScope))
+
+	req, err := http.NewRequest("GET", "/auth/register", regBody)
+	assert.Nil(s.T(), err)
+
+	req = addRegDataContext(req, "T12123", []string{"T12123"})
+	http.HandlerFunc(RegisterSystem).ServeHTTP(s.rr, req)
+	assert.Equal(s.T(), http.StatusCreated, s.rr.Code)
+
+	j := map[string]string{}
+	err = json.Unmarshal(s.rr.Body.Bytes(), &j)
+	assert.Nil(s.T(), err)
+	assert.Equal(s.T(), "my_client_name", j["client_name"])
+
+	err = ssas.CleanDatabase(group)
+	assert.Nil(s.T(), err)
+}
+
 func (s *APITestSuite) TestResetSecretNoSystem() {
 	groupID := "T23234"
 	group := ssas.Group{GroupID: groupID}
