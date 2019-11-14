@@ -538,6 +538,7 @@ func (system *System) ResetSecret(trackingID string) (Credentials, error) {
 
 	OperationSucceeded(newSecretEvent)
 
+	creds.SystemID = fmt.Sprint(system.ID)
 	creds.ClientID = system.ClientID
 	creds.ClientSecret = secretString
 	creds.ClientName = system.ClientName
