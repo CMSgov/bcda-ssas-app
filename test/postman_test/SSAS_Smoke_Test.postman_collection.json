@@ -1198,12 +1198,14 @@
 					"listen": "test",
 					"script": {
 						"id": "20ed753f-bd64-4270-9993-305d4efc1372",
-						"exec": [
+					  	"exec": [
 							"var schema = {",
 							"    \"properties\": {",
 							"        \"client_id\": { \"type\": \"string\" },",
-							"        \"secret\": { \"type\": \"string\" },",
-							"        \"expires_in\": { \"type\": \"string\", \"format\": \"time\" }",
+							"        \"client_secret\": { \"type\": \"string\" },",
+							"        \"client_name\": { \"type\": \"string\" },",
+							"        \"system_id\": { \"type\": \"string\" },",
+							"        \"expires_at\": { \"type\": \"string\", \"format\": \"time\" }",
 							"    }",
 							"};",
 							"var Ajv = require('ajv');",
@@ -1217,10 +1219,9 @@
 							"    pm.expect(ajv.validate(schema, pm.response.text())).to.be.true;",
 							"});",
 							"",
-							"// uncomment when client_id bug is fixed",
-							"//pm.test(\"client_id has expected value\", function () {",
-							"//    pm.response.to.have.jsonBody(\"client_id\", pm.environment.get(\"client_id\"))",
-							"//});",
+							"pm.test(\"client_id has expected value\", function () {",
+							"    pm.response.to.have.jsonBody(\"client_id\", pm.environment.get(\"client_id\"))",
+							"});",
 							"",
 							"var respJson = pm.response.json();",
 							"",
@@ -1228,11 +1229,10 @@
 							"    pm.expect(respJson.client_secret).to.not.eql(\"\");",
 							"});",
 							"",
-							"// uncomment when client_id bug is fixed ",
-							"//pm.environment.set(\"client_id\", respJson.client_id);  ",
+							"pm.environment.set(\"client_id\", respJson.client_id);  ",
 							"pm.environment.set(\"client_secret\", respJson.client_secret);",
 							""
-						],
+					  	],
 						"type": "text/javascript"
 					}
 				}
