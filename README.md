@@ -113,9 +113,9 @@ docker-compose run --rm ssas sh -c 'tmp/ssas-service --add-fixture-data'
 
 point your browser at one of the following ports, or use the postman test collection in tests.
 
-- public server: 3003
-- admin server: 3004
-- forwarding server: 3005
+- public server: 3103
+- admin server: 3104
+- forwarding server: 3105
 
 
 # Goland IDE
