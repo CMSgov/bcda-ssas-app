@@ -124,6 +124,7 @@ func createSystem(w http.ResponseWriter, r *http.Request) {
 		GroupID    string `json:"group_id"`
 		Scope      string `json:"scope"`
 		PublicKey  string `json:"public_key"`
+		IPs      []string `json:"ips"`
 		TrackingID string `json:"tracking_id"`
 	}
 
@@ -134,7 +135,7 @@ func createSystem(w http.ResponseWriter, r *http.Request) {
 	}
 
 	ssas.OperationCalled(ssas.Event{Op: "RegisterClient", TrackingID: sys.TrackingID, Help: "calling from admin.createSystem()"})
-	creds, err := ssas.RegisterSystem(sys.ClientName, sys.GroupID, sys.Scope, sys.PublicKey, sys.TrackingID)
+	creds, err := ssas.RegisterSystem(sys.ClientName, sys.GroupID, sys.Scope, sys.PublicKey, sys.IPs, sys.TrackingID)
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Could not create system. Error: %s", err), http.StatusBadRequest)
 		return
@@ -195,11 +196,7 @@ func getPublicKey(w http.ResponseWriter, r *http.Request) {
 
 	trackingID := uuid.NewRandom().String()
 	ssas.OperationCalled(ssas.Event{Op: "GetEncryptionKey", TrackingID: trackingID, Help: "calling from admin.getPublicKey()"})
-	key, err := system.GetEncryptionKey(trackingID)
-	if err != nil {
-		http.Error(w, "Internal error", http.StatusInternalServerError)
-		return
-	}
+	key, _ := system.GetEncryptionKey(trackingID)
 
 	w.Header().Set("Content-Type", "application/json")
 	keyStr := strings.Replace(key.Body, "\n", "\\n", -1)

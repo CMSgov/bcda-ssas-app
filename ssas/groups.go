@@ -22,6 +22,7 @@ type SystemSummary struct {
 	ID         uint      `json:"id"`
 	ClientName string    `json:"client_name"`
 	ClientID   string    `json:"client_id"`
+	IPs		 []string	 `json:"ips,omitempty"`
 	UpdatedAt  time.Time `json:"updated_at"`
 }
 
@@ -108,6 +109,7 @@ func ListGroups(trackingID string) (list GroupList, err error) {
 			ss.ID = system.ID
 			ss.ClientName = system.ClientName
 			ss.ClientID = system.ClientID
+			ss.IPs, _ = system.GetIPs()
 			ss.UpdatedAt = system.UpdatedAt
 
 			gs.Systems = append(gs.Systems, ss)

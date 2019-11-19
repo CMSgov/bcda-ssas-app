@@ -224,7 +224,7 @@ func (s *APITestSuite) TestTokenSuccess() {
 	pemString, err := ssas.ConvertPublicKeyToPEMString(&pubKey)
 	require.Nil(s.T(), err)
 
-	creds, err := ssas.RegisterSystem("Token Test", groupID, ssas.DefaultScope, pemString, uuid.NewRandom().String())
+	creds, err := ssas.RegisterSystem("Token Test", groupID, ssas.DefaultScope, pemString, []string{}, uuid.NewRandom().String())
 	assert.Nil(s.T(), err)
 	assert.Equal(s.T(), "Token Test", creds.ClientName)
 	assert.NotNil(s.T(), creds.ClientSecret)
@@ -257,7 +257,7 @@ func (s *APITestSuite) TestIntrospectSuccess() {
 	pemString, err := ssas.ConvertPublicKeyToPEMString(&pubKey)
 	require.Nil(s.T(), err)
 
-	creds, err := ssas.RegisterSystem("Introspect Test", groupID, ssas.DefaultScope, pemString, uuid.NewRandom().String())
+	creds, err := ssas.RegisterSystem("Introspect Test", groupID, ssas.DefaultScope, pemString, []string{}, uuid.NewRandom().String())
 	assert.Nil(s.T(), err)
 	assert.Equal(s.T(), "Introspect Test", creds.ClientName)
 	assert.NotNil(s.T(), creds.ClientSecret)

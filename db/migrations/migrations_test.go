@@ -35,9 +35,11 @@ func TestAllMigrations(t *testing.T) {
 	require.True(t, t.Run("up1", up1))
 	require.True(t, t.Run("up2", up2))
 	require.True(t, t.Run("up3", up3))
+	require.True(t, t.Run("up4", up4))
 	// Place all "up" migrations in order above this comment
 
 	// Place all "down" migrations in reverse order below this comment
+	require.True(t, t.Run("down4", down4))
 	require.True(t, t.Run("down3", down3))
 	require.True(t, t.Run("down2", down2))
 	require.True(t, t.Run("down1", down1))
@@ -142,6 +144,24 @@ func up3(t *testing.T) {
 	}
 
 	assert.Nil(t, ssas.CleanDatabase(group))
+}
+
+func up4(t *testing.T) {
+	success := runMigration(t, "4")
+	assert.True(t, success)
+
+	if !db.HasTable("ips") {
+		t.Errorf("table ips was not created")
+	}
+}
+
+func down4(t *testing.T) {
+	success := runMigration(t, "3")
+	assert.True(t, success)
+
+	if db.HasTable("ips") {
+		t.Errorf("table ips is still present")
+	}
 }
 
 func down3(t *testing.T) {

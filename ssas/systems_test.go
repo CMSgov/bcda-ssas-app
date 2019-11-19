@@ -404,7 +404,7 @@ func (s *SystemsTestSuite) TestRegisterSystemSuccess() {
 	pubKey, err := generatePublicKey(2048)
 	assert.Nil(err)
 
-	creds, err := RegisterSystem("Create System Test", groupID, DefaultScope, pubKey, trackingID)
+	creds, err := RegisterSystem("Create System Test", groupID, DefaultScope, pubKey, []string{}, trackingID)
 	assert.Nil(err)
 	assert.Equal("Create System Test", creds.ClientName)
 	assert.NotEqual("", creds.ClientSecret)
@@ -428,19 +428,79 @@ func (s *SystemsTestSuite) TestRegisterSystemMissingData() {
 	assert.Nil(err)
 
 	// No clientName
-	creds, err := RegisterSystem("", groupID, DefaultScope, pubKey, trackingID)
+	creds, err := RegisterSystem("", groupID, DefaultScope, pubKey, []string{}, trackingID)
 	assert.EqualError(err, "clientName is required")
 	assert.Empty(creds)
 
 	// No scope = success
-	creds, err = RegisterSystem("Register System Success2", groupID, "", pubKey, trackingID)
+	creds, err = RegisterSystem("Register System Success2", groupID, "", pubKey, []string{}, trackingID)
 	assert.Nil(err)
 	assert.NotEmpty(creds)
 
 	// No scope = success
-	creds, err = RegisterSystem("Register System Failure", groupID, "badScope", pubKey, trackingID)
+	creds, err = RegisterSystem("Register System Failure", groupID, "badScope", pubKey, []string{}, trackingID)
 	assert.NotNil(err)
 	assert.Empty(creds)
+
+	err = CleanDatabase(group)
+	assert.Nil(err)
+}
+
+func (s *SystemsTestSuite) TestRegisterSystemIps() {
+	assert := s.Assert()
+
+	goodIps := []string{
+		"192.168.0.1/32",			// Single IP's should have a 32-bit mask
+		"2001:db8:a0b:12f0::1/128",	// . . . 128-bit for IPv6
+		"192.168.0.0/24",			// Ranges are good
+		"2001:db8::/32",
+		"10.0.0.0/8",				// We don't care how BIG the range is
+	}
+
+	badIps := []string{
+		"asdf",
+		"192.168.0.1/24",			// Postgres CIDR type does not allow bits to the right of the mask
+		"2001:db8:a0b:12f0::1/32",	// . . . same for IPv6
+		"256.0.0.0/32",				// 255 is the max integer for IPv4
+		"10.0.0.1",					// Must be a CIDR, with mask
+	}
+
+	trackingID := uuid.NewRandom().String()
+	groupID := "T98987"
+	group := Group{GroupID: groupID}
+	err := s.db.Create(&group).Error
+	if err != nil {
+		s.FailNow(err.Error())
+	}
+
+	pubKey, err := generatePublicKey(2048)
+	assert.Nil(err)
+
+	for _, address := range goodIps {
+		creds, err := RegisterSystem("Test system with " + address, groupID, DefaultScope, pubKey, []string{address}, trackingID)
+		assert.Nil(err, fmt.Sprintf("%s should be a good CIDR, but was not allowed", address))
+		assert.NotEmpty(creds)
+		system, err := GetSystemByID(creds.SystemID)
+		assert.Nil(err)
+		ips, err := system.GetIPs()
+		assert.Nil(err)
+		assert.Equal([]string{address}, ips)
+	}
+
+	// We have no limit on the number of IP ranges that can be registered with a system
+	creds, err := RegisterSystem("Test system with all good IPs", groupID, DefaultScope, pubKey, goodIps, trackingID)
+	assert.Nil(err, "An array of good IP's should be a allowed, but was not")
+	assert.NotEmpty(creds)
+
+	for _, address := range badIps {
+		creds, err := RegisterSystem("Test system with " + address, groupID, DefaultScope, pubKey, []string{address}, trackingID)
+		if err == nil {
+			assert.Fail(fmt.Sprintf("%s should be a bad CIDR, but was allowed", address))
+		} else {
+			assert.EqualError(err, "error in ip address(es)")
+		}
+		assert.Empty(creds)
+	}
 
 	err = CleanDatabase(group)
 	assert.Nil(err)
@@ -461,17 +521,17 @@ func (s *SystemsTestSuite) TestRegisterSystemBadKey() {
 	assert.Nil(err)
 
 	// Blank key ok
-	creds, err := RegisterSystem("Register System Failure", groupID, DefaultScope, "", trackingID)
+	creds, err := RegisterSystem("Register System Failure", groupID, DefaultScope, "", []string{}, trackingID)
 	assert.Nil(err, "error in public key")
 	assert.NotEmpty(creds)
 
 	// Invalid key not ok
-	creds, err = RegisterSystem("Register System Failure", groupID, DefaultScope, "NotAKey", trackingID)
+	creds, err = RegisterSystem("Register System Failure", groupID, DefaultScope, "NotAKey", []string{}, trackingID)
 	assert.EqualError(err, "error in public key")
 	assert.Empty(creds)
 
 	// Low key length not ok
-	creds, err = RegisterSystem("Register System Failure", groupID, DefaultScope, pubKey, trackingID)
+	creds, err = RegisterSystem("Register System Failure", groupID, DefaultScope, pubKey, []string{}, trackingID)
 	assert.EqualError(err, "error in public key")
 	assert.Empty(creds)
 

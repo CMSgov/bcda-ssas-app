@@ -36,6 +36,7 @@ type RegistrationRequest struct {
 	ClientName  string `json:"client_name"`
 	Scope       string `json:"scope,omitempty"`
 	JSONWebKeys JWKS   `json:"jwks"`
+	IPs		  []string `json:"ips"`
 }
 
 type ResetRequest struct {
@@ -386,7 +387,7 @@ func RegisterSystem(w http.ResponseWriter, r *http.Request) {
 	trackingID = uuid.NewRandom().String()
 	event := ssas.Event{Op: "RegisterClient", TrackingID: trackingID, Help: "calling from public.RegisterSystem()"}
 	ssas.OperationCalled(event)
-	credentials, err := ssas.RegisterSystem(reg.ClientName, rd.GroupID, reg.Scope, publicKeyPEM, trackingID)
+	credentials, err := ssas.RegisterSystem(reg.ClientName, rd.GroupID, reg.Scope, publicKeyPEM, reg.IPs, trackingID)
 	if err != nil {
 		jsonError(w, "invalid_client_metadata", err.Error())
 		return

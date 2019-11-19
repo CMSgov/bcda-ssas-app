@@ -10,6 +10,7 @@ import (
 	"io"
 	"io/ioutil"
 	"log"
+	"net"
 	"os"
 	"strconv"
 	"time"
@@ -51,6 +52,7 @@ func InitializeSystemModels() *gorm.DB {
 	db.Model(&System{}).AddForeignKey("g_id", "groups(id)", "RESTRICT", "RESTRICT")
 	db.Model(&EncryptionKey{}).AddForeignKey("system_id", "systems(id)", "RESTRICT", "RESTRICT")
 	db.Model(&Secret{}).AddForeignKey("system_id", "systems(id)", "RESTRICT", "RESTRICT")
+	db.Model(&IP{}).AddForeignKey("system_id", "systems(id)", "RESTRICT", "RESTRICT")
 
 	return db
 }
@@ -79,6 +81,12 @@ type Secret struct {
 	Hash     string `json:"hash"`
 	System   System `gorm:"foreignkey:SystemID;association_foreignkey:ID"`
 	SystemID uint   `json:"system_id"`
+}
+
+type IP struct {
+	gorm.Model
+	Address		string
+	SystemID	uint
 }
 
 type AuthRegData struct {
@@ -282,6 +290,7 @@ type Credentials struct {
 	ClientSecret string    `json:"client_secret"`
 	SystemID     string    `json:"system_id"`
 	ClientName   string    `json:"client_name"`
+	IPs		   []string	   `json:"ips,omitempty"`
 	ExpiresAt    time.Time `json:"expires_at"`
 }
 
@@ -289,7 +298,7 @@ type Credentials struct {
 	RegisterSystem will save a new system and public key after verifying provided details for validity.  It returns
 	a ssas.Credentials struct including the generated clientID and secret.
 */
-func RegisterSystem(clientName string, groupID string, scope string, publicKeyPEM string, trackingID string) (Credentials, error) {
+func RegisterSystem(clientName string, groupID string, scope string, publicKeyPEM string, ips []string, trackingID string) (Credentials, error) {
 	db := GetGORMDbConnection()
 	defer Close(db)
 
@@ -345,6 +354,29 @@ func RegisterSystem(clientName string, groupID string, scope string, publicKeyPE
 		// Returned errors are passed to API callers, and should include enough information to correct invalid submissions
 		// without revealing implementation details.  CLI callers will be able to review logs for more information.
 		return creds, errors.New("internal system error")
+	}
+
+	for _, address := range ips {
+		_, _, err = net.ParseCIDR(address)
+		if err != nil {
+			regEvent.Help = fmt.Sprintf("invalid CIDR %s; %s", address, err.Error())
+			OperationFailed(regEvent)
+			tx.Rollback()
+			return creds, errors.New("error in ip address(es)")
+		}
+
+		ip := IP{
+			Address: address,
+			SystemID: system.ID,
+		}
+
+		err = tx.Create(&ip).Error
+		if err != nil {
+			regEvent.Help = fmt.Sprintf("could not save CIDR %s; %s", address, err.Error())
+			OperationFailed(regEvent)
+			tx.Rollback()
+			return creds, errors.New("error in ip address(es)")
+		}
 	}
 
 	// The public key is optional
@@ -414,6 +446,7 @@ func RegisterSystem(clientName string, groupID string, scope string, publicKeyPE
 	creds.ClientID = system.ClientID
 	creds.ClientSecret = clientSecret
 	creds.ClientName = system.ClientName
+	creds.IPs = ips
 	creds.ExpiresAt = time.Now().Add(CredentialExpiration)
 
 	OperationSucceeded(regEvent)
@@ -505,6 +538,20 @@ func GenerateSecret() (string, error) {
 	return fmt.Sprintf("%x", b), nil
 }
 
+func (system *System) GetIPs() ([]string, error) {
+	var (
+		db      = GetGORMDbConnection()
+		ips 	[]string
+		err     error
+	)
+	defer Close(db)
+
+	if err = db.Model(&IP{}).Where("system_id = ? AND deleted_at IS NULL", system.ID).Pluck("address", &ips).Error; err != nil {
+		err = fmt.Errorf("no IP's found with system_id %d: %s", system.ID, err.Error())
+	}
+	return ips, err
+}
+
 // ResetSecret creates a new secret for the current system.
 func (system *System) ResetSecret(trackingID string) (Credentials, error) {
 	db := GetGORMDbConnection()
@@ -552,6 +599,7 @@ func CleanDatabase(group Group) error {
 		system        System
 		encryptionKey EncryptionKey
 		secret        Secret
+		ip			  IP
 		systemIds     []int
 		db            = GetGORMDbConnection()
 	)
@@ -572,6 +620,11 @@ func CleanDatabase(group Group) error {
 	if err != nil {
 		Logger.Errorf("unable to find associated systems: %s", err.Error())
 	} else {
+		err = db.Unscoped().Where("system_id IN (?)", systemIds).Delete(&ip).Error
+		if err != nil {
+			Logger.Errorf("unable to delete ip addresses: %s", err.Error())
+		}
+
 		err = db.Unscoped().Where("system_id IN (?)", systemIds).Delete(&encryptionKey).Error
 		if err != nil {
 			Logger.Errorf("unable to delete encryption keys: %s", err.Error())
