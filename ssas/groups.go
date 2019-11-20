@@ -19,11 +19,11 @@ type Group struct {
 }
 
 type SystemSummary struct {
-	ID			uint		`json:"id"`
+	ID        	uint    	`json:"id"`
 	ClientName	string		`json:"client_name"`
-	ClientID	string		`json:"client_id"`
-	IPs			[]string	`json:"ips,omitempty"`
-	UpdatedAt	time.Time	`json:"updated_at"`
+	ClientID	string  	`json:"client_id"`
+	IPs       	[]string	`json:"ips,omitempty"`
+	UpdatedAt 	time.Time	`json:"updated_at"`
 }
 
 type GroupSummary struct {
