@@ -5,7 +5,7 @@ CREATE TABLE public.ips (
     created_at timestamp with time zone,
     updated_at timestamp with time zone,
     deleted_at timestamp with time zone,
-    address CIDR NOT NULL,
+    address INET NOT NULL,
     system_id integer NOT NULL
 );
 ALTER TABLE public.ips OWNER TO postgres;

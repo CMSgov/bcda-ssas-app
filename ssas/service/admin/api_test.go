@@ -256,7 +256,7 @@ func (s *APITestSuite) TestCreateSystemMultipleIps() {
 		s.FailNow("Error creating test data", err.Error())
 	}
 
-	req := httptest.NewRequest("POST", "/auth/system", strings.NewReader(`{"client_name": "Test Client", "group_id": "test-group-id", "scope": "bcda-api", "ips": ["192.0.2.0/24", "2001:db8::0/32"],"tracking_id": "T00000"}`))
+	req := httptest.NewRequest("POST", "/auth/system", strings.NewReader(`{"client_name": "Test Client", "group_id": "test-group-id", "scope": "bcda-api", "ips": ["8.8.8.8", "200:1:1:1::1"],"tracking_id": "T00000"}`))
 	handler := http.HandlerFunc(createSystem)
 	rr := httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
@@ -274,8 +274,8 @@ func (s *APITestSuite) TestCreateSystemMultipleIps() {
 	assert.Nil(s.T(), err)
 	ips, err := system.GetIPs()
 	assert.Nil(s.T(), err)
-	assert.True(s.T(), contains(ips, "192.0.2.0/24"))
-	assert.True(s.T(), contains(ips, "2001:db8::/32")) // Note the translation of "2001:db8::0/32" to "2001:db8::/32"
+	assert.True(s.T(), contains(ips, "8.8.8.8"))
+	assert.True(s.T(), contains(ips, "200:1:1:1::1"))
 
 	err = ssas.CleanDatabase(group)
 	assert.Nil(s.T(), err)

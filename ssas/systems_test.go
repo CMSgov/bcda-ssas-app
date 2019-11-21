@@ -450,19 +450,17 @@ func (s *SystemsTestSuite) TestRegisterSystemIps() {
 	assert := s.Assert()
 
 	goodIps := []string{
-		"192.168.0.1/32",			// Single IP's should have a 32-bit mask
-		"2001:db8:a0b:12f0::1/128",	// . . . 128-bit for IPv6
-		"192.168.0.0/24",			// Ranges are good
-		"2001:db8::/32",
-		"10.0.0.0/8",				// We don't care how BIG the range is
+		"8.8.8.8",            		// Single addresses are OK
+		"200:1:1:1::1",
 	}
 
 	badIps := []string{
+		"",
 		"asdf",
-		"192.168.0.1/24",			// Postgres CIDR type does not allow bits to the right of the mask
-		"2001:db8:a0b:12f0::1/32",	// . . . same for IPv6
-		"256.0.0.0/32",				// 255 is the max integer for IPv4
-		"10.0.0.1",					// Must be a CIDR, with mask
+		"256.0.0.1",				// Invalid
+		"192.168.0.1",				// Private IP
+		"2001:db8::::1",			// Private IP
+		"8.8.8.0/24",				// No ranges
 	}
 
 	trackingID := uuid.NewRandom().String()
@@ -478,8 +476,8 @@ func (s *SystemsTestSuite) TestRegisterSystemIps() {
 
 	for _, address := range goodIps {
 		creds, err := RegisterSystem("Test system with " + address, groupID, DefaultScope, pubKey, []string{address}, trackingID)
-		assert.Nil(err, fmt.Sprintf("%s should be a good CIDR, but was not allowed", address))
-		assert.NotEmpty(creds)
+		assert.Nil(err, fmt.Sprintf("%s should be a good IP, but was not allowed", address))
+		assert.NotEmpty(creds, address + "should have been a valid IP")
 		system, err := GetSystemByID(creds.SystemID)
 		assert.Nil(err)
 		ips, err := system.GetIPs()
@@ -493,9 +491,9 @@ func (s *SystemsTestSuite) TestRegisterSystemIps() {
 	assert.NotEmpty(creds)
 
 	for _, address := range badIps {
-		creds, err := RegisterSystem("Test system with " + address, groupID, DefaultScope, pubKey, []string{address}, trackingID)
+		creds, err = RegisterSystem("Test system with " + address, groupID, DefaultScope, pubKey, []string{address}, trackingID)
 		if err == nil {
-			assert.Fail(fmt.Sprintf("%s should be a bad CIDR, but was allowed", address))
+			assert.Fail(fmt.Sprintf("%s should be a bad IP, but was allowed; creds: %v", address, creds))
 		} else {
 			assert.EqualError(err, "error in ip address(es)")
 		}

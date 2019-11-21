@@ -722,7 +722,7 @@
 				],
 				"body": {
 					"mode": "raw",
-					"raw": "{\n    \"client_name\": \"System 1 for group {{group.group_id}}\",\n    \"group_id\": \"{{group.group_id}}\",\n    \"scope\": \"bcda-api\",\n    \"ips\": [\"192.168.0.1/32\", \"2001:db8:a0b:12f0::1/128\"],\n    \"tracking_id\": \"{{tracking_id}}\"\n}"
+					"raw": "{\n    \"client_name\": \"System 1 for group {{group.group_id}}\",\n    \"group_id\": \"{{group.group_id}}\",\n    \"scope\": \"bcda-api\",\n    \"ips\": [\"8.8.8.8\", \"200:1:1:1::1\"],\n    \"tracking_id\": \"{{tracking_id}}\"\n}"
 				},
 				"url": {
 					"raw": "{{scheme}}://{{host}}:{{admin-port}}/system",
