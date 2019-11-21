@@ -485,7 +485,7 @@ func (s *SystemsTestSuite) TestRegisterSystemIps() {
 		assert.Equal([]string{address}, ips)
 	}
 
-	// We have no limit on the number of IP ranges that can be registered with a system
+	// We have no limit on the number of IP addresses that can be registered with a system
 	creds, err := RegisterSystem("Test system with all good IPs", groupID, DefaultScope, pubKey, goodIps, trackingID)
 	assert.Nil(err, "An array of good IP's should be a allowed, but was not")
 	assert.NotEmpty(creds)
