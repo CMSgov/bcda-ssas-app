@@ -10,7 +10,6 @@ CREATE TABLE public.blacklist_entries (
 );
 ALTER TABLE public.blacklist_entries OWNER TO postgres;
 CREATE SEQUENCE public.blacklist_entries_id_seq
-    AS integer
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
@@ -30,7 +29,6 @@ CREATE TABLE public.encryption_keys (
 );
 ALTER TABLE public.encryption_keys OWNER TO postgres;
 CREATE SEQUENCE public.encryption_keys_id_seq
-    AS integer
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
@@ -50,7 +48,6 @@ CREATE TABLE public.groups (
 );
 ALTER TABLE public.groups OWNER TO postgres;
 CREATE SEQUENCE public.groups_id_seq
-    AS integer
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
@@ -69,7 +66,6 @@ CREATE TABLE public.secrets (
 );
 ALTER TABLE public.secrets OWNER TO postgres;
 CREATE SEQUENCE public.secrets_id_seq
-    AS integer
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
@@ -91,7 +87,6 @@ CREATE TABLE public.systems (
 );
 ALTER TABLE public.systems OWNER TO postgres;
 CREATE SEQUENCE public.systems_id_seq
-    AS integer
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE

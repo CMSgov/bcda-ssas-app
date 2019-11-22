@@ -10,7 +10,6 @@ CREATE TABLE public.ips (
 );
 ALTER TABLE public.ips OWNER TO postgres;
 CREATE SEQUENCE public.ips_id_seq
-    AS integer
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
