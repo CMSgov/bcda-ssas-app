@@ -8,15 +8,12 @@ CREATE TABLE public.blacklist_entries (
                                           entry_date bigint NOT NULL,
                                           cache_expiration bigint NOT NULL
 );
-ALTER TABLE public.blacklist_entries OWNER TO postgres;
 CREATE SEQUENCE public.blacklist_entries_id_seq
-    AS integer
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
     NO MAXVALUE
     CACHE 1;
-ALTER TABLE public.blacklist_entries_id_seq OWNER TO postgres;
 ALTER SEQUENCE public.blacklist_entries_id_seq OWNED BY public.blacklist_entries.id;
 
 
@@ -28,15 +25,12 @@ CREATE TABLE public.encryption_keys (
                                         body text,
                                         system_id integer
 );
-ALTER TABLE public.encryption_keys OWNER TO postgres;
 CREATE SEQUENCE public.encryption_keys_id_seq
-    AS integer
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
     NO MAXVALUE
     CACHE 1;
-ALTER TABLE public.encryption_keys_id_seq OWNER TO postgres;
 ALTER SEQUENCE public.encryption_keys_id_seq OWNED BY public.encryption_keys.id;
 
 CREATE TABLE public.groups (
@@ -48,15 +42,12 @@ CREATE TABLE public.groups (
                                x_data text,
                                data jsonb
 );
-ALTER TABLE public.groups OWNER TO postgres;
 CREATE SEQUENCE public.groups_id_seq
-    AS integer
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
     NO MAXVALUE
     CACHE 1;
-ALTER TABLE public.groups_id_seq OWNER TO postgres;
 ALTER SEQUENCE public.groups_id_seq OWNED BY public.groups.id;
 
 CREATE TABLE public.secrets (
@@ -67,15 +58,12 @@ CREATE TABLE public.secrets (
                                 hash text,
                                 system_id integer
 );
-ALTER TABLE public.secrets OWNER TO postgres;
 CREATE SEQUENCE public.secrets_id_seq
-    AS integer
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
     NO MAXVALUE
     CACHE 1;
-ALTER TABLE public.secrets_id_seq OWNER TO postgres;
 ALTER SEQUENCE public.secrets_id_seq OWNED BY public.secrets.id;
 
 CREATE TABLE public.systems (
@@ -89,15 +77,12 @@ CREATE TABLE public.systems (
                                 client_name text,
                                 api_scope text
 );
-ALTER TABLE public.systems OWNER TO postgres;
 CREATE SEQUENCE public.systems_id_seq
-    AS integer
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
     NO MAXVALUE
     CACHE 1;
-ALTER TABLE public.systems_id_seq OWNER TO postgres;
 ALTER SEQUENCE public.systems_id_seq OWNED BY public.systems.id;
 
 ALTER TABLE ONLY public.blacklist_entries ALTER COLUMN id SET DEFAULT nextval('public.blacklist_entries_id_seq'::regclass);
