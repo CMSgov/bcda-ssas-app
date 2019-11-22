@@ -1,6 +1,7 @@
 package admin
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -243,6 +244,55 @@ func (s *APITestSuite) TestCreateSystem() {
 	assert.NotEmpty(s.T(), result["client_id"])
 	assert.NotEmpty(s.T(), result["client_secret"])
 	assert.Equal(s.T(), "Test Client", result["client_name"])
+
+	err = ssas.CleanDatabase(group)
+	assert.Nil(s.T(), err)
+}
+
+func (s *APITestSuite) TestCreateSystemMultipleIps() {
+	group := ssas.Group{GroupID: "test-group-id"}
+	err := s.db.Save(&group).Error
+	if err != nil {
+		s.FailNow("Error creating test data", err.Error())
+	}
+
+	req := httptest.NewRequest("POST", "/auth/system", strings.NewReader(`{"client_name": "Test Client", "group_id": "test-group-id", "scope": "bcda-api", "ips": ["8.8.8.8", "200:1:1:1::1"],"tracking_id": "T00000"}`))
+	handler := http.HandlerFunc(createSystem)
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+	assert.Equal(s.T(), http.StatusCreated, rr.Result().StatusCode)
+	assert.Equal(s.T(), "application/json", rr.Result().Header.Get("Content-Type"))
+
+	creds := ssas.Credentials{}
+	err = json.NewDecoder(bytes.NewReader(rr.Body.Bytes())).Decode(&creds)
+	assert.Nil(s.T(), err)
+	assert.NotEmpty(s.T(), creds)
+	assert.NotEqual(s.T(), "", creds.ClientID)
+	assert.Equal(s.T(), "Test Client", creds.ClientName)
+
+	system, err := ssas.GetSystemByClientID(creds.ClientID)
+	assert.Nil(s.T(), err)
+	ips, err := system.GetIPs()
+	assert.Nil(s.T(), err)
+	assert.True(s.T(), contains(ips, "8.8.8.8"))
+	assert.True(s.T(), contains(ips, "200:1:1:1::1"))
+
+	err = ssas.CleanDatabase(group)
+	assert.Nil(s.T(), err)
+}
+
+func (s *APITestSuite) TestCreateSystemBadIp() {
+	group := ssas.Group{GroupID: "test-group-id"}
+	err := s.db.Save(&group).Error
+	if err != nil {
+		s.FailNow("Error creating test data", err.Error())
+	}
+
+	req := httptest.NewRequest("POST", "/auth/system", strings.NewReader(`{"client_name": "Test Client", "group_id": "test-group-id", "scope": "bcda-api", ips: ["304.0.2.1/32"],"tracking_id": "T00000"}`))
+	handler := http.HandlerFunc(createSystem)
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+	assert.Equal(s.T(), http.StatusBadRequest, rr.Result().StatusCode)
 
 	err = ssas.CleanDatabase(group)
 	assert.Nil(s.T(), err)
@@ -500,4 +550,13 @@ func (s *APITestSuite) TestDeactivateSystemCredentials() {
 
 func TestAPITestSuite(t *testing.T) {
 	suite.Run(t, new(APITestSuite))
+}
+
+func contains(list []string, target string) bool {
+	for _, item := range list {
+		if item == target {
+			return true
+		}
+	}
+	return false
 }

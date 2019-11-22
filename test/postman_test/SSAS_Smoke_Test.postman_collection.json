@@ -571,7 +571,12 @@
 							"                            \"properties\": {",
 							"                                \"id\": { \"type\": \"integer\" },                                ",
 							"                                \"client_name\": { \"type\": \"string\" },",
-							"                                \"client_id\": { \"type\": \"string\" }",
+							"                                \"client_id\": { \"type\": \"string\" },",
+							"                                \"ips\": {",
+							"                                    \"type\": \"array\", \"items\": [",
+							"                                        { \"type\": \"string\" }",
+							"                                    ]",
+							"                                }",
 							"                            }",
 							"                        }",
 							"                    }",
@@ -647,6 +652,11 @@
 							"        \"client_secret\": { \"type\": \"string\" },",
 							"        \"client_name\": { \"type\": \"string\" },",
 							"        \"system_id\": { \"type\": \"string\" },",
+							"        \"ips\": {",
+							"            \"type\": \"array\", \"items\": [",
+							"                { \"type\": \"string\" }",
+							"            ]",
+							"        },",
 							"        \"expires_at\": { \"type\": \"string\", \"format\": \"time\" }",
 							"    }",
 							"};",
@@ -712,7 +722,7 @@
 				],
 				"body": {
 					"mode": "raw",
-					"raw": "{\n    \"client_name\": \"System 1 for group {{group.group_id}}\",\n    \"group_id\": \"{{group.group_id}}\",\n    \"scope\": \"bcda-api\",\n    \"tracking_id\": \"{{tracking_id}}\"\n}"
+					"raw": "{\n    \"client_name\": \"System 1 for group {{group.group_id}}\",\n    \"group_id\": \"{{group.group_id}}\",\n    \"scope\": \"bcda-api\",\n    \"ips\": [\"8.8.8.8\", \"200:1:1:1::1\"],\n    \"tracking_id\": \"{{tracking_id}}\"\n}"
 				},
 				"url": {
 					"raw": "{{scheme}}://{{host}}:{{admin-port}}/system",
@@ -1198,7 +1208,7 @@
 					"listen": "test",
 					"script": {
 						"id": "20ed753f-bd64-4270-9993-305d4efc1372",
-					  	"exec": [
+						"exec": [
 							"var schema = {",
 							"    \"properties\": {",
 							"        \"client_id\": { \"type\": \"string\" },",
@@ -1232,7 +1242,7 @@
 							"pm.environment.set(\"client_id\", respJson.client_id);  ",
 							"pm.environment.set(\"client_secret\", respJson.client_secret);",
 							""
-					  	],
+						],
 						"type": "text/javascript"
 					}
 				}
