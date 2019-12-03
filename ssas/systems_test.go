@@ -451,14 +451,14 @@ func (s *SystemsTestSuite) TestRegisterSystemIps() {
 	assert := s.Assert()
 
 	goodIps := []string{
-		RandomIPv4(),                                       	// Single addresses are OK
+		RandomIPv4(),                                   		// Single addresses are OK
 		RandomIPv6(),
 	}
 
 	badIps := []string{
 		"",
 		"asdf",
-		"256.0.0.1",                                        	// Invalid
+		"256.0.0.1",                                    		// Invalid
 		net.IPv4bcast.String(),
 		net.IPv6loopback.String(),
 		net.IPv4(8, 8, 8, 0).String() + "/24",		// No ranges

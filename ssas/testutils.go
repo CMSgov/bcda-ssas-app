@@ -45,7 +45,6 @@ func RandomBase64(n int) string {
 	return base64.StdEncoding.EncodeToString(b)
 }
 
-
 func RandomIPv4() string {
 	size := 4
 	ip, err := someRandomBytes(size)
