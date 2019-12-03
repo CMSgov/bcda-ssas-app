@@ -51,6 +51,7 @@ Some variables below have a note indicating their name should be changed. These 
 | SSAS_HASH_ITERATIONS | Yes      | X |   | Controls how many iterations our secure hashing mechanism performs. Service will panic if this key does not have a value. |
 | SSAS_HASH_KEY_LENGTH | Yes      | X |   | Controls the key length used by our secure hashing mechanism. Service will panic if this key does not have a value. |
 | SSAS_HASH_SALT_SIZE  | Yes      | X |   | Controls salt size used by our secure hashing mechanism performs. Service will panic if this key does not have a value. |
+| SSAS_SSAS_FORBIDDEN_CIDRS  | Yes      | X |   | Gives the filepath for a newline-separated list of CIDRS that should not be registered. If this key does not have a value no systems with IP addresses will be considered valid. |
 | SSAS_MFA_PROVIDER    | No       | X |   | Switches between mock Okta MFA calls and live calls.  Defaults to "Mock". |
 | SSAS_MFA_CHALLENGE_ <br/> REQUEST_MILLISECONDS | No | X |   | Minimum execution time for RequestFactorChallenge().  If not present, defaults to 1500.  In production, this should always be set longer than the longest expected execution time.  (Actual execution time is logged.)|
 | SSAS_MFA_TOKEN_ <br/> TIMEOUT_MINUTES | No | X |   | Token lifetime for self-registration (MFA tokens and Registration tokens).  Defaults to 60 (minutes). |

@@ -250,13 +250,16 @@ func (s *APITestSuite) TestCreateSystem() {
 }
 
 func (s *APITestSuite) TestCreateSystemMultipleIps() {
+	randomIPv4 := ssas.RandomIPv4()
+	randomIPv6 := ssas.RandomIPv6()
 	group := ssas.Group{GroupID: "test-group-id"}
 	err := s.db.Save(&group).Error
 	if err != nil {
 		s.FailNow("Error creating test data", err.Error())
 	}
 
-	req := httptest.NewRequest("POST", "/auth/system", strings.NewReader(`{"client_name": "Test Client", "group_id": "test-group-id", "scope": "bcda-api", "ips": ["8.8.8.8", "200:1:1:1::1"],"tracking_id": "T00000"}`))
+	reqBody := fmt.Sprintf(`{"client_name": "Test Client", "group_id": "test-group-id", "scope": "bcda-api", "ips": ["%s", "%s"],"tracking_id": "T00000"}`, randomIPv4, randomIPv6)
+	req := httptest.NewRequest("POST", "/auth/system", strings.NewReader(reqBody))
 	handler := http.HandlerFunc(createSystem)
 	rr := httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
@@ -274,8 +277,8 @@ func (s *APITestSuite) TestCreateSystemMultipleIps() {
 	assert.Nil(s.T(), err)
 	ips, err := system.GetIPs()
 	assert.Nil(s.T(), err)
-	assert.True(s.T(), contains(ips, "8.8.8.8"))
-	assert.True(s.T(), contains(ips, "200:1:1:1::1"))
+	assert.True(s.T(), contains(ips, randomIPv4))
+	assert.True(s.T(), contains(ips, randomIPv6))
 
 	err = ssas.CleanDatabase(group)
 	assert.Nil(s.T(), err)
