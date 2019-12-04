@@ -357,7 +357,7 @@ func RegisterSystem(clientName string, groupID string, scope string, publicKeyPE
 	}
 
 	for _, address := range ips {
-		if !validAddress(address) {
+		if !ValidAddress(address) {
 			regEvent.Help = fmt.Sprintf("invalid IP %s", address)
 			OperationFailed(regEvent)
 			tx.Rollback()
@@ -648,13 +648,15 @@ func CleanDatabase(group Group) error {
 	return nil
 }
 
-func validAddress(address string) bool {
+func ValidAddress(address string) bool {
 	ip := net.ParseIP(address)
 	if ip == nil {
 		return false
 	}
 
 	// Source https://en.wikipedia.org/wiki/Reserved_IP_addresses
+	// #SonarIgnore--BEGIN
+	// SonarQube does not like hard-coded IP's or CIDR's, but these are not intended to be configurable
 	badNetworks := []string{
 		"0.0.0.0/8",
 		"10.0.0.0/8",
@@ -680,6 +682,7 @@ func validAddress(address string) bool {
 		"fe80::/10",
 		"ff00::/8",
 	}
+	// #SonarIgnore--END
 	for _, network := range badNetworks {
 		_, ipNet, _ := net.ParseCIDR(network)
 		if ipNet.Contains(ip) {

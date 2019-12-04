@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"encoding/pem"
 	"fmt"
+	"net"
 	"os"
 	"strconv"
 	"strings"
@@ -450,17 +451,17 @@ func (s *SystemsTestSuite) TestRegisterSystemIps() {
 	assert := s.Assert()
 
 	goodIps := []string{
-		"8.8.8.8",            		// Single addresses are OK
-		"200:1:1:1::1",
+		RandomIPv4(),                         		    		// Single addresses are OK
+		RandomIPv6(),
 	}
 
 	badIps := []string{
 		"",
 		"asdf",
-		"256.0.0.1",				// Invalid
-		"192.168.0.1",				// Private IP
-		"2001:db8::::1",			// Private IP
-		"8.8.8.0/24",				// No ranges
+		"256.0.0.1",                          		    		// Invalid
+		net.IPv4bcast.String(),
+		net.IPv6loopback.String(),
+		net.IPv4(8, 8, 8, 0).String() + "/24",		// No ranges
 	}
 
 	trackingID := uuid.NewRandom().String()

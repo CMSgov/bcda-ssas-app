@@ -109,18 +109,17 @@ func (s *APITestSuite) TestCreateGroupFailure() {
 }
 
 func (s *APITestSuite) TestListGroups() {
-	var startingCount int
-	ssas.GetGORMDbConnection().Table("groups").Count(&startingCount)
+	g1ID := ssas.RandomBase64(16)
+	g2ID := ssas.RandomHexID()
 
-	gid := ssas.RandomBase64(16)
-	testInput1 := fmt.Sprintf(SampleGroup, gid, SampleXdata)
+	testInput1 := fmt.Sprintf(SampleGroup, g1ID, SampleXdata)
 	gd := ssas.GroupData{}
 	err := json.Unmarshal([]byte(testInput1), &gd)
 	assert.Nil(s.T(), err)
 	g1, err := ssas.CreateGroup(gd)
 	assert.Nil(s.T(), err)
 
-	gd.GroupID = ssas.RandomHexID()
+	gd.GroupID = g2ID
 	gd.Name = "another-fake-name"
 	g2, err := ssas.CreateGroup(gd)
 	assert.Nil(s.T(), err)
@@ -134,7 +133,18 @@ func (s *APITestSuite) TestListGroups() {
 	groupList := ssas.GroupList{}
 	err = json.Unmarshal(rr.Body.Bytes(), &groupList)
 	assert.Nil(s.T(), err)
-	assert.True(s.T(), len(groupList.Groups) == 2+startingCount)
+
+	found1 := false
+	found2 := false
+	for _, g := range groupList.Groups {
+		switch g.GroupID {
+		case g1ID: found1 = true
+		case g2ID: found2 = true
+		default: //NOOP
+		}
+	}
+	assert.True(s.T(), found1, "group 1 not present in list")
+	assert.True(s.T(), found2, "group 2 not present in list")
 
 	err = ssas.CleanDatabase(g1)
 	assert.Nil(s.T(), err)
@@ -250,13 +260,16 @@ func (s *APITestSuite) TestCreateSystem() {
 }
 
 func (s *APITestSuite) TestCreateSystemMultipleIps() {
+	randomIPv4 := ssas.RandomIPv4()
+	randomIPv6 := ssas.RandomIPv6()
 	group := ssas.Group{GroupID: "test-group-id"}
 	err := s.db.Save(&group).Error
 	if err != nil {
 		s.FailNow("Error creating test data", err.Error())
 	}
 
-	req := httptest.NewRequest("POST", "/auth/system", strings.NewReader(`{"client_name": "Test Client", "group_id": "test-group-id", "scope": "bcda-api", "ips": ["8.8.8.8", "200:1:1:1::1"],"tracking_id": "T00000"}`))
+	reqBody := fmt.Sprintf(`{"client_name": "Test Client", "group_id": "test-group-id", "scope": "bcda-api", "ips": ["%s", "%s"],"tracking_id": "T00000"}`, randomIPv4, randomIPv6)
+	req := httptest.NewRequest("POST", "/auth/system", strings.NewReader(reqBody))
 	handler := http.HandlerFunc(createSystem)
 	rr := httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
@@ -274,8 +287,8 @@ func (s *APITestSuite) TestCreateSystemMultipleIps() {
 	assert.Nil(s.T(), err)
 	ips, err := system.GetIPs()
 	assert.Nil(s.T(), err)
-	assert.True(s.T(), contains(ips, "8.8.8.8"))
-	assert.True(s.T(), contains(ips, "200:1:1:1::1"))
+	assert.True(s.T(), contains(ips, randomIPv4))
+	assert.True(s.T(), contains(ips, randomIPv6))
 
 	err = ssas.CleanDatabase(group)
 	assert.Nil(s.T(), err)

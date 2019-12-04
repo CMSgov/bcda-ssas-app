@@ -5,7 +5,10 @@ RUN go get -u github.com/golangci/golangci-lint/cmd/golangci-lint
 RUN go get -u github.com/xo/usql
 RUN go get -u github.com/securego/gosec/cmd/gosec
 RUN go get -u gotest.tools/gotestsum
-RUN go get -tags 'postgres' -u github.com/golang-migrate/migrate/cmd/migrate
+RUN go get -u -d github.com/golang-migrate/migrate/cmd/migrate; \
+ cd $GOPATH/src/github.com/golang-migrate/migrate/cmd/migrate; \
+ git checkout v4.6.2; \
+ go build -tags 'postgres' -ldflags="-X main.Version=$(git describe --tags)" -o $GOPATH/bin/migrate github.com/golang-migrate/migrate/cmd/migrate
 
 WORKDIR /go/src/github.com/CMSgov/bcda-ssas-app
 COPY . .

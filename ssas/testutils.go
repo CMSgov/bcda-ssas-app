@@ -7,6 +7,7 @@ import (
 	"encoding/base64"
 	"encoding/pem"
 	"fmt"
+	"net"
 )
 
 func GeneratePublicKey(bits int) (string, error) {
@@ -42,6 +43,33 @@ func RandomBase64(n int) string {
 		return "not_a_random_base_64_string"
 	}
 	return base64.StdEncoding.EncodeToString(b)
+}
+
+func RandomIPv4() string {
+	size := 4
+	ip, err := someRandomBytes(size)
+	if err != nil {
+		return "not_a_random_IP_v4_address"
+	}
+	// We want an IP that will pass our validation tests.  Iterate until we find one.
+	IPcandidate := net.IP(ip).To4().String()
+	if !ValidAddress(IPcandidate) {
+		return RandomIPv4()
+	}
+	return IPcandidate
+}
+
+func RandomIPv6() string {
+	size := 16
+	ip, err := someRandomBytes(size)
+	if err != nil {
+		return "not_a_random_IP_v6_address"
+	}
+	IPcandidate := net.IP(ip).To16().String()
+	if !ValidAddress(IPcandidate) {
+		return RandomIPv6()
+	}
+	return IPcandidate
 }
 
 func someRandomBytes(n int) ([]byte, error) {
