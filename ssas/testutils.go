@@ -54,9 +54,6 @@ func RandomIPv4() string {
 	// We want an IP that will pass our validation tests.  Iterate until we find one.
 	IPcandidate := net.IP(ip).To4().String()
 	if !ValidAddress(IPcandidate) {
-		// As a test utility, we really do want a little feedback in STDOUT if there's a problem, because this strategy
-		// is prone to an endless loop if something goes wrong in ValidAddress().
-		fmt.Println("Invalid IPv4 " + IPcandidate)
 		return RandomIPv4()
 	}
 	return IPcandidate
@@ -70,8 +67,6 @@ func RandomIPv6() string {
 	}
 	IPcandidate := net.IP(ip).To16().String()
 	if !ValidAddress(IPcandidate) {
-		// Yes, we want this Println (see RandomIPv4()).
-		fmt.Println("Invalid IPv6 " + IPcandidate)
 		return RandomIPv6()
 	}
 	return IPcandidate

@@ -1,7 +1,6 @@
 package ssas
 
 import (
-	"bufio"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
@@ -14,7 +13,6 @@ import (
 	"net"
 	"os"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/jinzhu/gorm"
@@ -651,36 +649,40 @@ func CleanDatabase(group Group) error {
 }
 
 func ValidAddress(address string) bool {
-	// Networks listed at https://en.wikipedia.org/wiki/Reserved_IP_addresses
-	ipsFile, success := os.LookupEnv("SSAS_FORBIDDEN_CIDRS")
-	if !success {
-		Logger.Errorf("missing SSAS_FORBIDDEN_CIDRS env var")
-		return false
-	}
-
-	/* #nosec -- Potential file inclusion via variable */
-	file, err := os.Open(ipsFile)
-	if err != nil {
-		Logger.Errorf("unable to open IP's file %s: %s", ipsFile, err.Error())
-		return false
-	}
-	defer file.Close()
-
-	var badNetworks []string
-	scanner := bufio.NewScanner(file)
-	for scanner.Scan() {
-		badNetworks = append(badNetworks, strings.TrimSpace(scanner.Text()))
-	}
-	if scanner.Err() != nil {
-		Logger.Errorf("unable to read IP's from %s: %s", ipsFile, err.Error())
-		return false
-	}
-
 	ip := net.ParseIP(address)
 	if ip == nil {
 		return false
 	}
 
+	// Source https://en.wikipedia.org/wiki/Reserved_IP_addresses
+	// #SonarIgnore--BEGIN
+	// SonarQube does not like hard-coded IP's or CIDR's, but these are not intended to be configurable
+	badNetworks := []string{
+		"0.0.0.0/8",
+		"10.0.0.0/8",
+		"100.64.0.0/10",
+		"127.0.0.0/8",
+		"169.254.0.0/16",
+		"172.16.0.0/12",
+		"192.0.0.0/24",
+		"192.0.2.0/24",
+		"192.88.99.0/24",
+		"192.168.0.0/16",
+		"198.18.0.0/15",
+		"198.51.100.0/24",
+		"203.0.113.0/24",
+		"224.0.0.0/4",
+		"240.0.0.0/4",
+		"255.255.255.255/32",
+		"::/128",
+		"::1/128",
+		"2001:db8::/32",
+		"2002::/16",
+		"fc00::/7",
+		"fe80::/10",
+		"ff00::/8",
+	}
+	// #SonarIgnore--END
 	for _, network := range badNetworks {
 		_, ipNet, _ := net.ParseCIDR(network)
 		if ipNet.Contains(ip) {
