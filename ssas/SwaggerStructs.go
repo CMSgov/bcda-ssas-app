@@ -71,7 +71,7 @@ type SystemResponse struct {
 		ExpiresAt		time.Time
 		// Optional IP addresses from which this system is allowed to connect
 		// Required: false
-		IPs				[]string	`json:"ips",omitempty`
+		IPs				[]string	`json:"ips,omitempty"`
 	}
 }
 
