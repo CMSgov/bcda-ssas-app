@@ -129,7 +129,7 @@
 						"exec": [
 							"pm.test(\"response is 400 and record not found\", function () {",
 							"    pm.response.to.have.status(400);",
-							"    pm.response.to.have.body(\"Failed to update group. Error: record not found for id=9999\\n\")",
+							"    pm.response.to.have.body('{\"error\":\"Bad Request\",\"error_description\":\"failed to update group; record not found for id=9999\"}',)",
 							"});"
 						],
 						"type": "text/javascript"
@@ -302,7 +302,7 @@
 						"exec": [
 							"pm.test(\"response is 400 and record not found\", function () {",
 							"    pm.response.to.have.status(400);",
-							"    pm.response.to.have.body(\"Failed to delete group. Error: no Group record found with ID 9999\\n\")",
+							"    pm.response.to.have.body('{\"error\":\"Bad Request\",\"error_description\":\"failed to delete group; no Group record found with ID 9999\"}',)",
 							"});"
 						],
 						"type": "text/javascript"
