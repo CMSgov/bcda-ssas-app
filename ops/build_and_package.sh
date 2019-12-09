@@ -23,12 +23,19 @@ fi
 [  -z "$BCDA_GPG_RPM_PASSPHRASE" ] && echo "Please select the Passphrase to sign the RPMs" && exit 1 || echo "GPG Passphrase provided"
 [  -z "$GPG_RPM_EMAIL" ] && echo "Please enter the email for the GPG Key Signature" && exit 1 || echo "GPG Key Email provided"
 
+if [ ! -f ../ssas/swaggerui/swagger.json ]
+then
+  echo "Swagger doc generation must be completed prior to creating package."
+  exit 1
+fi
+
 cd ../ssas
 go clean
 echo "Building ssas..."
 go build -ldflags "-X github.com/CMSgov/bcda-ssas-app/ssas/constants.Version=$VERSION" -o ssas ./service/main
 echo "Packaging ssas binary into RPM..."
-fpm -v $VERSION -s dir -t rpm -n ssas ssas=/usr/local/bin/ssas
+fpm -v $VERSION -s dir -t rpm -n ssas ssas=/usr/local/bin/ssas swaggerui=/etc/sv/api _site=/etc/sv/api
+
 
 #Sign RPMs
 echo "Importing GPG Key files"

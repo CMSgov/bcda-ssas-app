@@ -17,13 +17,13 @@ func requireBasicAuth(next http.Handler) http.Handler {
 
 		system, err := ssas.GetSystemByClientID(clientID)
 		if err != nil {
-			jsonError(w, http.StatusText(http.StatusUnauthorized), "invalid client id")
+			formatError(w, http.StatusText(http.StatusUnauthorized), "invalid client id")
 			return
 		}
 
 		savedSecret, err := system.GetSecret()
 		if err != nil || !ssas.Hash(savedSecret).IsHashOf(secret) {
-			jsonError(w, http.StatusText(http.StatusUnauthorized), "invalid client secret")
+			formatError(w, http.StatusText(http.StatusUnauthorized), "invalid client secret")
 			return
 		}
 
@@ -31,7 +31,7 @@ func requireBasicAuth(next http.Handler) http.Handler {
 	})
 }
 
-func jsonError(w http.ResponseWriter, error string, description string) {
+func formatError(w http.ResponseWriter, error string, description string) {
 	ssas.Logger.Printf("%s; %s", description, error)
 	w.WriteHeader(http.StatusBadRequest)
 	body := []byte(fmt.Sprintf(`{"error":"%s","error_description":"%s"}`, error, description))
