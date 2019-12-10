@@ -2,7 +2,10 @@ package admin
 
 import (
 	"fmt"
+	"github.com/CMSgov/bcda-ssas-app/ssas"
+	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/go-chi/chi"
@@ -34,15 +37,46 @@ func Server() *service.Server {
 
 func routes() *chi.Mux {
 	r := chi.NewRouter()
-	r.Use(service.NewAPILogger(), service.ConnectionClose, requireBasicAuth)
-	r.Post("/group", createGroup)
-	r.Get("/group", listGroups)
-	r.Put("/group/{id}", updateGroup)
-	r.Delete("/group/{id}", deleteGroup)
-	r.Post("/system", createSystem)
-	r.Put("/system/{systemID}/credentials", resetCredentials)
-	r.Get("/system/{systemID}/key", getPublicKey)
-	r.Delete("/system/{systemID}/credentials", deactivateSystemCredentials)
-	r.Delete("/token/{tokenID}", revokeToken)
+	r.Use(service.NewAPILogger(), service.ConnectionClose)
+	r.With(requireBasicAuth).Post("/group", createGroup)
+	r.With(requireBasicAuth).Get("/group", listGroups)
+	r.With(requireBasicAuth).Put("/group/{id}", updateGroup)
+	r.With(requireBasicAuth).Delete("/group/{id}", deleteGroup)
+	r.With(requireBasicAuth).Post("/system", createSystem)
+	r.With(requireBasicAuth).Put("/system/{systemID}/credentials", resetCredentials)
+	r.With(requireBasicAuth).Get("/system/{systemID}/key", getPublicKey)
+	r.With(requireBasicAuth).Delete("/system/{systemID}/credentials", deactivateSystemCredentials)
+	r.With(requireBasicAuth).Delete("/token/{tokenID}", revokeToken)
+
+	swaggerPath := "./swaggerui"
+	if _, err := os.Stat(swaggerPath); os.IsNotExist(err) {
+		ssas.Logger.Info("swagger path not found: " + swaggerPath)
+		swaggerPath = "../swaggerui"
+	} else {
+		ssas.Logger.Info("swagger path found: " + swaggerPath)
+	}
+	FileServer(r, "/swagger", http.Dir(swaggerPath))
+
 	return r
+}
+
+// FileServer conveniently sets up a http.FileServer handler to serve
+// static files from a http.FileSystem.
+// stolen from https://github.com/go-chi/chi/blob/master/_examples/fileserver/main.go
+func FileServer(r chi.Router, path string, root http.FileSystem) {
+	if strings.ContainsAny(path, "{}*") {
+		panic("FileServer does not permit URL parameters.")
+	}
+
+	fs := http.StripPrefix(path, http.FileServer(root))
+
+	if path != "/" && path[len(path)-1] != '/' {
+		r.Get(path, http.RedirectHandler(path+"/", 301).ServeHTTP)
+		path += "/"
+	}
+	path += "*"
+
+	r.Get(path, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fs.ServeHTTP(w, r)
+	}))
 }

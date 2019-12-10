@@ -281,6 +281,7 @@ func (gd *GroupData) Scan(value interface{}) error {
 type Resource struct {
 	ID     string   `json:"id"`
 	Name   string   `json:"name"`
+	// Example: ["bcda-api"]
 	Scopes []string `json:"scopes"`
 }
 

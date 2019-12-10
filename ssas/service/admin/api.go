@@ -13,25 +13,45 @@ import (
 	"github.com/CMSgov/bcda-ssas-app/ssas/service"
 )
 
+/*
+	swagger:route POST /group group createGroup
+
+	Create group
+
+	Creates a security group (which roughly corresponds to an entity such as an ACO).  Systems (which have credentials)
+	can be associated with this group in order to specify their scopes (rights).
+
+	Produces:
+	- application/json
+
+	Security:
+		basic_auth:
+
+	Responses:
+		201: groupResponse
+		400: badRequestResponse
+		401: invalidCredentials
+		500: serverError
+*/
 func createGroup(w http.ResponseWriter, r *http.Request) {
 	gd := ssas.GroupData{}
 	err := json.NewDecoder(r.Body).Decode(&gd)
 	if err != nil {
-		http.Error(w, "Failed to create group due to invalid request body", http.StatusBadRequest)
+		jsonError(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
 
 	ssas.OperationCalled(ssas.Event{Op: "CreateGroup", TrackingID: gd.GroupID, Help: "calling from admin.createGroup()"})
 	g, err := ssas.CreateGroup(gd)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Failed to create group. Error: %s", err), http.StatusBadRequest)
+		jsonError(w, http.StatusBadRequest, fmt.Sprintf("failed to create group; %s", err))
 		return
 	}
 
 	groupJSON, err := json.Marshal(g)
 	if err != nil {
 		ssas.OperationFailed(ssas.Event{Op: "admin.createGroup", TrackingID: gd.GroupID, Help: err.Error()})
-		http.Error(w, "Internal error", http.StatusInternalServerError)
+		jsonError(w, http.StatusInternalServerError, "internal error")
 		return
 	}
 
@@ -40,10 +60,28 @@ func createGroup(w http.ResponseWriter, r *http.Request) {
 	_, err = w.Write(groupJSON)
 	if err != nil {
 		ssas.OperationFailed(ssas.Event{Op: "admin.createGroup", TrackingID: gd.GroupID, Help: err.Error()})
-		http.Error(w, "Internal error", http.StatusInternalServerError)
+		jsonError(w, http.StatusInternalServerError, "internal error")
 	}
 }
 
+/*
+	swagger:route GET /group group listGroups
+
+	List groups
+
+	Returns the complete list of registered security groups and their systems.
+
+	Produces:
+	- application/json
+
+	Security:
+		basic_auth:
+
+	Responses:
+		200: groupsResponse
+		401: invalidCredentials
+		500: serverError
+*/
 func listGroups(w http.ResponseWriter, r *http.Request) {
 	trackingID := uuid.NewRandom().String()
 
@@ -51,14 +89,14 @@ func listGroups(w http.ResponseWriter, r *http.Request) {
 	groups, err := ssas.ListGroups(trackingID)
 	if err != nil {
 		ssas.OperationFailed(ssas.Event{Op: "admin.listGroups", TrackingID: trackingID, Help: err.Error()})
-		http.Error(w, fmt.Sprintf("Failed to list groups. Error: %s", err), http.StatusBadRequest)
+		jsonError(w, http.StatusInternalServerError, "internal error")
 		return
 	}
 
 	groupsJSON, err := json.Marshal(groups)
 	if err != nil {
 		ssas.OperationFailed(ssas.Event{Op: "admin.listGroups", TrackingID: trackingID, Help: err.Error()})
-		http.Error(w, "Internal error", http.StatusInternalServerError)
+		jsonError(w, http.StatusInternalServerError, "internal error")
 		return
 	}
 
@@ -67,32 +105,50 @@ func listGroups(w http.ResponseWriter, r *http.Request) {
 	_, err = w.Write(groupsJSON)
 	if err != nil {
 		ssas.OperationFailed(ssas.Event{Op: "admin.listGroups", TrackingID: trackingID, Help: err.Error()})
-		http.Error(w, "Internal error", http.StatusInternalServerError)
+		jsonError(w, http.StatusInternalServerError, "internal error")
 	}
 }
 
+/*
+	swagger:route PUT /group/{groupId} group updateGroup
+
+	Update group
+
+	Updates the attributes of an existing group.
+
+	Produces:
+	- application/json
+
+	Security:
+		basic_auth:
+
+	Responses:
+		200: groupResponse
+		400: badRequestResponse
+		401: invalidCredentials
+		500: serverError
+*/
 func updateGroup(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 
 	gd := ssas.GroupData{}
 	err := json.NewDecoder(r.Body).Decode(&gd)
 	if err != nil {
-		http.Error(w, "Failed to update group due to invalid request body", http.StatusBadRequest)
+		jsonError(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
 
 	ssas.OperationCalled(ssas.Event{Op: "UpdateGroup", TrackingID: id, Help: "calling from admin.updateGroup()"})
 	g, err := ssas.UpdateGroup(id, gd)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Failed to update group. Error: %s", err), http.StatusBadRequest)
+		jsonError(w, http.StatusBadRequest, fmt.Sprintf("failed to update group; %s", err))
 		return
 	}
 
 	groupJSON, err := json.Marshal(g)
 	if err != nil {
 		ssas.OperationFailed(ssas.Event{Op: "admin.updateGroup", TrackingID: id, Help: err.Error()})
-		http.Error(w, "Internal error", http.StatusInternalServerError)
-		return
+		jsonError(w, http.StatusInternalServerError, "internal error")
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -100,10 +156,28 @@ func updateGroup(w http.ResponseWriter, r *http.Request) {
 	_, err = w.Write(groupJSON)
 	if err != nil {
 		ssas.OperationFailed(ssas.Event{Op: "admin.updateGroup", TrackingID: id, Help: err.Error()})
-		http.Error(w, "Internal error", http.StatusInternalServerError)
+		jsonError(w, http.StatusInternalServerError, "internal error")
 	}
 }
 
+/*
+	swagger:route DELETE /group/{groupId} group deleteGroup
+
+	Delete group
+
+	Soft-deletes a group, invalidating any associated systems and their credentials.
+
+	Produces:
+	- application/json
+
+	Security:
+		basic_auth:
+
+	Responses:
+		200: okResponse
+		400: badRequestResponse
+		401: invalidCredentials
+*/
 func deleteGroup(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 
@@ -111,39 +185,50 @@ func deleteGroup(w http.ResponseWriter, r *http.Request) {
 	err := ssas.DeleteGroup(id)
 	if err != nil {
 		ssas.OperationFailed(ssas.Event{Op: "admin.deleteGroup", TrackingID: id, Help: err.Error()})
-		http.Error(w, fmt.Sprintf("Failed to delete group. Error: %s", err), http.StatusBadRequest)
+		jsonError(w, http.StatusBadRequest, fmt.Sprintf("failed to delete group; %s", err))
 		return
 	}
 
 	w.WriteHeader(http.StatusOK)
 }
 
-func createSystem(w http.ResponseWriter, r *http.Request) {
-	type system struct {
-		ClientName string `json:"client_name"`
-		GroupID    string `json:"group_id"`
-		Scope      string `json:"scope"`
-		PublicKey  string `json:"public_key"`
-		IPs      []string `json:"ips"`
-		TrackingID string `json:"tracking_id"`
-	}
+/*
+	swagger:route POST /system system createSystem
 
-	sys := system{}
+	Create system
+
+	Creates a system, which will have credentials that can be used by an automated software system.  The system will be
+	associated with a security group (which roughly corresponds to an entity such as an ACO).
+
+	Produces:
+	- application/json
+
+	Security:
+		basic_auth:
+
+	Responses:
+		201: systemResponse
+		400: badRequestResponse
+		401: invalidCredentials
+		500: serverError
+*/
+func createSystem(w http.ResponseWriter, r *http.Request) {
+	sys := ssas.SystemInput{}
 	if err := json.NewDecoder(r.Body).Decode(&sys); err != nil {
-		http.Error(w, "Could not create system due to invalid request body", http.StatusBadRequest)
+		jsonError(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
 
 	ssas.OperationCalled(ssas.Event{Op: "RegisterClient", TrackingID: sys.TrackingID, Help: "calling from admin.createSystem()"})
 	creds, err := ssas.RegisterSystem(sys.ClientName, sys.GroupID, sys.Scope, sys.PublicKey, sys.IPs, sys.TrackingID)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("Could not create system. Error: %s", err), http.StatusBadRequest)
+		jsonError(w, http.StatusBadRequest, fmt.Sprintf("could not create system; %s", err))
 		return
 	}
 
 	credsJSON, err := json.Marshal(creds)
 	if err != nil {
-		http.Error(w, "Internal error", http.StatusInternalServerError)
+		jsonError(w, http.StatusInternalServerError, "internal error")
 		return
 	}
 
@@ -151,16 +236,35 @@ func createSystem(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusCreated)
 	_, err = w.Write(credsJSON)
 	if err != nil {
-		http.Error(w, "Internal error", http.StatusInternalServerError)
+		jsonError(w, http.StatusInternalServerError, "internal error")
 	}
 }
 
+/*
+	swagger:route PUT /system/{systemId}/credentials system resetCredentials
+
+	Reset credentials
+
+	Rotates the credentials for the specified system.
+
+	Produces:
+	- application/json
+
+	Security:
+		basic_auth:
+
+	Responses:
+		201: systemResponse
+		401: invalidCredentials
+		404: notFoundResponse
+		500: serverError
+*/
 func resetCredentials(w http.ResponseWriter, r *http.Request) {
 	systemID := chi.URLParam(r, "systemID")
 
 	system, err := ssas.GetSystemByID(systemID)
 	if err != nil {
-		http.Error(w, "Not found", http.StatusNotFound)
+		jsonError(w, http.StatusNotFound, "Invalid system ID")
 		return
 	}
 
@@ -168,13 +272,13 @@ func resetCredentials(w http.ResponseWriter, r *http.Request) {
 	ssas.OperationCalled(ssas.Event{Op: "ResetSecret", TrackingID: trackingID, Help: "calling from admin.resetCredentials()"})
 	creds, err := system.ResetSecret(trackingID)
 	if err != nil {
-		http.Error(w, "Internal error", http.StatusInternalServerError)
+		jsonError(w, http.StatusInternalServerError, "internal error")
 		return
 	}
 
 	credsJSON, err := json.Marshal(creds)
 	if err != nil {
-		http.Error(w, "Internal error", http.StatusInternalServerError)
+		jsonError(w, http.StatusInternalServerError, "internal error")
 		return
 	}
 
@@ -182,15 +286,33 @@ func resetCredentials(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusCreated)
 	_, err = w.Write(credsJSON)
 	if err != nil {
-		http.Error(w, "Internal error", http.StatusInternalServerError)
+		jsonError(w, http.StatusInternalServerError, "internal error")
 	}}
 
+/*
+	swagger:route GET /system/{systemId}/key system getPublicKey
+
+	Get Public Key
+
+	Returns the specified system's public key, if present.
+
+	Produces:
+	- application/json
+
+	Security:
+		basic_auth:
+
+	Responses:
+		200: publicKeyResponse
+		401: invalidCredentials
+		404: notFoundResponse
+*/
 func getPublicKey(w http.ResponseWriter, r *http.Request) {
 	systemID := chi.URLParam(r, "systemID")
 
 	system, err := ssas.GetSystemByID(systemID)
 	if err != nil {
-		http.Error(w, "Not found", http.StatusNotFound)
+		jsonError(w, http.StatusNotFound, "invalid system ID")
 		return
 	}
 
@@ -203,24 +325,61 @@ func getPublicKey(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, `{ "client_id": "%s", "public_key": "%s" }`, system.ClientID, keyStr)
 }
 
+/*
+	swagger:route DELETE /system/{systemId}/credentials system deleteCredentials
+
+	Delete credentials
+
+	Revokes the credentials for the specified system.
+
+	Produces:
+	- application/json
+
+	Security:
+		basic_auth:
+
+	Responses:
+		200: okResponse
+		401: invalidCredentials
+		404: notFoundResponse
+		500: serverError
+*/
 func deactivateSystemCredentials(w http.ResponseWriter, r *http.Request) {
 	systemID := chi.URLParam(r, "systemID")
 
 	system, err := ssas.GetSystemByID(systemID)
 	if err != nil {
-		http.Error(w, "Not found", http.StatusNotFound)
+		jsonError(w, http.StatusNotFound, "invalid system ID")
 		return
 	}
 	err = system.DeactivateSecrets()
 
 	if err != nil {
-		http.Error(w, "Internal error", http.StatusInternalServerError)
+		jsonError(w, http.StatusInternalServerError, "invalid system ID")
 		return
 	}
 
 	w.WriteHeader(http.StatusOK)
 }
 
+/*
+  	swagger:route DELETE /token/{tokenId} token revokeToken
+
+	Revoke token
+
+	Revokes the specified tokenID by placing it on a blacklist.  Will return an HTTP 200 status whether or not the tokenID has been issued.
+
+	Produces:
+	- application/json
+
+	Security:
+		basic_auth:
+
+	Responses:
+		200: okResponse
+		401: invalidCredentials
+		500: serverError
+*/
 func revokeToken(w http.ResponseWriter, r *http.Request) {
 	tokenID := chi.URLParam(r, "tokenID")
 
@@ -230,8 +389,18 @@ func revokeToken(w http.ResponseWriter, r *http.Request) {
 	if err := service.TokenBlacklist.BlacklistToken(tokenID, service.TokenCacheLifetime); err != nil {
 		event.Help = err.Error()
 		ssas.OperationFailed(event)
-		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		jsonError(w, http.StatusInternalServerError, "internal server error")
 	}
 
 	w.WriteHeader(http.StatusOK)
+}
+
+func jsonError(w http.ResponseWriter, errorStatus int, description string) {
+	ssas.Logger.Printf("%s; %s", description, http.StatusText(errorStatus))
+	w.WriteHeader(errorStatus)
+	body := []byte(fmt.Sprintf(`{"error":"%s","error_description":"%s"}`, http.StatusText(errorStatus), description))
+	_, err := w.Write(body)
+	if err != nil {
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+	}
 }

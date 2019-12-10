@@ -10,6 +10,12 @@ services:
       - "5430:5432"
     volumes:
       - ./db:/var/db
+  documentation:
+    build:
+      context: .
+      dockerfile: Dockerfiles/Dockerfile.documentation
+    volumes:
+      - .:/go/src/github.com/CMSgov/bcda-ssas-app
   ssas:
     build:
       context: .

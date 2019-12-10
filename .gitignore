@@ -3,3 +3,4 @@
 test_results/*
 .idea
 .env.sh
+ssas/swaggerui/swagger.json
