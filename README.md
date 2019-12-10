@@ -134,3 +134,14 @@ docker-compose run --rm ssas sh -c 'tmp/ssas-service --reset-secret --client-id=
 ```
 docker-compose run --rm ssas sh -c 'tmp/ssas-service --new-admin-system --system-name=[entity name]'
 ```
+
+# Swagger Documentation
+The admin server has Swagger documentation. To access:
+1. Make sure it's been built (the container will stop after a few seconds when the documentation is ready)
+
+    ```docker-compose up documentation```
+1. Make sure the `ssas` container is running
+
+    ```docker-compose up ssas```
+1. Access Swagger in your browser:
+    http://localhost:3104/swagger
