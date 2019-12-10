@@ -34,7 +34,7 @@ go clean
 echo "Building ssas..."
 go build -ldflags "-X github.com/CMSgov/bcda-ssas-app/ssas/constants.Version=$VERSION" -o ssas ./service/main
 echo "Packaging ssas binary into RPM..."
-fpm -v $VERSION -s dir -t rpm -n ssas ssas=/usr/local/bin/ssas swaggerui=/etc/sv/api _site=/etc/sv/api
+fpm -v $VERSION -s dir -t rpm -n ssas ssas=/usr/local/bin/ssas swaggerui=/etc/sv/ssas
 
 
 #Sign RPMs
