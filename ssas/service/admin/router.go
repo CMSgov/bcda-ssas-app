@@ -38,15 +38,16 @@ func Server() *service.Server {
 func routes() *chi.Mux {
 	r := chi.NewRouter()
 	r.Use(service.NewAPILogger(), service.ConnectionClose)
-	r.With(requireBasicAuth).Post("/group", createGroup)
-	r.With(requireBasicAuth).Get("/group", listGroups)
-	r.With(requireBasicAuth).Put("/group/{id}", updateGroup)
-	r.With(requireBasicAuth).Delete("/group/{id}", deleteGroup)
-	r.With(requireBasicAuth).Post("/system", createSystem)
-	r.With(requireBasicAuth).Put("/system/{systemID}/credentials", resetCredentials)
-	r.With(requireBasicAuth).Get("/system/{systemID}/key", getPublicKey)
-	r.With(requireBasicAuth).Delete("/system/{systemID}/credentials", deactivateSystemCredentials)
-	r.With(requireBasicAuth).Delete("/token/{tokenID}", revokeToken)
+	r.With(requireAdminAuth).Post("/group", createGroup)
+	r.With(requireAdminAuth).Get("/group", listGroups)
+	r.With(requireAdminAuth).Put("/group/{id}", updateGroup)
+	r.With(requireAdminAuth).Delete("/group/{id}", deleteGroup)
+	r.With(requireAdminAuth).Post("/system", createSystem)
+	r.With(requireAdminAuth).Put("/system/{systemID}/credentials", resetCredentials)
+	r.With(requireAdminAuth).Get("/system/{systemID}/key", getPublicKey)
+	r.With(requireAdminAuth).Delete("/system/{systemID}/credentials", deactivateSystemCredentials)
+	r.With(requireAdminAuth).Delete("/token/{tokenID}", revokeToken)
+	r.With(requireAdminAuth).Get("/system/ips", listIPs)
 
 	swaggerPath := "./swaggerui"
 	if _, err := os.Stat(swaggerPath); os.IsNotExist(err) {

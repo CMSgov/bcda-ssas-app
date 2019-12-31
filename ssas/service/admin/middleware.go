@@ -7,7 +7,7 @@ import (
 	"github.com/CMSgov/bcda-ssas-app/ssas"
 )
 
-func requireBasicAuth(next http.Handler) http.Handler {
+func requireAdminAuth(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		clientID, secret, ok := r.BasicAuth()
 		if !ok {
@@ -17,13 +17,18 @@ func requireBasicAuth(next http.Handler) http.Handler {
 
 		system, err := ssas.GetSystemByClientID(clientID)
 		if err != nil {
-			formatError(w, http.StatusText(http.StatusUnauthorized), "invalid client id")
+			formatError(w, http.StatusText(http.StatusUnauthorized), "invalid client id or secret")
 			return
 		}
 
 		savedSecret, err := system.GetSecret()
 		if err != nil || !ssas.Hash(savedSecret).IsHashOf(secret) {
-			formatError(w, http.StatusText(http.StatusUnauthorized), "invalid client secret")
+			formatError(w, http.StatusText(http.StatusUnauthorized), "invalid client id or secret")
+			return
+		}
+
+		if system.APIScope != "bcda-admin" {
+			formatError(w, http.StatusText(http.StatusUnauthorized), "system not authorized for admin actions")
 			return
 		}
 
