@@ -105,10 +105,9 @@ docker-compose up -d db
 docker-compose up ssas
 ```
 
-Seed the database with a minimal group:
-
+If this is the first time you've started the containers, set up your database tables and seed them with sample group and systems:
 ```
-docker-compose run --rm ssas sh -c 'tmp/ssas-service --add-fixture-data'
+make load-fixtures
 ```
 
 point your browser at one of the following ports, or use the postman test collection in tests.
