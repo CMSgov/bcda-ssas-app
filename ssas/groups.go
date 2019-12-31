@@ -20,7 +20,7 @@ type Group struct {
 
 type SystemSummary struct {
 	ID        	uint    	`json:"id"`
-	GID			uint		`json:"-"`
+	GID        	uint		`json:"-"`
 	ClientName	string		`json:"client_name"`
 	ClientID	string  	`json:"client_id"`
 	IPs       	[]string	`json:"ips,omitempty"`
@@ -44,7 +44,7 @@ func (GroupSummary) TableName() string {
 }
 
 type GroupList struct {
-	Count      int				`json:"count"`
+	Count      int        		`json:"count"`
 	ReportedAt time.Time		`json:"reported_at"`
 	Groups     []GroupSummary	`json:"groups"`
 }
