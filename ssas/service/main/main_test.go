@@ -103,6 +103,30 @@ func (s *MainTestSuite) TestFixtureData() {
 	assert.True(s.T(), foundConsumer)
 }
 
+func (s *MainTestSuite) TestListIPs() {
+	db := ssas.GetGORMDbConnection()
+	defer ssas.Close(db)
+	fixtureClientID := "0c527d2e-2e8a-4808-b11d-0fa06baf8254"
+	system, err := ssas.GetSystemByClientID(fixtureClientID)
+	assert.Nil(s.T(), err)
+
+	testIP := ssas.RandomIPv4()
+	ip := ssas.IP{
+		Address: testIP,
+		SystemID: system.ID,
+	}
+	err = db.Save(&ip).Error
+	assert.Nil(s.T(), err)
+	defer assert.Nil(s.T(), db.Unscoped().Delete(&ip).Error)
+
+	var str bytes.Buffer
+	ssas.Logger.SetOutput(&str)
+	listIPs()
+	output := str.String()
+	assert.NotContains(s.T(), output, "unable to get registered IPs")
+	assert.Contains(s.T(), testIP, output)
+}
+
 func TestMainTestSuite(t *testing.T) {
 	suite.Run(t, new(MainTestSuite))
 }

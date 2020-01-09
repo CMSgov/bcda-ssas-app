@@ -545,7 +545,7 @@ func GetAllIPs() ([]string, error) {
 	)
 	defer Close(db)
 
-	if err = db.Model(&IP{}).Where("deleted_at IS NULL AND id NOT IN (SELECT id FROM systems WHERE deleted_at IS NOT NULL)").Pluck("address", &ips).Error; err != nil {
+	if err = db.Order("address").Model(&IP{}).Where("deleted_at IS NULL AND id NOT IN (SELECT id FROM systems WHERE deleted_at IS NOT NULL)").Pluck("DISTINCT address", &ips).Error; err != nil {
 		err = fmt.Errorf("no IP's found: %s", err.Error())
 	}
 	return ips, err

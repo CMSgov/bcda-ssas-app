@@ -131,6 +131,9 @@ docker run --rm --network bcda-ssas-app_default -it postgres pg_dump -s -h bcda-
 docker-compose run --rm ssas sh -c 'tmp/ssas-service --reset-secret --client-id=[client_id]'
 ```
 ```
+docker-compose run --rm ssas sh -c 'tmp/ssas-service --list-ips'
+```
+```
 docker-compose run --rm ssas sh -c 'tmp/ssas-service --new-admin-system --system-name=[entity name]'
 ```
 

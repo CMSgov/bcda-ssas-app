@@ -3,7 +3,6 @@ package admin
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/go-chi/render"
 	"net/http"
 	"strings"
 
@@ -394,15 +393,6 @@ func revokeToken(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusOK)
-}
-
-func listIPs(w http.ResponseWriter, r *http.Request) {
-	ips, err := ssas.GetAllIPs()
-	if err != nil {
-		jsonError(w, http.StatusInternalServerError, "internal server error")
-		return
-	}
-	render.JSON(w, r, ips)
 }
 
 func jsonError(w http.ResponseWriter, errorStatus int, description string) {
