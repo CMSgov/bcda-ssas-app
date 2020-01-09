@@ -5,25 +5,30 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/jinzhu/gorm"
 	"strconv"
 	"time"
-
-	"github.com/jinzhu/gorm"
 )
 
 type Group struct {
 	gorm.Model
-	GroupID string    `gorm:"unique;not null" json:"group_id"`
-	XData   string    `gorm:"type:text" json:"xdata"`
-	Data    GroupData `gorm:"type:jsonb" json:"data"`
+	GroupID		string		`gorm:"unique;not null" json:"group_id"`
+	XData		string		`gorm:"type:text" json:"xdata"`
+	Data		GroupData	`gorm:"type:jsonb" json:"data"`
+	Systems		[]System	`gorm:"foreignkey:GID"`
 }
 
 type SystemSummary struct {
 	ID        	uint    	`json:"id"`
+	GID        	uint		`json:"-"`
 	ClientName	string		`json:"client_name"`
 	ClientID	string  	`json:"client_id"`
 	IPs       	[]string	`json:"ips,omitempty"`
 	UpdatedAt 	time.Time	`json:"updated_at"`
+}
+
+func (SystemSummary) TableName() string {
+	return "systems"
 }
 
 type GroupSummary struct {
@@ -31,13 +36,17 @@ type GroupSummary struct {
 	GroupID   string          `json:"group_id"`
 	XData     string          `json:"xdata"`
 	CreatedAt time.Time       `json:"created_at"`
-	Systems   []SystemSummary `json:"systems"`
+	Systems   []SystemSummary `json:"systems" gorm:"foreignkey:GID"`
+}
+
+func (GroupSummary) TableName() string {
+	return "groups"
 }
 
 type GroupList struct {
-	Count      int            `json:"count"`
-	ReportedAt time.Time      `json:"reported_at"`
-	Groups     []GroupSummary `json:"groups"`
+	Count      int        		`json:"count"`
+	ReportedAt time.Time		`json:"reported_at"`
+	Groups     []GroupSummary	`json:"groups"`
 }
 
 func CreateGroup(gd GroupData) (Group, error) {
@@ -80,10 +89,10 @@ func ListGroups(trackingID string) (list GroupList, err error) {
 	event := Event{Op: "ListGroups", TrackingID: trackingID}
 	OperationStarted(event)
 
-	groups := []Group{}
+	groups := []GroupSummary{}
 	db := GetGORMDbConnection()
 	defer Close(db)
-	err = db.Find(&groups).Error
+	err = db.Preload("Systems").Where("deleted_at IS NULL").Find(&groups).Error
 	if err != nil {
 		event.Help = err.Error()
 		OperationFailed(event)
@@ -92,31 +101,7 @@ func ListGroups(trackingID string) (list GroupList, err error) {
 
 	list.Count = len(groups)
 	list.ReportedAt = time.Now()
-	for _, group := range groups {
-		gs := GroupSummary{}
-		gs.ID = group.ID
-		gs.GroupID = group.GroupID
-		gs.XData = group.XData
-		gs.CreatedAt = group.CreatedAt
-
-		var systems []System
-		systems, err = GetSystemsByGroupID(group.ID)
-		if err != nil {
-			return
-		}
-		for _, system := range systems {
-			ss := SystemSummary{}
-			ss.ID = system.ID
-			ss.ClientName = system.ClientName
-			ss.ClientID = system.ClientID
-			ss.IPs, _ = system.GetIPs()
-			ss.UpdatedAt = system.UpdatedAt
-
-			gs.Systems = append(gs.Systems, ss)
-		}
-
-		list.Groups = append(list.Groups, gs)
-	}
+	list.Groups = groups
 
 	OperationSucceeded(event)
 	return list, nil
