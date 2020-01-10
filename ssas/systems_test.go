@@ -484,6 +484,9 @@ func (s *SystemsTestSuite) TestRegisterSystemIps() {
 		ips, err := system.GetIPs()
 		assert.Nil(err)
 		assert.Equal([]string{address}, ips)
+		ips, err = GetAllIPs()
+		assert.Nil(err)
+		assert.Contains(ips, address)
 	}
 
 	// We have no limit on the number of IP addresses that can be registered with a system

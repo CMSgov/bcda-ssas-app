@@ -537,6 +537,21 @@ func GenerateSecret() (string, error) {
 	return fmt.Sprintf("%x", b), nil
 }
 
+func GetAllIPs() ([]string, error) {
+	var (
+		db      = GetGORMDbConnection()
+		ips 	[]string
+		err     error
+	)
+	defer Close(db)
+
+	// Only include addresses registered to active systems
+	if err = db.Order("address").Model(&IP{}).Where("deleted_at IS NULL AND id NOT IN (SELECT id FROM systems WHERE deleted_at IS NOT NULL)").Pluck("DISTINCT address", &ips).Error; err != nil {
+		err = fmt.Errorf("no IP's found: %s", err.Error())
+	}
+	return ips, err
+}
+
 func (system *System) GetIPs() ([]string, error) {
 	var (
 		db      = GetGORMDbConnection()

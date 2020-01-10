@@ -33,6 +33,7 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/go-chi/chi"
@@ -47,6 +48,7 @@ import (
 var doAddFixtureData bool
 var doResetSecret bool
 var doNewAdminSystem bool
+var doListIPs bool
 var doStart bool
 var clientID string
 var systemName string
@@ -65,6 +67,9 @@ func init() {
 	const usageNewAdminSystem = "add a new admin system to the service; requires system-name flag with argument"
 	flag.BoolVar(&doNewAdminSystem, "new-admin-system", false, usageNewAdminSystem)
 	flag.StringVar(&systemName, "system-name", "", "the system's name (e.g., 'BCDA Admin')")
+
+	const usageListIPs = "list all IP addresses registered to active systems"
+	flag.BoolVar(&doListIPs, "list-ips", false, usageListIPs)
 
 	const usageStart = "start the service"
 	flag.BoolVar(&doStart, "start", false, usageStart)
@@ -85,6 +90,10 @@ func main() {
 	}
 	if doNewAdminSystem && systemName != "" {
 		newAdminSystem(systemName)
+		return
+	}
+	if doListIPs {
+		listIPs()
 		return
 	}
 	if doStart {
@@ -242,6 +251,14 @@ func newAdminSystem(name string) {
 	} else {
 		_, _ = fmt.Fprintf(output, "%s\n", c.ClientID)
 	}
+}
+
+func listIPs() {
+	ips, err := ssas.GetAllIPs()
+	if err != nil {
+		panic("unable to get registered IPs")
+	}
+	fmt.Fprintln(output, strings.Join(ips, "\n"))
 }
 
 func cliTrackingID() string {
