@@ -601,7 +601,7 @@ func (s *SystemsTestSuite) TestSaveSecret() {
 	assert.Nil(err)
 }
 
-func (s *SystemsTestSuite) TestDeactivateSecrets() {
+func (s *SystemsTestSuite) TestRevokeSecrets() {
 	group := Group{GroupID: "test-deactivate-secrets-group"}
 	s.db.Create(&group)
 	system := System{GID: group.ID, ClientID: "test-deactivate-secrets-client"}
@@ -613,7 +613,7 @@ func (s *SystemsTestSuite) TestDeactivateSecrets() {
 	s.db.Find(&systemSecrets, "system_id = ?", system.ID)
 	assert.NotEmpty(s.T(), systemSecrets)
 
-	err := system.DeactivateSecrets()
+	err := system.RevokeSecret(string(system.ID))
 	assert.Nil(s.T(), err)
 	s.db.Find(&systemSecrets, "system_id = ?", system.ID)
 	assert.Empty(s.T(), systemSecrets)
