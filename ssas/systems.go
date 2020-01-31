@@ -162,7 +162,7 @@ func (system *System) RevokeSecret(trackingID string) error {
 		return fmt.Errorf("unable to revoke credentials for clientID %s: %s", system.ClientID, err.Error())
 	}
 
-	revokeCredentialsEvent.Help = fmt.Sprintf("secret reset in group %s with XData: %s", system.GroupID, xdata)
+	revokeCredentialsEvent.Help = fmt.Sprintf("secret revoked in group %s with XData: %s", system.GroupID, xdata)
 	OperationSucceeded(revokeCredentialsEvent)
 	return nil
 }
