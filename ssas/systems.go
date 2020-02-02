@@ -108,7 +108,7 @@ func (system *System) SaveSecret(hashedSecret string) error {
 		SystemID: system.ID,
 	}
 
-	if err := system.DeactivateSecrets(); err != nil {
+	if err := system.deactivateSecrets(); err != nil {
 		return err
 	}
 
@@ -142,11 +142,38 @@ func (system *System) GetSecret() (string, error) {
 }
 
 /*
+	RevokeSecret revokes a system's secret
+ */
+func (system *System) RevokeSecret(trackingID string) error {
+	revokeCredentialsEvent := Event{Op: "RevokeCredentials", TrackingID: trackingID, ClientID: system.ClientID}
+	OperationStarted(revokeCredentialsEvent)
+
+	xdata, err := XDataFor(*system)
+	if err != nil {
+		revokeCredentialsEvent.Help = fmt.Sprintf("could not get group XData for clientID %s: %s", system.ClientID, err.Error())
+		OperationFailed(revokeCredentialsEvent)
+		return fmt.Errorf("unable to find group for clientID %s: %s", system.ClientID, err.Error())
+	}
+
+	err = system.deactivateSecrets()
+	if err != nil {
+		revokeCredentialsEvent.Help = "unable to revoke credentials for clientID " + system.ClientID
+		OperationFailed(revokeCredentialsEvent)
+		return fmt.Errorf("unable to revoke credentials for clientID %s: %s", system.ClientID, err.Error())
+	}
+
+	revokeCredentialsEvent.Help = fmt.Sprintf("secret revoked in group %s with XData: %s", system.GroupID, xdata)
+	OperationSucceeded(revokeCredentialsEvent)
+	return nil
+}
+
+/*
 	DeactivateSecrets soft deletes secrets associated with the system.
 */
-func (system *System) DeactivateSecrets() error {
+func (system *System) deactivateSecrets() error {
 	db := GetGORMDbConnection()
 	defer Close(db)
+
 	err := db.Where("system_id = ?", system.ID).Delete(&Secret{}).Error
 	if err != nil {
 		return fmt.Errorf("unable to soft delete previous secrets for clientID %s: %s", system.ClientID, err.Error())
@@ -448,6 +475,7 @@ func RegisterSystem(clientName string, groupID string, scope string, publicKeyPE
 	creds.IPs = ips
 	creds.ExpiresAt = time.Now().Add(CredentialExpiration)
 
+	regEvent.Help = fmt.Sprintf("system registered in group %s with XData: %s", group.GroupID, group.XData)
 	OperationSucceeded(regEvent)
 	return creds, nil
 }
@@ -458,8 +486,6 @@ func XDataFor(system System) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("no group for system %d; %s", system.ID, err)
 	}
-	Logger.Info("group xdata '", group, "'")
-	// strconv.Unquote here?
 	return group.XData, nil
 }
 
@@ -576,6 +602,13 @@ func (system *System) ResetSecret(trackingID string) (Credentials, error) {
 	newSecretEvent := Event{Op: "ResetSecret", TrackingID: trackingID, ClientID: system.ClientID}
 	OperationStarted(newSecretEvent)
 
+	xdata, err := XDataFor(*system)
+	if err != nil {
+		newSecretEvent.Help = fmt.Sprintf("could not get group XData for clientID %s: %s", system.ClientID, err.Error())
+		OperationFailed(newSecretEvent)
+		return creds, errors.New("internal system error")
+	}
+
 	secretString, err := GenerateSecret()
 	if err != nil {
 		newSecretEvent.Help = fmt.Sprintf("could not reset secret for clientID %s: %s", system.ClientID, err.Error())
@@ -597,6 +630,7 @@ func (system *System) ResetSecret(trackingID string) (Credentials, error) {
 		return creds, errors.New("internal system error")
 	}
 
+	newSecretEvent.Help = fmt.Sprintf("secret reset in group %s with XData: %s", system.GroupID, xdata)
 	OperationSucceeded(newSecretEvent)
 
 	creds.SystemID = fmt.Sprint(system.ID)

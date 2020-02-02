@@ -352,7 +352,7 @@ func deactivateSystemCredentials(w http.ResponseWriter, r *http.Request) {
 		jsonError(w, http.StatusNotFound, "invalid system ID")
 		return
 	}
-	err = system.DeactivateSecrets()
+	err = system.RevokeSecret(systemID)
 
 	if err != nil {
 		jsonError(w, http.StatusInternalServerError, "invalid system ID")
