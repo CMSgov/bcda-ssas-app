@@ -475,7 +475,7 @@ func token(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	event.Help = fmt.Sprintf("token creation in group %s with XData: %s", system.GroupID, data)
+	event.Help = fmt.Sprintf("token created in group %s with XData: %s", system.GroupID, data)
 
 	// https://tools.ietf.org/html/rfc6749#section-5.1
 	// expires_in is duration in seconds
