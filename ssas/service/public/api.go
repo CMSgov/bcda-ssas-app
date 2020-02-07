@@ -457,6 +457,7 @@ func token(w http.ResponseWriter, r *http.Request) {
 	}
 
 	trackingID := uuid.NewRandom().String()
+
 	data, err := ssas.XDataFor(system)
 	ssas.Logger.Infof("public.api.token: XDataFor(%d) returned '%s'", system.ID, data)
 	if err != nil {
@@ -473,6 +474,8 @@ func token(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
 		return
 	}
+
+	event.Help = fmt.Sprintf("token created in group %s with XData: %s", system.GroupID, data)
 
 	// https://tools.ietf.org/html/rfc6749#section-5.1
 	// expires_in is duration in seconds
