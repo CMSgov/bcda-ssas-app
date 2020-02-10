@@ -34,6 +34,8 @@ import (
 		500: serverError
 */
 func createGroup(w http.ResponseWriter, r *http.Request) {
+	ssas.Logger.Infof("Raw request createGroup: %v", r.Body)
+
 	gd := ssas.GroupData{}
 	err := json.NewDecoder(r.Body).Decode(&gd)
 	if err != nil {
@@ -129,6 +131,7 @@ func listGroups(w http.ResponseWriter, r *http.Request) {
 		500: serverError
 */
 func updateGroup(w http.ResponseWriter, r *http.Request) {
+	ssas.Logger.Infof("Raw request updateGroup: %v", r.Body)
 	id := chi.URLParam(r, "id")
 
 	gd := ssas.GroupData{}
