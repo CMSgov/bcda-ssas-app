@@ -36,9 +36,11 @@ func TestAllMigrations(t *testing.T) {
 	require.True(t, t.Run("up2", up2))
 	require.True(t, t.Run("up3", up3))
 	require.True(t, t.Run("up4", up4))
+	require.True(t, t.Run("up5", up5))
 	// Place all "up" migrations in order above this comment
 
 	// Place all "down" migrations in reverse order below this comment
+	require.True(t, t.Run("down5", down5))
 	require.True(t, t.Run("down4", down4))
 	require.True(t, t.Run("down3", down3))
 	require.True(t, t.Run("down2", down2))
@@ -153,6 +155,16 @@ func up4(t *testing.T) {
 	if !db.HasTable("ips") {
 		t.Errorf("table ips was not created")
 	}
+}
+
+func up5(t *testing.T) {
+	assert.True(t, runMigration(t, "5"))
+	assert.True(t, db.Dialect().HasColumn("systems", "last_token_at"))
+}
+
+func down5(t *testing.T) {
+	assert.True(t, runMigration(t, "4"))
+	assert.False(t, db.Dialect().HasColumn("systems", "last_token_at"))
 }
 
 func down4(t *testing.T) {

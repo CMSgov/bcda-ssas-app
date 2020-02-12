@@ -475,6 +475,7 @@ func token(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	system.SaveTokenTime()
 	event.Help = fmt.Sprintf("token created in group %s with XData: %s", system.GroupID, data)
 
 	// https://tools.ietf.org/html/rfc6749#section-5.1
