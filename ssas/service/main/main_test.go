@@ -3,7 +3,9 @@ package main
 import (
 	"bytes"
 	"io"
+	"os"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -125,6 +127,58 @@ func (s *MainTestSuite) TestListIPs() {
 	output := str.String()
 	assert.NotContains(s.T(), output, "unable to get registered IPs")
 	assert.Contains(s.T(), testIP, output)
+}
+
+func (s *MainTestSuite) TestListExpiringCredentials() {
+	var secret ssas.Secret
+	db := ssas.GetGORMDbConnection()
+	defer ssas.Close(db)
+
+	assert.Nil(s.T(), os.Setenv("SSAS_CRED_EXPIRATION_DAYS", "90"))
+	assert.Nil(s.T(), os.Setenv("SSAS_CRED_TIMEOUT_DAYS", "60"))
+	assert.Nil(s.T(), os.Setenv("SSAS_CRED_WARNING_DAYS", "7"))
+
+	fixtureClientID := "0c527d2e-2e8a-4808-b11d-0fa06baf8254"
+	system, err := ssas.GetSystemByClientID(fixtureClientID)
+	assert.Nil(s.T(), err)
+	assert.False(s.T(), db.Find(&secret, "system_id = ?", system.ID).RecordNotFound())
+	origCreatedAt := secret.CreatedAt
+	origLastTokenAt := system.LastTokenAt
+
+	// Credentials that will expire but not timeout during the warning period WILL be shown
+	secret.CreatedAt = time.Now().Add(-84*24*time.Hour)
+	system.LastTokenAt = time.Now().Add(-52*24*time.Hour)
+	assert.Nil(s.T(), db.Save(&system).Error)
+	assert.Nil(s.T(), db.Save(&secret).Error)
+	output := captureOutput(func() {listExpiringCredentials()})
+	assert.NotContains(s.T(), output, "unable")
+	assert.NotContains(s.T(), output, "error")
+	assert.Contains(s.T(), output, fixtureClientID)
+
+	// Credentials that will not expire but will timeout during the warning period WILL be shown
+	secret.CreatedAt = time.Now().Add(-82*24*time.Hour)
+	system.LastTokenAt = time.Now().Add(-54*24*time.Hour)
+	assert.Nil(s.T(), db.Save(&system).Error)
+	assert.Nil(s.T(), db.Save(&secret).Error)
+	output = captureOutput(func() {listExpiringCredentials()})
+	assert.NotContains(s.T(), output, "unable")
+	assert.NotContains(s.T(), output, "error")
+	assert.Contains(s.T(), output, fixtureClientID)
+
+	// Credentials that will neither expire nor time out during the warning period will NOT be shown
+	secret.CreatedAt = time.Now().Add(-82*24*time.Hour)
+	system.LastTokenAt = time.Now().Add(-52*24*time.Hour)
+	assert.Nil(s.T(), db.Save(&system).Error)
+	assert.Nil(s.T(), db.Save(&secret).Error)
+	output = captureOutput(func() {listExpiringCredentials()})
+	assert.NotContains(s.T(), output, "unable")
+	assert.NotContains(s.T(), output, "error")
+	assert.NotContains(s.T(), output, fixtureClientID)
+
+	secret.CreatedAt = origCreatedAt
+	system.LastTokenAt = origLastTokenAt
+	assert.Nil(s.T(), db.Save(&system).Error)
+	assert.Nil(s.T(), db.Save(&secret).Error)
 }
 
 func TestMainTestSuite(t *testing.T) {

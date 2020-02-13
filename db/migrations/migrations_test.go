@@ -5,12 +5,11 @@
 package migrations
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
-	"testing"
 	"strconv"
+	"testing"
 
 	"github.com/CMSgov/bcda-ssas-app/ssas"
 	"github.com/jinzhu/gorm"
@@ -28,6 +27,35 @@ type SchemaMigration struct {
 	Dirty  bool
 }
 
+// The tests in this suite need models with specific columns, and cannot indefinitely refer to ssas.System and ssas.Group
+type systemv1 struct {
+	gorm.Model
+	GID            uint                 `json:"g_id"`
+	GroupID        string               `json:"group_id"`
+	ClientID       string               `json:"client_id"`
+	SoftwareID     string               `json:"software_id"`
+	ClientName     string               `json:"client_name"`
+	APIScope       string               `json:"api_scope"`
+	EncryptionKeys []ssas.EncryptionKey `json:"encryption_keys,omitempty"`
+	Secrets        []ssas.Secret        `json:"secrets,omitempty"`
+}
+
+func (systemv1) TableName() string {
+	return "systems"
+}
+
+type groupv1 struct {
+	gorm.Model
+	GroupID		string         `gorm:"unique;not null" json:"group_id"`
+	XData		string         `gorm:"type:text" json:"xdata"`
+	Data		ssas.GroupData `gorm:"type:jsonb" json:"data"`
+	Systems		[]systemv1       `gorm:"foreignkey:GID"`
+}
+
+func (groupv1) TableName() string {
+	return "groups"
+}
+
 func TestAllMigrations(t *testing.T) {
 	db = ssas.GetGORMDbConnection()
 	dbURL = os.Getenv("DATABASE_URL")
@@ -36,9 +64,11 @@ func TestAllMigrations(t *testing.T) {
 	require.True(t, t.Run("up2", up2))
 	require.True(t, t.Run("up3", up3))
 	require.True(t, t.Run("up4", up4))
+	require.True(t, t.Run("up5", up5))
 	// Place all "up" migrations in order above this comment
 
 	// Place all "down" migrations in reverse order below this comment
+	require.True(t, t.Run("down5", down5))
 	require.True(t, t.Run("down4", down4))
 	require.True(t, t.Run("down3", down3))
 	require.True(t, t.Run("down2", down2))
@@ -61,25 +91,23 @@ func up1(t *testing.T) {
 }
 
 func up2(t *testing.T) {
-	var group1 ssas.Group
+	var group1 groupv1
 	var g2, g3 ssas.GroupData
-	var s1, s2 ssas.System
+	var s1, s2 systemv1
+	var systems []systemv1
 
-	err := db.Exec("INSERT INTO groups(group_id) VALUES('A1234')").Error
-	assert.Nil(t, err)
-
-	err = db.Exec("INSERT INTO systems(group_id, client_id) VALUES('A1234', 'A1234')").Error
-	assert.Nil(t, err)
+	assert.Nil(t, db.Exec("INSERT INTO groups(group_id) VALUES('A1234')").Error)
+	assert.Nil(t, db.Exec("INSERT INTO systems(group_id, client_id) VALUES('A1234', 'A1234')").Error)
 
 	success := runMigration(t, "2")
 	assert.True(t, success)
 
 	if success {
-		group1, err = ssas.GetGroupByGroupID("A1234")
+		err := db.Find(&group1).Where("group_id = ?", "A1234").Error
 		assert.True(t, group1.ID > 0, "group did not get created")
 
 		// systems.g_id is present, and the values are populated by the "UPDATE" in the migration
-		systems, err := ssas.GetSystemsByGroupIDString("A1234")
+		err = db.Find(&systems).Where("group_id = ?", "A1234").Error
 		assert.Nil(t, err)
 		require.Len(t, systems, 1, fmt.Sprintf("looking for 1 system; found %v", len(systems)))
 		s1 = systems[0]
@@ -120,30 +148,34 @@ func up2(t *testing.T) {
 		err = ssas.DeleteGroup(strconv.Itoa(int(group3.ID)))
 		assert.Nil(t, err)
 
-		assert.Nil(t, ssas.CleanDatabase(group1))
-		assert.Nil(t, ssas.CleanDatabase(group2))
-		assert.Nil(t, ssas.CleanDatabase(group3))
+		assert.Nil(t, db.Unscoped().Delete(&s1).Error)
+		assert.Nil(t, db.Unscoped().Delete(&s2).Error)
+		assert.Nil(t, db.Unscoped().Delete(&group1).Error)
+		assert.Nil(t, db.Unscoped().Delete(&group2).Error)
+		assert.Nil(t, db.Unscoped().Delete(&group3).Error)
 	}
 }
 
 func up3(t *testing.T) {
-	var group ssas.Group
+	var g groupv1
+	var s systemv1
 
 	success := runMigration(t, "3")
 	assert.True(t, success)
 	if success {
-		group = ssas.Group{GroupID: "test_group_id"}
-		err := db.Save(&group).Error
+		g = groupv1{GroupID: "test_group_id"}
+		err := db.Save(&g).Error
 		assert.Nil(t, err)
 
-		system := ssas.System{GID: group.ID, ClientID: "test_client_id"}
-		err = db.Save(&system).Error
+		s = systemv1{GID: g.ID, ClientID: "test_client_id"}
+		err = db.Save(&s).Error
 		assert.Nil(t, err)
 		// Trigger no longer populates this field
-		assert.Equal(t, "", system.GroupID)
+		assert.Equal(t, "", s.GroupID)
 	}
 
-	assert.Nil(t, ssas.CleanDatabase(group))
+	assert.Nil(t, db.Unscoped().Delete(&s).Error)
+	assert.Nil(t, db.Unscoped().Delete(&g).Error)
 }
 
 func up4(t *testing.T) {
@@ -153,6 +185,16 @@ func up4(t *testing.T) {
 	if !db.HasTable("ips") {
 		t.Errorf("table ips was not created")
 	}
+}
+
+func up5(t *testing.T) {
+	assert.True(t, runMigration(t, "5"))
+	assert.True(t, db.Dialect().HasColumn("systems", "last_token_at"))
+}
+
+func down5(t *testing.T) {
+	assert.True(t, runMigration(t, "4"))
+	assert.False(t, db.Dialect().HasColumn("systems", "last_token_at"))
 }
 
 func down4(t *testing.T) {
@@ -165,16 +207,17 @@ func down4(t *testing.T) {
 }
 
 func down3(t *testing.T) {
-	var group ssas.Group
+	var group groupv1
+	var system systemv1
 
 	success := runMigration(t, "2")
 	assert.True(t, success)
 	if success {
-		group = ssas.Group{GroupID: "test_group_id"}
+		group = groupv1{GroupID: "test_group_id"}
 		err := db.Save(&group).Error
 		assert.Nil(t, err)
 
-		system := ssas.System{GroupID: group.GroupID, ClientID: "test_client_id"}
+		system = systemv1{GroupID: group.GroupID, ClientID: "test_client_id"}
 		err = db.Save(&system).Error
 		assert.Nil(t, err)
 		// Trigger automatically populates systems.g_id
@@ -185,31 +228,29 @@ func down3(t *testing.T) {
 		assert.Equal(t, group.ID, s.GID)
 	}
 
-	assert.Nil(t, ssas.CleanDatabase(group))
+	assert.Nil(t, db.Unscoped().Delete(&system).Error)
+	assert.Nil(t, db.Unscoped().Delete(&group).Error)
 }
 
 func down2(t *testing.T) {
-	var g1, g2 ssas.GroupData
 	success := runMigration(t, "1")
 	assert.True(t, success)
 
 	if success {
-		b := []byte(`{"group_id":"T0002"}`)
+		g1 := groupv1{GroupID: "T0002"}
+		g2 := groupv1{GroupID: "T0002"}
 
-		err := json.Unmarshal(b, &g1)
+		err := db.Save(&g1).Error
 		require.Nil(t, err)
-		group1, err := ssas.CreateGroup(g1)
-		require.Nil(t, err)
-		assert.Equal(t, group1.GroupID, "T0002")
-		err = ssas.DeleteGroup(strconv.Itoa(int(group1.ID)))
-		assert.Nil(t, err)
+		assert.Equal(t, g1.GroupID, "T0002")
 
-		err = json.Unmarshal(b, &g2)
-		require.Nil(t, err)
+		assert.Nil(t, db.Delete(&g1).Error)
+
 		// This reversion denies deleted groups to share the same group_id as a non-deleted group
-		_, err = ssas.CreateGroup(g2)
+		err = db.Save(&g2).Error
 		assert.NotNil(t, err)
-		assert.Nil(t, ssas.CleanDatabase(group1))
+
+		assert.Nil(t, db.Unscoped().Delete(&g1).Error)
 	}
 }
 
