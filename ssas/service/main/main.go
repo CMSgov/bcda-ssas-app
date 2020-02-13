@@ -27,6 +27,8 @@ Until you click logout your token will be presented with every request made.  To
 package main
 
 import (
+	"database/sql"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
@@ -40,6 +42,7 @@ import (
 	"github.com/jinzhu/gorm"
 
 	"github.com/CMSgov/bcda-ssas-app/ssas"
+	"github.com/CMSgov/bcda-ssas-app/ssas/cfg"
 	"github.com/CMSgov/bcda-ssas-app/ssas/service"
 	"github.com/CMSgov/bcda-ssas-app/ssas/service/admin"
 	"github.com/CMSgov/bcda-ssas-app/ssas/service/public"
@@ -49,6 +52,7 @@ var doAddFixtureData bool
 var doResetSecret bool
 var doNewAdminSystem bool
 var doListIPs bool
+var doListExpCreds bool
 var doStart bool
 var clientID string
 var systemName string
@@ -70,6 +74,9 @@ func init() {
 
 	const usageListIPs = "list all IP addresses registered to active systems"
 	flag.BoolVar(&doListIPs, "list-ips", false, usageListIPs)
+
+	const usageListExpCreds = "list credentials about to expire or timeout due to inactivity"
+	flag.BoolVar(&doListExpCreds, "list-exp-creds", false, usageListExpCreds)
 
 	const usageStart = "start the service"
 	flag.BoolVar(&doStart, "start", false, usageStart)
@@ -94,6 +101,10 @@ func main() {
 	}
 	if doListIPs {
 		listIPs()
+		return
+	}
+	if doListExpCreds {
+		listExpiringCredentials()
 		return
 	}
 	if doStart {
@@ -259,6 +270,66 @@ func listIPs() {
 		panic("unable to get registered IPs")
 	}
 	fmt.Fprintln(output, strings.Join(ips, "\n"))
+}
+
+func listExpiringCredentials() {
+	db := ssas.GetGORMDbConnection()
+	defer db.Close()
+
+	type result struct {
+		ClientID    string	   `json:"client_id"`
+		GroupID     string	   `json:"group_id"`
+		XData       string	   `json:"x_data"`
+		LastTokenAt *time.Time `json:"last_token_at,omitempty"`
+		Timeout     *time.Time `json:"timeout,omitempty"`
+		Expiration  *time.Time `json:"expiration"`
+	}
+
+	timeoutDays := cfg.GetEnvInt("SSAS_CRED_TIMEOUT_DAYS", 60)
+	expirationDays := cfg.GetEnvInt("SSAS_CRED_EXPIRATION_DAYS", 90)
+	warningDays := cfg.GetEnvInt("SSAS_CRED_WARNING_DAYS", 7)
+
+	// Retrieve all active credentials about to expire or timeout, and report:
+	// 1) When the credentials expire (which is based on when they were created)
+	// 2) When inactivity would time out the credentials (which is based on the last time they were used to create a token)
+	rows, err := db.Raw(
+		`
+			SELECT 
+				client_id, 
+				groups.group_id, 
+				x_data, 
+				last_token_at, 
+				COALESCE(last_token_at, secrets.created_at) + ? * interval '1 day' as "timeout", 
+				secrets.created_at + ? * interval '1 day' as "expiration" 
+			FROM secrets 
+				JOIN systems ON secrets.system_id = systems.id 
+				JOIN groups ON systems.g_id = groups.id 
+			WHERE secrets.deleted_at IS NULL 
+				AND systems.deleted_at IS NULL 
+				AND (COALESCE(last_token_at, secrets.created_at) + ? * interval '1 day' < now() + ? * interval '1 day' 
+					OR secrets.created_at + ? * interval '1 day' < now() + ? * interval '1 day') 
+			ORDER BY expiration;
+		`, timeoutDays, expirationDays, timeoutDays, warningDays, expirationDays, warningDays).Rows()
+	defer closeRows(rows)
+	if err != nil {
+		panic("unable to get expiring credentials: " + err.Error())
+	}
+	for rows.Next() {
+		var row result
+		err = db.ScanRows(rows, &row)
+		if err != nil {
+			panic("error parsing credentials: " + err.Error())
+		}
+		o, err := json.Marshal(row)
+		if err != nil {
+			panic("unable to marshal expiring credentials: " + err.Error())
+		}
+		fmt.Fprintln(output, string(o))
+	}
+}
+
+func closeRows(rows *sql.Rows) {
+	_ = rows.Close()
 }
 
 func cliTrackingID() string {

@@ -67,6 +67,7 @@ type System struct {
 	APIScope       string          `json:"api_scope"`
 	EncryptionKeys []EncryptionKey `json:"encryption_keys,omitempty"`
 	Secrets        []Secret        `json:"secrets,omitempty"`
+	LastTokenAt    time.Time       `json:"last_token_at"`
 }
 
 type EncryptionKey struct {
@@ -140,6 +141,24 @@ func (system *System) GetSecret() (string, error) {
 
 	return secret.Hash, nil
 }
+
+// SaveTokenTime puts the current time in systems.last_token_at
+func (system *System) SaveTokenTime() {
+	db := GetGORMDbConnection()
+	defer Close(db)
+
+	event := Event{Op: "UpdateLastTokenAt", TrackingID: system.GroupID, ClientID: system.ClientID}
+	OperationCalled(event)
+
+	err := db.Model(&system).UpdateColumn("last_token_at", time.Now()).Error
+	if err != nil {
+		event.Help = err.Error()
+		OperationFailed(event)
+	}
+
+	OperationSucceeded(event)
+}
+
 
 /*
 	RevokeSecret revokes a system's secret

@@ -292,6 +292,37 @@ func (s *APITestSuite) TestIntrospectSuccess() {
 	assert.Nil(s.T(), err)
 }
 
+func (s *APITestSuite) TestSaveTokenTime() {
+	groupID := ssas.RandomHexID()[0:4]
+
+	group := ssas.Group{GroupID: groupID, XData: "x_data"}
+	err := s.db.Create(&group).Error
+	require.Nil(s.T(), err)
+
+	creds, err := ssas.RegisterSystem("Introspect Test", groupID, ssas.DefaultScope, "", []string{}, uuid.NewRandom().String())
+	assert.Nil(s.T(), err)
+	assert.Equal(s.T(), "Introspect Test", creds.ClientName)
+	assert.NotNil(s.T(), creds.ClientSecret)
+
+	system, err := ssas.GetSystemByClientID(creds.ClientID)
+	assert.Nil(s.T(), err)
+	assert.True(s.T(), system.LastTokenAt.IsZero())
+
+	system.SaveTokenTime()
+	system, err = ssas.GetSystemByClientID(creds.ClientID)
+	assert.Nil(s.T(), err)
+	assert.False(s.T(), system.LastTokenAt.IsZero())
+
+	time1 := system.LastTokenAt
+	system.SaveTokenTime()
+	system, err = ssas.GetSystemByClientID(creds.ClientID)
+	assert.Nil(s.T(), err)
+	assert.NotEqual(s.T(), system.LastTokenAt, time1)
+
+	err = ssas.CleanDatabase(group)
+	assert.Nil(s.T(), err)
+}
+
 func TestAPITestSuite(t *testing.T) {
 	suite.Run(t, new(APITestSuite))
 }
