@@ -43,9 +43,9 @@ type NotFoundResponse struct {
 type ErrorResponse struct {
 	// Error type
 	// Required: true
-	Error				string
+	Error				string `json:"error"`
 	// More information about the error
-	ErrorDescription	string
+	ErrorDescription	string `json:"error_description"`
 }
 
 // The successfully created/altered system is returned
