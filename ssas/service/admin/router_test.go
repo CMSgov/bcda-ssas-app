@@ -21,7 +21,7 @@ type RouterTestSuite struct {
 	group     ssas.Group
 }
 
-func (s *RouterTestSuite) SetupSuite() {
+func resetCreds(s *RouterTestSuite) {
 	assert.Nil(s.T(), ssas.RevokeActiveCreds("admin"))
 
 	id := "31e029ef-0e97-47f8-873c-0e8b7e7f99bf"
@@ -43,6 +43,7 @@ func (s *RouterTestSuite) SetupSuite() {
 }
 
 func (s *RouterTestSuite) SetupTest() {
+	resetCreds(s)
 	s.router = routes()
 }
 
