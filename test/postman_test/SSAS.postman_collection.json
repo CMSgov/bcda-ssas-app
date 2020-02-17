@@ -1,6 +1,6 @@
 {
 	"info": {
-		"_postman_id": "67811aee-ccef-458e-8225-6c187f9f3376",
+		"_postman_id": "e13991c5-16bb-43cb-b94c-d7390af576e6",
 		"name": "SSAS",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
 	},
@@ -377,6 +377,121 @@
 			"response": []
 		},
 		{
+			"name": "admin create system with public key, 201",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"id": "fc625fc2-e25e-4fd2-a110-fc1528839ca7",
+						"exec": [
+							"pm.test(\"response is 201 and returns json\", function () {",
+							"    pm.response.to.have.status(201);",
+							"",
+							"    const schema = {",
+							"        \"system_id\": {\"type\": \"string\"},",
+							"        \"client_id\": {\"type\": \"string\"},",
+							"        \"client_secret\": {\"type\": \"string\"},",
+							"        \"client_name\": {\"type\": \"string\"},",
+							"        \"expires_at\": {\"type\": \"string\"},",
+							"    };",
+							"    var respJson = pm.response.json();",
+							"    ",
+							"    pm.test(\"schema is valid\", function() {",
+							"        pm.expect(tv4.validate(respJson, schema)).to.be.true;",
+							"    });",
+							"    ",
+							"    pm.environment.set(\"system-id\", respJson.system_id);",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"name": "Content-Type",
+						"type": "text",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"client_name\": \"Test Client\",\n    \"group_id\": \"fake-id\",\n    \"scope\": \"bcda-api\",\n    \"public_key\": \"-----BEGIN PUBLIC KEY-----\\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEArhxobShmNifzW3xznB+L\\nI8+hgaePpSGIFCtFz2IXGU6EMLdeufhADaGPLft9xjwdN1ts276iXQiaChKPA2CK\\n/CBpuKcnU3LhU8JEi7u/db7J4lJlh6evjdKVKlMuhPcljnIKAiGcWln3zwYrFCeL\\ncN0aTOt4xnQpm8OqHawJ18y0WhsWT+hf1DeBDWvdfRuAPlfuVtl3KkrNYn1yqCgQ\\nlT6v/WyzptJhSR1jxdR7XLOhDGTZUzlHXh2bM7sav2n1+sLsuCkzTJqWZ8K7k7cI\\nXK354CNpCdyRYUAUvr4rORIAUmcIFjaR3J4y/Dh2JIyDToOHg7vjpCtNnNoS+ON2\\nHwIDAQAB\\n-----END PUBLIC KEY-----\",\n    \"tracking_id\": \"T00000\"\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{scheme}}://{{host}}:{{admin-port}}/system",
+					"protocol": "{{scheme}}",
+					"host": [
+						"{{host}}"
+					],
+					"port": "{{admin-port}}",
+					"path": [
+						"system"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "admin delete credentials, 200",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"id": "fc625fc2-e25e-4fd2-a110-fc1528839ca7",
+						"exec": [
+							"pm.test(\"response is 200\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "DELETE",
+				"header": [
+					{
+						"key": "Content-Type",
+						"name": "Content-Type",
+						"type": "text",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{scheme}}://{{host}}:{{admin-port}}/system/{{system-id}}/credentials",
+					"protocol": "{{scheme}}",
+					"host": [
+						"{{host}}"
+					],
+					"port": "{{admin-port}}",
+					"path": [
+						"system",
+						"{{system-id}}",
+						"credentials"
+					]
+				}
+			},
+			"response": []
+		},
+		{
 			"name": "admin create system, 201",
 			"event": [
 				{
@@ -441,30 +556,25 @@
 			"response": []
 		},
 		{
-			"name": "admin create system with public key, 201",
+			"name": "admin create system, 400 credentials already exist",
 			"event": [
 				{
 					"listen": "test",
 					"script": {
 						"id": "fc625fc2-e25e-4fd2-a110-fc1528839ca7",
 						"exec": [
-							"pm.test(\"response is 201 and returns json\", function () {",
-							"    pm.response.to.have.status(201);",
+							"pm.test(\"response is 400 and returns json\", function () {",
+							"    pm.response.to.have.status(400);",
 							"",
 							"    const schema = {",
-							"        \"system_id\": {\"type\": \"string\"},",
-							"        \"client_id\": {\"type\": \"string\"},",
-							"        \"client_secret\": {\"type\": \"string\"},",
-							"        \"client_name\": {\"type\": \"string\"},",
-							"        \"expires_at\": {\"type\": \"string\"},",
+							"        \"error\": {\"type\": \"string\"},",
+							"        \"error_description\": {\"type\": \"string\"},",
 							"    };",
 							"    var respJson = pm.response.json();",
 							"    ",
 							"    pm.test(\"schema is valid\", function() {",
 							"        pm.expect(tv4.validate(respJson, schema)).to.be.true;",
 							"    });",
-							"    ",
-							"    pm.environment.set(\"system-id\", respJson.system_id);",
 							"});"
 						],
 						"type": "text/javascript"
@@ -483,7 +593,7 @@
 				],
 				"body": {
 					"mode": "raw",
-					"raw": "{\n    \"client_name\": \"Test Client\",\n    \"group_id\": \"fake-id\",\n    \"scope\": \"bcda-api\",\n    \"public_key\": \"-----BEGIN PUBLIC KEY-----\\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEArhxobShmNifzW3xznB+L\\nI8+hgaePpSGIFCtFz2IXGU6EMLdeufhADaGPLft9xjwdN1ts276iXQiaChKPA2CK\\n/CBpuKcnU3LhU8JEi7u/db7J4lJlh6evjdKVKlMuhPcljnIKAiGcWln3zwYrFCeL\\ncN0aTOt4xnQpm8OqHawJ18y0WhsWT+hf1DeBDWvdfRuAPlfuVtl3KkrNYn1yqCgQ\\nlT6v/WyzptJhSR1jxdR7XLOhDGTZUzlHXh2bM7sav2n1+sLsuCkzTJqWZ8K7k7cI\\nXK354CNpCdyRYUAUvr4rORIAUmcIFjaR3J4y/Dh2JIyDToOHg7vjpCtNnNoS+ON2\\nHwIDAQAB\\n-----END PUBLIC KEY-----\",\n    \"tracking_id\": \"T00000\"\n}",
+					"raw": "{\n    \"client_name\": \"Test Client 2\",\n    \"group_id\": \"fake-id\",\n    \"scope\": \"bcda-api\",\n    \"tracking_id\": \"T00001\"\n}",
 					"options": {
 						"raw": {
 							"language": "json"
