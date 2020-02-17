@@ -356,14 +356,14 @@ func RegisterSystem(clientName string, groupID string, scope string, publicKeyPE
 	regEvent := Event{Op: "RegisterClient", TrackingID: trackingID, ClientID: clientID}
 	OperationStarted(regEvent)
 
-	credCount, err := activeCredsCount(groupID, "")
+	credFound, err := activeCreds(System{GroupID: groupID})
 	if err != nil {
 		regEvent.Help = "unable to search for active credentials: " + err.Error()
 		OperationFailed(regEvent)
 		return creds, errors.New("internal error")
 	}
 
-	if credCount > 0 {
+	if credFound {
 		regEvent.Help = "only one set of active credentials permitted"
 		OperationFailed(regEvent)
 		return creds, errors.New(regEvent.Help)
@@ -642,14 +642,14 @@ func (system *System) ResetSecret(trackingID string) (Credentials, error) {
 		return creds, errors.New("internal system error")
 	}
 
-	credCount, err := activeCredsCount(system.GroupID, system.ClientID)
+	credFound, err := activeCreds(*system)
 	if err != nil {
 		newSecretEvent.Help = "unable to search for active credentials: " + err.Error()
 		OperationFailed(newSecretEvent)
 		return creds, errors.New("internal system error")
 	}
 
-	if credCount > 0 {
+	if credFound {
 		newSecretEvent.Help = "only one set of active credentials permitted"
 		OperationFailed(newSecretEvent)
 		return creds, errors.New(newSecretEvent.Help)
@@ -687,23 +687,22 @@ func (system *System) ResetSecret(trackingID string) (Credentials, error) {
 	return creds, nil
 }
 
-// activeCredsCount returns the number of credentials (secrets) that are currently valid for the provided group ID
-func activeCredsCount(groupID string, ignoredClientID string) (int, error) {
-	count := 0
-
-	systems, err := GetSystemsByGroupIDString(groupID)
+// activeCreds tells whether a different system in this group has active credentials (secrets)
+func activeCreds(s System) (bool, error) {
+	systems, err := GetSystemsByGroupIDString(s.GroupID)
 	if err != nil {
-		return 0, err
+		return false, err
 	}
 
 	for _, system := range systems {
 		// The secret(s) for this system could be soft-deleted, which would create an error.  Ignore it.
 		secret, _ := system.GetSecret()
-		if strings.TrimSpace(secret) != "" && ignoredClientID != system.ClientID {
-			count += 1
+		// We can also ignore an empty secret, and should not complain when the current system has an active secret
+		if strings.TrimSpace(secret) != "" && s.ClientID != system.ClientID {
+			return true, nil
 		}
 	}
-	return count, nil
+	return false, nil
 }
 
 // RevokeActiveCreds revokes all credentials for the specified GroupID

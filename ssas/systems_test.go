@@ -800,8 +800,8 @@ func (s *SystemsTestSuite) TestGetSystemsByGroupIDWithKnownSystem() {
 	_ = CleanDatabase(g)
 }
 
-func (s *SystemsTestSuite) TestActiveCredsCount() {
-	groupID := "group-activeCredsCount"
+func (s *SystemsTestSuite) TestActiveCreds() {
+	groupID := "group-activeCreds"
 	group := Group{GroupID: groupID}
 	assert.Nil(s.T(), s.db.Create(&group).Error)
 	system1 := System{GID: group.ID, GroupID: groupID, ClientID: "client1-TestActiveCreds"}
@@ -813,22 +813,27 @@ func (s *SystemsTestSuite) TestActiveCredsCount() {
 	secret2 := Secret{Hash: "foo", SystemID: system2.ID}
 	assert.Nil(s.T(), s.db.Create(&secret2).Error)
 
-	// We shouldn't be able to get to this state, but just in case: the count should be accurate
-	count, err := activeCredsCount(groupID, "")
+	// We shouldn't be able to get to this state (multiple active creds), but the response should be (true, nil)
+	found, err := activeCreds(system1)
 	assert.Nil(s.T(), err)
-	assert.Equal(s.T(), 2, count)
+	assert.True(s.T(), found)
 
-	// Soft-deleted secrets should not be counted
+	// Soft-deleted secrets should be ignored as well as the specified system's secret
 	assert.Nil(s.T(), s.db.Delete(&secret2).Error)
-	count, err = activeCredsCount(groupID, "")
+	found, err = activeCreds(system1)
 	assert.Nil(s.T(), err)
-	assert.Equal(s.T(), 1, count)
+	assert.False(s.T(), found)
 
-	// Soft-deleted systems should not be counted
-	assert.Nil(s.T(), s.db.Delete(&system1).Error)
-	count, err = activeCredsCount(groupID, "")
+	// Other active secrets for the group WILL matter . . .
+	found, err = activeCreds(system2)
 	assert.Nil(s.T(), err)
-	assert.Equal(s.T(), 0, count)
+	assert.True(s.T(), found)
+
+	// . . . unless their system is soft-deleted
+	assert.Nil(s.T(), s.db.Delete(&system1).Error)
+	found, err = activeCreds(system2)
+	assert.Nil(s.T(), err)
+	assert.False(s.T(), found)
 
 	_ = CleanDatabase(group)
 }
