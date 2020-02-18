@@ -3,6 +3,7 @@ package admin
 import (
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"strings"
 
@@ -34,6 +35,10 @@ import (
 		500: serverError
 */
 func createGroup(w http.ResponseWriter, r *http.Request) {
+	defer r.Body.Close()
+	reqBody := r.Body
+	rawReq, _ := ioutil.ReadAll(reqBody)
+
 	gd := ssas.GroupData{}
 	err := json.NewDecoder(r.Body).Decode(&gd)
 	if err != nil {
@@ -41,7 +46,7 @@ func createGroup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ssas.OperationCalled(ssas.Event{Op: "CreateGroup", TrackingID: gd.GroupID, Help: fmt.Sprintf("calling from admin.createGroup(), raw request: %v", gd)})
+	ssas.OperationCalled(ssas.Event{Op: "CreateGroup", TrackingID: gd.GroupID, Help: fmt.Sprintf("calling from admin.createGroup(), raw request: %v", string(rawReq))})
 	g, err := ssas.CreateGroup(gd)
 	if err != nil {
 		jsonError(w, http.StatusBadRequest, fmt.Sprintf("failed to create group; %s", err))
@@ -130,6 +135,9 @@ func listGroups(w http.ResponseWriter, r *http.Request) {
 */
 func updateGroup(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
+	defer r.Body.Close()
+	reqBody := r.Body
+	rawReq, _ := ioutil.ReadAll(reqBody)
 
 	gd := ssas.GroupData{}
 	err := json.NewDecoder(r.Body).Decode(&gd)
@@ -138,7 +146,7 @@ func updateGroup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ssas.OperationCalled(ssas.Event{Op: "UpdateGroup", TrackingID: id, Help: fmt.Sprintf("calling from admin.updateGroup(), raw request: %v", gd)})
+	ssas.OperationCalled(ssas.Event{Op: "UpdateGroup", TrackingID: id, Help: fmt.Sprintf("calling from admin.updateGroup(), raw request: %v", string(rawReq))})
 	g, err := ssas.UpdateGroup(id, gd)
 	if err != nil {
 		jsonError(w, http.StatusBadRequest, fmt.Sprintf("failed to update group; %s", err))
