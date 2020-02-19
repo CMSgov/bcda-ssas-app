@@ -25,12 +25,15 @@ type APITestSuite struct {
 	suite.Suite
 	rr *httptest.ResponseRecorder
 	db *gorm.DB
+	server *service.Server
+	badSigningKeyPath string
 }
 
 func (s *APITestSuite) SetupSuite() {
 	ssas.InitializeSystemModels()
 	s.db = ssas.GetGORMDbConnection()
-	_ = Server()
+	s.server = Server()
+	s.badSigningKeyPath = "../../../shared_files/ssas/admin_test_signing_key.pem"
 	service.StartBlacklist()
 }
 
@@ -245,10 +248,10 @@ func (s *APITestSuite) TestTokenSuccess() {
 	assert.Nil(s.T(), err)
 }
 
-func (s *APITestSuite) TestIntrospectSuccess() {
+func (s *APITestSuite) createIntrospectData() (creds ssas.Credentials, group ssas.Group) {
 	groupID := ssas.RandomHexID()[0:4]
 
-	group := ssas.Group{GroupID: groupID, XData: "x_data"}
+	group = ssas.Group{GroupID: groupID, XData: "x_data"}
 	err := s.db.Create(&group).Error
 	require.Nil(s.T(), err)
 
@@ -257,10 +260,64 @@ func (s *APITestSuite) TestIntrospectSuccess() {
 	pemString, err := ssas.ConvertPublicKeyToPEMString(&pubKey)
 	require.Nil(s.T(), err)
 
-	creds, err := ssas.RegisterSystem("Introspect Test", groupID, ssas.DefaultScope, pemString, []string{}, uuid.NewRandom().String())
+	creds, err = ssas.RegisterSystem("Introspect Test", groupID, ssas.DefaultScope, pemString, []string{}, uuid.NewRandom().String())
 	assert.Nil(s.T(), err)
 	assert.Equal(s.T(), "Introspect Test", creds.ClientName)
 	assert.NotNil(s.T(), creds.ClientSecret)
+
+	return
+}
+
+func (s *APITestSuite) testIntrospectFlaw(flaw service.TokenFlaw) {
+	creds, group := s.createIntrospectData()
+	defer assert.NoError(s.T(), ssas.CleanDatabase(group))
+
+	system, err := ssas.GetSystemByClientID(creds.ClientID)
+	assert.Nil(s.T(), err)
+	data, err := ssas.XDataFor(system)
+	assert.Nil(s.T(), err)
+
+	claims := service.CommonClaims{
+		TokenType: "AccessToken",
+		SystemID: fmt.Sprintf("%d", system.ID),
+		ClientID: creds.ClientID,
+		Data:  data,
+	}
+
+	_, signedString, err := s.server.BadToken(&claims, flaw, s.badSigningKeyPath)
+	assert.Nil(s.T(), err, fmt.Sprintf("Unable to create bad token for flaw %v", flaw))
+
+	body := strings.NewReader(fmt.Sprintf(`{"token":"%s"}`, signedString))
+	req := httptest.NewRequest("POST", "/introspect", body)
+	req.SetBasicAuth(creds.ClientID, creds.ClientSecret)
+	req.Header.Add("Content-Type", "application/json")
+	req.Header.Add("Accept", "application/json")
+	handler := http.HandlerFunc(introspect)
+	handler.ServeHTTP(s.rr, req)
+	assert.Equal(s.T(), http.StatusOK, s.rr.Code)
+
+	var v map[string]bool
+	assert.NoError(s.T(), json.NewDecoder(s.rr.Body).Decode(&v))
+	assert.NotEmpty(s.T(), v)
+	assert.False(s.T(), v["active"], fmt.Sprintf("Unexpected success using bad token with flaw %v", flaw))
+}
+
+func (s *APITestSuite) TestIntrospectFailure() {
+	flaws := []service.TokenFlaw{
+		service.Postdated,
+		service.ExtremelyExpired,
+		service.BadSigner,
+		service.Expired,
+		service.BadIssuer,
+		service.MissingID,
+	}
+	for _, flaw := range flaws {
+		s.testIntrospectFlaw(flaw)
+	}
+}
+
+func (s *APITestSuite) TestIntrospectSuccess() {
+	creds, group := s.createIntrospectData()
 
 	req := httptest.NewRequest("POST", "/token", nil)
 	req.SetBasicAuth(creds.ClientID, creds.ClientSecret)
@@ -288,7 +345,7 @@ func (s *APITestSuite) TestIntrospectSuccess() {
 	assert.NotEmpty(s.T(), v)
 	assert.True(s.T(), v["active"])
 
-	err = ssas.CleanDatabase(group)
+	err := ssas.CleanDatabase(group)
 	assert.Nil(s.T(), err)
 }
 
