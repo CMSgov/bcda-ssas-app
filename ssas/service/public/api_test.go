@@ -270,7 +270,6 @@ func (s *APITestSuite) createIntrospectData() (creds ssas.Credentials, group ssa
 
 func (s *APITestSuite) testIntrospectFlaw(flaw service.TokenFlaw) {
 	creds, group := s.createIntrospectData()
-	defer assert.NoError(s.T(), ssas.CleanDatabase(group))
 
 	system, err := ssas.GetSystemByClientID(creds.ClientID)
 	assert.Nil(s.T(), err)
@@ -300,6 +299,7 @@ func (s *APITestSuite) testIntrospectFlaw(flaw service.TokenFlaw) {
 	assert.NoError(s.T(), json.NewDecoder(s.rr.Body).Decode(&v))
 	assert.NotEmpty(s.T(), v)
 	assert.False(s.T(), v["active"], fmt.Sprintf("Unexpected success using bad token with flaw %v", flaw))
+	assert.NoError(s.T(), ssas.CleanDatabase(group))
 }
 
 func (s *APITestSuite) TestIntrospectFailure() {
