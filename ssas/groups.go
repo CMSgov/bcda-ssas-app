@@ -49,8 +49,8 @@ type GroupList struct {
 	Groups     []GroupSummary	`json:"groups"`
 }
 
-func CreateGroup(gd GroupData) (Group, error) {
-	event := Event{Op: "CreateGroup", TrackingID: gd.GroupID}
+func CreateGroup(gd GroupData, trackingID string) (Group, error) {
+	event := Event{Op: "CreateGroup", TrackingID: trackingID}
 	OperationStarted(event)
 
 	if gd.GroupID == "" {
