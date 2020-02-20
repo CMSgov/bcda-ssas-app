@@ -116,12 +116,12 @@ func (s *APITestSuite) TestListGroups() {
 	gd := ssas.GroupData{}
 	err := json.Unmarshal([]byte(testInput1), &gd)
 	assert.Nil(s.T(), err)
-	g1, err := ssas.CreateGroup(gd)
+	g1, err := ssas.CreateGroup(gd, ssas.RandomHexID())
 	assert.Nil(s.T(), err)
 
 	gd.GroupID = g2ID
 	gd.Name = "another-fake-name"
-	g2, err := ssas.CreateGroup(gd)
+	g2, err := ssas.CreateGroup(gd, ssas.RandomHexID())
 	assert.Nil(s.T(), err)
 
 	req := httptest.NewRequest("GET", "/group", nil)
@@ -158,7 +158,7 @@ func (s *APITestSuite) TestUpdateGroup() {
 	gd := ssas.GroupData{}
 	err := json.Unmarshal([]byte(testInput), &gd)
 	assert.Nil(s.T(), err)
-	g, err := ssas.CreateGroup(gd)
+	g, err := ssas.CreateGroup(gd, ssas.RandomHexID())
 	assert.Nil(s.T(), err)
 
 	url := fmt.Sprintf("/group/%v", g.ID)
@@ -218,7 +218,7 @@ func (s *APITestSuite) TestDeleteGroup() {
 	gd := ssas.GroupData{}
 	err := json.Unmarshal(groupBytes, &gd)
 	assert.Nil(s.T(), err)
-	g, err := ssas.CreateGroup(gd)
+	g, err := ssas.CreateGroup(gd, ssas.RandomHexID())
 	assert.Nil(s.T(), err)
 
 	url := fmt.Sprintf("/group/%v", g.ID)
