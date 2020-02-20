@@ -43,9 +43,9 @@ type NotFoundResponse struct {
 type ErrorResponse struct {
 	// Error type
 	// Required: true
-	Error				string
+	Error				string `json:"error"`
 	// More information about the error
-	ErrorDescription	string
+	ErrorDescription	string `json:"error_description"`
 }
 
 // The successfully created/altered system is returned
@@ -56,19 +56,19 @@ type SystemResponse struct {
 	Body struct {
 		// The client ID for this system
 		// Required: true
-		ClientID		string
+		ClientID		string `json:"client_id"`
 		// The client secret for this system
 		// Required: true
-		ClientSecret	string
+		ClientSecret	string `json:"client_secret"`
 		// This system's ID
 		// Required: true
-		SystemID		string
+		SystemID		string `json:"system_id"`
 		// The user-specified name for the system
 		// Required: true
-		ClientName		string
+		ClientName		string `json:"client_name"`
 		// The expiration date for these credentials
 		// Required: true
-		ExpiresAt		time.Time
+		ExpiresAt		time.Time `json:"expires_at"`
 		// Optional IP addresses from which this system is allowed to connect
 		// Required: false
 		IPs				[]string	`json:"ips,omitempty"`
@@ -83,25 +83,25 @@ type GroupResponse struct {
 	Body struct {
 		// The group's ID
 		// Required: true
-		ID        int
+		ID        int `json:"id"`
 		// Creation timestamp for the group
 		// Required: false
-		CreatedAt time.Time
+		CreatedAt time.Time `json:"created_at"`
 		// Last update timestamp for the group
 		// Required: false
-		UpdatedAt time.Time
+		UpdatedAt time.Time `json:"updated_at"`
 		// The date at which the group was deleted.  This is unlikely to be present in API output.
 		// Required: false
-		DeletedAt time.Time
+		DeletedAt time.Time `json:"deleted_at"`
 		// The user-provided identifier for the group
 		// Required: true
-		GroupID   string
+		GroupID   string `json:"group_id"`
 		// The user-provided data for the group, which should be associated with all systems in this group.
 		// Required: true
 		XData     string `json:"xdata"`
 		// A parsed version of the user-provided data
 		// Required: true
-		Data      GroupSummary
+		Data      GroupSummary `json:"data"`
 	}
 }
 
@@ -143,7 +143,7 @@ type TokenIDParam struct {
 	// A token's ID
 	// in: path
 	// required: true
-	TokenID string `json:"tokenId"`
+	TokenID string `json:"token_id"`
 }
 
 // swagger:parameters getPublicKey resetCredentials deleteCredentials
@@ -151,7 +151,7 @@ type SystemIDParam struct {
 	// ID of system
 	// in: path
 	// required: true
-	SystemID string `json:"systemId"`
+	SystemID string `json:"system_id"`
 }
 
 // swagger:parameters updateGroup deleteGroup
@@ -159,7 +159,7 @@ type GroupIDParam struct {
 	// ID of group
 	// in: path
 	// required: true
-	GroupID string `json:"groupId"`
+	GroupID string `json:"group_id"`
 }
 
 // swagger:parameters createGroup updateGroup
@@ -167,7 +167,7 @@ type GroupDataParam struct {
 	// Data necessary to create or update a group
 	// in: body
 	// required: true
-	Body GroupInput
+	Body GroupInput `json:"group_input"`
 }
 
 type GroupInput struct {
@@ -196,7 +196,7 @@ type SystemDataParam struct {
 	// Data necessary to create a system
 	// in: body
 	// required: true
-	Body SystemInput
+	Body SystemInput `json:"system_input"`
 }
 
 type SystemInput struct {
