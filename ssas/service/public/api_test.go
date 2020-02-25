@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -321,6 +322,17 @@ func (s *APITestSuite) TestSaveTokenTime() {
 
 	err = ssas.CleanDatabase(group)
 	assert.Nil(s.T(), err)
+}
+
+
+func (s *APITestSuite) TestJsonError() {
+	w := httptest.NewRecorder()
+	jsonError(w, http.StatusText(http.StatusUnauthorized), "unauthorized")
+	resp := w.Result()
+	body, err := ioutil.ReadAll(resp.Body)
+	assert.NoError(s.T(), err)
+	assert.True(s.T(), json.Valid(body))
+	assert.Equal(s.T(), `{"error":"Unauthorized","error_description":"unauthorized"}`, string(body))
 }
 
 func TestAPITestSuite(t *testing.T) {

@@ -416,13 +416,7 @@ func readRegData(r *http.Request) (data ssas.AuthRegData, err error) {
 }
 
 func jsonError(w http.ResponseWriter, error string, description string) {
-	ssas.Logger.Printf("%s; %s", description, error)
-	w.WriteHeader(http.StatusBadRequest)
-	body := []byte(fmt.Sprintf(`{"error":"%s","error_description":"%s"}`, error, description))
-	_, err := w.Write(body)
-	if err != nil {
-		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-	}
+	service.JsonError(w, http.StatusBadRequest, error, description)
 }
 
 func setHeaders(w http.ResponseWriter) {
