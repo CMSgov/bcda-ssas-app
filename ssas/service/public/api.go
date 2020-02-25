@@ -9,12 +9,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/go-chi/render"
+	"github.com/pborman/uuid"
 	"io/ioutil"
 	"net/http"
 	"strconv"
-
-	"github.com/go-chi/render"
-	"github.com/pborman/uuid"
 
 	"github.com/CMSgov/bcda-ssas-app/ssas"
 	"github.com/CMSgov/bcda-ssas-app/ssas/service"
@@ -53,6 +52,13 @@ type MFARequest struct {
 type PasswordRequest struct {
 	LoginID  string `json:"login_id"`
 	Password string `json:"password"`
+}
+
+type SystemResponse struct {
+	ClientID		string `json:"client_id"`
+	ClientSecret	string `json:"client_secret"`
+	ExpiresAt		int64  `json:"client_secret_expires_at"`
+	ClientName		string `json:"client_name"`
 }
 
 /*
@@ -94,7 +100,7 @@ func VerifyPassword(w http.ResponseWriter, r *http.Request) {
 		_, passwordResponse.Token, err = MintMFAToken(oktaId)
 	}
 	if err != nil {
-		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		basicError(w, http.StatusInternalServerError)
 		event.Help = "failure generating JSON: " + err.Error()
 		ssas.OperationFailed(event)
 		return
@@ -102,7 +108,7 @@ func VerifyPassword(w http.ResponseWriter, r *http.Request) {
 
 	body, err := json.Marshal(passwordResponse)
 	if err != nil {
-		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		basicError(w, http.StatusInternalServerError)
 		event.Help = "failure generating JSON: " + err.Error()
 		ssas.OperationFailed(event)
 		return
@@ -110,7 +116,7 @@ func VerifyPassword(w http.ResponseWriter, r *http.Request) {
 
 	_, err = w.Write(body)
 	if err != nil {
-		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		basicError(w, http.StatusInternalServerError)
 		event.Help = "failure writing response body: " + err.Error()
 		ssas.OperationFailed(event)
 		return
@@ -165,7 +171,7 @@ func RequestMultifactorChallenge(w http.ResponseWriter, r *http.Request) {
 
 	body, err := json.Marshal(factorResponse)
 	if err != nil {
-		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		service.JsonError(w, http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError), "")
 		event.Help = "failure generating JSON: " + err.Error()
 		ssas.OperationFailed(event)
 		return
@@ -173,7 +179,7 @@ func RequestMultifactorChallenge(w http.ResponseWriter, r *http.Request) {
 
 	_, err = w.Write(body)
 	if err != nil {
-		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		service.JsonError(w, http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError), "")
 		event.Help = "failure writing response body: " + err.Error()
 		ssas.OperationFailed(event)
 		return
@@ -226,7 +232,7 @@ func VerifyMultifactorResponse(w http.ResponseWriter, r *http.Request) {
 
 		_, err = w.Write([]byte(`{"factor_result":"failure"}`))
 		if err != nil {
-			http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+			basicError(w, http.StatusInternalServerError)
 			event.Help = "failure writing response body: " + err.Error()
 			ssas.OperationFailed(event)
 			return
@@ -234,7 +240,7 @@ func VerifyMultifactorResponse(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if empty(groupIDs) {
-		http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
+		basicError(w, http.StatusInternalServerError)
 		event.Help = "no authorized groups"
 		ssas.OperationFailed(event)
 		return
@@ -242,7 +248,7 @@ func VerifyMultifactorResponse(w http.ResponseWriter, r *http.Request) {
 
 	gIdsBytes, err := json.Marshal(groupIDs)
 	if err != nil {
-		http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
+		basicError(w, http.StatusInternalServerError)
 		event.Help = "no authorized groups: " + err.Error()
 		ssas.OperationFailed(event)
 		return
@@ -251,7 +257,7 @@ func VerifyMultifactorResponse(w http.ResponseWriter, r *http.Request) {
 	event.Help = "passcode accepted"
 	ssas.OperationSucceeded(event)
 	if _, ts, err = MintRegistrationToken(oktaID, groupIDs); err != nil {
-		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		basicError(w, http.StatusInternalServerError)
 		event.Help = "failure creating registration token: " + err.Error()
 		ssas.OperationFailed(event)
 		return
@@ -259,7 +265,7 @@ func VerifyMultifactorResponse(w http.ResponseWriter, r *http.Request) {
 	body = []byte(fmt.Sprintf(`{"factor_result":"success","registration_token":"%s", "available_groups":%s}`, ts, string(gIdsBytes)))
 	_, err = w.Write(body)
 	if err != nil {
-		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		basicError(w, http.StatusInternalServerError)
 		event.Help = "failure writing response body: " + err.Error()
 		ssas.OperationFailed(event)
 		return
@@ -284,7 +290,7 @@ func ResetSecret(w http.ResponseWriter, r *http.Request) {
 
 	if rd, err = readRegData(r); err != nil || rd.GroupID == "" {
 		service.GetLogEntry(r).Println("missing or invalid GroupID")
-		http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
+		basicError(w, http.StatusUnauthorized)
 		return
 	}
 
@@ -312,14 +318,25 @@ func ResetSecret(w http.ResponseWriter, r *http.Request) {
 	event = ssas.Event{Op: "ResetSecret", TrackingID: uuid.NewRandom().String(), Help: "calling from public.ResetSecret()"}
 	ssas.OperationCalled(event)
 	if credentials, err = sys.ResetSecret(trackingID); err != nil {
-		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		basicError(w, http.StatusInternalServerError)
 		return
 	}
 
-	body := []byte(fmt.Sprintf(`{"client_id": "%s","client_secret":"%s","client_secret_expires_at":"%d","client_name":"%s"}`,
-		credentials.ClientID, credentials.ClientSecret, credentials.ExpiresAt.Unix(), credentials.ClientName))
+	response := SystemResponse{
+		ClientID: credentials.ClientID,
+		ClientSecret: credentials.ClientSecret,
+		ExpiresAt: credentials.ExpiresAt.Unix(),
+		ClientName: credentials.ClientName,
+	}
+	body, err := json.Marshal(response)
+	if err != nil {
+		basicError(w, http.StatusInternalServerError)
+		event.Help = "failure generating JSON for credential reset: " + err.Error()
+		ssas.OperationFailed(event)
+		return
+	}
 	if _, err = w.Write(body); err != nil {
-		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		basicError(w, http.StatusInternalServerError)
 		event.Help = "failure writing response body: " + err.Error()
 		ssas.OperationFailed(event)
 		return
@@ -346,7 +363,7 @@ func RegisterSystem(w http.ResponseWriter, r *http.Request) {
 	if rd, err = readRegData(r); err != nil || rd.GroupID == "" {
 		service.GetLogEntry(r).Println("missing or invalid GroupID")
 		// Specified in RFC 7592 https://tools.ietf.org/html/rfc7592#page-6
-		http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
+		basicError(w, http.StatusUnauthorized)
 		return
 	}
 
@@ -393,13 +410,24 @@ func RegisterSystem(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	body := []byte(fmt.Sprintf(`{"client_id": "%s","client_secret":"%s","client_secret_expires_at":"%d","client_name":"%s"}`,
-		credentials.ClientID, credentials.ClientSecret, credentials.ExpiresAt.Unix(), credentials.ClientName))
+	response := SystemResponse{
+		ClientID: credentials.ClientID,
+		ClientSecret: credentials.ClientSecret,
+		ExpiresAt: credentials.ExpiresAt.Unix(),
+		ClientName: credentials.ClientName,
+	}
+	body, err := json.Marshal(response)
+	if err != nil {
+		basicError(w, http.StatusInternalServerError)
+		event.Help = "failure generating JSON for system creation: " + err.Error()
+		ssas.OperationFailed(event)
+		return
+	}
 	// https://tools.ietf.org/html/rfc7591#section-3.2 dictates 201, not 200
 	w.WriteHeader(http.StatusCreated)
 	_, err = w.Write(body)
 	if err != nil {
-		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		basicError(w, http.StatusInternalServerError)
 		event.Help = "failure writing response body: " + err.Error()
 		ssas.OperationFailed(event)
 		return
@@ -415,8 +443,14 @@ func readRegData(r *http.Request) (data ssas.AuthRegData, err error) {
 	return
 }
 
+// Follow RFC 7591 format for input errors
 func jsonError(w http.ResponseWriter, error string, description string) {
 	service.JsonError(w, http.StatusBadRequest, error, description)
+}
+
+// Be able to specify return status for other error types
+func basicError(w http.ResponseWriter, errorType int) {
+	service.JsonError(w, errorType, http.StatusText(errorType), "")
 }
 
 func setHeaders(w http.ResponseWriter) {
@@ -434,7 +468,7 @@ type TokenResponse struct {
 func token(w http.ResponseWriter, r *http.Request) {
 	clientID, secret, ok := r.BasicAuth()
 	if !ok {
-		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
+		basicError(w, http.StatusBadRequest)
 		return
 	}
 
@@ -465,7 +499,7 @@ func token(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		event.Help = "failure minting token: " + err.Error()
 		ssas.OperationFailed(event)
-		http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
+		basicError(w, http.StatusUnauthorized)
 		return
 	}
 
