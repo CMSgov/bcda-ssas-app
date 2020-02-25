@@ -78,7 +78,7 @@ func CreateGroup(gd GroupData, trackingID string) (Group, error) {
 	if err != nil {
 		event.Help = err.Error()
 		OperationFailed(event)
-		return Group{}, err
+		return Group{}, fmt.Errorf("group violates uniqueness or other constraints")
 	}
 
 	OperationSucceeded(event)
@@ -131,7 +131,7 @@ func UpdateGroup(id string, gd GroupData) (Group, error) {
 	if err != nil {
 		event.Help = err.Error()
 		OperationFailed(event)
-		return Group{}, err
+		return Group{}, fmt.Errorf("group failed to meet database constraints")
 	}
 
 	OperationSucceeded(event)
@@ -155,7 +155,7 @@ func DeleteGroup(id string) error {
 	if err != nil {
 		event.Help = err.Error()
 		OperationFailed(event)
-		return err
+		return fmt.Errorf("database error")
 	}
 
 	OperationSucceeded(event)
