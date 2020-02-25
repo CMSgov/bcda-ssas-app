@@ -416,11 +416,15 @@ func revokeToken(w http.ResponseWriter, r *http.Request) {
 }
 
 func jsonError(w http.ResponseWriter, errorStatus int, description string) {
+	e := ssas.ErrorResponse{Error: http.StatusText(errorStatus), ErrorDescription: description}
+	body, err := json.Marshal(e)
+	if err != nil {
+		http.Error(w, "", http.StatusInternalServerError)
+	}
 	ssas.Logger.Printf("%s; %s", description, http.StatusText(errorStatus))
 	w.WriteHeader(errorStatus)
-	body := []byte(fmt.Sprintf(`{"error":"%s","error_description":"%s"}`, http.StatusText(errorStatus), description))
-	_, err := w.Write(body)
+	_, err = w.Write([]byte(body))
 	if err != nil {
-		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		http.Error(w, "", http.StatusInternalServerError)
 	}
 }
