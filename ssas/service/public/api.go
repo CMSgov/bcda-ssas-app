@@ -31,11 +31,11 @@ type JWKS struct {
 }
 
 type RegistrationRequest struct {
-	ClientID    string `json:"client_id"`
-	ClientName  string `json:"client_name"`
-	Scope       string `json:"scope,omitempty"`
-	JSONWebKeys JWKS   `json:"jwks"`
-	IPs		  []string `json:"ips"`
+	ClientID    string   `json:"client_id"`
+	ClientName  string   `json:"client_name"`
+	Scope       string   `json:"scope,omitempty"`
+	JSONWebKeys JWKS     `json:"jwks"`
+	IPs         []string `json:"ips"`
 }
 
 type ResetRequest struct {
@@ -55,16 +55,16 @@ type PasswordRequest struct {
 }
 
 type SystemResponse struct {
-	ClientID		string `json:"client_id"`
-	ClientSecret	string `json:"client_secret"`
-	ExpiresAt		int64  `json:"client_secret_expires_at"`
-	ClientName		string `json:"client_name"`
+	ClientID     string `json:"client_id"`
+	ClientSecret string `json:"client_secret"`
+	ExpiresAt    int64  `json:"client_secret_expires_at"`
+	ClientName   string `json:"client_name"`
 }
 
 type VerifyMFAResponse struct {
-	FactorResult    	string `json:"factor_result"`
-	RegistrationToken   string `json:"registration_token,omitempty"`
-	AvailableGroups		string `json:"available_groups,omitempty"`
+	FactorResult      string `json:"factor_result"`
+	RegistrationToken string `json:"registration_token,omitempty"`
+	AvailableGroups   string `json:"available_groups,omitempty"`
 }
 
 /*
@@ -270,9 +270,9 @@ func VerifyMultifactorResponse(w http.ResponseWriter, r *http.Request) {
 	}
 
 	response := VerifyMFAResponse{
-		FactorResult: "success",
+		FactorResult:      "success",
 		RegistrationToken: ts,
-		AvailableGroups: string(gIdsBytes),
+		AvailableGroups:   string(gIdsBytes),
 	}
 	body, err = json.Marshal(response)
 	if err != nil {
@@ -341,10 +341,10 @@ func ResetSecret(w http.ResponseWriter, r *http.Request) {
 	}
 
 	response := SystemResponse{
-		ClientID: credentials.ClientID,
+		ClientID:     credentials.ClientID,
 		ClientSecret: credentials.ClientSecret,
-		ExpiresAt: credentials.ExpiresAt.Unix(),
-		ClientName: credentials.ClientName,
+		ExpiresAt:    credentials.ExpiresAt.Unix(),
+		ClientName:   credentials.ClientName,
 	}
 	body, err := json.Marshal(response)
 	if err != nil {
@@ -429,10 +429,10 @@ func RegisterSystem(w http.ResponseWriter, r *http.Request) {
 	}
 
 	response := SystemResponse{
-		ClientID: credentials.ClientID,
+		ClientID:     credentials.ClientID,
 		ClientSecret: credentials.ClientSecret,
-		ExpiresAt: credentials.ExpiresAt.Unix(),
-		ClientName: credentials.ClientName,
+		ExpiresAt:    credentials.ExpiresAt.Unix(),
+		ClientName:   credentials.ClientName,
 	}
 	body, err := json.Marshal(response)
 	if err != nil {

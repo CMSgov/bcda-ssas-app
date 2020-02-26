@@ -392,7 +392,6 @@ func (s *APITestSuite) TestSaveTokenTime() {
 	assert.Nil(s.T(), err)
 }
 
-
 func (s *APITestSuite) TestJsonError() {
 	w := httptest.NewRecorder()
 	jsonError(w, http.StatusText(http.StatusUnauthorized), "unauthorized")

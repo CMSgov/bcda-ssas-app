@@ -307,7 +307,8 @@ func resetCredentials(w http.ResponseWriter, r *http.Request) {
 	_, err = w.Write(credsJSON)
 	if err != nil {
 		jsonError(w, http.StatusInternalServerError, "internal error")
-	}}
+	}
+}
 
 /*
 	swagger:route GET /system/{systemId}/key system getPublicKey

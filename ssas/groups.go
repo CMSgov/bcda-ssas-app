@@ -12,19 +12,19 @@ import (
 
 type Group struct {
 	gorm.Model
-	GroupID		string		`gorm:"unique;not null" json:"group_id"`
-	XData		string		`gorm:"type:text" json:"xdata"`
-	Data		GroupData	`gorm:"type:jsonb" json:"data"`
-	Systems		[]System	`gorm:"foreignkey:GID"`
+	GroupID string    `gorm:"unique;not null" json:"group_id"`
+	XData   string    `gorm:"type:text" json:"xdata"`
+	Data    GroupData `gorm:"type:jsonb" json:"data"`
+	Systems []System  `gorm:"foreignkey:GID"`
 }
 
 type SystemSummary struct {
-	ID        	uint    	`json:"id"`
-	GID        	uint		`json:"-"`
-	ClientName	string		`json:"client_name"`
-	ClientID	string  	`json:"client_id"`
-	IPs       	[]string	`json:"ips,omitempty"`
-	UpdatedAt 	time.Time	`json:"updated_at"`
+	ID         uint      `json:"id"`
+	GID        uint      `json:"-"`
+	ClientName string    `json:"client_name"`
+	ClientID   string    `json:"client_id"`
+	IPs        []string  `json:"ips,omitempty"`
+	UpdatedAt  time.Time `json:"updated_at"`
 }
 
 func (SystemSummary) TableName() string {
@@ -44,9 +44,9 @@ func (GroupSummary) TableName() string {
 }
 
 type GroupList struct {
-	Count      int        		`json:"count"`
-	ReportedAt time.Time		`json:"reported_at"`
-	Groups     []GroupSummary	`json:"groups"`
+	Count      int            `json:"count"`
+	ReportedAt time.Time      `json:"reported_at"`
+	Groups     []GroupSummary `json:"groups"`
 }
 
 func CreateGroup(gd GroupData, trackingID string) (Group, error) {
@@ -264,8 +264,8 @@ func (gd *GroupData) Scan(value interface{}) error {
 }
 
 type Resource struct {
-	ID     string   `json:"id"`
-	Name   string   `json:"name"`
+	ID   string `json:"id"`
+	Name string `json:"name"`
 	// Example: ["bcda-api"]
 	Scopes []string `json:"scopes"`
 }

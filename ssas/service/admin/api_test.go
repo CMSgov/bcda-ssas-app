@@ -139,8 +139,10 @@ func (s *APITestSuite) TestListGroups() {
 	found2 := false
 	for _, g := range groupList.Groups {
 		switch g.GroupID {
-		case g1ID: found1 = true
-		case g2ID: found2 = true
+		case g1ID:
+			found1 = true
+		case g2ID:
+			found2 = true
 		default: //NOOP
 		}
 	}
@@ -175,7 +177,6 @@ func (s *APITestSuite) TestUpdateGroup() {
 	err = ssas.CleanDatabase(g)
 	assert.Nil(s.T(), err)
 }
-
 
 func (s *APITestSuite) TestUpdateGroupBadGroupID() {
 	gid := ssas.RandomBase64(16)
