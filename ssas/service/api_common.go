@@ -14,9 +14,9 @@ func JsonError(w http.ResponseWriter, errorStatus int, errorText string, descrip
 	if err != nil {
 		http.Error(w, fallbackMessage, http.StatusInternalServerError)
 	}
-	ssas.Logger.Printf("%s; %s", description, errorText)
+	ssas.Logger.Printf("%s; %s", description, errorText) // TODO: log information about the request
 	w.WriteHeader(errorStatus)
-	_, err = w.Write([]byte(body))
+	_, err = w.Write(body)
 	if err != nil {
 		http.Error(w, fallbackMessage, http.StatusInternalServerError)
 	}

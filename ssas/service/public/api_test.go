@@ -86,7 +86,7 @@ func (s *APITestSuite) TestAuthRegisterSuccess() {
 
 	var sys SystemResponse
 	err = json.Unmarshal(s.rr.Body.Bytes(), &sys)
-	assert.NoError(s.T(), err, string(s.rr.Body.Bytes()))
+	assert.NoError(s.T(), err, s.rr.Body.String())
 	assert.Equal(s.T(), "my_client_name", sys.ClientName)
 
 	err = ssas.CleanDatabase(group)
@@ -114,7 +114,7 @@ func (s *APITestSuite) TestAuthRegisterJSON() {
 	assert.True(s.T(), json.Valid(s.rr.Body.Bytes()))
 	var sys SystemResponse
 	err = json.Unmarshal(s.rr.Body.Bytes(), &sys)
-	assert.NoError(s.T(), err, string(s.rr.Body.Bytes()))
+	assert.NoError(s.T(), err, s.rr.Body.String())
 	assert.Equal(s.T(), `My\Name\Has"Escaped Chars"`, sys.ClientName)
 
 	err = ssas.CleanDatabase(group)
@@ -141,7 +141,7 @@ func (s *APITestSuite) TestAuthRegisterNoKey() {
 
 	var sys SystemResponse
 	err = json.Unmarshal(s.rr.Body.Bytes(), &sys)
-	assert.NoError(s.T(), err, string(s.rr.Body.Bytes()))
+	assert.NoError(s.T(), err, s.rr.Body.String())
 	assert.Equal(s.T(), "my_client_name", sys.ClientName)
 
 	err = ssas.CleanDatabase(group)
@@ -225,7 +225,7 @@ func (s *APITestSuite) TestResetSecretSuccess() {
 
 	var sys SystemResponse
 	err = json.Unmarshal(s.rr.Body.Bytes(), &sys)
-	assert.NoError(s.T(), err, string(s.rr.Body.Bytes()))
+	assert.NoError(s.T(), err, s.rr.Body.String())
 	assert.True(s.T(), hash.IsHashOf(sys.ClientSecret))
 
 	err = ssas.CleanDatabase(group)
@@ -265,7 +265,7 @@ func (s *APITestSuite) TestResetSecretJSON() {
 
 	var sys SystemResponse
 	err = json.Unmarshal(s.rr.Body.Bytes(), &sys)
-	assert.NoError(s.T(), err, string(s.rr.Body.Bytes()))
+	assert.NoError(s.T(), err, s.rr.Body.String())
 	assert.True(s.T(), hash.IsHashOf(sys.ClientSecret))
 	assert.Equal(s.T(), `This\Name "has escaped chars`, sys.ClientName)
 

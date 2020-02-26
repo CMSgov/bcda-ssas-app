@@ -61,6 +61,12 @@ type SystemResponse struct {
 	ClientName		string `json:"client_name"`
 }
 
+type VerifyMFAResponse struct {
+	FactorResult    	string `json:"factor_result"`
+	RegistrationToken   string `json:"registration_token,omitempty"`
+	AvailableGroups		string `json:"available_groups,omitempty"`
+}
+
 /*
 	VerifyPassword is mounted at POST /authn and responds with the account status for a verified username/password
  	combination.
@@ -171,7 +177,7 @@ func RequestMultifactorChallenge(w http.ResponseWriter, r *http.Request) {
 
 	body, err := json.Marshal(factorResponse)
 	if err != nil {
-		service.JsonError(w, http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError), "")
+		basicError(w, http.StatusInternalServerError)
 		event.Help = "failure generating JSON: " + err.Error()
 		ssas.OperationFailed(event)
 		return
@@ -179,7 +185,7 @@ func RequestMultifactorChallenge(w http.ResponseWriter, r *http.Request) {
 
 	_, err = w.Write(body)
 	if err != nil {
-		service.JsonError(w, http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError), "")
+		basicError(w, http.StatusInternalServerError)
 		event.Help = "failure writing response body: " + err.Error()
 		ssas.OperationFailed(event)
 		return
@@ -262,7 +268,19 @@ func VerifyMultifactorResponse(w http.ResponseWriter, r *http.Request) {
 		ssas.OperationFailed(event)
 		return
 	}
-	body = []byte(fmt.Sprintf(`{"factor_result":"success","registration_token":"%s", "available_groups":%s}`, ts, string(gIdsBytes)))
+
+	response := VerifyMFAResponse{
+		FactorResult: "success",
+		RegistrationToken: ts,
+		AvailableGroups: string(gIdsBytes),
+	}
+	body, err = json.Marshal(response)
+	if err != nil {
+		basicError(w, http.StatusInternalServerError)
+		event.Help = "failure marshaling JSON for verifyMultifactorResponse: " + err.Error()
+		ssas.OperationFailed(event)
+		return
+	}
 	_, err = w.Write(body)
 	if err != nil {
 		basicError(w, http.StatusInternalServerError)
