@@ -121,7 +121,7 @@ func listGroups(w http.ResponseWriter, r *http.Request) {
 }
 
 /*
-	swagger:route PUT /group/{groupId} group updateGroup
+	swagger:route PUT /group/{group_id} group updateGroup
 
 	Update group
 
@@ -181,7 +181,7 @@ func updateGroup(w http.ResponseWriter, r *http.Request) {
 }
 
 /*
-	swagger:route DELETE /group/{groupId} group deleteGroup
+	swagger:route DELETE /group/{group_id} group deleteGroup
 
 	Delete group
 
@@ -261,7 +261,7 @@ func createSystem(w http.ResponseWriter, r *http.Request) {
 }
 
 /*
-	swagger:route PUT /system/{systemId}/credentials system resetCredentials
+	swagger:route PUT /system/{system_id}/credentials system resetCredentials
 
 	Reset credentials
 
@@ -311,7 +311,7 @@ func resetCredentials(w http.ResponseWriter, r *http.Request) {
 }
 
 /*
-	swagger:route GET /system/{systemId}/key system getPublicKey
+	swagger:route GET /system/{system_id}/key system getPublicKey
 
 	Get Public Key
 
@@ -347,7 +347,7 @@ func getPublicKey(w http.ResponseWriter, r *http.Request) {
 }
 
 /*
-	swagger:route DELETE /system/{systemId}/credentials system deleteCredentials
+	swagger:route DELETE /system/{system_id}/credentials system deleteCredentials
 
 	Delete credentials
 
@@ -384,7 +384,7 @@ func deactivateSystemCredentials(w http.ResponseWriter, r *http.Request) {
 }
 
 /*
-  	swagger:route DELETE /token/{tokenId} token revokeToken
+  	swagger:route DELETE /token/{token_id} token revokeToken
 
 	Revoke token
 
