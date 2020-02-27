@@ -307,7 +307,8 @@ func resetCredentials(w http.ResponseWriter, r *http.Request) {
 	_, err = w.Write(credsJSON)
 	if err != nil {
 		jsonError(w, http.StatusInternalServerError, "internal error")
-	}}
+	}
+}
 
 /*
 	swagger:route GET /system/{systemId}/key system getPublicKey
@@ -416,11 +417,5 @@ func revokeToken(w http.ResponseWriter, r *http.Request) {
 }
 
 func jsonError(w http.ResponseWriter, errorStatus int, description string) {
-	ssas.Logger.Printf("%s; %s", description, http.StatusText(errorStatus))
-	w.WriteHeader(errorStatus)
-	body := []byte(fmt.Sprintf(`{"error":"%s","error_description":"%s"}`, http.StatusText(errorStatus), description))
-	_, err := w.Write(body)
-	if err != nil {
-		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-	}
+	service.JsonError(w, errorStatus, http.StatusText(errorStatus), description)
 }

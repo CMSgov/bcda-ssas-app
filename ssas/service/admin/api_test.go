@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/CMSgov/bcda-ssas-app/ssas/service"
+	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
@@ -138,8 +139,10 @@ func (s *APITestSuite) TestListGroups() {
 	found2 := false
 	for _, g := range groupList.Groups {
 		switch g.GroupID {
-		case g1ID: found1 = true
-		case g2ID: found2 = true
+		case g1ID:
+			found1 = true
+		case g2ID:
+			found2 = true
 		default: //NOOP
 		}
 	}
@@ -174,7 +177,6 @@ func (s *APITestSuite) TestUpdateGroup() {
 	err = ssas.CleanDatabase(g)
 	assert.Nil(s.T(), err)
 }
-
 
 func (s *APITestSuite) TestUpdateGroupBadGroupID() {
 	gid := ssas.RandomBase64(16)
@@ -559,6 +561,16 @@ func (s *APITestSuite) TestDeactivateSystemCredentials() {
 	assert.Equal(s.T(), http.StatusOK, rr.Result().StatusCode)
 
 	_ = ssas.CleanDatabase(group)
+}
+
+func (s *APITestSuite) TestJsonError() {
+	w := httptest.NewRecorder()
+	jsonError(w, http.StatusUnauthorized, "unauthorized")
+	resp := w.Result()
+	body, err := ioutil.ReadAll(resp.Body)
+	assert.NoError(s.T(), err)
+	assert.True(s.T(), json.Valid(body))
+	assert.Equal(s.T(), `{"error":"Unauthorized","error_description":"unauthorized"}`, string(body))
 }
 
 func TestAPITestSuite(t *testing.T) {
