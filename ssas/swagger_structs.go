@@ -6,7 +6,7 @@ import (
 
 // The requested operation was successful.  There is no body returned.
 // swagger:response okResponse
-type OkResponse struct {}
+type OkResponse struct{}
 
 // The request is invalid or malformed
 // swagger:response badRequestResponse
@@ -43,9 +43,9 @@ type NotFoundResponse struct {
 type ErrorResponse struct {
 	// Error type
 	// Required: true
-	Error				string `json:"error"`
+	Error string `json:"error"`
 	// More information about the error
-	ErrorDescription	string `json:"error_description"`
+	ErrorDescription string `json:"error_description"`
 }
 
 // The successfully created/altered system is returned
@@ -56,22 +56,22 @@ type SystemResponse struct {
 	Body struct {
 		// The client ID for this system
 		// Required: true
-		ClientID		string `json:"client_id"`
+		ClientID string `json:"client_id"`
 		// The client secret for this system
 		// Required: true
-		ClientSecret	string `json:"client_secret"`
+		ClientSecret string `json:"client_secret"`
 		// This system's ID
 		// Required: true
-		SystemID		string `json:"system_id"`
+		SystemID string `json:"system_id"`
 		// The user-specified name for the system
 		// Required: true
-		ClientName		string `json:"client_name"`
+		ClientName string `json:"client_name"`
 		// The expiration date for these credentials
 		// Required: true
-		ExpiresAt		time.Time `json:"expires_at"`
+		ExpiresAt time.Time `json:"expires_at"`
 		// Optional IP addresses from which this system is allowed to connect
 		// Required: false
-		IPs				[]string	`json:"ips,omitempty"`
+		IPs []string `json:"ips,omitempty"`
 	}
 }
 
@@ -83,7 +83,7 @@ type GroupResponse struct {
 	Body struct {
 		// The group's ID
 		// Required: true
-		ID        int `json:"id"`
+		ID int `json:"id"`
 		// Creation timestamp for the group
 		// Required: false
 		CreatedAt time.Time `json:"created_at"`
@@ -95,13 +95,13 @@ type GroupResponse struct {
 		DeletedAt time.Time `json:"deleted_at"`
 		// The user-provided identifier for the group
 		// Required: true
-		GroupID   string `json:"group_id"`
+		GroupID string `json:"group_id"`
 		// The user-provided data for the group, which should be associated with all systems in this group.
 		// Required: true
-		XData     string `json:"xdata"`
+		XData string `json:"xdata"`
 		// A parsed version of the user-provided data
 		// Required: true
-		Data      GroupSummary `json:"data"`
+		Data GroupSummary `json:"data"`
 	}
 }
 
@@ -113,10 +113,10 @@ type PublicKeyResponse struct {
 	Body struct {
 		// This system's client ID
 		// Required: true
-		ClientID	string	`json:"client_id"`
+		ClientID string `json:"client_id"`
 		// The public key (if any) registered for this system
 		// Required: true
-		PublicKey	string	`json:"public_key"`
+		PublicKey string `json:"public_key"`
 	}
 }
 
@@ -128,13 +128,13 @@ type GroupsResponse struct {
 	Body struct {
 		// The number of registered groups
 		// Required: true
-		Count      int            `json:"count"`
+		Count int `json:"count"`
 		// The time the request is received
 		// Required: true
-		ReportedAt time.Time      `json:"reported_at"`
+		ReportedAt time.Time `json:"reported_at"`
 		// The list of groups currently registered
 		// Required: true
-		Groups     []GroupSummary `json:"groups"`
+		Groups []GroupSummary `json:"groups"`
 	}
 }
 
@@ -174,18 +174,18 @@ type GroupInput struct {
 	// A user-specified unique identifier for the group
 	// Example: 550ffb24-dd8a-439c-b700-dd664a66d5a7
 	// Required: true
-	GroupID   string     `json:"group_id"`
+	GroupID string `json:"group_id"`
 	// A human-readable name for the group
 	// Example: My Test Group
 	// Required: true
-	Name      string     `json:"name"`
+	Name string `json:"name"`
 	// A packet of string data in JSON format that should be associated with this group's systems
 	// Example: `{"cms_ids":["A9994"]}`
 	// Required: true
-	XData     string     `json:"xdata"`
+	XData string `json:"xdata"`
 	// Optional Okta user ID's that should be able to manage this group
 	// Example: ["abcd123","wxyz456"]
-	Users     []string   `json:"users,omitempty"`
+	Users []string `json:"users,omitempty"`
 	// Resources (e.g. which API's should be allowed) for systems in this group
 	// Required: true
 	Resources []Resource `json:"resources,omitempty"`
@@ -207,15 +207,15 @@ type SystemInput struct {
 	// The group ID (user-specified unique string value) that the system should be attached to
 	// Example: My Test Group
 	// Required: true
-	GroupID    string `json:"group_id"`
+	GroupID string `json:"group_id"`
 	// The scope for this system
 	// Example: bcda-api
 	// Required: true
-	Scope      string `json:"scope"`
+	Scope string `json:"scope"`
 	// An optional RSA 2048-bit public key to register with this system
-	PublicKey  string `json:"public_key"`
+	PublicKey string `json:"public_key"`
 	// An optional list of public IP addresses (IPv4 or IPv6) from which this system can make requests
-	IPs      []string `json:"ips"`
+	IPs []string `json:"ips"`
 	// A unique identifier for this request to assist in log correlation
 	// Required: true
 	TrackingID string `json:"tracking_id"`
