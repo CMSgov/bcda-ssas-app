@@ -3,6 +3,7 @@ package admin
 import (
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"strings"
 
@@ -34,15 +35,23 @@ import (
 		500: serverError
 */
 func createGroup(w http.ResponseWriter, r *http.Request) {
+	trackingID := ssas.RandomHexID()
+	groupEvent := ssas.Event{Op: "CreateGroup", TrackingID: trackingID}
+
+	defer r.Body.Close()
+	body, _ := ioutil.ReadAll(r.Body)
 	gd := ssas.GroupData{}
-	err := json.NewDecoder(r.Body).Decode(&gd)
+	err := json.Unmarshal(body, &gd)
 	if err != nil {
+		groupEvent.Help = fmt.Sprintf("error in request to create group; raw request: %v; error: %v", body, err.Error())
+		ssas.OperationFailed(groupEvent)
 		jsonError(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
 
-	ssas.OperationCalled(ssas.Event{Op: "CreateGroup", TrackingID: gd.GroupID, Help: "calling from admin.createGroup()"})
-	g, err := ssas.CreateGroup(gd)
+	groupEvent.Help = fmt.Sprintf("calling from admin.createGroup(), raw request: %v", string(body))
+	ssas.OperationCalled(groupEvent)
+	g, err := ssas.CreateGroup(gd, trackingID)
 	if err != nil {
 		jsonError(w, http.StatusBadRequest, fmt.Sprintf("failed to create group; %s", err))
 		return
@@ -50,7 +59,8 @@ func createGroup(w http.ResponseWriter, r *http.Request) {
 
 	groupJSON, err := json.Marshal(g)
 	if err != nil {
-		ssas.OperationFailed(ssas.Event{Op: "admin.createGroup", TrackingID: gd.GroupID, Help: err.Error()})
+		groupEvent.Help = err.Error()
+		ssas.OperationFailed(groupEvent)
 		jsonError(w, http.StatusInternalServerError, "internal error")
 		return
 	}
@@ -59,7 +69,8 @@ func createGroup(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusCreated)
 	_, err = w.Write(groupJSON)
 	if err != nil {
-		ssas.OperationFailed(ssas.Event{Op: "admin.createGroup", TrackingID: gd.GroupID, Help: err.Error()})
+		groupEvent.Help = err.Error()
+		ssas.OperationFailed(groupEvent)
 		jsonError(w, http.StatusInternalServerError, "internal error")
 	}
 }
@@ -110,7 +121,7 @@ func listGroups(w http.ResponseWriter, r *http.Request) {
 }
 
 /*
-	swagger:route PUT /group/{groupId} group updateGroup
+	swagger:route PUT /group/{group_id} group updateGroup
 
 	Update group
 
@@ -130,15 +141,22 @@ func listGroups(w http.ResponseWriter, r *http.Request) {
 */
 func updateGroup(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
+	trackingID := ssas.RandomHexID()
+	groupEvent := ssas.Event{Op: "UpdateGroup", TrackingID: trackingID}
 
+	defer r.Body.Close()
+	body, _ := ioutil.ReadAll(r.Body)
 	gd := ssas.GroupData{}
-	err := json.NewDecoder(r.Body).Decode(&gd)
+	err := json.Unmarshal(body, &gd)
 	if err != nil {
+		groupEvent.Help = fmt.Sprintf("error in request to create group; raw request: %v; error: %v", body, err.Error())
+		ssas.OperationFailed(groupEvent)
 		jsonError(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
 
-	ssas.OperationCalled(ssas.Event{Op: "UpdateGroup", TrackingID: id, Help: "calling from admin.updateGroup()"})
+	groupEvent.Help = fmt.Sprintf("calling from admin.updateGroup(), raw request: %v", string(body))
+	ssas.OperationCalled(groupEvent)
 	g, err := ssas.UpdateGroup(id, gd)
 	if err != nil {
 		jsonError(w, http.StatusBadRequest, fmt.Sprintf("failed to update group; %s", err))
@@ -147,7 +165,8 @@ func updateGroup(w http.ResponseWriter, r *http.Request) {
 
 	groupJSON, err := json.Marshal(g)
 	if err != nil {
-		ssas.OperationFailed(ssas.Event{Op: "admin.updateGroup", TrackingID: id, Help: err.Error()})
+		groupEvent.Help = err.Error()
+		ssas.OperationFailed(groupEvent)
 		jsonError(w, http.StatusInternalServerError, "internal error")
 	}
 
@@ -155,13 +174,14 @@ func updateGroup(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	_, err = w.Write(groupJSON)
 	if err != nil {
-		ssas.OperationFailed(ssas.Event{Op: "admin.updateGroup", TrackingID: id, Help: err.Error()})
+		groupEvent.Help = err.Error()
+		ssas.OperationFailed(groupEvent)
 		jsonError(w, http.StatusInternalServerError, "internal error")
 	}
 }
 
 /*
-	swagger:route DELETE /group/{groupId} group deleteGroup
+	swagger:route DELETE /group/{group_id} group deleteGroup
 
 	Delete group
 
@@ -241,7 +261,7 @@ func createSystem(w http.ResponseWriter, r *http.Request) {
 }
 
 /*
-	swagger:route PUT /system/{systemId}/credentials system resetCredentials
+	swagger:route PUT /system/{system_id}/credentials system resetCredentials
 
 	Reset credentials
 
@@ -287,10 +307,11 @@ func resetCredentials(w http.ResponseWriter, r *http.Request) {
 	_, err = w.Write(credsJSON)
 	if err != nil {
 		jsonError(w, http.StatusInternalServerError, "internal error")
-	}}
+	}
+}
 
 /*
-	swagger:route GET /system/{systemId}/key system getPublicKey
+	swagger:route GET /system/{system_id}/key system getPublicKey
 
 	Get Public Key
 
@@ -326,7 +347,7 @@ func getPublicKey(w http.ResponseWriter, r *http.Request) {
 }
 
 /*
-	swagger:route DELETE /system/{systemId}/credentials system deleteCredentials
+	swagger:route DELETE /system/{system_id}/credentials system deleteCredentials
 
 	Delete credentials
 
@@ -363,7 +384,7 @@ func deactivateSystemCredentials(w http.ResponseWriter, r *http.Request) {
 }
 
 /*
-  	swagger:route DELETE /token/{tokenId} token revokeToken
+  	swagger:route DELETE /token/{token_id} token revokeToken
 
 	Revoke token
 
@@ -396,11 +417,5 @@ func revokeToken(w http.ResponseWriter, r *http.Request) {
 }
 
 func jsonError(w http.ResponseWriter, errorStatus int, description string) {
-	ssas.Logger.Printf("%s; %s", description, http.StatusText(errorStatus))
-	w.WriteHeader(errorStatus)
-	body := []byte(fmt.Sprintf(`{"error":"%s","error_description":"%s"}`, http.StatusText(errorStatus), description))
-	_, err := w.Write(body)
-	if err != nil {
-		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-	}
+	service.JsonError(w, errorStatus, http.StatusText(errorStatus), description)
 }

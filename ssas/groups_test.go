@@ -68,7 +68,7 @@ func (s *GroupsTestSuite) TestCreateGroup() {
 	gd := GroupData{}
 	err := json.Unmarshal([]byte(fmt.Sprintf(SampleGroup, gid, SampleXdata)), &gd)
 	assert.Nil(s.T(), err)
-	g, err := CreateGroup(gd)
+	g, err := CreateGroup(gd, RandomHexID())
 
 	require.Nil(s.T(), err)
 	require.NotNil(s.T(), g)
@@ -95,7 +95,7 @@ func (s *GroupsTestSuite) TestCreateGroup() {
 	err = CleanDatabase(g)
 	assert.Nil(s.T(), err)
 	gd.GroupID = ""
-	_, err = CreateGroup(gd)
+	_, err = CreateGroup(gd, RandomHexID())
 	assert.EqualError(s.T(), err, "group_id cannot be blank")
 }
 
@@ -106,13 +106,13 @@ func (s *GroupsTestSuite) TestListGroups() {
 	gd := GroupData{}
 	err := json.Unmarshal(groupBytes, &gd)
 	require.Nil(s.T(), err)
-	g1, err := CreateGroup(gd)
+	g1, err := CreateGroup(gd, RandomHexID())
 	require.Nil(s.T(), err)
 
 
 	gd.GroupID = RandomHexID()
 	gd.Name = "some-fake-name"
-	g2, err := CreateGroup(gd)
+	g2, err := CreateGroup(gd, RandomHexID())
 	assert.Nil(s.T(), err)
 
 	groupList, err := ListGroups("test-list-groups")
@@ -186,17 +186,17 @@ func (s *GroupsTestSuite) TestGetAuthorizedGroupsForOktaID() {
 	g1 := GroupData{}
 	err := json.Unmarshal(group1bytes, &g1)
 	assert.Nil(s.T(), err)
-	group1, _ := CreateGroup(g1)
+	group1, _ := CreateGroup(g1, RandomHexID())
 
 	g2 := GroupData{}
 	err = json.Unmarshal(group2bytes, &g2)
 	assert.Nil(s.T(), err)
-	group2, _ := CreateGroup(g2)
+	group2, _ := CreateGroup(g2, RandomHexID())
 
 	g3 := GroupData{}
 	err = json.Unmarshal(group3bytes, &g3)
 	assert.Nil(s.T(), err)
-	group3, _ := CreateGroup(g3)
+	group3, _ := CreateGroup(g3, RandomHexID())
 
 	defer s.db.Unscoped().Delete(&group1)
 	defer s.db.Unscoped().Delete(&group2)
