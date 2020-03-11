@@ -3,7 +3,6 @@ package service
 import (
 	"crypto/rsa"
 	"database/sql"
-	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -39,7 +38,7 @@ type Server struct {
 
 // NewServer correctly initializes an instance of the Server type.
 func NewServer(name, port, version string, info interface{}, routes *chi.Mux, notSecure bool, signingKeyPath string, ttl time.Duration) *Server {
-	sk, err := getPrivateKey(signingKeyPath);
+	sk, err := getPrivateKey(signingKeyPath)
 	if err != nil {
 		msg := fmt.Sprintf("bad signing key; path %s; %v", signingKeyPath, err)
 		ssas.Logger.Error(msg)
@@ -240,61 +239,6 @@ func (s *Server) mintToken(claims *CommonClaims, issuedAt int64, expiresAt int64
 	}
 	// not emitting AccessTokenIssued here because it hasn't been given to anyone
 	return token, signedString, nil
-}
-
-type TokenFlaw int
-const (
-	Postdated	TokenFlaw = iota
-	Expired
-	ExtremelyExpired
-	BadIssuer
-	BadSigner
-	MissingID
-)
-
-// BadToken creates invalid tokens for testing.  To avoid exposing token spoofing capabilities, a limited number of
-// bad token types will be supported.
-func (s *Server) BadToken(claims *CommonClaims, flaw TokenFlaw, keyPath string) (token *jwt.Token, signedString string, err error) {
-	signingKey := s.tokenSigningKey
-	signingMethod := jwt.SigningMethodRS512
-	tokenID := newTokenID()
-	claims.IssuedAt = time.Now().Unix()
-	claims.ExpiresAt = time.Now().Add(20*time.Minute).Unix()
-	claims.Id = tokenID
-	claims.Issuer = "ssas"
-
-	switch flaw {
-	case Postdated:
-		claims.IssuedAt = time.Now().Add(time.Hour).Unix()
-		claims.ExpiresAt = time.Now().Add(time.Hour).Add(time.Minute).Unix()
-	case Expired:
-		claims.IssuedAt = time.Now().Add(-2*time.Minute).Unix()
-		claims.ExpiresAt = time.Now().Add(-1*time.Minute).Unix()
-	case ExtremelyExpired:
-		claims.IssuedAt = time.Now().Add(-30*24*time.Hour).Unix()
-		claims.ExpiresAt = time.Now().Add(-30*24*time.Hour).Add(time.Minute).Unix()
-	case BadSigner:
-		signingKey, err = getPrivateKey(keyPath)
-		if err != nil {
-			return
-		}
-	case BadIssuer:
-		claims.Issuer = "bad_actor"
-	case MissingID:
-		claims.Id = ""
-	default:
-		signedString = "this_is_a_bad_signed_string"
-		err = errors.New("unknown token flaw")
-		return
-	}
-
-	token = jwt.New(signingMethod)
-	token.Claims = claims
-	signedString, err = token.SignedString(signingKey)
-	if err != nil {
-		ssas.TokenMintingFailure(ssas.Event{TokenID: tokenID, Help: "token signing error " + err.Error()})
-	}
-	return
 }
 
 func newTokenID() string {

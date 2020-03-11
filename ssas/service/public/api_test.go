@@ -1,12 +1,15 @@
 package public
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"testing"
 
@@ -24,9 +27,9 @@ import (
 
 type APITestSuite struct {
 	suite.Suite
-	rr *httptest.ResponseRecorder
-	db *gorm.DB
-	server *service.Server
+	rr                *httptest.ResponseRecorder
+	db                *gorm.DB
+	server            *service.Server
 	badSigningKeyPath string
 }
 
@@ -337,7 +340,25 @@ func (s *APITestSuite) createIntrospectData() (creds ssas.Credentials, group ssa
 	return
 }
 
-func (s *APITestSuite) testIntrospectFlaw(flaw service.TokenFlaw) {
+func (s *APITestSuite) testIntrospectFlaw(flaw service.TokenFlaw, errorText string) {
+	var (
+		signingKeyPath string
+		origLog        io.Writer
+		buf            bytes.Buffer
+	)
+
+	origLog = ssas.Logger.Out
+	ssas.Logger.SetOutput(&buf)
+	defer func() {
+		ssas.Logger.SetOutput(origLog)
+	}()
+
+	if flaw == service.BadSigner {
+		signingKeyPath = s.badSigningKeyPath
+	} else {
+		signingKeyPath = os.Getenv("SSAS_PUBLIC_SIGNING_KEY_PATH")
+	}
+
 	creds, group := s.createIntrospectData()
 
 	system, err := ssas.GetSystemByClientID(creds.ClientID)
@@ -347,12 +368,12 @@ func (s *APITestSuite) testIntrospectFlaw(flaw service.TokenFlaw) {
 
 	claims := service.CommonClaims{
 		TokenType: "AccessToken",
-		SystemID: fmt.Sprintf("%d", system.ID),
-		ClientID: creds.ClientID,
-		Data:  data,
+		SystemID:  fmt.Sprintf("%d", system.ID),
+		ClientID:  creds.ClientID,
+		Data:      data,
 	}
 
-	_, signedString, err := s.server.BadToken(&claims, flaw, s.badSigningKeyPath)
+	_, signedString, err := service.BadToken(&claims, flaw, signingKeyPath)
 	assert.Nil(s.T(), err, fmt.Sprintf("Unable to create bad token for flaw %v", flaw))
 
 	body := strings.NewReader(fmt.Sprintf(`{"token":"%s"}`, signedString))
@@ -368,20 +389,21 @@ func (s *APITestSuite) testIntrospectFlaw(flaw service.TokenFlaw) {
 	assert.NoError(s.T(), json.NewDecoder(s.rr.Body).Decode(&v))
 	assert.NotEmpty(s.T(), v)
 	assert.False(s.T(), v["active"], fmt.Sprintf("Unexpected success using bad token with flaw %v", flaw))
+	assert.Contains(s.T(), buf.String(), errorText, fmt.Sprintf("Unable to find evidence of flaw %v in logs", flaw))
 	assert.NoError(s.T(), ssas.CleanDatabase(group))
 }
 
 func (s *APITestSuite) TestIntrospectFailure() {
-	flaws := []service.TokenFlaw{
-		service.Postdated,
-		service.ExtremelyExpired,
-		service.BadSigner,
-		service.Expired,
-		service.BadIssuer,
-		service.MissingID,
+	flaws := map[service.TokenFlaw]string{
+		service.Postdated:        "token used before issued",
+		service.ExtremelyExpired: "Token is expired",
+		service.BadSigner:        "crypto/rsa: verification error",
+		service.Expired:          "Token is expired",
+		service.BadIssuer:        "missing one or more claims",
+		service.MissingID:        "missing one or more claims",
 	}
-	for _, flaw := range flaws {
-		s.testIntrospectFlaw(flaw)
+	for flaw, errorText := range flaws {
+		s.testIntrospectFlaw(flaw, errorText)
 	}
 }
 
