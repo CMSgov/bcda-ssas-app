@@ -326,7 +326,7 @@ func (s *APITestSuite) TestTokenExpiredCredentials() {
 	system, err := ssas.GetSystemByClientID(creds.ClientID)
 	assert.NoError(s.T(), err)
 
-	// now for the actual test
+	// expired credentials may not create a token
 	s.db.Exec("UPDATE secrets SET created_at = '2000-01-01', updated_at = '2000-01-01' WHERE system_id = ?", system.ID)
 	req := httptest.NewRequest("POST", "/token", nil)
 	req.SetBasicAuth(creds.ClientID, creds.ClientSecret)
@@ -338,6 +338,22 @@ func (s *APITestSuite) TestTokenExpiredCredentials() {
 	assert.NoError(s.T(), json.NewDecoder(s.rr.Body).Decode(&e))
 	assert.NotEmpty(s.T(), e)
 	assert.Equal(s.T(), "credentials expired", e.ErrorDescription)
+
+	// credential rotation should make things work again
+	creds, err = system.ResetSecret(ssas.RandomHexID())
+	assert.Nil(s.T(), err)
+	assert.Equal(s.T(), "Token Test", creds.ClientName)
+	assert.NotNil(s.T(), creds.ClientSecret)
+	req = httptest.NewRequest("POST", "/token", nil)
+	req.SetBasicAuth(creds.ClientID, creds.ClientSecret)
+	req.Header.Add("Accept", "application/json")
+	handler = http.HandlerFunc(token)
+	handler.ServeHTTP(s.rr, req)
+	assert.Equal(s.T(), http.StatusOK, s.rr.Code)
+	t := TokenResponse{}
+	assert.NoError(s.T(), json.NewDecoder(s.rr.Body).Decode(&t))
+	assert.NotEmpty(s.T(), t)
+	assert.NotEmpty(s.T(), t.AccessToken)
 
 	// just in case: lack of updated_at should not be a valid state
 	s.db.Exec("UPDATE secrets SET created_at = null, updated_at = null WHERE system_id = ?", system.ID)
