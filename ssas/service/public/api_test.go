@@ -4,15 +4,14 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/go-chi/chi"
+	"github.com/pborman/uuid"
+	"github.com/stretchr/testify/require"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
-
-	"github.com/go-chi/chi"
-	"github.com/pborman/uuid"
-	"github.com/stretchr/testify/require"
 
 	"github.com/CMSgov/bcda-ssas-app/ssas"
 	"github.com/CMSgov/bcda-ssas-app/ssas/service"
@@ -309,6 +308,49 @@ func (s *APITestSuite) TestTokenSuccess() {
 	assert.NoError(s.T(), json.NewDecoder(s.rr.Body).Decode(&t))
 	assert.NotEmpty(s.T(), t)
 	assert.NotEmpty(s.T(), t.AccessToken)
+
+	err = ssas.CleanDatabase(group)
+	assert.Nil(s.T(), err)
+}
+
+func (s *APITestSuite) TestTokenExpiredCredentials() {
+	groupID := ssas.RandomHexID()[0:4]
+	group := ssas.Group{GroupID: groupID, XData: "x_data"}
+	err := s.db.Create(&group).Error
+	require.Nil(s.T(), err)
+
+	creds, err := ssas.RegisterSystem("Token Test", groupID, ssas.DefaultScope, "", []string{}, uuid.NewRandom().String())
+	assert.Nil(s.T(), err)
+	assert.Equal(s.T(), "Token Test", creds.ClientName)
+	assert.NotNil(s.T(), creds.ClientSecret)
+	system, err := ssas.GetSystemByClientID(creds.ClientID)
+	assert.NoError(s.T(), err)
+
+	// now for the actual test
+	s.db.Exec("UPDATE secrets SET created_at = '2000-01-01', updated_at = '2000-01-01' WHERE system_id = ?", system.ID)
+	req := httptest.NewRequest("POST", "/token", nil)
+	req.SetBasicAuth(creds.ClientID, creds.ClientSecret)
+	req.Header.Add("Accept", "application/json")
+	handler := http.HandlerFunc(token)
+	handler.ServeHTTP(s.rr, req)
+	assert.Equal(s.T(), http.StatusUnauthorized, s.rr.Code)
+	e := ssas.ErrorResponse{}
+	assert.NoError(s.T(), json.NewDecoder(s.rr.Body).Decode(&e))
+	assert.NotEmpty(s.T(), e)
+	assert.Equal(s.T(), "credentials expired", e.ErrorDescription)
+
+	// just in case: lack of updated_at should not be a valid state
+	s.db.Exec("UPDATE secrets SET created_at = null, updated_at = null WHERE system_id = ?", system.ID)
+	req = httptest.NewRequest("POST", "/token", nil)
+	req.SetBasicAuth(creds.ClientID, creds.ClientSecret)
+	req.Header.Add("Accept", "application/json")
+	handler = http.HandlerFunc(token)
+	handler.ServeHTTP(s.rr, req)
+	assert.Equal(s.T(), http.StatusUnauthorized, s.rr.Code)
+	e = ssas.ErrorResponse{}
+	assert.NoError(s.T(), json.NewDecoder(s.rr.Body).Decode(&e))
+	assert.NotEmpty(s.T(), e)
+	assert.Equal(s.T(), "credentials expired", e.ErrorDescription)
 
 	err = ssas.CleanDatabase(group)
 	assert.Nil(s.T(), err)

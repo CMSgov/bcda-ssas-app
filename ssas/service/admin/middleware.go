@@ -22,7 +22,7 @@ func requireBasicAuth(next http.Handler) http.Handler {
 		}
 
 		savedSecret, err := system.GetSecret()
-		if err != nil || !ssas.Hash(savedSecret).IsHashOf(secret) {
+		if err != nil || !ssas.Hash(savedSecret.Hash).IsHashOf(secret) {
 			formatError(w, http.StatusText(http.StatusUnauthorized), "invalid client secret")
 			return
 		}
