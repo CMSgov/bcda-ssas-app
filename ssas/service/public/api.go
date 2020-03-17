@@ -492,13 +492,18 @@ func token(w http.ResponseWriter, r *http.Request) {
 
 	system, err := ssas.GetSystemByClientID(clientID)
 	if err != nil {
-		jsonError(w, http.StatusText(http.StatusUnauthorized), "invalid client id")
+		service.JsonError(w, http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized), "invalid client id")
 		return
 	}
 
 	savedSecret, err := system.GetSecret()
-	if err != nil || !ssas.Hash(savedSecret).IsHashOf(secret) {
-		jsonError(w, http.StatusText(http.StatusUnauthorized), "invalid client secret")
+	if err != nil || !ssas.Hash(savedSecret.Hash).IsHashOf(secret) {
+		service.JsonError(w, http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized), "invalid client secret")
+		return
+	}
+
+	if savedSecret.IsExpired() {
+		service.JsonError(w, http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized), "credentials expired")
 		return
 	}
 
@@ -562,7 +567,7 @@ func introspect(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if !ssas.Hash(savedSecret).IsHashOf(secret) {
+	if !ssas.Hash(savedSecret.Hash).IsHashOf(secret) {
 		jsonError(w, http.StatusText(http.StatusUnauthorized), "invalid client secret")
 		return
 	}
