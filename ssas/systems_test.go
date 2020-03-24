@@ -413,32 +413,6 @@ func (s *SystemsTestSuite) TestRegisterSystemSuccess() {
 	assert.Nil(err)
 }
 
-func (s *SystemsTestSuite) TestRegisterSystemOnlyOneSucceeds() {
-	assert := s.Assert()
-
-	pubKey := ""
-	ips := []string{}
-	trackingID := uuid.NewRandom().String()
-	groupID := "T54321"
-	group := Group{GroupID: groupID}
-	err := s.db.Create(&group).Error
-	if err != nil {
-		s.FailNow(err.Error())
-	}
-
-	creds, err := RegisterSystem("Create System Test 1", groupID, DefaultScope, pubKey, ips, trackingID)
-	assert.Nil(err)
-	assert.Equal("Create System Test 1", creds.ClientName)
-	assert.NotEqual("", strings.TrimSpace(creds.ClientSecret))
-
-	creds2, err := RegisterSystem("Create System Test 2", groupID, DefaultScope, pubKey, ips, trackingID)
-	assert.NotNil(err)
-	assert.Equal("", strings.TrimSpace(creds2.ClientSecret))
-
-	err = CleanDatabase(group)
-	assert.Nil(err)
-}
-
 func (s *SystemsTestSuite) TestRegisterSystemMissingData() {
 	assert := s.Assert()
 
@@ -512,18 +486,12 @@ func (s *SystemsTestSuite) TestRegisterSystemIps() {
 		ips, err = GetAllIPs()
 		assert.Nil(err)
 		assert.Contains(ips, address)
-		sys, err := GetSystemByClientID(creds.ClientID)
-		assert.Nil(err)
-		assert.Nil(sys.RevokeSecret("TestRegisterSystemIps " + address))
 	}
 
 	// We have no limit on the number of IP addresses that can be registered with a system
 	creds, err := RegisterSystem("Test system with all good IPs", groupID, DefaultScope, pubKey, goodIps, trackingID)
 	assert.Nil(err, "An array of good IP's should be a allowed, but was not")
 	assert.NotEmpty(creds)
-	sys, err := GetSystemByClientID(creds.ClientID)
-	assert.Nil(err)
-	assert.Nil(sys.RevokeSecret("TestRegisterSystemIps multiple good IP's"))
 
 	for _, address := range badIps {
 		creds, err = RegisterSystem("Test system with "+address, groupID, DefaultScope, pubKey, []string{address}, trackingID)
@@ -557,9 +525,6 @@ func (s *SystemsTestSuite) TestRegisterSystemBadKey() {
 	creds, err := RegisterSystem("Register System Failure", groupID, DefaultScope, "", []string{}, trackingID)
 	assert.Nil(err, "error in public key")
 	assert.NotEmpty(creds)
-	sys, err := GetSystemByClientID(creds.ClientID)
-	assert.Nil(err)
-	assert.Nil(sys.RevokeSecret("TestRegisterSystemBadKey blank public key"))
 
 	// Invalid key not ok
 	creds, err = RegisterSystem("Register System Failure", groupID, DefaultScope, "NotAKey", []string{}, trackingID)
@@ -797,44 +762,6 @@ func (s *SystemsTestSuite) TestGetSystemsByGroupIDWithKnownSystem() {
 	}
 
 	_ = CleanDatabase(g)
-}
-
-func (s *SystemsTestSuite) TestActiveCreds() {
-	groupID := "group-activeCreds"
-	group := Group{GroupID: groupID}
-	assert.Nil(s.T(), s.db.Create(&group).Error)
-	system1 := System{GID: group.ID, GroupID: groupID, ClientID: "client1-TestActiveCreds"}
-	assert.Nil(s.T(), s.db.Create(&system1).Error)
-	secret1 := Secret{Hash: "foo", SystemID: system1.ID}
-	assert.Nil(s.T(), s.db.Create(&secret1).Error)
-	system2 := System{GID: group.ID, GroupID: groupID, ClientID: "client2-TestActiveCreds"}
-	assert.Nil(s.T(), s.db.Create(&system2).Error)
-	secret2 := Secret{Hash: "foo", SystemID: system2.ID}
-	assert.Nil(s.T(), s.db.Create(&secret2).Error)
-
-	// We shouldn't be able to get to this state (multiple active creds), but the response should be (true, nil)
-	found, err := activeCreds(system1)
-	assert.Nil(s.T(), err)
-	assert.True(s.T(), found)
-
-	// Soft-deleted secrets should be ignored as well as the specified system's secret
-	assert.Nil(s.T(), s.db.Delete(&secret2).Error)
-	found, err = activeCreds(system1)
-	assert.Nil(s.T(), err)
-	assert.False(s.T(), found)
-
-	// Other active secrets for the group WILL matter . . .
-	found, err = activeCreds(system2)
-	assert.Nil(s.T(), err)
-	assert.True(s.T(), found)
-
-	// . . . unless their system is soft-deleted
-	assert.Nil(s.T(), s.db.Delete(&system1).Error)
-	found, err = activeCreds(system2)
-	assert.Nil(s.T(), err)
-	assert.False(s.T(), found)
-
-	_ = CleanDatabase(group)
 }
 
 func (s *SystemsTestSuite) TestIsExpired() {
