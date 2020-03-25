@@ -9,16 +9,6 @@ import (
 	"regexp"
 )
 
-// Use context keys for storing/retrieving data in the http Context
-type contextKey struct {
-	name string
-}
-
-var (
-	TokenStringContextKey	= &contextKey{"ts"}
-	RegDataContextKey 	= &contextKey{"rd"}
-)
-
 
 func readGroupID(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -44,8 +34,8 @@ func readGroupID(next http.Handler) http.Handler {
 			return
 		}
 
-		ctx := context.WithValue(r.Context(), RegDataContextKey, rd)
-		service.LogEntrySetField(r, RegDataContextKey.name, rd)
+		ctx := context.WithValue(r.Context(), "rd", rd)
+		service.LogEntrySetField(r, "rd", rd)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
@@ -91,9 +81,9 @@ func parseToken(next http.Handler) http.Handler {
 			rd.AllowedGroupIDs = claims.GroupIDs
 			rd.OktaID = claims.OktaID
 		}
-		ctx := context.WithValue(r.Context(), TokenStringContextKey, tokenString)
-		ctx = context.WithValue(ctx, RegDataContextKey, rd)
-		service.LogEntrySetField(r, RegDataContextKey.name, rd)
+		ctx := context.WithValue(r.Context(), "ts", tokenString)
+		ctx = context.WithValue(ctx, "rd", rd)
+		service.LogEntrySetField(r, "rd", rd)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
@@ -114,7 +104,7 @@ func tokenAuth(next http.Handler, tokenType string) http.Handler {
 		)
 		event := ssas.Event{Op: "TokenAuth"}
 
-		tsObj := r.Context().Value(TokenStringContextKey)
+		tsObj := r.Context().Value("ts")
 		if tsObj == nil {
 			event.Help = "no token string found"
 			ssas.AuthorizationFailure(event)

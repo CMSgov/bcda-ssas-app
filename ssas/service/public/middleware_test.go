@@ -14,10 +14,6 @@ import (
 
 var mockHandler http.HandlerFunc = func(w http.ResponseWriter, r *http.Request) {}
 
-var (
-	TokenContextKey    = &contextKey{"token"}
-)
-
 type PublicMiddlewareTestSuite struct {
 	suite.Suite
 	server *httptest.Server
@@ -46,7 +42,7 @@ func (s *PublicMiddlewareTestSuite) TestRequireTokenAuthWithInvalidSignature() {
 	testForToken :=
 		func (next http.Handler) http.Handler {
 			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				token := r.Context().Value(TokenContextKey)
+				token := r.Context().Value("token")
 				assert.Nil(s.T(), token)
 				_, err := readRegData(r)
 				assert.NotNil(s.T(), err)
@@ -74,7 +70,7 @@ func (s *PublicMiddlewareTestSuite) TestParseTokenEmptyToken() {
 	testForToken :=
 		func (next http.Handler) http.Handler {
 			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				token := r.Context().Value(TokenContextKey)
+				token := r.Context().Value("token")
 				assert.Nil(s.T(), token)
 				_, err := readRegData(r)
 				assert.NotNil(s.T(), err)
@@ -103,7 +99,7 @@ func (s *PublicMiddlewareTestSuite) TestParseTokenValidToken() {
 	testForToken :=
 		func (next http.Handler) http.Handler {
 			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				ts := r.Context().Value(TokenStringContextKey)
+				ts := r.Context().Value("ts")
 				assert.NotNil(s.T(), ts)
 				rd, err := readRegData(r)
 				if err != nil {
@@ -151,7 +147,7 @@ func (s *PublicMiddlewareTestSuite) TestRequireRegTokenAuthValidToken() {
 	assert.NotNil(s.T(), ts)
 
 	ctx := req.Context()
-	ctx = context.WithValue(ctx, TokenStringContextKey, ts)
+	ctx = context.WithValue(ctx, "ts", ts)
 	req = req.WithContext(ctx)
 
 	handler.ServeHTTP(s.rr, req)
@@ -184,7 +180,7 @@ func (s *PublicMiddlewareTestSuite) TestRequireRegTokenAuthRevoked() {
 	assert.NotNil(s.T(), token)
 
 	ctx := req.Context()
-	ctx = context.WithValue(ctx, TokenStringContextKey, ts)
+	ctx = context.WithValue(ctx, "ts", ts)
 	req = req.WithContext(ctx)
 
 	handler.ServeHTTP(s.rr, req)
@@ -205,7 +201,7 @@ func (s *PublicMiddlewareTestSuite) TestRequireRegTokenAuthEmptyToken() {
 		assert.FailNow(s.T(), err.Error())
 	}
 
-	ctx := context.WithValue(context.Background(), TokenStringContextKey, nil)
+	ctx := context.WithValue(context.Background(), "ts", nil)
 
 	resp, err := client.Do(req.WithContext(ctx))
 	if err != nil {
@@ -230,7 +226,7 @@ func (s *PublicMiddlewareTestSuite) TestRequireMFATokenAuthValidToken() {
 	assert.NotNil(s.T(), ts)
 
 	ctx := req.Context()
-	ctx = context.WithValue(ctx, TokenStringContextKey, ts)
+	ctx = context.WithValue(ctx, "ts", ts)
 	req = req.WithContext(ctx)
 
 	handler.ServeHTTP(s.rr, req)
@@ -251,7 +247,7 @@ func (s *PublicMiddlewareTestSuite) TestRequireMFATokenAuthEmptyToken() {
 		assert.FailNow(s.T(), err.Error())
 	}
 
-	ctx := context.WithValue(context.Background(), TokenStringContextKey, nil)
+	ctx := context.WithValue(context.Background(), "ts", nil)
 
 	resp, err := client.Do(req.WithContext(ctx))
 	if err != nil {
