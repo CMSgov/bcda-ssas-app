@@ -276,7 +276,7 @@ func addRegDataContext(req *http.Request, groupID string, groupIDs []string) *ht
 	rctx := chi.NewRouteContext()
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
 	rd := ssas.AuthRegData{GroupID: groupID, AllowedGroupIDs: groupIDs}
-	req = req.WithContext(context.WithValue(req.Context(), "rd", rd))
+	req = req.WithContext(context.WithValue(req.Context(), RegDataContextKey, rd))
 	return req
 }
 
