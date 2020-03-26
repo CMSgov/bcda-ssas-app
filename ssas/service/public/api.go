@@ -550,7 +550,7 @@ func introspect(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if clientID == "" || secret == "" {
-		msg := fmt.Sprint("empty value in clientID and/or secret")
+		msg := "empty value in clientID and/or secret"
 		jsonError(w, http.StatusText(http.StatusUnauthorized), msg)
 		return
 	}

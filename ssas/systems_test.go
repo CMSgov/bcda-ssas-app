@@ -82,7 +82,7 @@ func (s *SystemsTestSuite) TestGenerateSystemKeyPair() {
 	assert.NotEmpty(privateKeyStr)
 
 	privKeyBlock, _ := pem.Decode([]byte(privateKeyStr))
-	if privKeyBlock == nil {
+	if privKeyBlock == nil || privKeyBlock.Bytes == nil {
 		s.FailNow("unable to decode private key ", privateKeyStr)
 	}
 	privateKey, err := x509.ParsePKCS1PrivateKey(privKeyBlock.Bytes)
