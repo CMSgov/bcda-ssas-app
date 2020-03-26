@@ -40,7 +40,7 @@ func getEnvVars() {
 		panic("SSAS_DEFAULT_SYSTEM_SCOPE environment value must be set")
 	}
 
-	expirationDays := cfg.GetEnvInt("SSAS_CREDENTIAL_EXPIRATION_DAYS", 90)
+	expirationDays := cfg.GetEnvInt("SSAS_CRED_EXPIRATION_DAYS", 90)
 	CredentialExpiration = time.Duration(expirationDays*24) * time.Hour
 }
 
