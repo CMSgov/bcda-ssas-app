@@ -25,9 +25,10 @@ func (s *MockMFATestSuite) TestVerifyPasswordSuccess() {
 	assert.Nil(s.T(), err)
 	if passwordReturn == nil || oktaId == "" {
 		s.FailNow("we expect no errors from the mocked VerifyPassword() for this user ID")
+	} else {
+		assert.True(s.T(), passwordReturn.Success)
+		assert.NotEqual(s.T(), passwordReturn.Message, "")
 	}
-	assert.True(s.T(), passwordReturn.Success)
-	assert.NotEqual(s.T(), passwordReturn.Message, "")
 }
 
 func (s *MockMFATestSuite) TestVerifyPasswordFailure() {
@@ -38,8 +39,9 @@ func (s *MockMFATestSuite) TestVerifyPasswordFailure() {
 	assert.Nil(s.T(), err)
 	if passwordReturn == nil || oktaId == "" {
 		s.FailNow("we expect a passwordReturn struct from the mocked VerifyPassword() for this user ID")
+	} else {
+		assert.False(s.T(), passwordReturn.Success)
 	}
-	assert.False(s.T(), passwordReturn.Success)
 }
 
 func (s *MockMFATestSuite) TestVerifyPasswordError() {
@@ -62,9 +64,10 @@ func (s *MockMFATestSuite) TestRequestFactorChallengeSuccess() {
 	assert.Nil(s.T(), err)
 	if factorReturn == nil {
 		s.FailNow("we expect no errors from the mocked RequestFactorChallenge() for this user ID")
+	} else {
+		assert.Equal(s.T(), factorReturn.Action, "request_sent")
+		assert.Nil(s.T(), factorReturn.Transaction)
 	}
-	assert.Equal(s.T(), factorReturn.Action, "request_sent")
-	assert.Nil(s.T(), factorReturn.Transaction)
 }
 
 func (s *MockMFATestSuite) TestRequestFactorChallengeTransaction() {
@@ -76,12 +79,14 @@ func (s *MockMFATestSuite) TestRequestFactorChallengeTransaction() {
 	assert.Nil(s.T(), err)
 	if factorReturn == nil {
 		s.FailNow("we expect no errors from the mocked RequestFactorChallenge() for this user ID")
+	} else {
+		assert.Equal(s.T(), factorReturn.Action, "request_sent")
 	}
-	assert.Equal(s.T(), factorReturn.Action, "request_sent")
 	if factorReturn.Transaction == nil {
 		s.FailNow("we expect a Transaction from the mocked RequestFactorChallenge() for this user ID")
+	} else {
+		assert.NotNil(s.T(), factorReturn.Transaction.TransactionID)
 	}
-	assert.NotNil(s.T(), factorReturn.Transaction.TransactionID)
 }
 
 func (s *MockMFATestSuite) TestRequestFactorChallengeError() {
@@ -92,9 +97,10 @@ func (s *MockMFATestSuite) TestRequestFactorChallengeError() {
 	factorReturn, err := s.o.RequestFactorChallenge(userId, factorType, trackingId)
 	if factorReturn == nil {
 		s.FailNow("despite the error, we always expect a factorReturn from the mocked RequestFactorChallenge()")
+	} else {
+		assert.Equal(s.T(), factorReturn.Action, "request_sent")
+		assert.NotNil(s.T(), err)
 	}
-	assert.Equal(s.T(), factorReturn.Action, "request_sent")
-	assert.NotNil(s.T(), err)
 }
 
 func (s *MockMFATestSuite) TestRequestFactorChallengeRandomUserID() {
@@ -106,9 +112,10 @@ func (s *MockMFATestSuite) TestRequestFactorChallengeRandomUserID() {
 	assert.Nil(s.T(), err)
 	if factorReturn == nil {
 		s.FailNow("we expect no errors from the mocked RequestFactorChallenge() for this user ID")
+	} else {
+		assert.Equal(s.T(), factorReturn.Action, "request_sent")
+		assert.Nil(s.T(), factorReturn.Transaction)
 	}
-	assert.Equal(s.T(), factorReturn.Action, "request_sent")
-	assert.Nil(s.T(), factorReturn.Transaction)
 }
 
 func (s *MockMFATestSuite) TestRequestFactorChallengeBadFactor() {
@@ -120,9 +127,10 @@ func (s *MockMFATestSuite) TestRequestFactorChallengeBadFactor() {
 	assert.Nil(s.T(), err)
 	if factorReturn == nil {
 		s.FailNow("despite the error, we always expect a factorReturn from the mocked RequestFactorChallenge()")
+	} else {
+		assert.Equal(s.T(), factorReturn.Action, "invalid_request")
+		assert.Nil(s.T(), factorReturn.Transaction)
 	}
-	assert.Equal(s.T(), factorReturn.Action, "invalid_request")
-	assert.Nil(s.T(), factorReturn.Transaction)
 }
 
 func (s *MockMFATestSuite) TestVerifyFactorChallengeSuccess() {

@@ -7,6 +7,7 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
+	"github.com/CMSgov/bcda-ssas-app/ssas/cfg"
 	"io"
 	"io/ioutil"
 	"log"
@@ -21,8 +22,7 @@ import (
 )
 
 var DefaultScope string
-
-const CredentialExpiration = 90 * 24 * time.Hour
+var CredentialExpiration time.Duration
 
 func init() {
 	getEnvVars()
@@ -39,6 +39,9 @@ func getEnvVars() {
 		ServiceHalted(Event{Help: "SSAS_DEFAULT_SYSTEM_SCOPE environment value must be set"})
 		panic("SSAS_DEFAULT_SYSTEM_SCOPE environment value must be set")
 	}
+
+	expirationDays := cfg.GetEnvInt("SSAS_CRED_EXPIRATION_DAYS", 90)
+	CredentialExpiration = time.Duration(expirationDays*24) * time.Hour
 }
 
 /*
@@ -85,10 +88,15 @@ type Secret struct {
 	SystemID uint   `json:"system_id"`
 }
 
+// IsExpired tests whether this secret has expired
+func (secret *Secret) IsExpired() bool {
+	return secret.UpdatedAt.Add(CredentialExpiration).Before(time.Now())
+}
+
 type IP struct {
 	gorm.Model
-	Address		string
-	SystemID	uint
+	Address  string
+	SystemID uint
 }
 
 type AuthRegData struct {
@@ -125,7 +133,7 @@ func (system *System) SaveSecret(hashedSecret string) error {
 /*
 	GetSecret will retrieve the hashed secret associated with the current system.
 */
-func (system *System) GetSecret() (string, error) {
+func (system *System) GetSecret() (Secret, error) {
 	db := GetGORMDbConnection()
 	defer Close(db)
 
@@ -133,14 +141,14 @@ func (system *System) GetSecret() (string, error) {
 
 	err := db.Where("system_id = ?", system.ID).First(&secret).Error
 	if err != nil {
-		return "", fmt.Errorf("unable to get hashed secret for clientID %s: %s", system.ClientID, err.Error())
+		return secret, fmt.Errorf("unable to get hashed secret for clientID %s: %s", system.ClientID, err.Error())
 	}
 
 	if strings.TrimSpace(secret.Hash) == "" {
-		return "", fmt.Errorf("stored hash of secret for clientID %s is blank", system.ClientID)
+		return secret, fmt.Errorf("stored hash of secret for clientID %s is blank", system.ClientID)
 	}
 
-	return secret.Hash, nil
+	return secret, nil
 }
 
 // SaveTokenTime puts the current time in systems.last_token_at
@@ -160,10 +168,9 @@ func (system *System) SaveTokenTime() {
 	OperationSucceeded(event)
 }
 
-
 /*
 	RevokeSecret revokes a system's secret
- */
+*/
 func (system *System) RevokeSecret(trackingID string) error {
 	revokeCredentialsEvent := Event{Op: "RevokeCredentials", TrackingID: trackingID, ClientID: system.ClientID}
 	OperationStarted(revokeCredentialsEvent)
@@ -333,12 +340,12 @@ func (system *System) GenerateSystemKeyPair() (string, error) {
 }
 
 type Credentials struct {
-	ClientID    	string  	`json:"client_id"`
-	ClientSecret	string  	`json:"client_secret"`
-	SystemID    	string  	`json:"system_id"`
-	ClientName  	string  	`json:"client_name"`
-	IPs         	[]string	`json:"ips,omitempty"`
-	ExpiresAt   	time.Time	`json:"expires_at"`
+	ClientID     string    `json:"client_id"`
+	ClientSecret string    `json:"client_secret"`
+	SystemID     string    `json:"system_id"`
+	ClientName   string    `json:"client_name"`
+	IPs          []string  `json:"ips,omitempty"`
+	ExpiresAt    time.Time `json:"expires_at"`
 }
 
 /*
@@ -425,7 +432,7 @@ func RegisterSystem(clientName string, groupID string, scope string, publicKeyPE
 		}
 
 		ip := IP{
-			Address: address,
+			Address:  address,
 			SystemID: system.ID,
 		}
 
@@ -598,9 +605,9 @@ func GenerateSecret() (string, error) {
 
 func GetAllIPs() ([]string, error) {
 	var (
-		db      = GetGORMDbConnection()
-		ips 	[]string
-		err     error
+		db  = GetGORMDbConnection()
+		ips []string
+		err error
 	)
 	defer Close(db)
 
@@ -613,9 +620,9 @@ func GetAllIPs() ([]string, error) {
 
 func (system *System) GetIPs() ([]string, error) {
 	var (
-		db      = GetGORMDbConnection()
-		ips 	[]string
-		err     error
+		db  = GetGORMDbConnection()
+		ips []string
+		err error
 	)
 	defer Close(db)
 
@@ -698,7 +705,7 @@ func activeCreds(s System) (bool, error) {
 		// The secret(s) for this system could be soft-deleted, which would create an error.  Ignore it.
 		secret, _ := system.GetSecret()
 		// We can also ignore an empty secret, and should not complain when the current system has an active secret
-		if strings.TrimSpace(secret) != "" && s.ClientID != system.ClientID {
+		if strings.TrimSpace(secret.Hash) != "" && s.ClientID != system.ClientID {
 			return true, nil
 		}
 	}
@@ -726,7 +733,7 @@ func CleanDatabase(group Group) error {
 		system        System
 		encryptionKey EncryptionKey
 		secret        Secret
-		ip			  IP
+		ip            IP
 		systemIds     []int
 		db            = GetGORMDbConnection()
 	)

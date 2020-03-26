@@ -8,14 +8,13 @@ import (
 	"encoding/json"
 	"encoding/pem"
 	"fmt"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"net"
 	"os"
 	"strconv"
 	"strings"
 	"testing"
-
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 
 	"github.com/jinzhu/gorm"
 	"github.com/pborman/uuid"
@@ -83,7 +82,7 @@ func (s *SystemsTestSuite) TestGenerateSystemKeyPair() {
 	assert.NotEmpty(privateKeyStr)
 
 	privKeyBlock, _ := pem.Decode([]byte(privateKeyStr))
-	if privKeyBlock == nil {
+	if privKeyBlock == nil || privKeyBlock.Bytes == nil {
 		s.FailNow("unable to decode private key ", privateKeyStr)
 	}
 	privateKey, err := x509.ParsePKCS1PrivateKey(privKeyBlock.Bytes)
@@ -477,17 +476,17 @@ func (s *SystemsTestSuite) TestRegisterSystemIps() {
 	assert := s.Assert()
 
 	goodIps := []string{
-		RandomIPv4(),                         		    		// Single addresses are OK
+		RandomIPv4(), // Single addresses are OK
 		RandomIPv6(),
 	}
 
 	badIps := []string{
 		"",
 		"asdf",
-		"256.0.0.1",                          		    		// Invalid
+		"256.0.0.1", // Invalid
 		net.IPv4bcast.String(),
 		net.IPv6loopback.String(),
-		net.IPv4(8, 8, 8, 0).String() + "/24",		// No ranges
+		net.IPv4(8, 8, 8, 0).String() + "/24", // No ranges
 	}
 
 	trackingID := uuid.NewRandom().String()
@@ -502,9 +501,9 @@ func (s *SystemsTestSuite) TestRegisterSystemIps() {
 	assert.Nil(err)
 
 	for _, address := range goodIps {
-		creds, err := RegisterSystem("Test system with " + address, groupID, DefaultScope, pubKey, []string{address}, trackingID)
+		creds, err := RegisterSystem("Test system with "+address, groupID, DefaultScope, pubKey, []string{address}, trackingID)
 		assert.Nil(err, fmt.Sprintf("%s should be a good IP, but was not allowed", address))
-		assert.NotEmpty(creds, address + "should have been a valid IP")
+		assert.NotEmpty(creds, address+"should have been a valid IP")
 		system, err := GetSystemByID(creds.SystemID)
 		assert.Nil(err)
 		ips, err := system.GetIPs()
@@ -527,7 +526,7 @@ func (s *SystemsTestSuite) TestRegisterSystemIps() {
 	assert.Nil(sys.RevokeSecret("TestRegisterSystemIps multiple good IP's"))
 
 	for _, address := range badIps {
-		creds, err = RegisterSystem("Test system with " + address, groupID, DefaultScope, pubKey, []string{address}, trackingID)
+		creds, err = RegisterSystem("Test system with "+address, groupID, DefaultScope, pubKey, []string{address}, trackingID)
 		if err == nil {
 			assert.Fail(fmt.Sprintf("%s should be a bad IP, but was allowed; creds: %v", address, creds))
 		} else {
@@ -626,11 +625,11 @@ func (s *SystemsTestSuite) TestSaveSecret() {
 
 	// Verify we now retrieve second secret
 	// Note that this also tests GetSecret()
-	savedHash, err := system.GetSecret()
+	savedSecret, err := system.GetSecret()
 	if err != nil {
 		s.FailNow(err.Error())
 	}
-	assert.True(Hash(savedHash).IsHashOf(secret2))
+	assert.True(Hash(savedSecret.Hash).IsHashOf(secret2))
 
 	err = CleanDatabase(group)
 	assert.Nil(err)
@@ -835,6 +834,26 @@ func (s *SystemsTestSuite) TestActiveCreds() {
 	assert.Nil(s.T(), err)
 	assert.False(s.T(), found)
 
+	_ = CleanDatabase(group)
+}
+
+func (s *SystemsTestSuite) TestIsExpired() {
+	groupID := "group-isExpiredTest"
+	group := Group{GroupID: groupID}
+	assert.Nil(s.T(), s.db.Create(&group).Error)
+	system := System{GID: group.ID, GroupID: groupID, ClientID: "client-isExpiredTest"}
+	assert.Nil(s.T(), s.db.Create(&system).Error)
+	secret := Secret{Hash: "foo", SystemID: system.ID}
+	assert.Nil(s.T(), s.db.Create(&secret).Error)
+
+	// New secrets have not expired
+	assert.False(s.T(), secret.IsExpired(), fmt.Sprintf("Why is this secret not expired?  created_at=%v updated_at=%v", secret.CreatedAt, secret.UpdatedAt))
+
+	// Old secrets have expired
+	s.db.Exec("UPDATE secrets SET created_at = '2000-01-01', updated_at = '2000-01-01' WHERE system_id = ?", system.ID)
+	err := s.db.First(&secret, secret.ID).Error
+	assert.NoError(s.T(), err)
+	assert.True(s.T(), secret.IsExpired())
 	_ = CleanDatabase(group)
 }
 

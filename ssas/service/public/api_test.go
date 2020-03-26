@@ -13,15 +13,14 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/go-chi/chi"
-	"github.com/pborman/uuid"
-	"github.com/stretchr/testify/require"
-
 	"github.com/CMSgov/bcda-ssas-app/ssas"
 	"github.com/CMSgov/bcda-ssas-app/ssas/service"
+	"github.com/go-chi/chi"
+	"github.com/pborman/uuid"
 
 	"github.com/jinzhu/gorm"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
 

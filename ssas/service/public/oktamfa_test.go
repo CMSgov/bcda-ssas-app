@@ -336,9 +336,10 @@ func (s *OTestSuite) TestGetUserFactorSuccess() {
 	assert.Nil(s.T(), err)
 	if factor == nil {
 		s.FailNow("getUserFactor() should successfully return a factor")
+	} else {
+		assert.Equal(s.T(), "123ghi", factor.Id)
+		assert.Equal(s.T(), "sms", factor.Type)
 	}
-	assert.Equal(s.T(), "123ghi", factor.Id)
-	assert.Equal(s.T(), "sms", factor.Type)
 }
 
 func (s *OTestSuite) TestGetUserFactorAllTypes() {
@@ -353,43 +354,48 @@ func (s *OTestSuite) TestGetUserFactorAllTypes() {
 	assert.Nil(s.T(), err)
 	if factor == nil {
 		s.FailNow("getUserFactor() should successfully return a factor")
+	} else {
+		assert.Equal(s.T(), "123abc", factor.Id)
+		assert.Equal(s.T(), "call", factor.Type)
 	}
-	assert.Equal(s.T(), "123abc", factor.Id)
-	assert.Equal(s.T(), "call", factor.Type)
 
 	factor, err = o.getUserFactor(userId, "Email", trackingId)
 	assert.Nil(s.T(), err)
 	if factor == nil {
 		s.FailNow("getUserFactor() should successfully return a factor")
+	} else {
+		assert.Equal(s.T(), "123def", factor.Id)
+		assert.Equal(s.T(), "email", factor.Type)
 	}
-	assert.Equal(s.T(), "123def", factor.Id)
-	assert.Equal(s.T(), "email", factor.Type)
 
 	factor, err = o.getUserFactor(userId, "Google TOTP", trackingId)
 	assert.Nil(s.T(), err)
 	if factor == nil {
 		s.FailNow("getUserFactor() should successfully return a factor")
+	} else {
+		assert.Equal(s.T(), "123jkl", factor.Id)
+		assert.Equal(s.T(), "token:software:totp", factor.Type)
+		assert.Equal(s.T(), "GOOGLE", factor.Provider)
 	}
-	assert.Equal(s.T(), "123jkl", factor.Id)
-	assert.Equal(s.T(), "token:software:totp", factor.Type)
-	assert.Equal(s.T(), "GOOGLE", factor.Provider)
 
 	factor, err = o.getUserFactor(userId, "OKTA TOTP", trackingId)
 	assert.Nil(s.T(), err)
 	if factor == nil {
 		s.FailNow("getUserFactor() should successfully return a factor")
+	} else {
+		assert.Equal(s.T(), "123pqr", factor.Id)
+		assert.Equal(s.T(), "token:software:totp", factor.Type)
+		assert.Equal(s.T(), "OKTA", factor.Provider)
 	}
-	assert.Equal(s.T(), "123pqr", factor.Id)
-	assert.Equal(s.T(), "token:software:totp", factor.Type)
-	assert.Equal(s.T(), "OKTA", factor.Provider)
 
 	factor, err = o.getUserFactor(userId, "Push", trackingId)
 	assert.Nil(s.T(), err)
 	if factor == nil {
 		s.FailNow("getUserFactor() should successfully return a factor")
+	} else {
+		assert.Equal(s.T(), "123mno", factor.Id)
+		assert.Equal(s.T(), "push", factor.Type)
 	}
-	assert.Equal(s.T(), "123mno", factor.Id)
-	assert.Equal(s.T(), "push", factor.Type)
 }
 
 func (s *OTestSuite) TestGetUserFactorInactive() {
