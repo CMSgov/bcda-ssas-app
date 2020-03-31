@@ -598,8 +598,13 @@ func GetAllIPs() ([]string, error) {
 	)
 	defer Close(db)
 
-	// Only include addresses registered to active systems
-	if err = db.Order("address").Model(&IP{}).Where("deleted_at IS NULL AND id NOT IN (SELECT id FROM systems WHERE deleted_at IS NOT NULL)").Pluck("DISTINCT address", &ips).Error; err != nil {
+	// Only include addresses registered to active, unexpired systems
+	where := "deleted_at IS NULL AND system_id IN (SELECT systems.id FROM secrets JOIN systems ON secrets.system_id = systems.id JOIN groups ON systems.g_id = groups.id " +
+		"WHERE secrets.deleted_at IS NULL AND systems.deleted_at IS NULL AND groups.deleted_at IS NULL AND secrets.updated_at > ?)"
+	exp := time.Now().Add(-1 * CredentialExpiration)
+
+	if err = db.Order("address").Model(&IP{}).Where(where, exp).Pluck(
+		"DISTINCT address", &ips).Error; err != nil {
 		err = fmt.Errorf("no IP's found: %s", err.Error())
 	}
 	return ips, err

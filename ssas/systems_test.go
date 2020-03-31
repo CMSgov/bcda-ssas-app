@@ -774,13 +774,91 @@ func (s *SystemsTestSuite) TestIsExpired() {
 	assert.Nil(s.T(), s.db.Create(&secret).Error)
 
 	// New secrets have not expired
-	assert.False(s.T(), secret.IsExpired(), fmt.Sprintf("Why is this secret not expired?  created_at=%v updated_at=%v", secret.CreatedAt, secret.UpdatedAt))
+	assert.False(s.T(), secret.IsExpired(), fmt.Sprintf("Why is this secret expired?  created_at=%v updated_at=%v", secret.CreatedAt, secret.UpdatedAt))
 
 	// Old secrets have expired
 	s.db.Exec("UPDATE secrets SET created_at = '2000-01-01', updated_at = '2000-01-01' WHERE system_id = ?", system.ID)
 	err := s.db.First(&secret, secret.ID).Error
 	assert.NoError(s.T(), err)
 	assert.True(s.T(), secret.IsExpired())
+	_ = CleanDatabase(group)
+}
+
+func (s *SystemsTestSuite) TestIPIsExpired() {
+	address1 := RandomIPv4()
+	address2 := RandomIPv4()
+	groupID := "group-IPIsExpiredTest"
+	group := Group{GroupID: groupID}
+	assert.Nil(s.T(), s.db.Create(&group).Error)
+	system := System{GID: group.ID, GroupID: groupID, ClientID: "client-IPIsExpiredTest"}
+	assert.Nil(s.T(), s.db.Create(&system).Error)
+	ip1 := IP{SystemID: system.ID, Address: address1}
+	assert.Nil(s.T(), s.db.Create(&ip1).Error)
+	ip2 := IP{SystemID: system.ID, Address: address2}
+	assert.Nil(s.T(), s.db.Create(&ip2).Error)
+	secret := Secret{Hash: "foo", SystemID: system.ID}
+	assert.Nil(s.T(), s.db.Create(&secret).Error)
+
+	// Addresses from an non-soft-deleted, unexpired system are returned
+	allIps, err := GetAllIPs()
+	assert.NoError(s.T(), err)
+	assert.Contains(s.T(), allIps, address1)
+	assert.Contains(s.T(), allIps, address2)
+
+	// Addresses from an expired system are not returned
+	s.db.Exec("UPDATE secrets SET created_at = '2000-01-01', updated_at = '2000-01-01' WHERE system_id = ?", system.ID)
+	err = s.db.First(&secret, secret.ID).Error
+	assert.NoError(s.T(), err)
+	allIps, err = GetAllIPs()
+	assert.NoError(s.T(), err)
+	assert.NotContains(s.T(), allIps, address1)
+	assert.NotContains(s.T(), allIps, address2)
+
+	// Addresses for revoked credentials are not returned
+	s.db.Exec("UPDATE secrets SET created_at = now(), updated_at = now(), deleted_at = now() WHERE system_id = ?", system.ID)
+	err = s.db.First(&secret, secret.ID).Error
+	assert.Error(s.T(), err)
+	allIps, err = GetAllIPs()
+	assert.NoError(s.T(), err)
+	assert.NotContains(s.T(), allIps, address1)
+	assert.NotContains(s.T(), allIps, address2)
+
+	// Addresses for soft-deleted systems are not returned
+	s.db.Exec("UPDATE secrets SET deleted_at = null WHERE system_id = ?", system.ID)
+	err = s.db.First(&secret, secret.ID).Error
+	assert.NoError(s.T(), err)
+	s.db.Exec("UPDATE systems SET deleted_at = now() WHERE id = ?", system.ID)
+	err = s.db.First(&system, system.ID).Error
+	assert.Error(s.T(), err)
+	allIps, err = GetAllIPs()
+	assert.NoError(s.T(), err)
+	assert.NotContains(s.T(), allIps, address1)
+	assert.NotContains(s.T(), allIps, address2)
+
+	// Addresses for soft-deleted groups are not returned
+	s.db.Exec("UPDATE systems SET deleted_at = null WHERE id = ?", system.ID)
+	err = s.db.First(&system, system.ID).Error
+	assert.NoError(s.T(), err)
+	s.db.Exec("UPDATE groups SET deleted_at = now() WHERE id = ?", group.ID)
+	err = s.db.First(&group, group.ID).Error
+	assert.Error(s.T(), err)
+	allIps, err = GetAllIPs()
+	assert.NoError(s.T(), err)
+	assert.NotContains(s.T(), allIps, address1)
+	assert.NotContains(s.T(), allIps, address2)
+
+	// Addresses for soft-deleted ips are not returned
+	s.db.Exec("UPDATE systems SET deleted_at = null WHERE id = ?", system.ID)
+	err = s.db.First(&system, system.ID).Error
+	assert.NoError(s.T(), err)
+	s.db.Exec("UPDATE groups SET deleted_at = now() WHERE id = ?", group.ID)
+	err = s.db.First(&group, group.ID).Error
+	assert.Error(s.T(), err)
+	allIps, err = GetAllIPs()
+	assert.NoError(s.T(), err)
+	assert.NotContains(s.T(), allIps, address1)
+	assert.NotContains(s.T(), allIps, address2)
+
 	_ = CleanDatabase(group)
 }
 
