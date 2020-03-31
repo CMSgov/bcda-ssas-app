@@ -67,6 +67,13 @@ Some variables below have a note indicating their name should be changed. These 
 | BCDA_TLS_CERT        | Depends  | X |   | The cert used when the SSAS service is running in secure mode. When setting vars for AWS envs, you must include a var for the cert material. This var should be renamed to SSAS_TLS_CERT. |
 | BCDA_TLS_KEY         | Depends  | X |   | The private key used when the SSAS service is running in secure mode. When setting vars for AWS envs, you must include a var for the key material. This var should be renamed to SSAS_TLS_KEY. |
 
+# Development Setup
+
+To avoid committing and pushing unencrypted secret files, use the included `scripts/pre-commit` git pre-commit hook by running the following script from the repository root directory:
+```
+cp ops/pre-commit .git/hooks
+```
+
 # Build
 
 Build all the code and containers with `make docker-bootstrap`. Alternatively, `docker-compose up ssas` will build and run the SSAS by itself. Note that SSAS needs the db container to be running as well.
