@@ -22,7 +22,7 @@ func init() {
 func MintMFAToken(oktaID string) (*jwt.Token, string, error) {
 	claims := service.CommonClaims{
 		TokenType: "MFAToken",
-		OktaID: oktaID,
+		OktaID:    oktaID,
 	}
 
 	if err := checkTokenClaims(&claims); err != nil {
@@ -36,8 +36,8 @@ func MintMFAToken(oktaID string) (*jwt.Token, string, error) {
 func MintRegistrationToken(oktaID string, groupIDs []string) (*jwt.Token, string, error) {
 	claims := service.CommonClaims{
 		TokenType: "RegistrationToken",
-		OktaID: oktaID,
-		GroupIDs: groupIDs,
+		OktaID:    oktaID,
+		GroupIDs:  groupIDs,
 	}
 
 	if err := checkTokenClaims(&claims); err != nil {
@@ -51,9 +51,9 @@ func MintRegistrationToken(oktaID string, groupIDs []string) (*jwt.Token, string
 func MintAccessToken(systemID, clientID string, data string) (*jwt.Token, string, error) {
 	claims := service.CommonClaims{
 		TokenType: "AccessToken",
-		SystemID: systemID,
-		ClientID: clientID,
-		Data:  data,
+		SystemID:  systemID,
+		ClientID:  clientID,
+		Data:      data,
 	}
 
 	if err := checkTokenClaims(&claims); err != nil {

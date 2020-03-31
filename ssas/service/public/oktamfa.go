@@ -493,7 +493,7 @@ func (o *OktaMFAPlugin) postFactorResponse(oktaUserId string, oktaFactor Factor,
 }
 
 //	oktaRequest consolidates the common steps of requesting and parsing Okta queries
-func (o *OktaMFAPlugin) oktaRequest(verb, url string, requestBody io.Reader, ) (resp *http.Response, body []byte, err error) {
+func (o *OktaMFAPlugin) oktaRequest(verb, url string, requestBody io.Reader) (resp *http.Response, body []byte, err error) {
 	req, err := http.NewRequest(verb, url, requestBody)
 	if err != nil {
 		err = errors.New("unable to create request: " + err.Error())
