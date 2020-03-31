@@ -1,4 +1,4 @@
-FROM golang:1.11-stretch
+FROM golang:1.14.1-buster
 
 RUN go get -u github.com/golang/dep/cmd/dep
 RUN go get -u github.com/golangci/golangci-lint/cmd/golangci-lint
@@ -7,8 +7,8 @@ RUN go get -u github.com/securego/gosec/cmd/gosec
 RUN go get -u gotest.tools/gotestsum
 RUN go get -u -d github.com/golang-migrate/migrate/cmd/migrate; \
  cd $GOPATH/src/github.com/golang-migrate/migrate/cmd/migrate; \
- git checkout v4.6.2; \
- go build -tags 'postgres' -ldflags="-X main.Version=$(git describe --tags)" -o $GOPATH/bin/migrate github.com/golang-migrate/migrate/cmd/migrate
+ git checkout v4.10.0; \
+ go build -tags 'postgres' -ldflags="-X main.Version=$(git describe --tags)" -o $GOPATH/bin/migrate github.com/golang-migrate/migrate/v4/cmd/migrate
 
 WORKDIR /go/src/github.com/CMSgov/bcda-ssas-app
 COPY . .
