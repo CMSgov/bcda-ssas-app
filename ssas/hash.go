@@ -16,9 +16,9 @@ import (
 )
 
 var (
-	hashIter int
+	hashIter   int
 	hashKeyLen int
-	saltSize int
+	saltSize   int
 )
 
 // Hash is a cryptographically hashed string
@@ -27,7 +27,7 @@ type Hash string
 // The time for hash comparison should be about 1s.  Increase hashIter if this is significantly faster in production.
 // Note that changing hashIter or hashKeyLen will result in invalidating existing stored hashes (e.g. credentials).
 func init() {
-	if (os.Getenv("DEBUG") == "true") {
+	if os.Getenv("DEBUG") == "true" {
 		hashIter = cfg.GetEnvInt("SSAS_HASH_ITERATIONS", 130000)
 		hashKeyLen = cfg.GetEnvInt("SSAS_HASH_KEY_LENGTH", 64)
 		saltSize = cfg.GetEnvInt("SSAS_HASH_SALT_SIZE", 32)
@@ -91,4 +91,3 @@ func (h Hash) IsHashOf(source string) bool {
 func (h Hash) String() string {
 	return string(h)
 }
-

@@ -9,11 +9,10 @@ import (
 	"regexp"
 )
 
-
 func readGroupID(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var (
-			rd ssas.AuthRegData
+			rd  ssas.AuthRegData
 			err error
 		)
 		if rd, err = readRegData(r); err != nil {

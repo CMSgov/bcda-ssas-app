@@ -12,17 +12,17 @@ import (
 var (
 	TokenBlacklist Blacklist
 	// This default cache timeout value should never be used, since individual cache elements have their own timeouts
-	defaultCacheTimeout   = 24*time.Hour
-	cacheCleanupInterval  time.Duration
-	TokenCacheLifetime	  time.Duration
-	cacheRefreshFreq	  time.Duration
-	cacheRefreshTicker	  *time.Ticker
+	defaultCacheTimeout  = 24 * time.Hour
+	cacheCleanupInterval time.Duration
+	TokenCacheLifetime   time.Duration
+	cacheRefreshFreq     time.Duration
+	cacheRefreshTicker   *time.Ticker
 )
 
 func init() {
 	cacheCleanupInterval = time.Duration(cfg.GetEnvInt("SSAS_TOKEN_BLACKLIST_CACHE_CLEANUP_MINUTES", 15)) * time.Minute
-	TokenCacheLifetime	 = time.Duration(cfg.GetEnvInt("SSAS_TOKEN_BLACKLIST_CACHE_TIMEOUT_MINUTES", 60*24)) * time.Minute
-	cacheRefreshFreq	 = time.Duration(cfg.GetEnvInt("SSAS_TOKEN_BLACKLIST_CACHE_REFRESH_MINUTES", 5)) * time.Minute
+	TokenCacheLifetime = time.Duration(cfg.GetEnvInt("SSAS_TOKEN_BLACKLIST_CACHE_TIMEOUT_MINUTES", 60*24)) * time.Minute
+	cacheRefreshFreq = time.Duration(cfg.GetEnvInt("SSAS_TOKEN_BLACKLIST_CACHE_REFRESH_MINUTES", 5)) * time.Minute
 }
 
 // This function should only be called by main
@@ -48,8 +48,7 @@ func NewBlacklist(cacheTimeout time.Duration, cleanupInterval time.Duration) *Bl
 		ssas.OperationFailed(event)
 		// Log this failure, but allow the cache to operate.  It's conceivable the next cache refresh will work.
 		// Any alerts should be based on the error logged in BlackList.LoadFromDatabase().
-	} else
-	{
+	} else {
 		ssas.OperationSucceeded(event)
 	}
 
@@ -60,8 +59,8 @@ func NewBlacklist(cacheTimeout time.Duration, cleanupInterval time.Duration) *Bl
 }
 
 type Blacklist struct {
-	c 	*cache.Cache
-	ID	string
+	c  *cache.Cache
+	ID string
 }
 
 //	BlacklistToken invalidates the specified tokenID
@@ -95,8 +94,8 @@ func (t *Blacklist) IsTokenBlacklisted(tokenID string) bool {
 //	LoadFromDatabase refreshes unexpired blacklist entries from the database
 func (t *Blacklist) LoadFromDatabase() error {
 	var (
-		entries	[]ssas.BlacklistEntry
-		err		error
+		entries []ssas.BlacklistEntry
+		err     error
 	)
 
 	if entries, err = ssas.GetUnexpiredBlacklistEntries(); err != nil {

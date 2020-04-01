@@ -75,7 +75,6 @@ func (s *MFAProviderTestSuite) TestValidFactorType() {
 	assert.Equal(s.T(), false, ValidFactorType("Any other factor type"))
 }
 
-
 func TestMFAProviderTestSuite(t *testing.T) {
 	suite.Run(t, new(MFAProviderTestSuite))
 }
