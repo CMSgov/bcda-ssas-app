@@ -38,7 +38,7 @@ type Server struct {
 
 // NewServer correctly initializes an instance of the Server type.
 func NewServer(name, port, version string, info interface{}, routes *chi.Mux, notSecure bool, signingKeyPath string, ttl time.Duration) *Server {
-	sk, err := getPrivateKey(signingKeyPath);
+	sk, err := getPrivateKey(signingKeyPath)
 	if err != nil {
 		msg := fmt.Sprintf("bad signing key; path %s; %v", signingKeyPath, err)
 		ssas.Logger.Error(msg)

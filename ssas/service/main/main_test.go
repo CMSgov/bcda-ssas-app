@@ -30,7 +30,7 @@ func (s *MainTestSuite) TestResetSecret() {
 
 func (s *MainTestSuite) TestResetCredentialsBadClientID() {
 	badClientID := "This client does not exist"
-	output := captureOutput(func() {resetSecret(badClientID)})
+	output := captureOutput(func() { resetSecret(badClientID) })
 	assert.Equal(s.T(), "", output)
 }
 
@@ -38,13 +38,12 @@ func (s *MainTestSuite) TestMainResetCredentials() {
 	doResetSecret = true
 	clientID = "0c527d2e-2e8a-4808-b11d-0fa06baf8254"
 
-	output := captureOutput(func() {main()})
+	output := captureOutput(func() { main() })
 	assert.NotEqual(s.T(), output, "")
 
 	doResetSecret = false
 	clientID = ""
 }
-
 
 func (s *MainTestSuite) TestNewAdminSystem() {
 	assert.Nil(s.T(), ssas.RevokeActiveCreds("admin"))
@@ -77,12 +76,12 @@ func (s *MainTestSuite) TestFixtureData() {
 	// only complete fixture data will be included in the result
 
 	type result struct {
-		GID        uint		`json:"gid"`
-		GroupID    string	`json:"group_id"`
-		SID        uint		`json:"sid"`
-		ClientName string	`json:"client_name"`
-		EKID       uint		`json:"ekid"`
-		ScrtID     uint		`json:"scrtid"`
+		GID        uint   `json:"gid"`
+		GroupID    string `json:"group_id"`
+		SID        uint   `json:"sid"`
+		ClientName string `json:"client_name"`
+		EKID       uint   `json:"ekid"`
+		ScrtID     uint   `json:"scrtid"`
 	}
 	rows, err := ssas.GetGORMDbConnection().Raw(q).Rows()
 	require.Nil(s.T(), err, "error checking fixture data")
@@ -115,7 +114,7 @@ func (s *MainTestSuite) TestListIPs() {
 
 	testIP := ssas.RandomIPv4()
 	ip := ssas.IP{
-		Address: testIP,
+		Address:  testIP,
 		SystemID: system.ID,
 	}
 	err = db.Save(&ip).Error
@@ -147,31 +146,31 @@ func (s *MainTestSuite) TestListExpiringCredentials() {
 	origLastTokenAt := system.LastTokenAt
 
 	// Credentials that will expire but not timeout during the warning period WILL be shown
-	secret.CreatedAt = time.Now().Add(-84*24*time.Hour)
-	system.LastTokenAt = time.Now().Add(-52*24*time.Hour)
+	secret.CreatedAt = time.Now().Add(-84 * 24 * time.Hour)
+	system.LastTokenAt = time.Now().Add(-52 * 24 * time.Hour)
 	assert.Nil(s.T(), db.Save(&system).Error)
 	assert.Nil(s.T(), db.Save(&secret).Error)
-	output := captureOutput(func() {listExpiringCredentials()})
+	output := captureOutput(func() { listExpiringCredentials() })
 	assert.NotContains(s.T(), output, "unable")
 	assert.NotContains(s.T(), output, "error")
 	assert.Contains(s.T(), output, fixtureClientID)
 
 	// Credentials that will not expire but will timeout during the warning period WILL be shown
-	secret.CreatedAt = time.Now().Add(-82*24*time.Hour)
-	system.LastTokenAt = time.Now().Add(-54*24*time.Hour)
+	secret.CreatedAt = time.Now().Add(-82 * 24 * time.Hour)
+	system.LastTokenAt = time.Now().Add(-54 * 24 * time.Hour)
 	assert.Nil(s.T(), db.Save(&system).Error)
 	assert.Nil(s.T(), db.Save(&secret).Error)
-	output = captureOutput(func() {listExpiringCredentials()})
+	output = captureOutput(func() { listExpiringCredentials() })
 	assert.NotContains(s.T(), output, "unable")
 	assert.NotContains(s.T(), output, "error")
 	assert.Contains(s.T(), output, fixtureClientID)
 
 	// Credentials that will neither expire nor time out during the warning period will NOT be shown
-	secret.CreatedAt = time.Now().Add(-82*24*time.Hour)
-	system.LastTokenAt = time.Now().Add(-52*24*time.Hour)
+	secret.CreatedAt = time.Now().Add(-82 * 24 * time.Hour)
+	system.LastTokenAt = time.Now().Add(-52 * 24 * time.Hour)
 	assert.Nil(s.T(), db.Save(&system).Error)
 	assert.Nil(s.T(), db.Save(&secret).Error)
-	output = captureOutput(func() {listExpiringCredentials()})
+	output = captureOutput(func() { listExpiringCredentials() })
 	assert.NotContains(s.T(), output, "unable")
 	assert.NotContains(s.T(), output, "error")
 	assert.NotContains(s.T(), output, fixtureClientID)

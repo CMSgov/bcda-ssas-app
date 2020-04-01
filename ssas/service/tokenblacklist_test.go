@@ -14,14 +14,14 @@ import (
 // Using a constant for this makes the tests more readable; any arbitrary value longer than the test execution time
 // should work
 var (
-	expiration = 90*time.Minute
-	timeExpired = time.Now().Add(time.Minute*-5)
-	timeNotExpired = time.Now().Add(time.Minute*5)
+	expiration     = 90 * time.Minute
+	timeExpired    = time.Now().Add(time.Minute * -5)
+	timeNotExpired = time.Now().Add(time.Minute * 5)
 )
 
 type TokenCacheTestSuite struct {
 	suite.Suite
-	t *Blacklist
+	t  *Blacklist
 	db *gorm.DB
 }
 
@@ -142,19 +142,19 @@ func (s *TokenCacheTestSuite) TestIsTokenBlacklistedTrue() {
 	key := strconv.Itoa(rand.Int())
 	err := s.t.c.Add(key, "value does not matter", expiration)
 	if err != nil {
-		assert.FailNow(s.T(), "unable to set cache value: " + err.Error())
+		assert.FailNow(s.T(), "unable to set cache value: "+err.Error())
 	}
 	assert.True(s.T(), s.t.IsTokenBlacklisted(key))
 }
 
 func (s *TokenCacheTestSuite) TestIsTokenBlacklistedExpired() {
-	minimalDuration := 1*time.Nanosecond
+	minimalDuration := 1 * time.Nanosecond
 	key := strconv.Itoa(rand.Int())
 	err := s.t.c.Add(key, "value does not matter", minimalDuration)
 	if err != nil {
-		assert.FailNow(s.T(), "unable to set cache value: " + err.Error())
+		assert.FailNow(s.T(), "unable to set cache value: "+err.Error())
 	}
-	time.Sleep(minimalDuration*5)
+	time.Sleep(minimalDuration * 5)
 	assert.False(s.T(), s.t.IsTokenBlacklisted(key))
 }
 
@@ -195,10 +195,10 @@ func (s *TokenCacheTestSuite) TestStartCacheRefreshTicker() {
 	assert.False(s.T(), s.t.IsTokenBlacklisted(key1))
 	assert.False(s.T(), s.t.IsTokenBlacklisted(key2))
 
-	ticker := s.t.startCacheRefreshTicker(time.Millisecond*250)
+	ticker := s.t.startCacheRefreshTicker(time.Millisecond * 250)
 	defer ticker.Stop()
 
-	time.Sleep(time.Millisecond*350)
+	time.Sleep(time.Millisecond * 350)
 	assert.True(s.T(), s.t.IsTokenBlacklisted(key1))
 	assert.False(s.T(), s.t.IsTokenBlacklisted(key2))
 
@@ -207,7 +207,7 @@ func (s *TokenCacheTestSuite) TestStartCacheRefreshTicker() {
 		assert.FailNow(s.T(), err.Error())
 	}
 
-	time.Sleep(time.Millisecond*250)
+	time.Sleep(time.Millisecond * 250)
 	assert.True(s.T(), s.t.IsTokenBlacklisted(key1))
 	assert.True(s.T(), s.t.IsTokenBlacklisted(key2))
 }
@@ -232,7 +232,7 @@ func (s *TokenCacheTestSuite) TestBlacklistTokenKeyExists() {
 
 	// The value stored is the current time expressed as in Unix time.
 	// Wait to make sure the new blacklist entry has a different value
-	time.Sleep(2*time.Second)
+	time.Sleep(2 * time.Second)
 
 	// Place key in cache a second time; the expiration will be different
 	if err := s.t.BlacklistToken(key, expiration); err != nil {
