@@ -27,8 +27,8 @@ func (s *CacheEntriesTestSuite) TestGetUnexpiredCacheEntries() {
 	require.Nil(s.T(), err)
 	origEntries := len(entries)
 
-	entryDate := time.Now().Add(time.Minute*-5).UnixNano()
-	expiration := time.Now().Add(time.Minute*5).UnixNano()
+	entryDate := time.Now().Add(time.Minute * -5).UnixNano()
+	expiration := time.Now().Add(time.Minute * 5).UnixNano()
 	e1 := BlacklistEntry{Key: "key1", EntryDate: entryDate, CacheExpiration: expiration}
 	e2 := BlacklistEntry{Key: "key2", EntryDate: entryDate, CacheExpiration: expiration}
 
@@ -41,7 +41,7 @@ func (s *CacheEntriesTestSuite) TestGetUnexpiredCacheEntries() {
 
 	entries, err = GetUnexpiredBlacklistEntries()
 	assert.Nil(s.T(), err)
-	assert.True(s.T(),len(entries) == origEntries + 2)
+	assert.True(s.T(), len(entries) == origEntries+2)
 
 	err = s.db.Unscoped().Delete(&e1).Error
 	assert.Nil(s.T(), err)
@@ -50,8 +50,8 @@ func (s *CacheEntriesTestSuite) TestGetUnexpiredCacheEntries() {
 }
 
 func (s *CacheEntriesTestSuite) TestCreateBlacklistEntryEmptyKey() {
-	entryDate := time.Now().Add(time.Minute*-5)
-	expiration := time.Now().Add(time.Minute*5)
+	entryDate := time.Now().Add(time.Minute * -5)
+	expiration := time.Now().Add(time.Minute * 5)
 
 	_, err := CreateBlacklistEntry("", entryDate, expiration)
 	assert.NotNil(s.T(), err)

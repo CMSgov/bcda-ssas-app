@@ -70,7 +70,6 @@ func (s *PublicRouterTestSuite) TestTokenRoute() {
 }
 
 func (s *PublicRouterTestSuite) TestRegisterRoute() {
-	assert.Nil(s.T(), s.system.RevokeSecret("testRegisterRoute")) // ensure no active credentials already exist
 	groupIDs := []string{"T1234", "T0001"}
 	_, ts, _ := MintRegistrationToken("test_okta_id", groupIDs)
 	rb := strings.NewReader(`{"client_id":"evil_twin","client_name":"my evil twin","scope":"bcda-api","jwks":{"keys":[{"e":"AAEAAQ","n":"ok6rvXu95337IxsDXrKzlIqw_I_zPDG8JyEw2CTOtNMoDi1QzpXQVMGj2snNEmvNYaCTmFf51I-EDgeFLLexr40jzBXlg72quV4aw4yiNuxkigW0gMA92OmaT2jMRIdDZM8mVokoxyPfLub2YnXHFq0XuUUgkX_TlutVhgGbyPN0M12teYZtMYo2AUzIRggONhHvnibHP0CPWDjCwSfp3On1Recn4DPxbn3DuGslF2myalmCtkujNcrhHLhwYPP-yZFb8e0XSNTcQvXaQxAqmnWH6NXcOtaeWMQe43PNTAyNinhndgI8ozG3Hz-1NzHssDH_yk6UYFSszhDbWAzyqw","kty":"RSA"}]}}`)
@@ -85,7 +84,6 @@ func (s *PublicRouterTestSuite) TestRegisterRouteNoToken() {
 }
 
 func (s *PublicRouterTestSuite) TestResetRoute() {
-	assert.Nil(s.T(), ssas.RevokeActiveCreds(s.group.GroupID)) // ensure no active credentials already exist
 	groupIDs := []string{"T1234", "T0001"}
 	_, ts, _ := MintRegistrationToken("test_okta_id", groupIDs)
 	rb := strings.NewReader(fmt.Sprintf(`{"client_id":"%s"}`, s.system.ClientID))
