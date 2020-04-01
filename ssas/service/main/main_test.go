@@ -46,7 +46,6 @@ func (s *MainTestSuite) TestMainResetCredentials() {
 }
 
 func (s *MainTestSuite) TestNewAdminSystem() {
-	assert.Nil(s.T(), ssas.RevokeActiveCreds("admin"))
 	output := captureOutput(func() { newAdminSystem("Main Test System") })
 	assert.NotEqual(s.T(), "", output)
 }
