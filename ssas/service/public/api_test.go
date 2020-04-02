@@ -1,36 +1,42 @@
 package public
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/go-chi/chi"
-	"github.com/pborman/uuid"
-	"github.com/stretchr/testify/require"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"testing"
 
 	"github.com/CMSgov/bcda-ssas-app/ssas"
 	"github.com/CMSgov/bcda-ssas-app/ssas/service"
+	"github.com/go-chi/chi"
+	"github.com/pborman/uuid"
 
 	"github.com/jinzhu/gorm"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
 
 type APITestSuite struct {
 	suite.Suite
-	rr *httptest.ResponseRecorder
-	db *gorm.DB
+	rr                *httptest.ResponseRecorder
+	db                *gorm.DB
+	server            *service.Server
+	badSigningKeyPath string
 }
 
 func (s *APITestSuite) SetupSuite() {
 	ssas.InitializeSystemModels()
 	s.db = ssas.GetGORMDbConnection()
-	_ = Server()
+	s.server = Server()
+	s.badSigningKeyPath = "../../../shared_files/ssas/admin_test_signing_key.pem"
 	service.StartBlacklist()
 }
 
@@ -313,71 +319,10 @@ func (s *APITestSuite) TestTokenSuccess() {
 	assert.Nil(s.T(), err)
 }
 
-func (s *APITestSuite) TestTokenExpiredCredentials() {
-	groupID := ssas.RandomHexID()[0:4]
-	group := ssas.Group{GroupID: groupID, XData: "x_data"}
-	err := s.db.Create(&group).Error
-	require.Nil(s.T(), err)
-
-	creds, err := ssas.RegisterSystem("Token Test", groupID, ssas.DefaultScope, "", []string{}, uuid.NewRandom().String())
-	assert.Nil(s.T(), err)
-	assert.Equal(s.T(), "Token Test", creds.ClientName)
-	assert.NotNil(s.T(), creds.ClientSecret)
-	system, err := ssas.GetSystemByClientID(creds.ClientID)
-	assert.NoError(s.T(), err)
-
-	// expired credentials may not create a token
-	s.db.Exec("UPDATE secrets SET created_at = '2000-01-01', updated_at = '2000-01-01' WHERE system_id = ?", system.ID)
-	req := httptest.NewRequest("POST", "/token", nil)
-	req.SetBasicAuth(creds.ClientID, creds.ClientSecret)
-	req.Header.Add("Accept", "application/json")
-	handler := http.HandlerFunc(token)
-	handler.ServeHTTP(s.rr, req)
-	assert.Equal(s.T(), http.StatusUnauthorized, s.rr.Code)
-	e := ssas.ErrorResponse{}
-	assert.NoError(s.T(), json.NewDecoder(s.rr.Body).Decode(&e))
-	assert.NotEmpty(s.T(), e)
-	assert.Equal(s.T(), "credentials expired", e.ErrorDescription)
-
-	// credential rotation should make things work again
-	creds, err = system.ResetSecret(ssas.RandomHexID())
-	assert.Nil(s.T(), err)
-	assert.Equal(s.T(), "Token Test", creds.ClientName)
-	assert.NotNil(s.T(), creds.ClientSecret)
-	s.rr = httptest.NewRecorder()
-	req = httptest.NewRequest("POST", "/token", nil)
-	req.SetBasicAuth(creds.ClientID, creds.ClientSecret)
-	req.Header.Add("Accept", "application/json")
-	handler = http.HandlerFunc(token)
-	handler.ServeHTTP(s.rr, req)
-	assert.Equal(s.T(), http.StatusOK, s.rr.Code)
-	t := TokenResponse{}
-	assert.NoError(s.T(), json.NewDecoder(s.rr.Body).Decode(&t))
-	assert.NotEmpty(s.T(), t)
-	assert.NotEmpty(s.T(), t.AccessToken)
-
-	// just in case: lack of updated_at should not be a valid state
-	s.db.Exec("UPDATE secrets SET created_at = null, updated_at = null WHERE system_id = ?", system.ID)
-	req = httptest.NewRequest("POST", "/token", nil)
-	req.SetBasicAuth(creds.ClientID, creds.ClientSecret)
-	s.rr = httptest.NewRecorder()
-	req.Header.Add("Accept", "application/json")
-	handler = http.HandlerFunc(token)
-	handler.ServeHTTP(s.rr, req)
-	assert.Equal(s.T(), http.StatusUnauthorized, s.rr.Code)
-	e = ssas.ErrorResponse{}
-	assert.NoError(s.T(), json.NewDecoder(s.rr.Body).Decode(&e))
-	assert.NotEmpty(s.T(), e)
-	assert.Equal(s.T(), "credentials expired", e.ErrorDescription)
-
-	err = ssas.CleanDatabase(group)
-	assert.Nil(s.T(), err)
-}
-
-func (s *APITestSuite) TestIntrospectSuccess() {
+func (s *APITestSuite) createIntrospectData() (creds ssas.Credentials, group ssas.Group) {
 	groupID := ssas.RandomHexID()[0:4]
 
-	group := ssas.Group{GroupID: groupID, XData: "x_data"}
+	group = ssas.Group{GroupID: groupID, XData: "x_data"}
 	err := s.db.Create(&group).Error
 	require.Nil(s.T(), err)
 
@@ -386,10 +331,83 @@ func (s *APITestSuite) TestIntrospectSuccess() {
 	pemString, err := ssas.ConvertPublicKeyToPEMString(&pubKey)
 	require.Nil(s.T(), err)
 
-	creds, err := ssas.RegisterSystem("Introspect Test", groupID, ssas.DefaultScope, pemString, []string{}, uuid.NewRandom().String())
+	creds, err = ssas.RegisterSystem("Introspect Test", groupID, ssas.DefaultScope, pemString, []string{}, uuid.NewRandom().String())
 	assert.Nil(s.T(), err)
 	assert.Equal(s.T(), "Introspect Test", creds.ClientName)
 	assert.NotNil(s.T(), creds.ClientSecret)
+
+	return
+}
+
+func (s *APITestSuite) testIntrospectFlaw(flaw service.TokenFlaw, errorText string) {
+	var (
+		signingKeyPath string
+		origLog        io.Writer
+		buf            bytes.Buffer
+	)
+
+	origLog = ssas.Logger.Out
+	ssas.Logger.SetOutput(&buf)
+	defer func() {
+		ssas.Logger.SetOutput(origLog)
+	}()
+
+	if flaw == service.BadSigner {
+		signingKeyPath = s.badSigningKeyPath
+	} else {
+		signingKeyPath = os.Getenv("SSAS_PUBLIC_SIGNING_KEY_PATH")
+	}
+
+	creds, group := s.createIntrospectData()
+
+	system, err := ssas.GetSystemByClientID(creds.ClientID)
+	assert.Nil(s.T(), err)
+	data, err := ssas.XDataFor(system)
+	assert.Nil(s.T(), err)
+
+	claims := service.CommonClaims{
+		TokenType: "AccessToken",
+		SystemID:  fmt.Sprintf("%d", system.ID),
+		ClientID:  creds.ClientID,
+		Data:      data,
+	}
+
+	_, signedString, err := service.BadToken(&claims, flaw, signingKeyPath)
+	assert.Nil(s.T(), err, fmt.Sprintf("Unable to create bad token for flaw %v", flaw))
+
+	body := strings.NewReader(fmt.Sprintf(`{"token":"%s"}`, signedString))
+	req := httptest.NewRequest("POST", "/introspect", body)
+	req.SetBasicAuth(creds.ClientID, creds.ClientSecret)
+	req.Header.Add("Content-Type", "application/json")
+	req.Header.Add("Accept", "application/json")
+	handler := http.HandlerFunc(introspect)
+	handler.ServeHTTP(s.rr, req)
+	assert.Equal(s.T(), http.StatusOK, s.rr.Code)
+
+	var v map[string]bool
+	assert.NoError(s.T(), json.NewDecoder(s.rr.Body).Decode(&v))
+	assert.NotEmpty(s.T(), v)
+	assert.False(s.T(), v["active"], fmt.Sprintf("Unexpected success using bad token with flaw %v", flaw))
+	assert.Contains(s.T(), buf.String(), errorText, fmt.Sprintf("Unable to find evidence of flaw %v in logs", flaw))
+	assert.NoError(s.T(), ssas.CleanDatabase(group))
+}
+
+func (s *APITestSuite) TestIntrospectFailure() {
+	flaws := map[service.TokenFlaw]string{
+		service.Postdated:        "token used before issued",
+		service.ExtremelyExpired: "Token is expired",
+		service.BadSigner:        "crypto/rsa: verification error",
+		service.Expired:          "Token is expired",
+		service.BadIssuer:        "missing one or more claims",
+		service.MissingID:        "missing one or more claims",
+	}
+	for flaw, errorText := range flaws {
+		s.testIntrospectFlaw(flaw, errorText)
+	}
+}
+
+func (s *APITestSuite) TestIntrospectSuccess() {
+	creds, group := s.createIntrospectData()
 
 	req := httptest.NewRequest("POST", "/token", nil)
 	req.SetBasicAuth(creds.ClientID, creds.ClientSecret)
@@ -417,7 +435,7 @@ func (s *APITestSuite) TestIntrospectSuccess() {
 	assert.NotEmpty(s.T(), v)
 	assert.True(s.T(), v["active"])
 
-	err = ssas.CleanDatabase(group)
+	err := ssas.CleanDatabase(group)
 	assert.Nil(s.T(), err)
 }
 

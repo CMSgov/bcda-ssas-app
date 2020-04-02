@@ -260,7 +260,8 @@ func (s *Server) VerifyToken(tokenString string) (*jwt.Token, error) {
 func (s *Server) CheckRequiredClaims(claims *CommonClaims, requiredTokenType string) error {
 	if claims.ExpiresAt == 0 ||
 		claims.IssuedAt == 0 ||
-		claims.Issuer == "" ||
+		claims.Issuer != "ssas" ||
+		claims.Id == "" ||
 		claims.TokenType == "" {
 		return fmt.Errorf("missing one or more claims")
 	}
