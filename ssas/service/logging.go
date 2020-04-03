@@ -103,5 +103,3 @@ func LogEntrySetFields(r *http.Request, fields map[string]interface{}) {
 		entry.Logger = entry.Logger.WithFields(fields)
 	}
 }
-
-

@@ -40,7 +40,7 @@ func (s *PublicMiddlewareTestSuite) TestRequireTokenAuthWithInvalidSignature() {
 	badToken := "eyJhbGciOiJFUzM4NCIsInR5cCI6IkpXVCIsImtpZCI6ImlUcVhYSTB6YkFuSkNLRGFvYmZoa00xZi02ck1TcFRmeVpNUnBfMnRLSTgifQ.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiYWRtaW4iOnRydWUsImlhdCI6MTUxNjIzOTAyMn0.cJOP_w-hBqnyTsBm3T6lOE5WpcHaAkLuQGAs1QO-lg2eWs8yyGW8p9WagGjxgvx7h9X72H7pXmXqej3GdlVbFmhuzj45A9SXDOAHZ7bJXwM1VidcPi7ZcrsMSCtP1hiN"
 
 	testForToken :=
-		func (next http.Handler) http.Handler {
+		func(next http.Handler) http.Handler {
 			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				token := r.Context().Value("token")
 				assert.Nil(s.T(), token)
@@ -57,7 +57,7 @@ func (s *PublicMiddlewareTestSuite) TestRequireTokenAuthWithInvalidSignature() {
 		assert.FailNow(s.T(), err.Error())
 	}
 
-	req.Header.Add("Authorization", "Bearer " + badToken)
+	req.Header.Add("Authorization", "Bearer "+badToken)
 
 	resp, err := client.Do(req)
 	if err != nil {
@@ -68,7 +68,7 @@ func (s *PublicMiddlewareTestSuite) TestRequireTokenAuthWithInvalidSignature() {
 
 func (s *PublicMiddlewareTestSuite) TestParseTokenEmptyToken() {
 	testForToken :=
-		func (next http.Handler) http.Handler {
+		func(next http.Handler) http.Handler {
 			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				token := r.Context().Value("token")
 				assert.Nil(s.T(), token)
@@ -97,7 +97,7 @@ func (s *PublicMiddlewareTestSuite) TestParseTokenValidToken() {
 	oktaID := "fake_okta_id"
 	groupIDs := []string{"T0001", "T0002"}
 	testForToken :=
-		func (next http.Handler) http.Handler {
+		func(next http.Handler) http.Handler {
 			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				ts := r.Context().Value("ts")
 				assert.NotNil(s.T(), ts)
@@ -120,7 +120,7 @@ func (s *PublicMiddlewareTestSuite) TestParseTokenValidToken() {
 		assert.FailNow(s.T(), err.Error())
 	}
 
-	req.Header.Add("Authorization", "Bearer " + ts)
+	req.Header.Add("Authorization", "Bearer "+ts)
 
 	res, err := client.Do(req)
 	if err != nil {
@@ -190,7 +190,6 @@ func (s *PublicMiddlewareTestSuite) TestRequireRegTokenAuthRevoked() {
 	assert.Equal(s.T(), http.StatusUnauthorized, s.rr.Code)
 }
 
-
 func (s *PublicMiddlewareTestSuite) TestRequireRegTokenAuthEmptyToken() {
 	s.server = httptest.NewServer(s.CreateRouter(requireMFATokenAuth))
 	client := s.server.Client()
@@ -236,7 +235,6 @@ func (s *PublicMiddlewareTestSuite) TestRequireMFATokenAuthValidToken() {
 	assert.Equal(s.T(), http.StatusOK, s.rr.Code)
 }
 
-
 func (s *PublicMiddlewareTestSuite) TestRequireMFATokenAuthEmptyToken() {
 	s.server = httptest.NewServer(s.CreateRouter(requireMFATokenAuth))
 	client := s.server.Client()
@@ -267,4 +265,3 @@ func (s *PublicMiddlewareTestSuite) TestContains() {
 func TestPublicMiddlewareTestSuite(t *testing.T) {
 	suite.Run(t, new(PublicMiddlewareTestSuite))
 }
-

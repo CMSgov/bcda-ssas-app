@@ -17,7 +17,7 @@ const unitSigningKeyPath string = "../../shared_files/ssas/unit_test_private_key
 type ServerTestSuite struct {
 	suite.Suite
 	server *Server
-	info map[string][]string
+	info   map[string][]string
 }
 
 func (s *ServerTestSuite) SetupSuite() {
@@ -26,7 +26,7 @@ func (s *ServerTestSuite) SetupSuite() {
 }
 
 func (s *ServerTestSuite) SetupTest() {
-	s.server = NewServer("test-server", ":9999", "9.99.999", s.info, nil, true, unitSigningKeyPath, 37 * time.Minute)
+	s.server = NewServer("test-server", ":9999", "9.99.999", s.info, nil, true, unitSigningKeyPath, 37*time.Minute)
 }
 
 func (s *ServerTestSuite) TestNewServer() {
@@ -45,7 +45,7 @@ func (s *ServerTestSuite) TestNewServer() {
 	r.Get("/test", func(w http.ResponseWriter, r *http.Request) {
 		_, _ = w.Write([]byte("test"))
 	})
-	ts := NewServer("test-server", ":9999", "9.99.999", s.info, r, true, unitSigningKeyPath, 37 * time.Minute)
+	ts := NewServer("test-server", ":9999", "9.99.999", s.info, r, true, unitSigningKeyPath, 37*time.Minute)
 	assert.NotEmpty(s.T(), ts.router)
 	routes, err := ts.ListRoutes()
 	assert.Nil(s.T(), err)
@@ -105,7 +105,7 @@ func (s *ServerTestSuite) TestNYI() {
 // MintToken(), MintTokenWithDuration()
 
 func (s *ServerTestSuite) TestNewServerWithBadSigningKey() {
-	ts := NewServer("test-server", ":9999", "9.99.999", s.info, nil, true, "", 37 * time.Minute)
+	ts := NewServer("test-server", ":9999", "9.99.999", s.info, nil, true, "", 37*time.Minute)
 	assert.Nil(s.T(), ts)
 }
 

@@ -413,32 +413,6 @@ func (s *SystemsTestSuite) TestRegisterSystemSuccess() {
 	assert.Nil(err)
 }
 
-func (s *SystemsTestSuite) TestRegisterSystemOnlyOneSucceeds() {
-	assert := s.Assert()
-
-	pubKey := ""
-	ips := []string{}
-	trackingID := uuid.NewRandom().String()
-	groupID := "T54321"
-	group := Group{GroupID: groupID}
-	err := s.db.Create(&group).Error
-	if err != nil {
-		s.FailNow(err.Error())
-	}
-
-	creds, err := RegisterSystem("Create System Test 1", groupID, DefaultScope, pubKey, ips, trackingID)
-	assert.Nil(err)
-	assert.Equal("Create System Test 1", creds.ClientName)
-	assert.NotEqual("", strings.TrimSpace(creds.ClientSecret))
-
-	creds2, err := RegisterSystem("Create System Test 2", groupID, DefaultScope, pubKey, ips, trackingID)
-	assert.NotNil(err)
-	assert.Equal("", strings.TrimSpace(creds2.ClientSecret))
-
-	err = CleanDatabase(group)
-	assert.Nil(err)
-}
-
 func (s *SystemsTestSuite) TestRegisterSystemMissingData() {
 	assert := s.Assert()
 
@@ -512,18 +486,12 @@ func (s *SystemsTestSuite) TestRegisterSystemIps() {
 		ips, err = GetAllIPs()
 		assert.Nil(err)
 		assert.Contains(ips, address)
-		sys, err := GetSystemByClientID(creds.ClientID)
-		assert.Nil(err)
-		assert.Nil(sys.RevokeSecret("TestRegisterSystemIps " + address))
 	}
 
 	// We have no limit on the number of IP addresses that can be registered with a system
 	creds, err := RegisterSystem("Test system with all good IPs", groupID, DefaultScope, pubKey, goodIps, trackingID)
 	assert.Nil(err, "An array of good IP's should be a allowed, but was not")
 	assert.NotEmpty(creds)
-	sys, err := GetSystemByClientID(creds.ClientID)
-	assert.Nil(err)
-	assert.Nil(sys.RevokeSecret("TestRegisterSystemIps multiple good IP's"))
 
 	for _, address := range badIps {
 		creds, err = RegisterSystem("Test system with "+address, groupID, DefaultScope, pubKey, []string{address}, trackingID)
@@ -557,9 +525,6 @@ func (s *SystemsTestSuite) TestRegisterSystemBadKey() {
 	creds, err := RegisterSystem("Register System Failure", groupID, DefaultScope, "", []string{}, trackingID)
 	assert.Nil(err, "error in public key")
 	assert.NotEmpty(creds)
-	sys, err := GetSystemByClientID(creds.ClientID)
-	assert.Nil(err)
-	assert.Nil(sys.RevokeSecret("TestRegisterSystemBadKey blank public key"))
 
 	// Invalid key not ok
 	creds, err = RegisterSystem("Register System Failure", groupID, DefaultScope, "NotAKey", []string{}, trackingID)
@@ -799,44 +764,6 @@ func (s *SystemsTestSuite) TestGetSystemsByGroupIDWithKnownSystem() {
 	_ = CleanDatabase(g)
 }
 
-func (s *SystemsTestSuite) TestActiveCreds() {
-	groupID := "group-activeCreds"
-	group := Group{GroupID: groupID}
-	assert.Nil(s.T(), s.db.Create(&group).Error)
-	system1 := System{GID: group.ID, GroupID: groupID, ClientID: "client1-TestActiveCreds"}
-	assert.Nil(s.T(), s.db.Create(&system1).Error)
-	secret1 := Secret{Hash: "foo", SystemID: system1.ID}
-	assert.Nil(s.T(), s.db.Create(&secret1).Error)
-	system2 := System{GID: group.ID, GroupID: groupID, ClientID: "client2-TestActiveCreds"}
-	assert.Nil(s.T(), s.db.Create(&system2).Error)
-	secret2 := Secret{Hash: "foo", SystemID: system2.ID}
-	assert.Nil(s.T(), s.db.Create(&secret2).Error)
-
-	// We shouldn't be able to get to this state (multiple active creds), but the response should be (true, nil)
-	found, err := activeCreds(system1)
-	assert.Nil(s.T(), err)
-	assert.True(s.T(), found)
-
-	// Soft-deleted secrets should be ignored as well as the specified system's secret
-	assert.Nil(s.T(), s.db.Delete(&secret2).Error)
-	found, err = activeCreds(system1)
-	assert.Nil(s.T(), err)
-	assert.False(s.T(), found)
-
-	// Other active secrets for the group WILL matter . . .
-	found, err = activeCreds(system2)
-	assert.Nil(s.T(), err)
-	assert.True(s.T(), found)
-
-	// . . . unless their system is soft-deleted
-	assert.Nil(s.T(), s.db.Delete(&system1).Error)
-	found, err = activeCreds(system2)
-	assert.Nil(s.T(), err)
-	assert.False(s.T(), found)
-
-	_ = CleanDatabase(group)
-}
-
 func (s *SystemsTestSuite) TestIsExpired() {
 	groupID := "group-isExpiredTest"
 	group := Group{GroupID: groupID}
@@ -847,13 +774,91 @@ func (s *SystemsTestSuite) TestIsExpired() {
 	assert.Nil(s.T(), s.db.Create(&secret).Error)
 
 	// New secrets have not expired
-	assert.False(s.T(), secret.IsExpired(), fmt.Sprintf("Why is this secret not expired?  created_at=%v updated_at=%v", secret.CreatedAt, secret.UpdatedAt))
+	assert.False(s.T(), secret.IsExpired(), fmt.Sprintf("Why is this secret expired?  created_at=%v updated_at=%v", secret.CreatedAt, secret.UpdatedAt))
 
 	// Old secrets have expired
 	s.db.Exec("UPDATE secrets SET created_at = '2000-01-01', updated_at = '2000-01-01' WHERE system_id = ?", system.ID)
 	err := s.db.First(&secret, secret.ID).Error
 	assert.NoError(s.T(), err)
 	assert.True(s.T(), secret.IsExpired())
+	_ = CleanDatabase(group)
+}
+
+func (s *SystemsTestSuite) TestIPIsExpired() {
+	address1 := RandomIPv4()
+	address2 := RandomIPv4()
+	groupID := "group-IPIsExpiredTest"
+	group := Group{GroupID: groupID}
+	assert.Nil(s.T(), s.db.Create(&group).Error)
+	system := System{GID: group.ID, GroupID: groupID, ClientID: "client-IPIsExpiredTest"}
+	assert.Nil(s.T(), s.db.Create(&system).Error)
+	ip1 := IP{SystemID: system.ID, Address: address1}
+	assert.Nil(s.T(), s.db.Create(&ip1).Error)
+	ip2 := IP{SystemID: system.ID, Address: address2}
+	assert.Nil(s.T(), s.db.Create(&ip2).Error)
+	secret := Secret{Hash: "foo", SystemID: system.ID}
+	assert.Nil(s.T(), s.db.Create(&secret).Error)
+
+	// Addresses from an non-soft-deleted, unexpired system are returned
+	allIps, err := GetAllIPs()
+	assert.NoError(s.T(), err)
+	assert.Contains(s.T(), allIps, address1)
+	assert.Contains(s.T(), allIps, address2)
+
+	// Addresses from an expired system are not returned
+	s.db.Exec("UPDATE secrets SET created_at = '2000-01-01', updated_at = '2000-01-01' WHERE system_id = ?", system.ID)
+	err = s.db.First(&secret, secret.ID).Error
+	assert.NoError(s.T(), err)
+	allIps, err = GetAllIPs()
+	assert.NoError(s.T(), err)
+	assert.NotContains(s.T(), allIps, address1)
+	assert.NotContains(s.T(), allIps, address2)
+
+	// Addresses for revoked credentials are not returned
+	s.db.Exec("UPDATE secrets SET created_at = now(), updated_at = now(), deleted_at = now() WHERE system_id = ?", system.ID)
+	err = s.db.First(&secret, secret.ID).Error
+	assert.Error(s.T(), err)
+	allIps, err = GetAllIPs()
+	assert.NoError(s.T(), err)
+	assert.NotContains(s.T(), allIps, address1)
+	assert.NotContains(s.T(), allIps, address2)
+
+	// Addresses for soft-deleted systems are not returned
+	s.db.Exec("UPDATE secrets SET deleted_at = null WHERE system_id = ?", system.ID)
+	err = s.db.First(&secret, secret.ID).Error
+	assert.NoError(s.T(), err)
+	s.db.Exec("UPDATE systems SET deleted_at = now() WHERE id = ?", system.ID)
+	err = s.db.First(&system, system.ID).Error
+	assert.Error(s.T(), err)
+	allIps, err = GetAllIPs()
+	assert.NoError(s.T(), err)
+	assert.NotContains(s.T(), allIps, address1)
+	assert.NotContains(s.T(), allIps, address2)
+
+	// Addresses for soft-deleted groups are not returned
+	s.db.Exec("UPDATE systems SET deleted_at = null WHERE id = ?", system.ID)
+	err = s.db.First(&system, system.ID).Error
+	assert.NoError(s.T(), err)
+	s.db.Exec("UPDATE groups SET deleted_at = now() WHERE id = ?", group.ID)
+	err = s.db.First(&group, group.ID).Error
+	assert.Error(s.T(), err)
+	allIps, err = GetAllIPs()
+	assert.NoError(s.T(), err)
+	assert.NotContains(s.T(), allIps, address1)
+	assert.NotContains(s.T(), allIps, address2)
+
+	// Addresses for soft-deleted ips are not returned
+	s.db.Exec("UPDATE systems SET deleted_at = null WHERE id = ?", system.ID)
+	err = s.db.First(&system, system.ID).Error
+	assert.NoError(s.T(), err)
+	s.db.Exec("UPDATE groups SET deleted_at = now() WHERE id = ?", group.ID)
+	err = s.db.First(&group, group.ID).Error
+	assert.Error(s.T(), err)
+	allIps, err = GetAllIPs()
+	assert.NoError(s.T(), err)
+	assert.NotContains(s.T(), allIps, address1)
+	assert.NotContains(s.T(), allIps, address2)
+
 	_ = CleanDatabase(group)
 }
 

@@ -21,7 +21,7 @@ type RouterTestSuite struct {
 	group     ssas.Group
 }
 
-func resetCreds(s *RouterTestSuite) {
+func (s *RouterTestSuite) SetupSuite() {
 	encSecret, err := ssas.ResetAdminCreds()
 	assert.NoError(s.T(), err)
 
@@ -32,7 +32,6 @@ func resetCreds(s *RouterTestSuite) {
 }
 
 func (s *RouterTestSuite) SetupTest() {
-	resetCreds(s)
 	s.router = routes()
 }
 
@@ -150,10 +149,8 @@ func (s *RouterTestSuite) TestPutSystemCredentials() {
 	defer db.Close()
 	group := ssas.Group{GroupID: "put-system-credentials-test-group"}
 	db.Create(&group)
-	creds, err := ssas.RegisterSystem("put-system-credentials-test-system", group.GroupID, "bcda-api", "", []string{}, "TestPutSystemCredentials")
-	assert.Nil(s.T(), err)
-	system, err := ssas.GetSystemByClientID(creds.ClientID)
-	assert.Nil(s.T(), err)
+	system := ssas.System{GID: group.ID, ClientID: "put-system-credentials-test-system"}
+	db.Create(&system)
 	systemID := strconv.FormatUint(uint64(system.ID), 10)
 
 	req := httptest.NewRequest("PUT", "/system/"+systemID+"/credentials", nil)
@@ -163,7 +160,7 @@ func (s *RouterTestSuite) TestPutSystemCredentials() {
 	res := rr.Result()
 	assert.Equal(s.T(), http.StatusCreated, res.StatusCode)
 
-	err = ssas.CleanDatabase(group)
+	err := ssas.CleanDatabase(group)
 	assert.Nil(s.T(), err)
 }
 

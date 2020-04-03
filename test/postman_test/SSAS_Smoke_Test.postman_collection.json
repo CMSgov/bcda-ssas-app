@@ -1,6 +1,6 @@
 {
 	"info": {
-		"_postman_id": "f9000b48-d103-4254-860b-ecde72be8f12",
+		"_postman_id": "5448aa97-6ff1-405b-982b-9600e949ffcb",
 		"name": "SSAS Smoke Test",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
 	},
@@ -733,63 +733,6 @@
 					"port": "{{admin-port}}",
 					"path": [
 						"system"
-					]
-				}
-			},
-			"response": []
-		},
-		{
-			"name": "revoke system credentials",
-			"event": [
-				{
-					"listen": "test",
-					"script": {
-						"id": "20ed753f-bd64-4270-9993-305d4efc1372",
-						"exec": [
-							"pm.test(\"Response is 'ok'\", function () {",
-							"    pm.response.to.have.status(200);",
-							"});"
-						],
-						"type": "text/javascript"
-					}
-				}
-			],
-			"request": {
-				"auth": {
-					"type": "basic",
-					"basic": [
-						{
-							"key": "password",
-							"value": "{{adminClientSecret}}",
-							"type": "string"
-						},
-						{
-							"key": "username",
-							"value": "{{adminClientId}}",
-							"type": "string"
-						}
-					]
-				},
-				"method": "DELETE",
-				"header": [
-					{
-						"key": "Content-Type",
-						"name": "Content-Type",
-						"type": "text",
-						"value": "application/json"
-					}
-				],
-				"url": {
-					"raw": "{{scheme}}://{{host}}:{{admin-port}}/system/{{system_id}}/credentials",
-					"protocol": "{{scheme}}",
-					"host": [
-						"{{host}}"
-					],
-					"port": "{{admin-port}}",
-					"path": [
-						"system",
-						"{{system_id}}",
-						"credentials"
 					]
 				}
 			},

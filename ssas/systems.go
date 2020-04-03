@@ -356,25 +356,21 @@ func RegisterSystem(clientName string, groupID string, scope string, publicKeyPE
 	db := GetGORMDbConnection()
 	defer Close(db)
 
+	// The public key and hashed secret are stored separately in the encryption_keys and secrets tables, requiring
+	// multiple INSERT statements.  To ensure we do not get into an invalid state, wrap the two INSERT statements in a transaction.
+	tx := db.Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
+
 	creds := Credentials{}
 	clientID := uuid.NewRandom().String()
 
 	// The caller of this function should have logged OperationCalled() with the same trackingID
 	regEvent := Event{Op: "RegisterClient", TrackingID: trackingID, ClientID: clientID}
 	OperationStarted(regEvent)
-
-	credFound, err := activeCreds(System{GroupID: groupID})
-	if err != nil {
-		regEvent.Help = "unable to search for active credentials: " + err.Error()
-		OperationFailed(regEvent)
-		return creds, errors.New("internal error")
-	}
-
-	if credFound {
-		regEvent.Help = "only one set of active credentials permitted"
-		OperationFailed(regEvent)
-		return creds, errors.New(regEvent.Help)
-	}
 
 	if clientName == "" {
 		regEvent.Help = "clientName is required"
@@ -404,15 +400,6 @@ func RegisterSystem(clientName string, groupID string, scope string, publicKeyPE
 		ClientName: clientName,
 		APIScope:   scope,
 	}
-
-	// The public key and hashed secret are stored separately in the encryption_keys and secrets tables, requiring
-	// multiple INSERT statements.  To ensure we do not get into an invalid state, wrap the two INSERT statements in a transaction.
-	tx := db.Begin()
-	defer func() {
-		if r := recover(); r != nil {
-			tx.Rollback()
-		}
-	}()
 
 	err = tx.Create(&system).Error
 	if err != nil {
@@ -611,8 +598,13 @@ func GetAllIPs() ([]string, error) {
 	)
 	defer Close(db)
 
-	// Only include addresses registered to active systems
-	if err = db.Order("address").Model(&IP{}).Where("deleted_at IS NULL AND id NOT IN (SELECT id FROM systems WHERE deleted_at IS NOT NULL)").Pluck("DISTINCT address", &ips).Error; err != nil {
+	// Only include addresses registered to active, unexpired systems
+	where := "deleted_at IS NULL AND system_id IN (SELECT systems.id FROM secrets JOIN systems ON secrets.system_id = systems.id JOIN groups ON systems.g_id = groups.id " +
+		"WHERE secrets.deleted_at IS NULL AND systems.deleted_at IS NULL AND groups.deleted_at IS NULL AND secrets.updated_at > ?)"
+	exp := time.Now().Add(-1 * CredentialExpiration)
+
+	if err = db.Order("address").Model(&IP{}).Where(where, exp).Pluck(
+		"DISTINCT address", &ips).Error; err != nil {
 		err = fmt.Errorf("no IP's found: %s", err.Error())
 	}
 	return ips, err
@@ -649,19 +641,6 @@ func (system *System) ResetSecret(trackingID string) (Credentials, error) {
 		return creds, errors.New("internal system error")
 	}
 
-	credFound, err := activeCreds(*system)
-	if err != nil {
-		newSecretEvent.Help = "unable to search for active credentials: " + err.Error()
-		OperationFailed(newSecretEvent)
-		return creds, errors.New("internal system error")
-	}
-
-	if credFound {
-		newSecretEvent.Help = "only one set of active credentials permitted"
-		OperationFailed(newSecretEvent)
-		return creds, errors.New(newSecretEvent.Help)
-	}
-
 	secretString, err := GenerateSecret()
 	if err != nil {
 		newSecretEvent.Help = fmt.Sprintf("could not reset secret for clientID %s: %s", system.ClientID, err.Error())
@@ -692,39 +671,6 @@ func (system *System) ResetSecret(trackingID string) (Credentials, error) {
 	creds.ClientName = system.ClientName
 	creds.ExpiresAt = time.Now().Add(CredentialExpiration)
 	return creds, nil
-}
-
-// activeCreds tells whether a different system in this group has active credentials (secrets)
-func activeCreds(s System) (bool, error) {
-	systems, err := GetSystemsByGroupIDString(s.GroupID)
-	if err != nil {
-		return false, err
-	}
-
-	for _, system := range systems {
-		// The secret(s) for this system could be soft-deleted, which would create an error.  Ignore it.
-		secret, _ := system.GetSecret()
-		// We can also ignore an empty secret, and should not complain when the current system has an active secret
-		if strings.TrimSpace(secret.Hash) != "" && s.ClientID != system.ClientID {
-			return true, nil
-		}
-	}
-	return false, nil
-}
-
-// RevokeActiveCreds revokes all credentials for the specified GroupID
-func RevokeActiveCreds(groupID string) error {
-	systems, err := GetSystemsByGroupIDString(groupID)
-	if err != nil {
-		return err
-	}
-	for _, system := range systems {
-		err = system.RevokeSecret("ssas.RevokeActiveCreds for GroupID " + groupID)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
 }
 
 // CleanDatabase deletes the given group and associated systems, encryption keys, and secrets.
