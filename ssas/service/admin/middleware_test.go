@@ -45,42 +45,13 @@ func (s *AdminMiddlewareTestSuite) SetupTest() {
 }
 
 func (s *AdminMiddlewareTestSuite) TestRequireBasicAuthSuccess() {
-	s.server = httptest.NewServer(s.CreateRouter(requireBasicAuth))
-	client := s.server.Client()
-
-	req, err := http.NewRequest("GET", s.server.URL, nil)
-	if err != nil {
-		assert.FailNow(s.T(), err.Error())
-	}
-
-	req.Header.Add("Authorization", "Basic "+s.basicAuth)
-
-	resp, err := client.Do(req)
-	if err != nil {
-		assert.FailNow(s.T(), err.Error())
-	}
-	assert.Equal(s.T(), http.StatusOK, resp.StatusCode)
+	testAuth(s.basicAuth, http.StatusOK, s)
 }
 
 func (s *AdminMiddlewareTestSuite) TestRequireBasicAuthFailure() {
-	s.server = httptest.NewServer(s.CreateRouter(requireBasicAuth))
-	client := s.server.Client()
+	r := testAuth(s.badAuth, http.StatusUnauthorized, s)
 
-	// Valid credentials should return a 200 response
-	req, err := http.NewRequest("GET", s.server.URL, nil)
-	if err != nil {
-		assert.FailNow(s.T(), err.Error())
-	}
-
-	req.Header.Add("Authorization", "Basic "+s.badAuth)
-
-	resp, err := client.Do(req)
-	if err != nil {
-		assert.FailNow(s.T(), err.Error())
-	}
-	assert.Equal(s.T(), http.StatusUnauthorized, resp.StatusCode)
-
-	b, err := ioutil.ReadAll(resp.Body)
+	b, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		assert.FailNow(s.T(), err.Error())
 	}
@@ -91,6 +62,18 @@ func (s *AdminMiddlewareTestSuite) TestRequireBasicAuthFailure() {
 
 func (s *AdminMiddlewareTestSuite) TestRequireBasicAuthExpired() {
 	ssas.ExpireAdminCreds()
+	r := testAuth(s.basicAuth, http.StatusUnauthorized, s)
+
+	b, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		assert.FailNow(s.T(), err.Error())
+	}
+	var result map[string]interface{}
+	_ = json.Unmarshal(b, &result)
+	assert.Equal(s.T(), "credentials expired", result["error_description"], string(b))
+}
+
+func testAuth(base64Creds string, statusCode int, s *AdminMiddlewareTestSuite) *http.Response {
 	s.server = httptest.NewServer(s.CreateRouter(requireBasicAuth))
 	client := s.server.Client()
 
@@ -100,21 +83,15 @@ func (s *AdminMiddlewareTestSuite) TestRequireBasicAuthExpired() {
 		assert.FailNow(s.T(), err.Error())
 	}
 
-	req.Header.Add("Authorization", "Basic "+s.basicAuth)
+	req.Header.Add("Authorization", "Basic "+base64Creds)
 
 	resp, err := client.Do(req)
 	if err != nil {
 		assert.FailNow(s.T(), err.Error())
 	}
-	assert.Equal(s.T(), http.StatusUnauthorized, resp.StatusCode)
+	assert.Equal(s.T(), statusCode, resp.StatusCode)
 
-	b, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		assert.FailNow(s.T(), err.Error())
-	}
-	var result map[string]interface{}
-	_ = json.Unmarshal(b, &result)
-	assert.Equal(s.T(), "credentials expired", result["error_description"], string(b))
+	return resp
 }
 
 func TestAdminMiddlewareTestSuite(t *testing.T) {
