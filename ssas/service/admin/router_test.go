@@ -22,23 +22,12 @@ type RouterTestSuite struct {
 }
 
 func resetCreds(s *RouterTestSuite) {
-	assert.Nil(s.T(), ssas.RevokeActiveCreds("admin"))
+	encSecret, err := ssas.ResetAdminCreds()
+	assert.NoError(s.T(), err)
 
-	id := "31e029ef-0e97-47f8-873c-0e8b7e7f99bf"
-	system, err := ssas.GetSystemByClientID(id)
-	if err != nil {
-		s.FailNow(err.Error())
-	}
+	s.basicAuth = encSecret
 
-	creds, err := system.ResetSecret(id)
-	if err != nil {
-		s.FailNow(err.Error())
-	}
-
-	basicAuth := id + ":" + creds.ClientSecret
-	s.basicAuth = base64.StdEncoding.EncodeToString([]byte(basicAuth))
-
-	badAuth := id + ":This_is_not_the_secret"
+	badAuth := "31e029ef-0e97-47f8-873c-0e8b7e7f99bf:This_is_not_the_secret"
 	s.badAuth = base64.StdEncoding.EncodeToString([]byte(badAuth))
 }
 
@@ -61,7 +50,7 @@ func (s *RouterTestSuite) TestUnauthorized() {
 	rr := httptest.NewRecorder()
 	s.router.ServeHTTP(rr, req)
 	res := rr.Result()
-	assert.Equal(s.T(), http.StatusBadRequest, res.StatusCode)
+	assert.Equal(s.T(), http.StatusUnauthorized, res.StatusCode)
 }
 
 func (s *RouterTestSuite) TestNonBasicAuth() {
@@ -79,7 +68,7 @@ func (s *RouterTestSuite) TestBadSecret() {
 	rr := httptest.NewRecorder()
 	s.router.ServeHTTP(rr, req)
 	res := rr.Result()
-	assert.Equal(s.T(), http.StatusBadRequest, res.StatusCode)
+	assert.Equal(s.T(), http.StatusUnauthorized, res.StatusCode)
 }
 
 func (s *RouterTestSuite) TestRevokeToken() {

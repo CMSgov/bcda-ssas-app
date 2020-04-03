@@ -10,6 +10,36 @@ import (
 	"net"
 )
 
+func ResetAdminCreds() (encSecret string, err error) {
+	err = RevokeActiveCreds("admin")
+	if err != nil {
+		return
+	}
+
+	id := "31e029ef-0e97-47f8-873c-0e8b7e7f99bf"
+	system, err := GetSystemByClientID(id)
+	if err != nil {
+		return
+	}
+
+	creds, err := system.ResetSecret(id)
+	if err != nil {
+		return
+	}
+
+	basicAuth := id + ":" + creds.ClientSecret
+	encSecret = base64.StdEncoding.EncodeToString([]byte(basicAuth))
+
+	return
+}
+
+func ExpireAdminCreds() {
+	db := GetGORMDbConnection()
+	defer Close(db)
+
+	db.Exec("UPDATE secrets SET created_at = '2000-01-01', updated_at = '2000-01-01' WHERE system_id IN (SELECT id FROM systems WHERE client_id = '31e029ef-0e97-47f8-873c-0e8b7e7f99bf')")
+}
+
 func GeneratePublicKey(bits int) (string, error) {
 	keyPair, err := rsa.GenerateKey(rand.Reader, bits)
 	if err != nil {
@@ -80,4 +110,3 @@ func someRandomBytes(n int) ([]byte, error) {
 	}
 	return b, nil
 }
-
