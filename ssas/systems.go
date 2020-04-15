@@ -673,6 +673,21 @@ func (system *System) ResetSecret(trackingID string) (Credentials, error) {
 	return creds, nil
 }
 
+// RevokeActiveCreds revokes all credentials for the specified GroupID
+func RevokeActiveCreds(groupID string) error {
+	systems, err := GetSystemsByGroupIDString(groupID)
+	if err != nil {
+		return err
+	}
+	for _, system := range systems {
+		err = system.RevokeSecret("ssas.RevokeActiveCreds for GroupID " + groupID)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // CleanDatabase deletes the given group and associated systems, encryption keys, and secrets.
 func CleanDatabase(group Group) error {
 	var (
