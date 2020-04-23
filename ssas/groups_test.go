@@ -109,7 +109,6 @@ func (s *GroupsTestSuite) TestListGroups() {
 	g1, err := CreateGroup(gd, RandomHexID())
 	require.Nil(s.T(), err)
 
-
 	gd.GroupID = RandomHexID()
 	gd.Name = "some-fake-name"
 	g2, err := CreateGroup(gd, RandomHexID())
@@ -141,7 +140,7 @@ func (s *GroupsTestSuite) TestUpdateGroup() {
 	require.Nil(s.T(), err)
 
 	gd.Scopes = []string{"aScope", "anotherScope"}
-	gd.GroupID = 	RandomHexID()
+	gd.GroupID = RandomHexID()
 	gd.Name = "aNewGroupName"
 	changed, err := UpdateGroup(fmt.Sprint(orig.ID), gd)
 	assert.Nil(s.T(), err)

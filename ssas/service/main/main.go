@@ -277,9 +277,9 @@ func listExpiringCredentials() {
 	defer db.Close()
 
 	type result struct {
-		ClientID    string	   `json:"client_id"`
-		GroupID     string	   `json:"group_id"`
-		XData       string	   `json:"x_data"`
+		ClientID    string     `json:"client_id"`
+		GroupID     string     `json:"group_id"`
+		XData       string     `json:"x_data"`
 		LastTokenAt *time.Time `json:"last_token_at,omitempty"`
 		Timeout     *time.Time `json:"timeout,omitempty"`
 		Expiration  *time.Time `json:"expiration"`

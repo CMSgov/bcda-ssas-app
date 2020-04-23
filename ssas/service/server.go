@@ -38,7 +38,7 @@ type Server struct {
 
 // NewServer correctly initializes an instance of the Server type.
 func NewServer(name, port, version string, info interface{}, routes *chi.Mux, notSecure bool, signingKeyPath string, ttl time.Duration) *Server {
-	sk, err := getPrivateKey(signingKeyPath);
+	sk, err := getPrivateKey(signingKeyPath)
 	if err != nil {
 		msg := fmt.Sprintf("bad signing key; path %s; %v", signingKeyPath, err)
 		ssas.Logger.Error(msg)
@@ -260,7 +260,8 @@ func (s *Server) VerifyToken(tokenString string) (*jwt.Token, error) {
 func (s *Server) CheckRequiredClaims(claims *CommonClaims, requiredTokenType string) error {
 	if claims.ExpiresAt == 0 ||
 		claims.IssuedAt == 0 ||
-		claims.Issuer == "" ||
+		claims.Issuer != "ssas" ||
+		claims.Id == "" ||
 		claims.TokenType == "" {
 		return fmt.Errorf("missing one or more claims")
 	}
