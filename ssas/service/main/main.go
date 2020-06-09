@@ -269,7 +269,9 @@ func listIPs() {
 	if err != nil {
 		panic("unable to get registered IPs")
 	}
-	fmt.Fprintln(output, strings.Join(ips, "\n"))
+	listOfIps := strings.Join(ips, "\n")
+	fmt.Fprintln(output, listOfIps)
+	ssas.Logger.Infof("Retrieving registered IPs: %s", listOfIps)
 }
 
 func listExpiringCredentials() {
