@@ -119,10 +119,11 @@ func (s *MainTestSuite) TestListIPs() {
 	assert.Nil(s.T(), err)
 	var str bytes.Buffer
 	ssas.Logger.SetOutput(&str)
-	listIPs()
+	cliOutput := captureOutput(func() { listIPs() })
 	output := str.String()
 	assert.NotContains(s.T(), output, "unable to get registered IPs")
 	assert.Contains(s.T(), output, testIP)
+	assert.Contains(s.T(), cliOutput, testIP)
 	defer assert.Nil(s.T(), db.Unscoped().Delete(&ip).Error)
 }
 
