@@ -5,13 +5,14 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/CMSgov/bcda-ssas-app/ssas/service"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
 	"strings"
 	"testing"
+
+	"github.com/CMSgov/bcda-ssas-app/ssas/service"
 
 	"github.com/CMSgov/bcda-ssas-app/ssas"
 	"github.com/go-chi/chi"
@@ -359,7 +360,7 @@ func (s *APITestSuite) TestCreateSystemNoKey() {
 	assert.Nil(s.T(), err)
 }
 
-func (s *APITestSuite) TestCreateSystem_InvalidRequest() {
+func (s *APITestSuite) TestCreateSystemInvalidRequest() {
 	req := httptest.NewRequest("POST", "/auth/system", strings.NewReader("{ badJSON }"))
 	handler := http.HandlerFunc(createSystem)
 	rr := httptest.NewRecorder()
@@ -367,7 +368,7 @@ func (s *APITestSuite) TestCreateSystem_InvalidRequest() {
 	assert.Equal(s.T(), http.StatusBadRequest, rr.Result().StatusCode)
 }
 
-func (s *APITestSuite) TestCreateSystem_MissingRequiredParam() {
+func (s *APITestSuite) TestCreateSystemMissingRequiredParam() {
 	req := httptest.NewRequest("POST", "/auth/system", strings.NewReader(`{"group_id": "T00001", "client_name": "Test Client 1", "scope": "bcda-api"}`))
 	handler := http.HandlerFunc(createSystem)
 	rr := httptest.NewRecorder()
@@ -403,7 +404,7 @@ func (s *APITestSuite) TestResetCredentials() {
 	_ = ssas.CleanDatabase(group)
 }
 
-func (s *APITestSuite) TestResetCredentials_InvalidSystemID() {
+func (s *APITestSuite) TestResetCredentialsInvalidSystemID() {
 	systemID := "999"
 	req := httptest.NewRequest("PUT", "/system/"+systemID+"/credentials", nil)
 	rctx := chi.NewRouteContext()
@@ -478,7 +479,7 @@ func (s *APITestSuite) TestGetPublicKey() {
 	assert.Nil(s.T(), err)
 }
 
-func (s *APITestSuite) TestGetPublicKey_Rotation() {
+func (s *APITestSuite) TestGetPublicKeyRotation() {
 	group := ssas.Group{GroupID: "api-test-get-public-key-group"}
 	err := s.db.Create(&group).Error
 	if err != nil {

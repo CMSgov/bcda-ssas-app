@@ -17,7 +17,7 @@ type RSAKeysTestSuite struct {
 	suite.Suite
 }
 
-func (s *RSAKeysTestSuite) TestReadPrivateKey_EmptyKey() {
+func (s *RSAKeysTestSuite) TestReadPrivateKeyEmptyKey() {
 	pemData, err := ReadPEMFile("")
 	assert.NotNil(s.T(), err)
 	assert.Contains(s.T(), err.Error(), "no such file or directory", "expected os.open error")
@@ -26,7 +26,7 @@ func (s *RSAKeysTestSuite) TestReadPrivateKey_EmptyKey() {
 	assert.Contains(s.T(), err.Error(), "empty or nil")
 }
 
-func (s *RSAKeysTestSuite) TestReadPrivateKey_BadKeys() {
+func (s *RSAKeysTestSuite) TestReadPrivateKeyBadKeys() {
 	assertT := assert.New(s.T())
 	var tests = []struct {
 		path   string
@@ -46,7 +46,7 @@ func (s *RSAKeysTestSuite) TestReadPrivateKey_BadKeys() {
 	}
 }
 
-func (s *RSAKeysTestSuite) TestReadPrivateKey_GoodKeys() {
+func (s *RSAKeysTestSuite) TestReadPrivateKeyGoodKeys() {
 	// filePath := os.Getenv(goodTestKeyPath)
 	pemData, err := ReadPEMFile(goodTestKeyPath)
 	assert.Nil(s.T(), err)
