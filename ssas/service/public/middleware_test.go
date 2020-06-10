@@ -2,14 +2,15 @@ package public
 
 import (
 	"context"
-	"github.com/CMSgov/bcda-ssas-app/ssas/service"
-	"github.com/go-chi/chi"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/suite"
 	"log"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/CMSgov/bcda-ssas-app/ssas/service"
+	"github.com/go-chi/chi"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/suite"
 )
 
 var mockHandler http.HandlerFunc = func(w http.ResponseWriter, r *http.Request) {}
@@ -191,7 +192,7 @@ func (s *PublicMiddlewareTestSuite) TestRequireRegTokenAuthRevoked() {
 }
 
 func (s *PublicMiddlewareTestSuite) TestRequireRegTokenAuthEmptyToken() {
-	s.server = httptest.NewServer(s.CreateRouter(requireMFATokenAuth))
+	s.server = httptest.NewServer(s.CreateRouter(requireRegTokenAuth))
 	client := s.server.Client()
 
 	// Valid token should return a 200 response

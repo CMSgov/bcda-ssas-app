@@ -8,13 +8,14 @@ import (
 	"encoding/json"
 	"encoding/pem"
 	"fmt"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"net"
 	"os"
 	"strconv"
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/jinzhu/gorm"
 	"github.com/pborman/uuid"
@@ -106,7 +107,7 @@ func (s *SystemsTestSuite) TestGenerateSystemKeyPair() {
 	assert.Nil(err)
 }
 
-func (s *SystemsTestSuite) TestGenerateSystemKeyPair_AlreadyExists() {
+func (s *SystemsTestSuite) TestGenerateSystemKeyPairAlreadyExists() {
 	assert := s.Assert()
 
 	group := Group{GroupID: "bcdefa234561"}
