@@ -2,14 +2,15 @@ package public
 
 import (
 	"context"
-	"github.com/CMSgov/bcda-ssas-app/ssas/service"
-	"github.com/go-chi/chi"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/suite"
 	"log"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/CMSgov/bcda-ssas-app/ssas/service"
+	"github.com/go-chi/chi"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/suite"
 )
 
 var mockHandler http.HandlerFunc = func(w http.ResponseWriter, r *http.Request) {}
@@ -233,25 +234,6 @@ func (s *PublicMiddlewareTestSuite) TestRequireMFATokenAuthValidToken() {
 		assert.FailNow(s.T(), err.Error())
 	}
 	assert.Equal(s.T(), http.StatusOK, s.rr.Code)
-}
-
-func (s *PublicMiddlewareTestSuite) TestRequireMFATokenAuthEmptyToken() {
-	s.server = httptest.NewServer(s.CreateRouter(requireMFATokenAuth))
-	client := s.server.Client()
-
-	// Valid token should return a 200 response
-	req, err := http.NewRequest("GET", s.server.URL, nil)
-	if err != nil {
-		assert.FailNow(s.T(), err.Error())
-	}
-
-	ctx := context.WithValue(context.Background(), "ts", nil)
-
-	resp, err := client.Do(req.WithContext(ctx))
-	if err != nil {
-		assert.FailNow(s.T(), err.Error())
-	}
-	assert.Equal(s.T(), http.StatusUnauthorized, resp.StatusCode)
 }
 
 func (s *PublicMiddlewareTestSuite) TestContains() {
