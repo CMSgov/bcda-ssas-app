@@ -192,7 +192,7 @@ func (s *PublicMiddlewareTestSuite) TestRequireRegTokenAuthRevoked() {
 }
 
 func (s *PublicMiddlewareTestSuite) TestRequireRegTokenAuthEmptyToken() {
-	s.server = httptest.NewServer(s.CreateRouter(requireMFATokenAuth))
+	s.server = httptest.NewServer(s.CreateRouter(requireRegTokenAuth))
 	client := s.server.Client()
 
 	// Valid token should return a 200 response
@@ -234,6 +234,25 @@ func (s *PublicMiddlewareTestSuite) TestRequireMFATokenAuthValidToken() {
 		assert.FailNow(s.T(), err.Error())
 	}
 	assert.Equal(s.T(), http.StatusOK, s.rr.Code)
+}
+
+func (s *PublicMiddlewareTestSuite) TestRequireMFATokenAuthEmptyToken() {
+	s.server = httptest.NewServer(s.CreateRouter(requireMFATokenAuth))
+	client := s.server.Client()
+
+	// Valid token should return a 200 response
+	req, err := http.NewRequest("GET", s.server.URL, nil)
+	if err != nil {
+		assert.FailNow(s.T(), err.Error())
+	}
+
+	ctx := context.WithValue(context.Background(), "ts", nil)
+
+	resp, err := client.Do(req.WithContext(ctx))
+	if err != nil {
+		assert.FailNow(s.T(), err.Error())
+	}
+	assert.Equal(s.T(), http.StatusUnauthorized, resp.StatusCode)
 }
 
 func (s *PublicMiddlewareTestSuite) TestContains() {
