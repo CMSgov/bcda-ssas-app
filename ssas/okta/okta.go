@@ -114,7 +114,7 @@ func NewTestClient(fn RoundTripFunc) *http.Client {
 func makeDialer(fingerprint []byte) Dialer {
 	return func(network, addr string) (net.Conn, error) {
 		var errMessage string
-		c, err := tls.Dial(network, addr, &tls.Config{})
+		c, err := tls.Dial(network, addr, &tls.Config{MinVersion: tls.VersionTLS12})
 		if err != nil {
 			return c, err
 		}
