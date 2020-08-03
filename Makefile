@@ -30,6 +30,7 @@ migrations-test:
 	docker-compose -f docker-compose.test.yml run --rm tests bash ops/migrations_test.sh
 
 unit-test:
+	docker-compose up -d db
 	docker-compose -f docker-compose.test.yml run --rm tests bash unit_test.sh
 
 test:
