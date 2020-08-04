@@ -12,7 +12,7 @@ package:
 	-v ${PWD}:/go/src/github.com/CMSgov/bcda-ssas-app packaging $(version)
 
 lint:
-	docker-compose -f docker-compose.test.yml run --rm tests golangci-lint --deadline=3m -e SA1029 run ./...
+	docker-compose -f docker-compose.test.yml run --rm tests golangci-lint --deadline=3m -e SA1029 -v run ./...
 	docker-compose -f docker-compose.test.yml run --rm tests gosec ./...
 
 # The following vars are available to tests needing SSAS admin credentials; currently they are used in smoke-test-ssas, postman-ssas, and unit-test-ssas
@@ -30,6 +30,7 @@ migrations-test:
 	docker-compose -f docker-compose.test.yml run --rm tests bash ops/migrations_test.sh
 
 unit-test:
+	docker-compose up -d db
 	docker-compose -f docker-compose.test.yml run --rm tests bash unit_test.sh
 
 test:
