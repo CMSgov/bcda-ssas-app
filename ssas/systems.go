@@ -7,7 +7,6 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
-	"github.com/CMSgov/bcda-ssas-app/ssas/cfg"
 	"io"
 	"io/ioutil"
 	"log"
@@ -16,6 +15,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/CMSgov/bcda-ssas-app/ssas/cfg"
 
 	"github.com/jinzhu/gorm"
 	"github.com/pborman/uuid"
