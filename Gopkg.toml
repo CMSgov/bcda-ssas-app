@@ -43,3 +43,7 @@
 [[constraint]]
   branch = "master"
   name = "github.com/patrickmn/go-cache"
+
+[[constraint]]
+  name = "github.com/sirupsen/logrus"
+  version = "v1.6.0"
