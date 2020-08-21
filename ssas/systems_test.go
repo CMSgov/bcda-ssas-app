@@ -613,7 +613,7 @@ func (s *SystemsTestSuite) TestRevokeSecrets() {
 	s.db.Find(&systemSecrets, "system_id = ?", system.ID)
 	assert.NotEmpty(s.T(), systemSecrets)
 
-	err := system.RevokeSecret(string(system.ID))
+	err := system.RevokeSecret(fmt.Sprint(system.ID))
 	assert.Nil(s.T(), err)
 	s.db.Find(&systemSecrets, "system_id = ?", system.ID)
 	assert.Empty(s.T(), systemSecrets)
