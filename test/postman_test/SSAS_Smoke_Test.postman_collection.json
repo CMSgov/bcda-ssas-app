@@ -1,6 +1,6 @@
 {
 	"info": {
-		"_postman_id": "5448aa97-6ff1-405b-982b-9600e949ffcb",
+		"_postman_id": "c1130300-8642-4439-be8f-90e38e434028",
 		"name": "SSAS Smoke Test",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
 	},
@@ -11,7 +11,7 @@
 				{
 					"listen": "test",
 					"script": {
-						"id": "b601d0c1-40e0-4b4a-a257-1095497e7cf8",
+						"id": "7eed4529-33af-44f5-b850-6c9cf923c890",
 						"exec": [
 							"var schema = {",
 							"    \"properties\": {",
@@ -62,7 +62,7 @@
 				{
 					"listen": "test",
 					"script": {
-						"id": "39f25f26-ea63-48a5-9bca-c9b8d2dd5f4d",
+						"id": "63bf165a-5270-4247-899d-abaf1d5ea1e7",
 						"exec": [
 							"var schema = {",
 							"  \"$id\": \"https://bcda.cms.gov/schemas/health.json\",",
@@ -112,7 +112,7 @@
 				{
 					"listen": "test",
 					"script": {
-						"id": "478577ae-564e-4264-92d0-1aa90421cfd7",
+						"id": "e27e97e8-5def-4ef8-9674-6fbdb916bd3c",
 						"exec": [
 							"var schema = {",
 							"    \"properties\": {",
@@ -164,7 +164,7 @@
 				{
 					"listen": "test",
 					"script": {
-						"id": "f0cf6a0b-e506-4d55-88ef-72678806fd9c",
+						"id": "ddc77bbc-3c68-4d0b-b7ce-b82aa441ea10",
 						"exec": [
 							"var schema = {",
 							"    \"properties\": {",
@@ -215,7 +215,7 @@
 				{
 					"listen": "test",
 					"script": {
-						"id": "ffd17434-9290-4cb2-b1b0-c1ae84f65d0a",
+						"id": "17a9d1b6-b86f-4eb2-87d6-1aa68b59b2d6",
 						"exec": [
 							"var schema = {",
 							"  \"$id\": \"https://bcda.cms.gov/schemas/health.json\",",
@@ -265,7 +265,7 @@
 				{
 					"listen": "test",
 					"script": {
-						"id": "34204d21-bf63-4a3f-a496-19bc2557fce9",
+						"id": "8930dacb-18c0-47b3-a65a-c294f2de0c66",
 						"exec": [
 							"var schema = {",
 							"    \"properties\": {",
@@ -317,7 +317,7 @@
 				{
 					"listen": "test",
 					"script": {
-						"id": "20ed753f-bd64-4270-9993-305d4efc1372",
+						"id": "40b43941-8642-4c9f-b534-7497afc33158",
 						"exec": [
 							"var schema = {",
 							"    \"properties\": {",
@@ -379,7 +379,7 @@
 				{
 					"listen": "prerequest",
 					"script": {
-						"id": "e6d558fb-7002-437a-b2cf-1bdcff29d62d",
+						"id": "74fb0f27-d801-4bb1-8f4d-7c8f6f2e9d46",
 						"exec": [
 							"const uuid = require('uuid')",
 							"pm.environment.set(\"group.group_id\", uuid());"
@@ -437,7 +437,7 @@
 				{
 					"listen": "test",
 					"script": {
-						"id": "8dffcb16-25eb-44bc-8be3-fe19b23dc302",
+						"id": "785d8f72-9f92-437c-a069-eb93a993f022",
 						"exec": [
 							"var schema = {",
 							"    \"properties\": {",
@@ -555,7 +555,7 @@
 				{
 					"listen": "test",
 					"script": {
-						"id": "f4740e30-67e2-4ec7-bfae-9d44f7aa84fc",
+						"id": "2d64364b-8582-49ab-85e6-fdc2beb6ed36",
 						"exec": [
 							"var schema = {",
 							"    \"properties\": {",
@@ -644,7 +644,7 @@
 				{
 					"listen": "test",
 					"script": {
-						"id": "20ed753f-bd64-4270-9993-305d4efc1372",
+						"id": "beacf958-838f-452f-9ac7-a7698305b501",
 						"exec": [
 							"var schema = {",
 							"    \"properties\": {",
@@ -686,7 +686,7 @@
 				{
 					"listen": "prerequest",
 					"script": {
-						"id": "6d53fcea-1dfa-4739-b2af-64eca365b31e",
+						"id": "478334a9-8a39-4849-afda-338bcf491259",
 						"exec": [
 							"const uuid = require('uuid')",
 							"pm.environment.set(\"tracking_id\", uuid());"
@@ -744,7 +744,7 @@
 				{
 					"listen": "test",
 					"script": {
-						"id": "20ed753f-bd64-4270-9993-305d4efc1372",
+						"id": "7374f292-2b66-40ce-9cc4-6bb519dc3e53",
 						"exec": [
 							"var schema = {",
 							"    \"properties\": {",
@@ -781,7 +781,7 @@
 				{
 					"listen": "prerequest",
 					"script": {
-						"id": "6d53fcea-1dfa-4739-b2af-64eca365b31e",
+						"id": "d039309b-07c8-4bf2-8f45-67e15bdfd570",
 						"exec": [
 							"const uuid = require('uuid')",
 							"pm.environment.set(\"tracking_id\", uuid());"
@@ -839,7 +839,7 @@
 				{
 					"listen": "test",
 					"script": {
-						"id": "20ed753f-bd64-4270-9993-305d4efc1372",
+						"id": "33c6b86d-674d-4e75-958d-087080e87624",
 						"exec": [
 							"var schema = {",
 							"    \"properties\": {",
@@ -918,7 +918,7 @@
 				{
 					"listen": "test",
 					"script": {
-						"id": "76825199-0e23-4120-a0a8-c83b67899915",
+						"id": "c7dc16c6-0db1-413e-b1b9-52902feefa27",
 						"exec": [
 							"var schema = {",
 							"    \"properties\": {",
@@ -1064,7 +1064,7 @@
 				{
 					"listen": "test",
 					"script": {
-						"id": "95ce3470-8202-4e9f-b4f6-4fe36a09cb0d",
+						"id": "3d985616-6241-40cb-b1f2-f307cdf951ca",
 						"exec": [
 							"pm.test(\"Response is 200\", function () {",
 							"    pm.response.to.have.status(200);",
@@ -1076,7 +1076,7 @@
 				{
 					"listen": "prerequest",
 					"script": {
-						"id": "2e3ad198-59dc-4ceb-8f05-0045b7e38c98",
+						"id": "6177505a-8506-42b4-b9ee-23d61ab30d8b",
 						"exec": [
 							"var parts = pm.environment.get(\"token\").split('.'); // header, payload, signature",
 							"var t = JSON.parse(atob(parts[1]));",
@@ -1132,7 +1132,7 @@
 				{
 					"listen": "test",
 					"script": {
-						"id": "518dc44c-5f13-4d12-8239-037420892f5f",
+						"id": "8bcb70d4-85eb-4da3-9034-4e328701e90d",
 						"exec": [
 							"var schema = {",
 							"    \"properties\": {",
@@ -1207,7 +1207,7 @@
 				{
 					"listen": "test",
 					"script": {
-						"id": "20ed753f-bd64-4270-9993-305d4efc1372",
+						"id": "189d132c-b5a3-4852-ac3e-950a691385dd",
 						"exec": [
 							"var schema = {",
 							"    \"properties\": {",
@@ -1294,7 +1294,7 @@
 				{
 					"listen": "test",
 					"script": {
-						"id": "76825199-0e23-4120-a0a8-c83b67899915",
+						"id": "1b45568f-e2b4-4d71-8b26-88a8dfc19227",
 						"exec": [
 							"var schema = {",
 							"    \"properties\": {",
@@ -1319,8 +1319,7 @@
 							"});",
 							"",
 							"var respJson = pm.response.json();",
-							"pm.environment.set(\"token\", respJson.access_token);",
-							""
+							"pm.environment.set(\"token\", respJson.access_token);"
 						],
 						"type": "text/javascript"
 					}
@@ -1360,12 +1359,88 @@
 			"response": []
 		},
 		{
+			"name": "token active (prior to revoking system creds)",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"id": "23844248-b5a0-45fe-8749-10db76d5cb30",
+						"exec": [
+							"var schema = {",
+							"    \"properties\": {",
+							"        \"active\": { \"type\": \"string\" }",
+							"    }",
+							"};",
+							"var Ajv = require('ajv');",
+							"var ajv = new Ajv({schemas: [schema]});",
+							"",
+							"pm.test(\"Response is 'ok'\", function () {",
+							"    pm.response.to.have.status(200);",
+							"});",
+							"",
+							"pm.test('Schema is valid', function() {",
+							"    pm.expect(ajv.validate(schema, pm.response.text())).to.be.true;",
+							"});",
+							"",
+							"pm.test(\"Token is active\", function () {",
+							"    pm.response.to.have.jsonBody(\"active\", true)",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"auth": {
+					"type": "basic",
+					"basic": [
+						{
+							"key": "password",
+							"value": "{{client_secret}}",
+							"type": "string"
+						},
+						{
+							"key": "username",
+							"value": "{{client_id}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"name": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\"token\":\"{{token}}\"}"
+				},
+				"url": {
+					"raw": "{{scheme}}://{{host}}:{{public-port}}/introspect",
+					"protocol": "{{scheme}}",
+					"host": [
+						"{{host}}"
+					],
+					"port": "{{public-port}}",
+					"path": [
+						"introspect"
+					]
+				},
+				"description": "Verify that we have a valid token prior to revoking the system credentials."
+			},
+			"response": []
+		},
+		{
 			"name": "revoke system credentials",
 			"event": [
 				{
 					"listen": "test",
 					"script": {
-						"id": "20ed753f-bd64-4270-9993-305d4efc1372",
+						"id": "7951ead2-8728-4eb5-88dc-090c12334700",
 						"exec": [
 							"pm.test(\"Response is 'ok'\", function () {",
 							"    pm.response.to.have.status(200);",
@@ -1417,12 +1492,88 @@
 			"response": []
 		},
 		{
+			"name": "token inactive (post revoking system creds)",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"id": "1100a7fe-6609-4b2a-bb5e-b957028c8874",
+						"exec": [
+							"var schema = {",
+							"    \"properties\": {",
+							"        \"active\": { \"type\": \"string\" }",
+							"    }",
+							"};",
+							"var Ajv = require('ajv');",
+							"var ajv = new Ajv({schemas: [schema]});",
+							"",
+							"pm.test(\"Response is 'bad request'\", function () {",
+							"    pm.response.to.have.status(400);",
+							"});",
+							"",
+							"pm.test('Schema is valid', function() {",
+							"    pm.expect(ajv.validate(schema, pm.response.text())).to.be.true;",
+							"});",
+							"",
+							"pm.test(\"Unauthorized error\", function () {",
+							"    pm.response.to.have.jsonBody(\"error\", \"Unauthorized\")",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"auth": {
+					"type": "basic",
+					"basic": [
+						{
+							"key": "password",
+							"value": "{{client_secret}}",
+							"type": "string"
+						},
+						{
+							"key": "username",
+							"value": "{{client_id}}",
+							"type": "string"
+						}
+					]
+				},
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"name": "Content-Type",
+						"type": "text",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\"token\":\"{{token}}\"}"
+				},
+				"url": {
+					"raw": "{{scheme}}://{{host}}:{{public-port}}/introspect",
+					"protocol": "{{scheme}}",
+					"host": [
+						"{{host}}"
+					],
+					"port": "{{public-port}}",
+					"path": [
+						"introspect"
+					]
+				},
+				"description": "Token should be inactive since we've revoked the credentials used to generate the token."
+			},
+			"response": []
+		},
+		{
 			"name": "get system token denied",
 			"event": [
 				{
 					"listen": "test",
 					"script": {
-						"id": "76825199-0e23-4120-a0a8-c83b67899915",
+						"id": "9eb5f88e-dedf-440c-9bc2-b3f9c09e7d9d",
 						"exec": [
 							"var schema = {",
 							"    \"properties\": {",
@@ -1489,7 +1640,7 @@
 				{
 					"listen": "test",
 					"script": {
-						"id": "95ce3470-8202-4e9f-b4f6-4fe36a09cb0d",
+						"id": "f1b6f0ca-ddab-408b-9a2c-828f57134d79",
 						"exec": [
 							"pm.test(\"Response is 'ok'\", function () {",
 							"    pm.response.to.have.status(200);",
@@ -1538,7 +1689,7 @@
 				{
 					"listen": "test",
 					"script": {
-						"id": "fc625fc2-e25e-4fd2-a110-fc1528839ca7",
+						"id": "edb2aebd-eebd-4e73-b5b8-c76935ada363",
 						"exec": [
 							"pm.test(\"Response is 'ok'\", function () {",
 							"    pm.response.to.have.status(200);",
@@ -1589,7 +1740,7 @@
 		{
 			"listen": "prerequest",
 			"script": {
-				"id": "70fab265-98e0-4061-9553-ff8d6d75ac9e",
+				"id": "4a4f706c-513a-4fdd-8ba8-9f90b27ff50d",
 				"type": "text/javascript",
 				"exec": [
 					""
@@ -1599,7 +1750,7 @@
 		{
 			"listen": "test",
 			"script": {
-				"id": "4019121e-102f-45b0-bf5b-e1bf6a9c6595",
+				"id": "48a0b153-831f-4d4b-a427-39f0e638d63b",
 				"type": "text/javascript",
 				"exec": [
 					""
