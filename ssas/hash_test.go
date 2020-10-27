@@ -43,7 +43,8 @@ func (s *HashTestSuite) TestHashEmpty() {
 
 func (s *HashTestSuite) TestHashInvalid() {
 	for _, val := range []string{"INVALID_NUMBER_OF_SEGMENTS:d3H4fX/uEk1jOW2gYrFezyuJoSv4ay2x3gH5C25KpWM=:kVqFm1he5S4R1/10oIkVNFot40VB3wTa+DXTp4TrwvyXHkQO7Dxjjo/OqwemiYP8p3UQ8r/HkmTQrSS99UXzaQ==",
-		"TOO_FEW_PARTS"} {
+		"TOO_FEW_PARTS",
+		"A:B:NaN"} {
 		hash := Hash(val)
 		assert.False(s.T(), hash.IsHashOf("96c5a0cd-b284-47ac-be6e-f33b14dc4697"))
 	}
