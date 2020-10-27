@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -63,28 +64,43 @@ func NewHash(source string) (Hash, error) {
 	hashEvent := Event{Elapsed: hashCreationTime}
 	SecureHashTime(hashEvent)
 
-	return Hash(fmt.Sprintf("%s:%s", base64.StdEncoding.EncodeToString(salt), base64.StdEncoding.EncodeToString(h))), nil
+	hashValue := fmt.Sprintf("%s:%s:%d", base64.StdEncoding.EncodeToString(salt), base64.StdEncoding.EncodeToString(h), hashIter)
+	return Hash(hashValue), nil
 }
 
 // IsHashOf accepts an unhashed string, which it first hashes and then compares to itself
 func (h Hash) IsHashOf(source string) bool {
+	var (
+		hash, saltEnc string
+		iterCount     int
+		err           error
+	)
 	// Avoid comparing with an empty source so that a hash of an empty string is never successful
 	if source == "" {
 		return false
 	}
 
-	hashAndPass := strings.Split(h.String(), ":")
-	if len(hashAndPass) != 2 {
+	vals := strings.Split(h.String(), ":")
+	switch len(vals) {
+	case 2:
+		saltEnc, hash = vals[0], vals[1]
+		// We do not have a iteration count specified
+		iterCount = hashIter
+	case 3:
+		saltEnc, hash = vals[0], vals[1]
+		if iterCount, err = strconv.Atoi(vals[2]); err != nil {
+			return false
+		}
+	default:
 		return false
 	}
 
-	hash := hashAndPass[1]
-	salt, err := base64.StdEncoding.DecodeString(hashAndPass[0])
+	salt, err := base64.StdEncoding.DecodeString(saltEnc)
 	if err != nil {
 		return false
 	}
 
-	sourceHash := pbkdf2.Key([]byte(source), salt, hashIter, hashKeyLen, sha512.New)
+	sourceHash := pbkdf2.Key([]byte(source), salt, iterCount, hashKeyLen, sha512.New)
 	return hash == base64.StdEncoding.EncodeToString(sourceHash)
 }
 
