@@ -1,0 +1,17 @@
+name: "SSAS CI Workflow"
+
+on: [push]
+
+jobs:
+  build:
+    name: "Build and Test"
+    runs-on: ubuntu-latest
+    steps:
+      - name: "Checkout code"
+        uses: actions/checkout@v1
+      - name: "Build the stack"
+        run: |
+          make docker-bootstrap
+      - name: "Run all tests"
+        run: |
+          make test
