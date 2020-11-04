@@ -14,6 +14,7 @@ import (
 	"testing"
 
 	"github.com/CMSgov/bcda-ssas-app/ssas"
+	"github.com/CMSgov/bcda-ssas-app/ssas/service/blacklist"
 	"github.com/CMSgov/bcda-ssas-app/ssas/service"
 	"github.com/go-chi/chi"
 	"github.com/pborman/uuid"
@@ -37,7 +38,7 @@ func (s *APITestSuite) SetupSuite() {
 	s.db = ssas.GetGORMDbConnection()
 	s.server = Server()
 	s.badSigningKeyPath = "../../../shared_files/ssas/admin_test_signing_key.pem"
-	service.StartBlacklist()
+	blacklist.Start()
 }
 
 func (s *APITestSuite) SetupTest() {

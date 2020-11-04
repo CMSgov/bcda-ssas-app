@@ -7,6 +7,7 @@ import (
 	"github.com/dgrijalva/jwt-go"
 
 	"github.com/CMSgov/bcda-ssas-app/ssas"
+	"github.com/CMSgov/bcda-ssas-app/ssas/service/blacklist"
 	"github.com/CMSgov/bcda-ssas-app/ssas/cfg"
 	"github.com/CMSgov/bcda-ssas-app/ssas/service"
 )
@@ -100,7 +101,7 @@ func tokenValidity(tokenString string, requiredTokenType string) error {
 		return err
 	}
 
-	if service.TokenBlacklist.IsTokenBlacklisted(c.Id) {
+	if blacklist.Blacklist.IsTokenBlacklisted(c.Id) {
 		err = fmt.Errorf("token has been revoked")
 		tknEvent.Help = err.Error()
 		ssas.OperationFailed(tknEvent)

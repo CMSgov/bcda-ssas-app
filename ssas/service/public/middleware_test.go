@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/CMSgov/bcda-ssas-app/ssas/service/blacklist"
 	"github.com/CMSgov/bcda-ssas-app/ssas/service"
 	"github.com/go-chi/chi"
 	"github.com/stretchr/testify/assert"
@@ -174,9 +175,9 @@ func (s *PublicMiddlewareTestSuite) TestRequireRegTokenAuthRevoked() {
 	assert.Nil(s.T(), err)
 
 	claims := token.Claims.(*service.CommonClaims)
-	err = service.TokenBlacklist.BlacklistToken(claims.Id, service.TokenCacheLifetime)
+	err = blacklist.Blacklist.BlacklistToken(claims.Id)
 	assert.Nil(s.T(), err)
-	assert.True(s.T(), service.TokenBlacklist.IsTokenBlacklisted(claims.Id))
+	assert.True(s.T(), blacklist.Blacklist.IsTokenBlacklisted(claims.Id))
 
 	assert.NotNil(s.T(), token)
 

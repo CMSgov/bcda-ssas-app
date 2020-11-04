@@ -12,9 +12,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/CMSgov/bcda-ssas-app/ssas/service"
-
 	"github.com/CMSgov/bcda-ssas-app/ssas"
+	"github.com/CMSgov/bcda-ssas-app/ssas/service/blacklist"
 	"github.com/go-chi/chi"
 	"github.com/jinzhu/gorm"
 	"github.com/stretchr/testify/assert"
@@ -63,11 +62,17 @@ type APITestSuite struct {
 func (s *APITestSuite) SetupSuite() {
 	ssas.InitializeSystemModels()
 	s.db = ssas.GetGORMDbConnection()
-	service.StartBlacklist()
+	blacklist.Start()
 }
 
 func (s *APITestSuite) TearDownSuite() {
+	err := s.db.Unscoped().Delete(&blacklist.TokenEntry{}).Error
+	assert.Nil(s.T(), err)
+	err = s.db.Unscoped().Delete(&blacklist.GroupEntry{}).Error
+	assert.Nil(s.T(), err)
+
 	ssas.Close(s.db)
+	blacklist.Stop()
 }
 
 func (s *APITestSuite) TestCreateGroup() {
@@ -210,8 +215,8 @@ func (s *APITestSuite) TestRevokeToken() {
 	handler.ServeHTTP(rr, req)
 	assert.Equal(s.T(), http.StatusOK, rr.Result().StatusCode)
 
-	assert.True(s.T(), service.TokenBlacklist.IsTokenBlacklisted(tokenID))
-	assert.False(s.T(), service.TokenBlacklist.IsTokenBlacklisted("this_key_should_not_exist"))
+	assert.True(s.T(), blacklist.Blacklist.IsTokenBlacklisted(tokenID))
+	assert.False(s.T(), blacklist.Blacklist.IsTokenBlacklisted("this_key_should_not_exist"))
 }
 
 func (s *APITestSuite) TestDeleteGroup() {

@@ -18,13 +18,13 @@ import (
 )
 
 var (
-	db *gorm.DB
+	db    *gorm.DB
 	dbURL string
 )
 
 type SchemaMigration struct {
 	Version int
-	Dirty  bool
+	Dirty   bool
 }
 
 // The tests in this suite need models with specific columns, and cannot indefinitely refer to ssas.System and ssas.Group
@@ -46,10 +46,10 @@ func (systemv1) TableName() string {
 
 type groupv1 struct {
 	gorm.Model
-	GroupID		string         `gorm:"unique;not null" json:"group_id"`
-	XData		string         `gorm:"type:text" json:"xdata"`
-	Data		ssas.GroupData `gorm:"type:jsonb" json:"data"`
-	Systems		[]systemv1       `gorm:"foreignkey:GID"`
+	GroupID string         `gorm:"unique;not null" json:"group_id"`
+	XData   string         `gorm:"type:text" json:"xdata"`
+	Data    ssas.GroupData `gorm:"type:jsonb" json:"data"`
+	Systems []systemv1     `gorm:"foreignkey:GID"`
 }
 
 func (groupv1) TableName() string {
@@ -65,9 +65,11 @@ func TestAllMigrations(t *testing.T) {
 	require.True(t, t.Run("up3", up3))
 	require.True(t, t.Run("up4", up4))
 	require.True(t, t.Run("up5", up5))
+	require.True(t, t.Run("up6", up6))
 	// Place all "up" migrations in order above this comment
 
 	// Place all "down" migrations in reverse order below this comment
+	require.True(t, t.Run("down6", down6))
 	require.True(t, t.Run("down5", down5))
 	require.True(t, t.Run("down4", down4))
 	require.True(t, t.Run("down3", down3))
@@ -190,6 +192,17 @@ func up4(t *testing.T) {
 func up5(t *testing.T) {
 	assert.True(t, runMigration(t, "5"))
 	assert.True(t, db.Dialect().HasColumn("systems", "last_token_at"))
+}
+
+func up6(t *testing.T) {
+	assert.True(t, runMigration(t, "6"))
+	assert.True(t, db.Dialect().HasTable("blacklist_group_entries"))
+	assert.NoError(t, db.Exec("INSERT INTO blacklist_group_entries(expression,entry_date,cache_expiration,field) VALUES('expression', '2020-01-01', '2020-01-01', 'field')").Error)
+}
+
+func down6(t *testing.T) {
+	assert.True(t, runMigration(t, "5"))
+	assert.False(t, db.Dialect().HasTable("blacklist_group_entries"))
 }
 
 func down5(t *testing.T) {

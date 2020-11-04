@@ -42,6 +42,7 @@ import (
 	"github.com/jinzhu/gorm"
 
 	"github.com/CMSgov/bcda-ssas-app/ssas"
+	"github.com/CMSgov/bcda-ssas-app/ssas/service/blacklist"
 	"github.com/CMSgov/bcda-ssas-app/ssas/cfg"
 	"github.com/CMSgov/bcda-ssas-app/ssas/service"
 	"github.com/CMSgov/bcda-ssas-app/ssas/service/admin"
@@ -132,7 +133,7 @@ func start() {
 	as.LogRoutes()
 	as.Serve()
 
-	service.StartBlacklist()
+	blacklist.Start()
 
 	// Accepts and redirects HTTP requests to HTTPS. Not sure we should do this.
 	forwarder := &http.Server{

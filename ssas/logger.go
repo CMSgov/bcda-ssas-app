@@ -92,7 +92,7 @@ func OperationCalled(data Event) {
 // OperationFailed should be called after an event's failure, and should always be preceded by
 // a call to OperationStarted
 func OperationFailed(data Event) {
-	mergeNonEmpty(data).WithField("Event", "OperationFailed").Print(data.Help)
+	/*  */mergeNonEmpty(data).WithField("Event", "OperationFailed").Print(data.Help)
 }
 
 // TokenMintingFailure is emitted when a token can't be created. Usually, this is due to a
@@ -114,6 +114,16 @@ func TokenBlacklisted(data Event) {
 // BlacklistedTokenPresented logs an attempt to verify a blacklisted token
 func BlacklistedTokenPresented(data Event) {
 	mergeNonEmpty(data).WithField("Event", "BlacklistedTokenPresented").Print(data.Help)
+}
+
+// GroupBlacklisted records that a group was invalidated
+func GroupBlacklisted(data Event) {
+	mergeNonEmpty(data).WithField("Event", "GroupBlacklisted").Print(data.Help)
+}
+
+// BlacklistedGroupPresented logs an attempt to use invalidated group
+func BlacklistedGroupPresented(data Event) {
+	mergeNonEmpty(data).WithField("Event", "BlacklistedGroupPresented").Print(data.Help)
 }
 
 // CacheSyncFailure is called when an in-memory cache cannot be refreshed from the database

@@ -11,6 +11,7 @@ import (
 	"github.com/pborman/uuid"
 
 	"github.com/CMSgov/bcda-ssas-app/ssas"
+	"github.com/CMSgov/bcda-ssas-app/ssas/service/blacklist"
 	"github.com/CMSgov/bcda-ssas-app/ssas/service"
 )
 
@@ -407,10 +408,11 @@ func revokeToken(w http.ResponseWriter, r *http.Request) {
 	event := ssas.Event{Op: "TokenBlacklist", TokenID: tokenID}
 	ssas.OperationCalled(event)
 
-	if err := service.TokenBlacklist.BlacklistToken(tokenID, service.TokenCacheLifetime); err != nil {
+	if err := blacklist.Blacklist.BlacklistToken(tokenID); err != nil {
 		event.Help = err.Error()
 		ssas.OperationFailed(event)
 		jsonError(w, http.StatusInternalServerError, "internal server error")
+		return
 	}
 
 	w.WriteHeader(http.StatusOK)

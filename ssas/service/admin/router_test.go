@@ -7,6 +7,8 @@ import (
 	"strconv"
 	"testing"
 
+	"github.com/CMSgov/bcda-ssas-app/ssas/service/blacklist"
+
 	"github.com/CMSgov/bcda-ssas-app/ssas"
 
 	"github.com/stretchr/testify/assert"
@@ -29,6 +31,8 @@ func (s *RouterTestSuite) SetupSuite() {
 
 	badAuth := "31e029ef-0e97-47f8-873c-0e8b7e7f99bf:This_is_not_the_secret"
 	s.badAuth = base64.StdEncoding.EncodeToString([]byte(badAuth))
+
+	blacklist.Start()
 }
 
 func (s *RouterTestSuite) SetupTest() {
@@ -39,7 +43,13 @@ func (s *RouterTestSuite) TearDownSuite() {
 	db := ssas.GetGORMDbConnection()
 	defer ssas.Close(db)
 
+	err := db.Unscoped().Delete(&blacklist.TokenEntry{}).Error
+	assert.Nil(s.T(), err)
+	err = db.Unscoped().Delete(&blacklist.GroupEntry{}).Error
+	assert.Nil(s.T(), err)
+
 	_ = ssas.CleanDatabase(s.group)
+	blacklist.Stop()
 }
 
 func (s *RouterTestSuite) TestUnauthorized() {
