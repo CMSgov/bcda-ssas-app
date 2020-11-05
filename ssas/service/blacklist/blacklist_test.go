@@ -45,7 +45,7 @@ func (s *BlacklistTestSuite) TearDownTest() {
 }
 
 func (s *BlacklistTestSuite) TestTokenBlacklist() {
-	expirationTime := time.Millisecond
+	expirationTime := 100 * time.Millisecond
 	keySet := make(map[string]struct{})
 	for len(keySet) < 100 {
 		keySet[strconv.Itoa(rand.Int())] = struct{}{}
@@ -116,7 +116,7 @@ func (s *BlacklistTestSuite) TestGroupBlacklist() {
 		s.NoError(s.b.BlacklistGroup(entry.field, entry.expression))
 	}
 
-	expirationTime := time.Millisecond
+	expirationTime := 100 * time.Millisecond
 	cmsID := uuid.New() // use UUID to avoid deleting data that may not have been created by this test
 	group := ssas.Group{XData: `{"cms_ids":["` + cmsID + `"]}`}
 	matchingEntry := groupEntry{GroupFieldXData, `{"cms_ids":"` + cmsID + `"}`}
@@ -252,9 +252,9 @@ func (s *BlacklistTestSuite) TestCacheExpiration() {
 	group := ssas.Group{XData: `{"cms_ids":["` + cmsID + `"]}`}
 	matchingEntry := groupEntry{GroupFieldXData, `{"cms_ids":"` + cmsID + `"}`}
 
-	expiration := 50 * time.Millisecond
+	expiration := 200 * time.Millisecond
 	// Create a blacklist with longer refresh times.
-	// This'll allow us to better control when the cache refresh occurs.
+	// This allow us to better control when the cache refresh occurs.
 	b := newBlacklist(72*time.Hour,
 		24*time.Hour, 24*time.Hour,
 		expiration, expiration,
@@ -262,12 +262,13 @@ func (s *BlacklistTestSuite) TestCacheExpiration() {
 
 	s.NoError(b.BlacklistGroup(matchingEntry.field, matchingEntry.expression))
 	s.NoError(b.BlacklistToken(cmsID))
+	s.True(b.IsGroupBlacklisted(group))
+	s.True(b.IsTokenBlacklisted(cmsID))
+
 	// Refresh cache. If we've computed the cache duration correctly, we should
 	// have the entries expire after the expiration time has elapsed.
 	s.NoError(b.loadGroupsFromDatabase())
 	s.NoError(b.loadTokensFromDatabase())
-	s.True(b.IsGroupBlacklisted(group))
-	s.True(b.IsTokenBlacklisted(cmsID))
 
 	<-time.After(2 * expiration)
 	s.False(b.IsGroupBlacklisted(group), "Group should no longer be blacklisted")
