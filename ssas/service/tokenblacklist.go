@@ -13,7 +13,7 @@ import (
 )
 
 var (
-	TokenBlacklist Blacklist
+	TokenBlacklist *Blacklist
 	// This default cache timeout value should never be used, since individual cache elements have their own timeouts
 	defaultCacheTimeout  = 24 * time.Hour
 	cacheCleanupInterval time.Duration
@@ -32,7 +32,7 @@ func init() {
 
 // This function should only be called by main
 func StartBlacklist() {
-	NewBlacklist(defaultCacheTimeout, cacheCleanupInterval)
+	TokenBlacklist = NewBlacklist(defaultCacheTimeout, cacheCleanupInterval)
 }
 
 //	NewBlacklist allows for easy Blacklist{} creation and manipulation during testing, and, outside a test suite,
@@ -59,7 +59,6 @@ func NewBlacklist(cacheTimeout time.Duration, cleanupInterval time.Duration) *Bl
 
 	cacheRefreshTicker, cancelFunc = bl.startCacheRefreshTicker(cacheRefreshFreq)
 
-	TokenBlacklist = bl
 	return &bl
 }
 
