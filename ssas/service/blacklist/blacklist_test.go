@@ -2,6 +2,7 @@ package blacklist
 
 import (
 	"encoding/json"
+	"fmt"
 	"math/rand"
 	"strconv"
 	"testing"
@@ -12,14 +13,6 @@ import (
 	"github.com/pborman/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
-)
-
-// Using a constant for this makes the tests more readable; any arbitrary value longer than the test execution time
-// should work
-var (
-	expiration     = 90 * time.Minute
-	timeExpired    = time.Now().Add(time.Minute * -5)
-	timeNotExpired = time.Now().Add(time.Minute * 5)
 )
 
 type BlacklistTestSuite struct {
@@ -51,255 +44,100 @@ func (s *BlacklistTestSuite) TearDownTest() {
 	assert.Nil(s.T(), err)
 }
 
-func (s *BlacklistTestSuite) TestLoadFromDatabaseEmpty() {
-	key := "tokenID"
-
-	var blackListEntries []TokenEntry
-	s.db.Unscoped().Find(&blackListEntries)
-	assert.Len(s.T(), blackListEntries, 0)
-	if err := s.b.loadTokensFromDatabase(); err != nil {
-		assert.FailNow(s.T(), err.Error())
+func (s *BlacklistTestSuite) TestTokenBlacklist() {
+	expirationTime := time.Millisecond
+	keySet := make(map[string]struct{})
+	for len(keySet) < 100 {
+		keySet[strconv.Itoa(rand.Int())] = struct{}{}
 	}
-	assert.Len(s.T(), s.b.tc.Items(), 0)
-
-	if err := s.b.BlacklistToken(key); err != nil {
-		assert.FailNow(s.T(), err.Error())
+	keys := make([]string, 0, len(keySet))
+	for key := range keySet {
+		keys = append(keys, key)
 	}
 
-	s.db.Unscoped().Find(&blackListEntries)
-	assert.Len(s.T(), blackListEntries, 1)
-	if err := s.b.loadTokensFromDatabase(); err != nil {
-		assert.FailNow(s.T(), err.Error())
-	}
-	assert.Len(s.T(), s.b.tc.Items(), 1)
-}
-
-func (s *BlacklistTestSuite) TestLoadFromDatabaseSomeExpired() {
-	expiredKey := "expiredKey"
-	notExpiredKey := "notExpiredKey"
-	var err error
-	entryDate := timeExpired.Unix()
-	expired := timeExpired.UnixNano()
-	notExpired := timeNotExpired.UnixNano()
-	entryExpired := TokenEntry{Key: expiredKey, EntryDate: entryDate, CacheExpiration: expired}
-	entryDuplicateExpired := TokenEntry{Key: notExpiredKey, EntryDate: entryDate, CacheExpiration: expired}
-	entryNotExpired := TokenEntry{Key: notExpiredKey, EntryDate: entryDate, CacheExpiration: notExpired}
-
-	if err = s.db.Save(&entryExpired).Error; err != nil {
-		assert.FailNow(s.T(), err.Error())
-	}
-	if err = s.db.Save(&entryDuplicateExpired).Error; err != nil {
-		assert.FailNow(s.T(), err.Error())
+	// Pre-seed our blacklist with entries to ensure we skip over any non-matching entries
+	for _, key := range keys[50:] {
+		s.NoError(s.b.BlacklistToken(key))
 	}
 
-	if err = s.b.loadTokensFromDatabase(); err != nil {
-		assert.FailNow(s.T(), err.Error())
+	expiredKey := &TokenEntry{Key: keys[0], EntryDate: time.Now().Unix(), CacheExpiration: time.Now().Add(-365 * 24 * time.Hour).UnixNano()}
+	s.NoError(s.db.Save(expiredKey).Error)
+	notFoundKey, matchingDBExpire, matchingCacheExpire, matchingNoExpire := keys[1], keys[2], keys[3], keys[4]
+
+	noExpire := newBlacklist(72*time.Hour,
+		24*time.Minute, time.Millisecond,
+		24*time.Hour, expirationTime, // Since we have a 24h expire, we shouldn't expect any entries to age out
+		time.Millisecond, 5*time.Minute)
+	immediateExpire := newBlacklist(24*time.Hour,
+		5*time.Minute, time.Millisecond,
+		expirationTime, 24*time.Hour, // Since we have a near zero expiration, we expect the entry to age out immediately.
+		5*time.Minute, time.Millisecond)
+	cacheExpire := newBlacklist(24*time.Hour,
+		time.Millisecond, 5*time.Minute,
+		expirationTime, 24*time.Hour, // Since we have a near zero expiration, we expect the entry to age out immediately.
+		5*time.Minute, 5*time.Minute) // Set the ticker time to longer to rely on the cache expiration
+	defer func() {
+		noExpire.close()
+		immediateExpire.close()
+		cacheExpire.close()
+	}()
+
+	tests := []struct {
+		name          string
+		keyUnderTest  string
+		b             *blacklist
+		isBlacklisted bool
+	}{
+		{"ExpiredKeyRewritten", expiredKey.Key, s.b, true},
+		{"Matching", matchingNoExpire, noExpire, true},
+		{"CacheExpire", matchingCacheExpire, cacheExpire, false},
+		{"DBExpire", matchingDBExpire, immediateExpire, false},
 	}
 
-	assert.Len(s.T(), s.b.tc.Items(), 0)
-	assert.False(s.T(), s.b.IsTokenBlacklisted(expiredKey))
-	// This result changes after putting a new entry in the database that has not expired.
-	assert.False(s.T(), s.b.IsTokenBlacklisted(notExpiredKey))
-
-	if err = s.db.Save(&entryNotExpired).Error; err != nil {
-		assert.FailNow(s.T(), err.Error())
-	}
-	if err = s.b.loadTokensFromDatabase(); err != nil {
-		assert.FailNow(s.T(), err.Error())
+	for _, tt := range tests {
+		s.T().Run(tt.name, func(t *testing.T) {
+			assert.NoError(t, tt.b.BlacklistToken(tt.keyUnderTest))
+			<-time.After(2 * expirationTime) // Wait sometime to ensure that expirations work
+			assert.Equal(t, tt.isBlacklisted, tt.b.IsTokenBlacklisted(tt.keyUnderTest))
+		})
 	}
 
-	assert.Len(s.T(), s.b.tc.Items(), 1)
-	assert.False(s.T(), s.b.IsTokenBlacklisted(expiredKey))
-	// The second time we check, this key is blacklisted
-	assert.True(s.T(), s.b.IsTokenBlacklisted(notExpiredKey))
-}
-
-func (s *BlacklistTestSuite) TestLoadFromDatabase() {
-	var err error
-	entryDate := timeExpired.Unix()
-	expiration := timeNotExpired.UnixNano()
-	e1 := TokenEntry{Key: "key1", EntryDate: entryDate, CacheExpiration: expiration}
-	e2 := TokenEntry{Key: "key2", EntryDate: entryDate, CacheExpiration: expiration}
-
-	if err = s.db.Save(&e1).Error; err != nil {
-		assert.FailNow(s.T(), err.Error())
-	}
-	if err = s.db.Save(&e2).Error; err != nil {
-		assert.FailNow(s.T(), err.Error())
-	}
-
-	if err = s.b.loadTokensFromDatabase(); err != nil {
-		assert.FailNow(s.T(), err.Error())
-	}
-
-	assert.Len(s.T(), s.b.tc.Items(), 2)
-	assert.True(s.T(), s.b.IsTokenBlacklisted(e1.Key))
-	assert.True(s.T(), s.b.IsTokenBlacklisted(e2.Key))
-
-	obj1, _, found := s.b.tc.GetWithExpiration(e1.Key)
-	assert.True(s.T(), found)
-	insertedDate1, ok := obj1.(int64)
-	assert.True(s.T(), ok)
-	assert.Equal(s.T(), entryDate, insertedDate1)
-
-	obj2, _, found := s.b.tc.GetWithExpiration(e2.Key)
-	assert.True(s.T(), found)
-	insertedDate2, ok := obj2.(int64)
-	assert.True(s.T(), ok)
-	assert.Equal(s.T(), entryDate, insertedDate2)
-}
-
-func (s *BlacklistTestSuite) TestIsTokenBlacklistedTrue() {
-	key := strconv.Itoa(rand.Int())
-	err := s.b.tc.Add(key, "value does not matter", expiration)
-	if err != nil {
-		assert.FailNow(s.T(), "unable to set cache value: "+err.Error())
-	}
-	assert.True(s.T(), s.b.IsTokenBlacklisted(key))
-}
-
-func (s *BlacklistTestSuite) TestIsTokenBlacklistedExpired() {
-	minimalDuration := 1 * time.Nanosecond
-	key := strconv.Itoa(rand.Int())
-	err := s.b.tc.Add(key, "value does not matter", minimalDuration)
-	if err != nil {
-		assert.FailNow(s.T(), "unable to set cache value: "+err.Error())
-	}
-	time.Sleep(minimalDuration * 5)
-	assert.False(s.T(), s.b.IsTokenBlacklisted(key))
-}
-
-func (s *BlacklistTestSuite) TestIsTokenBlacklistedFalse() {
-	key := strconv.Itoa(rand.Int())
-	assert.False(s.T(), s.b.IsTokenBlacklisted(key))
-}
-
-func (s *BlacklistTestSuite) TestBlacklistToken() {
-	key := strconv.Itoa(rand.Int())
-	if err := s.b.BlacklistToken(key); err != nil {
-		assert.FailNow(s.T(), err.Error())
-	}
-
-	_, found := s.b.tc.Get(key)
-	assert.True(s.T(), found)
-
-	entries, err := getUnexpiredTokenEntries()
-	assert.Nil(s.T(), err)
-	assert.Len(s.T(), entries, 1)
-	assert.Equal(s.T(), key, entries[0].Key)
-}
-
-func (s *BlacklistTestSuite) TestCacheRefresherTicker() {
-	entryDate := timeExpired.Unix()
-	expiration := timeNotExpired.UnixNano()
-	key1 := "key1"
-	key2 := "key2"
-
-	b := newBlacklist(24*time.Hour,
-		15*time.Minute, 15*time.Minute,
-		24*time.Hour, 24*time.Hour,
-		250*time.Millisecond, 250*time.Millisecond)
-	defer b.close()
-
-	e1 := TokenEntry{Key: key1, EntryDate: entryDate, CacheExpiration: expiration}
-	if err := s.db.Save(&e1).Error; err != nil {
-		assert.FailNow(s.T(), err.Error())
-	}
-
-	assert.False(s.T(), b.IsTokenBlacklisted(key1))
-	assert.False(s.T(), b.IsTokenBlacklisted(key2))
-
-	time.Sleep(time.Millisecond * 350)
-	assert.True(s.T(), b.IsTokenBlacklisted(key1))
-	assert.False(s.T(), b.IsTokenBlacklisted(key2))
-
-	e2 := TokenEntry{Key: key2, EntryDate: entryDate, CacheExpiration: expiration}
-	if err := s.db.Save(&e2).Error; err != nil {
-		assert.FailNow(s.T(), err.Error())
-	}
-
-	time.Sleep(time.Millisecond * 250)
-	assert.True(s.T(), b.IsTokenBlacklisted(key1))
-	assert.True(s.T(), b.IsTokenBlacklisted(key2))
-}
-
-func (s *BlacklistTestSuite) TestBlacklistTokenKeyExists() {
-	key := strconv.Itoa(rand.Int())
-
-	// Place key in blacklist
-	if err := s.b.BlacklistToken(key); err != nil {
-		assert.FailNow(s.T(), err.Error())
-	}
-	// Verify key exists in cache
-	obj1, found := s.b.tc.Get(key)
-	assert.True(s.T(), found)
-
-	// Verify key exists in database
-	entries1, err := getUnexpiredTokenEntries()
-	assert.Nil(s.T(), err)
-	assert.Len(s.T(), entries1, 1)
-	assert.Equal(s.T(), key, entries1[0].Key)
-	assert.Equal(s.T(), obj1, entries1[0].EntryDate)
-
-	// The value stored is the current time expressed as in Unix time.
-	// Wait to make sure the new blacklist entry has a different value
-	time.Sleep(2 * time.Second)
-
-	// Place key in cache a second time; the expiration will be different
-	if err := s.b.BlacklistToken(key); err != nil {
-		assert.FailNow(s.T(), err.Error())
-	}
-
-	// Verify retrieving key from cache gets new value (timestamp)
-	obj2, found := s.b.tc.Get(key)
-	assert.True(s.T(), found)
-	assert.NotEqual(s.T(), obj1, obj2)
-
-	// Verify both keys are in the database, and that they are in time order
-	entries2, err := getUnexpiredTokenEntries()
-	assert.Nil(s.T(), err)
-	// 2 entries were added in this test; 1 was added in middleware_test
-	// depending on which order the tests are completed, sometimes there are 2 entries and sometimes there are 3
-	assert.Len(s.T(), entries2, 2)
-	assert.Equal(s.T(), key, entries2[1].Key)
-	assert.Equal(s.T(), obj2, entries2[1].EntryDate)
-
-	// Verify that the blacklisted object changed in both cache and database
-	assert.NotEqual(s.T(), obj1, obj2)
-	assert.NotEqual(s.T(), entries1[0].CacheExpiration, entries2[1].CacheExpiration)
-
-	// Show that loading the cache from the database preserves the most recent entry, even if two
-	//   objects with the same key are unexpired
-	err = s.b.loadTokensFromDatabase()
-	assert.Nil(s.T(), err)
-	obj3, found := s.b.tc.Get(key)
-	assert.True(s.T(), found)
-	assert.Equal(s.T(), obj2, obj3)
-	assert.NotEqual(s.T(), obj1, obj3)
+	s.False(s.b.IsTokenBlacklisted(notFoundKey))
 }
 
 func (s *BlacklistTestSuite) TestGroupBlacklist() {
+	// Pre-seed our blacklist with entries to ensure we skip over any non-matching entries
+	extraMatchEntries := []groupEntry{{GroupFieldXData, fmt.Sprintf("{\"%s\":\"%s\", \"%s\":%d}", uuid.New(), uuid.New(), uuid.New(), time.Now().Nanosecond())},
+		{GroupFieldXData, fmt.Sprintf("{\"%s\":%d}", uuid.New(), time.Now().Nanosecond()+100)},
+		{GroupFieldXData, fmt.Sprintf("{\"%s\":\"%s\"}", uuid.New(), uuid.New())}}
+	for _, entry := range extraMatchEntries {
+		// Even though we're using the suite blacklist, we're using a shared database.
+		// Any newly created blacklist will have these entries populated.
+		s.NoError(s.b.BlacklistGroup(entry.field, entry.expression))
+	}
+
 	expirationTime := time.Millisecond
-	uuid := uuid.New() // use UUID to avoid deleting data that may not have been created by this test
-	group := ssas.Group{XData: `{"cms_ids":["` + uuid + `"]}`}
-	matchingEntry := groupEntry{GroupFieldXData, `{"cms_ids":"` + uuid + `"}`}
+	cmsID := uuid.New() // use UUID to avoid deleting data that may not have been created by this test
+	group := ssas.Group{XData: `{"cms_ids":["` + cmsID + `"]}`}
+	matchingEntry := groupEntry{GroupFieldXData, `{"cms_ids":"` + cmsID + `"}`}
 	nonMatchingEntry := groupEntry{GroupFieldXData, `{}`}
-	invalidMatchEntry := groupEntry{GroupFieldXData, `{` + uuid}
+	invalidMatchEntry := groupEntry{GroupFieldXData, `{` + cmsID}
 	noExpire := newBlacklist(72*time.Hour,
-		24*time.Minute, 1*time.Millisecond,
+		24*time.Minute, time.Millisecond,
 		24*time.Hour, 24*time.Hour, // Since we have a 24h expire, we shouldn't expect any entries to age out
-		5*time.Minute, 1*time.Millisecond)
+		5*time.Minute, time.Millisecond)
 	immediateExpire := newBlacklist(24*time.Hour,
-		5*time.Minute, 1*time.Millisecond,
+		5*time.Minute, time.Millisecond,
 		24*time.Hour, expirationTime, // Since we have a near zero expiration, we expect the entry to age out immediately.
-		5*time.Minute, 1*time.Millisecond)
+		5*time.Minute, time.Millisecond)
 	cacheExpire := newBlacklist(24*time.Hour,
-		5*time.Minute, 1*time.Millisecond,
+		5*time.Minute, time.Millisecond,
 		24*time.Hour, expirationTime, // Since we have a near zero expiration, we expect the entry to age out immediately.
 		5*time.Minute, 5*time.Minute) // Set the ticker time to longer to rely on the cache expiration
 	defer func() {
 		noExpire.close()
 		immediateExpire.close()
+		cacheExpire.close()
 	}()
 
 	tests := []struct {
@@ -321,6 +159,8 @@ func (s *BlacklistTestSuite) TestGroupBlacklist() {
 			assert.NoError(t, tt.b.BlacklistGroup(tt.blacklistEntry.field, tt.blacklistEntry.expression))
 			<-time.After(2 * expirationTime) // Wait sometime to ensure that expirations work
 			assert.Equal(t, tt.isBlacklisted, tt.b.IsGroupBlacklisted(group))
+
+			// Clean up any expressions under test to ensure that we do not have older test runs affect later test runs
 			assert.NoError(t, s.db.Unscoped().Delete(&GroupEntry{}, "expression = ?", tt.blacklistEntry.expression).Error)
 		})
 	}
@@ -405,6 +245,34 @@ func (s *BlacklistTestSuite) TestCheckXData() {
 	}
 }
 
+// TestCacheExpiration verifies that we are computing the blacklist cache expiration correctly.
+// Before, we were computing a negative cache lifetime which would've resulted in the cache entries never expiring.
+func (s *BlacklistTestSuite) TestCacheExpiration() {
+	cmsID := uuid.New() // use UUID to avoid deleting data that may not have been created by this test
+	group := ssas.Group{XData: `{"cms_ids":["` + cmsID + `"]}`}
+	matchingEntry := groupEntry{GroupFieldXData, `{"cms_ids":"` + cmsID + `"}`}
+
+	expiration := 50 * time.Millisecond
+	// Create a blacklist with longer refresh times.
+	// This'll allow us to better control when the cache refresh occurs.
+	b := newBlacklist(72*time.Hour,
+		24*time.Hour, 24*time.Hour,
+		expiration, expiration,
+		24*time.Hour, 24*time.Hour)
+
+	s.NoError(b.BlacklistGroup(matchingEntry.field, matchingEntry.expression))
+	s.NoError(b.BlacklistToken(cmsID))
+	// Refresh cache. If we've computed the cache duration correctly, we should
+	// have the entries expire after the expiration time has elapsed.
+	s.NoError(b.loadGroupsFromDatabase())
+	s.NoError(b.loadTokensFromDatabase())
+	s.True(b.IsGroupBlacklisted(group))
+	s.True(b.IsTokenBlacklisted(cmsID))
+
+	<-time.After(2 * expiration)
+	s.False(b.IsGroupBlacklisted(group), "Group should no longer be blacklisted")
+	s.False(b.IsTokenBlacklisted(cmsID), "Token should no longer be blacklisted")
+}
 func TestTokenCacheTestSuite(t *testing.T) {
 	suite.Run(t, new(BlacklistTestSuite))
 }

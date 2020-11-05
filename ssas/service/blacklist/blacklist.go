@@ -227,7 +227,7 @@ func (b *blacklist) loadTokensFromDatabase() error {
 
 	// If the key already exists in the cache, it will be updated.
 	for _, entry := range entries {
-		cacheDuration := time.Since(time.Unix(0, entry.CacheExpiration))
+		cacheDuration := time.Until(time.Unix(0, entry.CacheExpiration))
 		b.tc.Set(entry.Key, entry.EntryDate, cacheDuration)
 	}
 	return nil
