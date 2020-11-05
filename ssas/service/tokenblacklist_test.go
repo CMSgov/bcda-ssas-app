@@ -1,14 +1,15 @@
 package service
 
 import (
-	"github.com/CMSgov/bcda-ssas-app/ssas"
-	"github.com/jinzhu/gorm"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/suite"
 	"math/rand"
 	"strconv"
 	"testing"
 	"time"
+
+	"github.com/CMSgov/bcda-ssas-app/ssas"
+	"github.com/jinzhu/gorm"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/suite"
 )
 
 // Using a constant for this makes the tests more readable; any arbitrary value longer than the test execution time
@@ -61,6 +62,9 @@ func (s *TokenCacheTestSuite) TestLoadFromDatabaseEmpty() {
 		assert.FailNow(s.T(), err.Error())
 	}
 	assert.Len(s.T(), s.t.c.Items(), 1)
+	for _, item := range s.t.c.Items() {
+		assert.True(s.T(), item.Expiration > 0, "Should have a positive expiration value")
+	}
 }
 
 func (s *TokenCacheTestSuite) TestLoadFromDatabaseSomeExpired() {
@@ -195,8 +199,11 @@ func (s *TokenCacheTestSuite) TestStartCacheRefreshTicker() {
 	assert.False(s.T(), s.t.IsTokenBlacklisted(key1))
 	assert.False(s.T(), s.t.IsTokenBlacklisted(key2))
 
-	ticker := s.t.startCacheRefreshTicker(time.Millisecond * 250)
-	defer ticker.Stop()
+	ticker, cancelFunc := s.t.startCacheRefreshTicker(time.Millisecond * 250)
+	defer func() {
+		ticker.Stop()
+		cancelFunc()
+	}()
 
 	time.Sleep(time.Millisecond * 350)
 	assert.True(s.T(), s.t.IsTokenBlacklisted(key1))
