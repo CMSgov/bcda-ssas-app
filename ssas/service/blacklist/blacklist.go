@@ -15,7 +15,7 @@ import (
 	"github.com/pborman/uuid"
 )
 
-// Singleton refresh so we can share a common blacklist instance across various SSAS modules
+// Singleton instance so we can share a common blacklist instance across various SSAS modules
 var Blacklist *blacklist
 
 // This function should only be called by main
@@ -39,7 +39,9 @@ func Stop() {
 		return
 	}
 
-	Blacklist.close()
+	if err := Blacklist.close(); err != nil {
+		ssas.OperationFailed(ssas.Event{Op: fmt.Sprintf("failed to close blacklist %s", err.Error())})
+	}
 	Blacklist = nil
 }
 

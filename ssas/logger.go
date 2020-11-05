@@ -92,7 +92,7 @@ func OperationCalled(data Event) {
 // OperationFailed should be called after an event's failure, and should always be preceded by
 // a call to OperationStarted
 func OperationFailed(data Event) {
-	/*  */mergeNonEmpty(data).WithField("Event", "OperationFailed").Print(data.Help)
+	mergeNonEmpty(data).WithField("Event", "OperationFailed").Print(data.Help)
 }
 
 // TokenMintingFailure is emitted when a token can't be created. Usually, this is due to a
