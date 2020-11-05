@@ -1,4 +1,4 @@
-version: '3'
+version: "3"
 
 services:
   tests:
@@ -37,6 +37,7 @@ services:
       - SSAS_TOKEN_BLACKLIST_CACHE_REFRESH_MINUTES=5
       - SSAS_URL=http://ssas:3004
       - SSAS_PUBLIC_URL=http://ssas:3003
+      - SSAS_GROUP_BLACKLIST_CACHE_TIMEOUT_DAYS=365
     volumes:
       - .:/go/src/github.com/CMSgov/bcda-ssas-app
   postman_test:
@@ -44,7 +45,7 @@ services:
       context: .
       dockerfile: Dockerfiles/Dockerfile.postman_test
     volumes:
-        - .:/go/src/github.com/CMSgov/bcda-ssas-app
+      - .:/go/src/github.com/CMSgov/bcda-ssas-app
   smoke_test_ssas:
     build:
       context: .

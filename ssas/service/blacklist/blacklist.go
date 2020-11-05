@@ -24,11 +24,17 @@ func Start() {
 	if Blacklist != nil {
 		return
 	}
+
+	groupExpiration := time.Duration(cfg.GetEnvInt("SSAS_GROUP_BLACKLIST_CACHE_TIMEOUT_DAYS", 0)) * 24 * time.Hour
+	if groupExpiration == 0 {
+		panic("SSAS_GROUP_BLACKLIST_CACHE_TIMEOUT_MINUTES environment value must be set")
+	}
+
 	Blacklist = newBlacklist(24*time.Hour,
 		time.Duration(cfg.GetEnvInt("SSAS_TOKEN_BLACKLIST_CACHE_CLEANUP_MINUTES", 15))*time.Minute,
 		time.Duration(cfg.GetEnvInt("SSAS_GROUP_BLACKLIST_CACHE_CLEANUP_MINUTES", 15))*time.Minute,
 		time.Duration(cfg.GetEnvInt("SSAS_TOKEN_BLACKLIST_CACHE_TIMEOUT_MINUTES", 60*24))*time.Minute,
-		time.Duration(cfg.GetEnvInt("SSAS_GROUP_BLACKLIST_CACHE_TIMEOUT_MINUTES", 60*24))*time.Minute,
+		groupExpiration,
 		time.Duration(cfg.GetEnvInt("SSAS_TOKEN_BLACKLIST_CACHE_REFRESH_MINUTES", 5))*time.Minute,
 		time.Duration(cfg.GetEnvInt("SSAS_GROUP_BLACKLIST_CACHE_REFRESH_MINUTES", 5))*time.Minute)
 }
