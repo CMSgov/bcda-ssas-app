@@ -25,6 +25,8 @@ func Start() {
 		return
 	}
 
+	// TODO: If we decide to use this approach for group blacklist, we should use the cache as a buffer
+	// of the database. We do not need to have TTL, since a group blacklist should be indefinite
 	groupExpiration := time.Duration(cfg.GetEnvInt("SSAS_GROUP_BLACKLIST_CACHE_TIMEOUT_DAYS", 0)) * 24 * time.Hour
 	if groupExpiration == 0 {
 		panic("SSAS_GROUP_BLACKLIST_CACHE_TIMEOUT_MINUTES environment value must be set")

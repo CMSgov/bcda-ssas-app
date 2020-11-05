@@ -275,12 +275,6 @@ func (s *BlacklistTestSuite) TestCacheExpiration() {
 	s.False(b.IsTokenBlacklisted(cmsID), "Token should no longer be blacklisted")
 }
 
-func (s *BlacklistTestSuite) TestNewBlacklist() {
-	Stop()
-	s.Nil(Blacklist)
-	
-	val := os.Getenv(""
-}
 func TestBlacklistTestSuite(t *testing.T) {
 	suite.Run(t, new(BlacklistTestSuite))
 }
