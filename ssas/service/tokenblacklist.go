@@ -1,22 +1,27 @@
 package service
 
 import (
+	"context"
 	"fmt"
+	"sync"
+	"time"
+
 	"github.com/CMSgov/bcda-ssas-app/ssas"
 	"github.com/CMSgov/bcda-ssas-app/ssas/cfg"
 	"github.com/patrickmn/go-cache"
 	"github.com/pborman/uuid"
-	"time"
 )
 
 var (
-	TokenBlacklist Blacklist
+	TokenBlacklist *Blacklist
 	// This default cache timeout value should never be used, since individual cache elements have their own timeouts
 	defaultCacheTimeout  = 24 * time.Hour
 	cacheCleanupInterval time.Duration
 	TokenCacheLifetime   time.Duration
 	cacheRefreshFreq     time.Duration
-	cacheRefreshTicker   *time.Ticker
+
+	cacheRefreshTicker *time.Ticker
+	cancelFunc         context.CancelFunc // used to clean up resources associated with the ticker
 )
 
 func init() {
@@ -27,7 +32,7 @@ func init() {
 
 // This function should only be called by main
 func StartBlacklist() {
-	NewBlacklist(defaultCacheTimeout, cacheCleanupInterval)
+	TokenBlacklist = NewBlacklist(defaultCacheTimeout, cacheCleanupInterval)
 }
 
 //	NewBlacklist allows for easy Blacklist{} creation and manipulation during testing, and, outside a test suite,
@@ -52,13 +57,13 @@ func NewBlacklist(cacheTimeout time.Duration, cleanupInterval time.Duration) *Bl
 		ssas.OperationSucceeded(event)
 	}
 
-	cacheRefreshTicker = bl.startCacheRefreshTicker(cacheRefreshFreq)
+	cacheRefreshTicker, cancelFunc = bl.startCacheRefreshTicker(cacheRefreshFreq)
 
-	TokenBlacklist = bl
 	return &bl
 }
 
 type Blacklist struct {
+	sync.RWMutex
 	c  *cache.Cache
 	ID string
 }
@@ -83,6 +88,10 @@ func (t *Blacklist) BlacklistToken(tokenID string, blacklistExpiration time.Dura
 //	- This queries the cache only, so if a tokenID has been blacklisted on a different instance, it will return "false"
 //		until the cached blacklist is refreshed from the database.
 func (t *Blacklist) IsTokenBlacklisted(tokenID string) bool {
+	// Ensure that we do not attempt to read when the cache is being rebuilt
+	t.RLock()
+	defer t.RUnlock()
+
 	bEvent := ssas.Event{Op: "TokenVerification", TrackingID: t.ID, TokenID: tokenID}
 	if _, found := t.c.Get(tokenID); found {
 		ssas.BlacklistedTokenPresented(bEvent)
@@ -103,34 +112,45 @@ func (t *Blacklist) LoadFromDatabase() error {
 		return err
 	}
 
+	// Need to acquire a lock since we're clearing the entire cache.
+	// Any reads in-between us re-hydrating the cache is invalid (false negatives)
+	t.Lock()
+	defer t.Unlock()
 	t.c.Flush()
 
 	// If the key already exists in the cache, it will be updated.
 	for _, entry := range entries {
-		cacheDuration := time.Since(time.Unix(0, entry.CacheExpiration))
+		cacheDuration := time.Until(time.Unix(0, entry.CacheExpiration))
 		t.c.Set(entry.Key, entry.EntryDate, cacheDuration)
 	}
 	return nil
 }
 
-func (t *Blacklist) startCacheRefreshTicker(refreshFreq time.Duration) *time.Ticker {
+func (t *Blacklist) startCacheRefreshTicker(refreshFreq time.Duration) (*time.Ticker, context.CancelFunc) {
 	event := ssas.Event{Op: "CacheRefreshTicker", TrackingID: t.ID}
 	ssas.ServiceStarted(event)
 
 	ticker := time.NewTicker(refreshFreq)
 
+	ctx, cancel := context.WithCancel(context.Background())
 	go func() {
-		for range ticker.C {
-			// Errors are logged in LoadFromDatabase()
-			_ = t.LoadFromDatabase()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				// Errors are logged in LoadFromDatabase()
+				_ = t.LoadFromDatabase()
+			}
 		}
 	}()
 
-	return ticker
+	return ticker, cancel
 }
 
 func stopCacheRefreshTicker() {
 	if cacheRefreshTicker != nil {
 		cacheRefreshTicker.Stop()
+		cancelFunc()
 	}
 }
