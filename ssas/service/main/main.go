@@ -28,6 +28,7 @@ package main
 
 import (
 	"database/sql"
+	"encoding/base64"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -53,8 +54,10 @@ var doResetSecret bool
 var doNewAdminSystem bool
 var doListIPs bool
 var doListExpCreds bool
+var doGetXdata bool
 var doStart bool
 var clientID string
+var APIKey string
 var systemName string
 var output io.Writer
 
@@ -66,7 +69,6 @@ func init() {
 
 	const usageResetSecret = "reset system secret for the given client_id; requires client-id flag with argument"
 	flag.BoolVar(&doResetSecret, "reset-secret", false, usageResetSecret)
-	flag.StringVar(&clientID, "client-id", "", "a system's client id")
 
 	const usageNewAdminSystem = "add a new admin system to the service; requires system-name flag with argument"
 	flag.BoolVar(&doNewAdminSystem, "new-admin-system", false, usageNewAdminSystem)
@@ -78,8 +80,15 @@ func init() {
 	const usageListExpCreds = "list credentials about to expire or timeout due to inactivity"
 	flag.BoolVar(&doListExpCreds, "list-exp-creds", false, usageListExpCreds)
 
+	const usageGetXdata = "list ACOs group xdata"
+	flag.BoolVar(&doGetXdata, "get-xdata", false, usageGetXdata)
+	flag.StringVar(&APIKey, "api-key", "", "a systems api key")
+
 	const usageStart = "start the service"
 	flag.BoolVar(&doStart, "start", false, usageStart)
+
+	// used by both `doResetSecret` and `doGetXdata`
+	flag.StringVar(&clientID, "client-id", "", "a system's client id")
 }
 
 // We provide some simple commands for bootstrapping the system into place. Commands cannot be combined.
@@ -105,6 +114,10 @@ func main() {
 	}
 	if doListExpCreds {
 		listExpiringCredentials()
+		return
+	}
+	if doGetXdata && (clientID != "" || APIKey != "") {
+		getXData(clientID, APIKey)
 		return
 	}
 	if doStart {
@@ -336,4 +349,39 @@ func closeRows(rows *sql.Rows) {
 
 func cliTrackingID() string {
 	return fmt.Sprintf("cli-command-%d", time.Now().Unix())
+}
+
+func getXData(clientID, APIkey string) {
+	if APIkey != "" {
+		const prefix = "Basic "
+		// Check that the APIkey provided that has more than just the `Basic` prefix
+		if len(APIkey) < len(prefix) || !strings.EqualFold(APIkey[:len(prefix)], prefix) {
+			panic("must provide a valid API key")
+		}
+		c, err := base64.StdEncoding.DecodeString(APIkey[len(prefix):])
+		if err != nil {
+			panic("unable to decode the API key: " + err.Error())
+		}
+
+		cs := string(c)
+		// Get length of string up to colon in string (ie the client id length)
+		s := strings.IndexByte(cs, ':')
+		if s < 0 {
+			panic("No client id present after decoding API key")
+		}
+
+		clientID = cs[:s]
+	}
+
+	system, err := ssas.GetSystemByClientID(clientID)
+	if err != nil {
+		panic("invalid client id: " + err.Error())
+	}
+
+	group, err := ssas.GetGroupByGroupID(system.GroupID)
+	if err != nil {
+		panic("unable to find group with id " + system.GroupID + ": " + err.Error())
+	}
+
+	fmt.Fprintln(output, group.XData)
 }
