@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/jinzhu/gorm"
-	"github.com/pborman/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -33,41 +32,21 @@ func (s *MainTestSuite) TestResetSecret() {
 	assert.NotEqual(s.T(), "", output)
 }
 
-func (s *MainTestSuite) TestGetXDataWithClientID() {
-	creds, _ := s.createACOData()
+func (s *MainTestSuite) TestShowXDataWithClientID() {
+	creds, _ := ssas.CreateACOData(s.T(), s.db)
 
-	output := captureOutput(func() { getXData(creds.ClientID, "") })
+	output := captureOutput(func() { showXData(creds.ClientID, "") })
 	assert.Equal(s.T(), "fake x_data\n", output)
 }
 
-func (s *MainTestSuite) TestGetXDataWithAPIKey() {
-	creds, _ := s.createACOData()
+func (s *MainTestSuite) TestShowXDataWithAuth() {
+	creds, _ := ssas.CreateACOData(s.T(), s.db)
 
 	// Build encoded api key to mimic auth header
-	APIKey := "Basic " + base64.StdEncoding.EncodeToString([]byte(creds.ClientID+":"+creds.ClientSecret))
+	auth := "Basic " + base64.StdEncoding.EncodeToString([]byte(creds.ClientID+":"+creds.ClientSecret))
 
-	output := captureOutput(func() { getXData("", APIKey) })
+	output := captureOutput(func() { showXData("", auth) })
 	assert.Equal(s.T(), "fake x_data\n", output)
-}
-
-func (s *MainTestSuite) createACOData() (creds ssas.Credentials, group ssas.Group) {
-	groupID := ssas.RandomHexID()[0:4]
-
-	group = ssas.Group{GroupID: groupID, XData: "fake x_data"}
-	err := s.db.Create(&group).Error
-	require.Nil(s.T(), err)
-
-	_, pubKey, err := ssas.GenerateTestKeys(2048)
-	require.Nil(s.T(), err)
-	pemString, err := ssas.ConvertPublicKeyToPEMString(&pubKey)
-	require.Nil(s.T(), err)
-
-	creds, err = ssas.RegisterSystem("XData Test", groupID, ssas.DefaultScope, pemString, []string{}, uuid.NewRandom().String())
-	assert.Nil(s.T(), err)
-	assert.Equal(s.T(), "XData Test", creds.ClientName)
-	assert.NotNil(s.T(), creds.ClientSecret)
-
-	return
 }
 
 func (s *MainTestSuite) TestResetCredentialsBadClientID() {

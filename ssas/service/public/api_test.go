@@ -319,26 +319,6 @@ func (s *APITestSuite) TestTokenSuccess() {
 	assert.Nil(s.T(), err)
 }
 
-func (s *APITestSuite) createIntrospectData() (creds ssas.Credentials, group ssas.Group) {
-	groupID := ssas.RandomHexID()[0:4]
-
-	group = ssas.Group{GroupID: groupID, XData: "x_data"}
-	err := s.db.Create(&group).Error
-	require.Nil(s.T(), err)
-
-	_, pubKey, err := ssas.GenerateTestKeys(2048)
-	require.Nil(s.T(), err)
-	pemString, err := ssas.ConvertPublicKeyToPEMString(&pubKey)
-	require.Nil(s.T(), err)
-
-	creds, err = ssas.RegisterSystem("Introspect Test", groupID, ssas.DefaultScope, pemString, []string{}, uuid.NewRandom().String())
-	assert.Nil(s.T(), err)
-	assert.Equal(s.T(), "Introspect Test", creds.ClientName)
-	assert.NotNil(s.T(), creds.ClientSecret)
-
-	return
-}
-
 func (s *APITestSuite) testIntrospectFlaw(flaw service.TokenFlaw, errorText string) {
 	var (
 		signingKeyPath string
@@ -358,7 +338,7 @@ func (s *APITestSuite) testIntrospectFlaw(flaw service.TokenFlaw, errorText stri
 		signingKeyPath = os.Getenv("SSAS_PUBLIC_SIGNING_KEY_PATH")
 	}
 
-	creds, group := s.createIntrospectData()
+	creds, group := ssas.CreateACOData(s.T(), s.db)
 
 	system, err := ssas.GetSystemByClientID(creds.ClientID)
 	assert.Nil(s.T(), err)
@@ -407,7 +387,7 @@ func (s *APITestSuite) TestIntrospectFailure() {
 }
 
 func (s *APITestSuite) TestIntrospectSuccess() {
-	creds, group := s.createIntrospectData()
+	creds, group := ssas.CreateACOData(s.T(), s.db)
 
 	req := httptest.NewRequest("POST", "/token", nil)
 	req.SetBasicAuth(creds.ClientID, creds.ClientSecret)
