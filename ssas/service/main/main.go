@@ -30,6 +30,7 @@ import (
 	"database/sql"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -54,10 +55,10 @@ var doResetSecret bool
 var doNewAdminSystem bool
 var doListIPs bool
 var doListExpCreds bool
-var doGetXdata bool
+var doShowXData bool
 var doStart bool
 var clientID string
-var APIKey string
+var auth string
 var systemName string
 var output io.Writer
 
@@ -80,9 +81,9 @@ func init() {
 	const usageListExpCreds = "list credentials about to expire or timeout due to inactivity"
 	flag.BoolVar(&doListExpCreds, "list-exp-creds", false, usageListExpCreds)
 
-	const usageGetXdata = "list ACOs group xdata"
-	flag.BoolVar(&doGetXdata, "get-xdata", false, usageGetXdata)
-	flag.StringVar(&APIKey, "api-key", "", "a systems api key")
+	const usageShowXData = "display ACOs group xdata"
+	flag.BoolVar(&doShowXData, "show-xdata", false, usageShowXData)
+	flag.StringVar(&auth, "auth", "", "an auth header containing the hashed client id")
 
 	const usageStart = "start the service"
 	flag.BoolVar(&doStart, "start", false, usageStart)
@@ -116,8 +117,15 @@ func main() {
 		listExpiringCredentials()
 		return
 	}
-	if doGetXdata && (clientID != "" || APIKey != "") {
-		getXData(clientID, APIKey)
+	if doShowXData && (clientID != "" || auth != "") {
+		if clientID != "" || auth != "" {
+			err := showXData(clientID, auth)
+			if err != nil {
+				ssas.Logger.Error(err)
+			}
+		} else {
+			ssas.Logger.Error("`show-xdata` requires either the client-id or auth key arg be set")
+		}
 		return
 	}
 	if doStart {
@@ -351,23 +359,24 @@ func cliTrackingID() string {
 	return fmt.Sprintf("cli-command-%d", time.Now().Unix())
 }
 
-func getXData(clientID, APIkey string) {
-	if APIkey != "" {
+func showXData(clientID, auth string) error {
+	// The auth header decoding logic was pulled from Go's requuest.go#parseBasicAuth func
+	if auth != "" {
 		const prefix = "Basic "
-		// Check that the APIkey provided that has more than just the `Basic` prefix
-		if len(APIkey) < len(prefix) || !strings.EqualFold(APIkey[:len(prefix)], prefix) {
-			panic("must provide a valid API key")
+		// Check that the auth provided that has more than just the `Basic` prefix
+		if len(auth) < len(prefix) || !strings.EqualFold(auth[:len(prefix)], prefix) {
+			return errors.New("must provide a valid auth hash")
 		}
-		c, err := base64.StdEncoding.DecodeString(APIkey[len(prefix):])
+		c, err := base64.StdEncoding.DecodeString(auth[len(prefix):])
 		if err != nil {
-			panic("unable to decode the API key: " + err.Error())
+			return errors.New("unable to decode the auth hash: " + err.Error())
 		}
 
 		cs := string(c)
 		// Get length of string up to colon in string (ie the client id length)
 		s := strings.IndexByte(cs, ':')
 		if s < 0 {
-			panic("No client id present after decoding API key")
+			return errors.New("no client id present after decoding auth hash")
 		}
 
 		clientID = cs[:s]
@@ -375,13 +384,15 @@ func getXData(clientID, APIkey string) {
 
 	system, err := ssas.GetSystemByClientID(clientID)
 	if err != nil {
-		panic("invalid client id: " + err.Error())
+		return errors.New("invalid client id: " + err.Error())
 	}
 
 	group, err := ssas.GetGroupByGroupID(system.GroupID)
 	if err != nil {
-		panic("unable to find group with id " + system.GroupID + ": " + err.Error())
+		return errors.New("unable to find group with id " + system.GroupID + ": " + err.Error())
 	}
 
 	fmt.Fprintln(output, group.XData)
+
+	return nil
 }
