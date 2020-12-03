@@ -33,7 +33,7 @@ func (s *MainTestSuite) TestResetSecret() {
 }
 
 func (s *MainTestSuite) TestShowXDataWithClientID() {
-	creds, _ := ssas.CreateACOData(s.T(), s.db)
+	creds, _ := ssas.CreateTestXData(s.T(), s.db)
 
 	output := captureOutput(func() {
 		err := showXData(creds.ClientID, "")
@@ -43,10 +43,10 @@ func (s *MainTestSuite) TestShowXDataWithClientID() {
 }
 
 func (s *MainTestSuite) TestShowXDataWithAuth() {
-	creds, _ := ssas.CreateACOData(s.T(), s.db)
+	creds, _ := ssas.CreateTestXData(s.T(), s.db)
 
 	// Build encoded api key to mimic auth header
-	auth := "Basic " + base64.StdEncoding.EncodeToString([]byte(creds.ClientID+":"+creds.ClientSecret))
+	auth := base64.StdEncoding.EncodeToString([]byte(creds.ClientID + ":" + creds.ClientSecret))
 
 	output := captureOutput(func() {
 		err := showXData("", auth)

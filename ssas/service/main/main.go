@@ -81,7 +81,7 @@ func init() {
 	const usageListExpCreds = "list credentials about to expire or timeout due to inactivity"
 	flag.BoolVar(&doListExpCreds, "list-exp-creds", false, usageListExpCreds)
 
-	const usageShowXData = "display ACOs group xdata"
+	const usageShowXData = "display group xdata"
 	flag.BoolVar(&doShowXData, "show-xdata", false, usageShowXData)
 	flag.StringVar(&auth, "auth", "", "an auth header containing the hashed client id")
 
@@ -362,12 +362,7 @@ func cliTrackingID() string {
 func showXData(clientID, auth string) error {
 	// The auth header decoding logic was pulled from Go's requuest.go#parseBasicAuth func
 	if auth != "" {
-		const prefix = "Basic "
-		// Check that the auth provided that has more than just the `Basic` prefix
-		if len(auth) < len(prefix) || !strings.EqualFold(auth[:len(prefix)], prefix) {
-			return errors.New("must provide a valid auth hash")
-		}
-		c, err := base64.StdEncoding.DecodeString(auth[len(prefix):])
+		c, err := base64.StdEncoding.DecodeString(auth)
 		if err != nil {
 			return errors.New("unable to decode the auth hash: " + err.Error())
 		}
