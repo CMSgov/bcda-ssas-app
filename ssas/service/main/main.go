@@ -28,7 +28,9 @@ package main
 
 import (
 	"database/sql"
+	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -53,8 +55,10 @@ var doResetSecret bool
 var doNewAdminSystem bool
 var doListIPs bool
 var doListExpCreds bool
+var doShowXData bool
 var doStart bool
 var clientID string
+var auth string
 var systemName string
 var output io.Writer
 
@@ -66,7 +70,6 @@ func init() {
 
 	const usageResetSecret = "reset system secret for the given client_id; requires client-id flag with argument"
 	flag.BoolVar(&doResetSecret, "reset-secret", false, usageResetSecret)
-	flag.StringVar(&clientID, "client-id", "", "a system's client id")
 
 	const usageNewAdminSystem = "add a new admin system to the service; requires system-name flag with argument"
 	flag.BoolVar(&doNewAdminSystem, "new-admin-system", false, usageNewAdminSystem)
@@ -78,8 +81,15 @@ func init() {
 	const usageListExpCreds = "list credentials about to expire or timeout due to inactivity"
 	flag.BoolVar(&doListExpCreds, "list-exp-creds", false, usageListExpCreds)
 
+	const usageShowXData = "display group xdata"
+	flag.BoolVar(&doShowXData, "show-xdata", false, usageShowXData)
+	flag.StringVar(&auth, "auth", "", "an auth header containing the hashed client id")
+
 	const usageStart = "start the service"
 	flag.BoolVar(&doStart, "start", false, usageStart)
+
+	// used by both `doResetSecret` and `doGetXdata`
+	flag.StringVar(&clientID, "client-id", "", "a system's client id")
 }
 
 // We provide some simple commands for bootstrapping the system into place. Commands cannot be combined.
@@ -105,6 +115,17 @@ func main() {
 	}
 	if doListExpCreds {
 		listExpiringCredentials()
+		return
+	}
+	if doShowXData && (clientID != "" || auth != "") {
+		if clientID != "" || auth != "" {
+			err := showXData(clientID, auth)
+			if err != nil {
+				ssas.Logger.Error(err)
+			}
+		} else {
+			ssas.Logger.Error("`show-xdata` requires either the client-id or auth key arg be set")
+		}
 		return
 	}
 	if doStart {
@@ -336,4 +357,37 @@ func closeRows(rows *sql.Rows) {
 
 func cliTrackingID() string {
 	return fmt.Sprintf("cli-command-%d", time.Now().Unix())
+}
+
+func showXData(clientID, auth string) error {
+	// The auth header decoding logic was pulled from Go's requuest.go#parseBasicAuth func
+	if auth != "" {
+		c, err := base64.StdEncoding.DecodeString(auth)
+		if err != nil {
+			return fmt.Errorf("unable to decode the auth hash: %w", err)
+		}
+
+		cs := string(c)
+		// Get length of string up to colon in string (ie the client id length)
+		s := strings.IndexByte(cs, ':')
+		if s < 0 {
+			return errors.New("no client id present after decoding auth hash")
+		}
+
+		clientID = cs[:s]
+	}
+
+	system, err := ssas.GetSystemByClientID(clientID)
+	if err != nil {
+		return fmt.Errorf("invalid client id: %w", err)
+	}
+
+	group, err := ssas.GetGroupByGroupID(system.GroupID)
+	if err != nil {
+		return fmt.Errorf("unable to find group with id %v: %w", system.GroupID, err)
+	}
+
+	fmt.Fprintln(output, group.XData)
+
+	return nil
 }

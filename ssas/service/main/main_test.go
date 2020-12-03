@@ -2,11 +2,13 @@ package main
 
 import (
 	"bytes"
+	"encoding/base64"
 	"io"
 	"os"
 	"testing"
 	"time"
 
+	"github.com/jinzhu/gorm"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -16,16 +18,41 @@ import (
 
 type MainTestSuite struct {
 	suite.Suite
+	db *gorm.DB
 }
 
 func (s *MainTestSuite) SetupSuite() {
 	ssas.InitializeSystemModels()
+	s.db = ssas.GetGORMDbConnection()
 }
 
 func (s *MainTestSuite) TestResetSecret() {
 	fixtureClientID := "0c527d2e-2e8a-4808-b11d-0fa06baf8254"
 	output := captureOutput(func() { resetSecret(fixtureClientID) })
 	assert.NotEqual(s.T(), "", output)
+}
+
+func (s *MainTestSuite) TestShowXDataWithClientID() {
+	creds, _ := ssas.CreateTestXData(s.T(), s.db)
+
+	output := captureOutput(func() {
+		err := showXData(creds.ClientID, "")
+		assert.Nil(s.T(), err)
+	})
+	assert.Equal(s.T(), "fake x_data\n", output)
+}
+
+func (s *MainTestSuite) TestShowXDataWithAuth() {
+	creds, _ := ssas.CreateTestXData(s.T(), s.db)
+
+	// Build encoded api key to mimic auth header
+	auth := base64.StdEncoding.EncodeToString([]byte(creds.ClientID + ":" + creds.ClientSecret))
+
+	output := captureOutput(func() {
+		err := showXData("", auth)
+		assert.Nil(s.T(), err)
+	})
+	assert.Equal(s.T(), "fake x_data\n", output)
 }
 
 func (s *MainTestSuite) TestResetCredentialsBadClientID() {
