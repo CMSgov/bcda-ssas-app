@@ -117,7 +117,7 @@ func someRandomBytes(n int) ([]byte, error) {
 	return b, nil
 }
 
-func CreateACOData(t *testing.T, db *gorm.DB) (creds Credentials, group Group) {
+func CreateTestXData(t *testing.T, db *gorm.DB) (creds Credentials, group Group) {
 	groupID := RandomHexID()[0:4]
 
 	group = Group{GroupID: groupID, XData: "fake x_data"}

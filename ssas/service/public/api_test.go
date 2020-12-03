@@ -338,7 +338,7 @@ func (s *APITestSuite) testIntrospectFlaw(flaw service.TokenFlaw, errorText stri
 		signingKeyPath = os.Getenv("SSAS_PUBLIC_SIGNING_KEY_PATH")
 	}
 
-	creds, group := ssas.CreateACOData(s.T(), s.db)
+	creds, group := ssas.CreateTestXData(s.T(), s.db)
 
 	system, err := ssas.GetSystemByClientID(creds.ClientID)
 	assert.Nil(s.T(), err)
@@ -387,7 +387,7 @@ func (s *APITestSuite) TestIntrospectFailure() {
 }
 
 func (s *APITestSuite) TestIntrospectSuccess() {
-	creds, group := ssas.CreateACOData(s.T(), s.db)
+	creds, group := ssas.CreateTestXData(s.T(), s.db)
 
 	req := httptest.NewRequest("POST", "/token", nil)
 	req.SetBasicAuth(creds.ClientID, creds.ClientSecret)
