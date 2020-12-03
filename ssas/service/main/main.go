@@ -364,7 +364,7 @@ func showXData(clientID, auth string) error {
 	if auth != "" {
 		c, err := base64.StdEncoding.DecodeString(auth)
 		if err != nil {
-			return errors.New("unable to decode the auth hash: " + err.Error())
+			return fmt.Errorf("unable to decode the auth hash: %w", err)
 		}
 
 		cs := string(c)
@@ -379,12 +379,12 @@ func showXData(clientID, auth string) error {
 
 	system, err := ssas.GetSystemByClientID(clientID)
 	if err != nil {
-		return errors.New("invalid client id: " + err.Error())
+		return fmt.Errorf("invalid client id: %w", err)
 	}
 
 	group, err := ssas.GetGroupByGroupID(system.GroupID)
 	if err != nil {
-		return errors.New("unable to find group with id " + system.GroupID + ": " + err.Error())
+		return fmt.Errorf("unable to find group with id %v: %w", system.GroupID, err)
 	}
 
 	fmt.Fprintln(output, group.XData)
