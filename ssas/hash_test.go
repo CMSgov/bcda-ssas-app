@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/pborman/uuid"
 	"github.com/stretchr/testify/assert"
@@ -63,6 +64,25 @@ func (s *HashTestSuite) TestHashWithIter() {
 
 	s.True(h.IsHashOf(val))
 	s.True(h1.IsHashOf(val))
+}
+
+func (s *HashTestSuite) TestHashIterTime() {
+	var resultArr [5]int64
+	hashIter = 130000
+	hashKeyLen = 64
+	saltSize = 32
+	for i := 0; i < 5; i++ {
+		start := time.Now()
+
+		val := uuid.New()
+		_, err := NewHash(val)
+		s.NoError(err)
+
+		elapsed := time.Now().Sub(start).Milliseconds()
+		resultArr[i] = elapsed
+		fmt.Println(elapsed)
+	}
+	// Print average of results
 }
 
 func TestHashTestSuite(t *testing.T) {
