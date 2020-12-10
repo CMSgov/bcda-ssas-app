@@ -2,6 +2,7 @@ package ssas
 
 import (
 	"fmt"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -66,23 +67,33 @@ func (s *HashTestSuite) TestHashWithIter() {
 	s.True(h1.IsHashOf(val))
 }
 
-func (s *HashTestSuite) TestHashIterTime() {
-	var resultArr [5]int64
-	hashIter = 130000
-	hashKeyLen = 64
-	saltSize = 32
-	for i := 0; i < 5; i++ {
+func TestHashIterTime(t *testing.T) {
+	// This test is not intended to run with the remain suite.  Is is solely used to determine the number of hash
+	// iterations needed to reach a 1 second duration. To invoke the test use:
+	// DEBUG=true  go test -v github.com/CMSgov/bcda-ssas-app/ssas -run TestHashIterTime
+
+	// Check for local dev environment
+	if os.Getenv("DEBUG") != "true" {
+		t.SkipNow()
+	}
+
+	var resultTime int64
+	runCount := 5
+	hashIter = 1650000
+	for i := 0; i < runCount; i++ {
 		start := time.Now()
 
 		val := uuid.New()
 		_, err := NewHash(val)
-		s.NoError(err)
+		if err != nil {
+			t.FailNow()
+		}
 
-		elapsed := time.Now().Sub(start).Milliseconds()
-		resultArr[i] = elapsed
-		fmt.Println(elapsed)
+		elapsed := time.Since(start).Milliseconds()
+		resultTime += elapsed
 	}
-	// Print average of results
+
+	fmt.Printf("The average is: %dms\n", (int(resultTime) / runCount))
 }
 
 func TestHashTestSuite(t *testing.T) {

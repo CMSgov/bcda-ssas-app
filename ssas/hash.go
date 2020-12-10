@@ -26,7 +26,8 @@ var (
 type Hash string
 
 // The time for hash comparison should be about 1s.  Increase hashIter if this is significantly faster in production.
-// Note that changing hashIter or hashKeyLen will result in invalidating existing stored hashes (e.g. credentials).
+// Use the TestHashIterTime test to determine the amount required to reach 1s.
+// Note that changing hashKeyLen will result in invalidating existing stored hashes (e.g. credentials).
 func init() {
 	if os.Getenv("DEBUG") == "true" {
 		hashIter = cfg.GetEnvInt("SSAS_HASH_ITERATIONS", 130000)
