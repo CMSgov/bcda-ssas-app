@@ -2,8 +2,10 @@ package ssas
 
 import (
 	"fmt"
+	"os"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/pborman/uuid"
 	"github.com/stretchr/testify/assert"
@@ -63,6 +65,35 @@ func (s *HashTestSuite) TestHashWithIter() {
 
 	s.True(h.IsHashOf(val))
 	s.True(h1.IsHashOf(val))
+}
+
+func TestHashIterTime(t *testing.T) {
+	// This test is not intended to run with the remain suite.  Is is solely used to determine the number of hash
+	// iterations needed to reach a 1 second duration. To invoke the test use:
+	// DEBUG=true  go test -v github.com/CMSgov/bcda-ssas-app/ssas -run TestHashIterTime
+
+	if os.Getenv("DEBUG") != "true" {
+		t.SkipNow()
+	}
+
+	var totalTime time.Duration
+	runCount := 5
+	hashIter = 1650000
+	for i := 0; i < runCount; i++ {
+		start := time.Now()
+
+		val := uuid.New()
+		_, err := NewHash(val)
+		if err != nil {
+			t.FailNow()
+		}
+
+		elapsed := time.Since(start)
+		totalTime += elapsed
+	}
+
+	avgDur := totalTime / time.Duration(runCount)
+	fmt.Printf("The average is: %s\n", avgDur.String())
 }
 
 func TestHashTestSuite(t *testing.T) {
