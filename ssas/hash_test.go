@@ -72,12 +72,11 @@ func TestHashIterTime(t *testing.T) {
 	// iterations needed to reach a 1 second duration. To invoke the test use:
 	// DEBUG=true  go test -v github.com/CMSgov/bcda-ssas-app/ssas -run TestHashIterTime
 
-	// Check for local dev environment
 	if os.Getenv("DEBUG") != "true" {
 		t.SkipNow()
 	}
 
-	var resultTime int64
+	var totalTime time.Duration
 	runCount := 5
 	hashIter = 1650000
 	for i := 0; i < runCount; i++ {
@@ -89,11 +88,12 @@ func TestHashIterTime(t *testing.T) {
 			t.FailNow()
 		}
 
-		elapsed := time.Since(start).Milliseconds()
-		resultTime += elapsed
+		elapsed := time.Since(start)
+		totalTime += elapsed
 	}
 
-	fmt.Printf("The average is: %dms\n", (int(resultTime) / runCount))
+	avgDur := totalTime / time.Duration(runCount)
+	fmt.Printf("The average is: %s\n", avgDur.String())
 }
 
 func TestHashTestSuite(t *testing.T) {
