@@ -17,7 +17,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/jinzhu/gorm"
+	"gorm.io/gorm"
 	"github.com/pborman/uuid"
 	"github.com/stretchr/testify/suite"
 )
@@ -29,7 +29,6 @@ type SystemsTestSuite struct {
 
 func (s *SystemsTestSuite) SetupSuite() {
 	s.db = GetGORMDbConnection()
-	InitializeSystemModels()
 }
 
 func (s *SystemsTestSuite) TearDownSuite() {

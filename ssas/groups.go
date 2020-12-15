@@ -5,9 +5,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/jinzhu/gorm"
 	"strconv"
 	"time"
+
+	"gorm.io/gorm"
 )
 
 type Group struct {
@@ -23,7 +24,7 @@ type SystemSummary struct {
 	GID        uint      `json:"-"`
 	ClientName string    `json:"client_name"`
 	ClientID   string    `json:"client_id"`
-	IPs        []string  `json:"ips,omitempty"`
+	IPs        []string  `json:"ips,omitempty" gorm:"-"`
 	UpdatedAt  time.Time `json:"updated_at"`
 }
 
@@ -36,7 +37,7 @@ type GroupSummary struct {
 	GroupID   string          `json:"group_id"`
 	XData     string          `json:"xdata"`
 	CreatedAt time.Time       `json:"created_at"`
-	Systems   []SystemSummary `json:"systems" gorm:"foreignkey:GID"`
+	Systems   []SystemSummary `gorm:"foreignkey:GID;association_foreignkey:ID"`
 }
 
 func (GroupSummary) TableName() string {
@@ -92,7 +93,7 @@ func ListGroups(trackingID string) (list GroupList, err error) {
 	groups := []GroupSummary{}
 	db := GetGORMDbConnection()
 	defer Close(db)
-	err = db.Preload("Systems").Where("deleted_at IS NULL").Find(&groups).Error
+	err = db.Table("groups").Preload("Systems", "deleted_at IS NULL").Find(&groups).Error
 	if err != nil {
 		event.Help = err.Error()
 		OperationFailed(event)
@@ -199,7 +200,7 @@ func cascadeDeleteGroup(group Group) error {
 	)
 	defer Close(db)
 
-	err := db.Table("systems").Where("group_id = ?", group.GroupID).Pluck("ID", &systemIds).Error
+	err := db.Table("systems").Where("group_id = ?", group.GroupID).Pluck("id", &systemIds).Error
 	if err != nil {
 		return fmt.Errorf("unable to find associated systems: %s", err.Error())
 	}
@@ -278,7 +279,7 @@ func GetGroupByGroupID(groupID string) (Group, error) {
 	)
 	defer Close(db)
 
-	if db.Find(&group, "group_id = ?", groupID).RecordNotFound() {
+	if err := db.First(&group, "group_id = ?", groupID).Error; err != nil && errors.Is(err, gorm.ErrRecordNotFound) {
 		err = fmt.Errorf("no Group record found for groupID %s", groupID)
 	}
 

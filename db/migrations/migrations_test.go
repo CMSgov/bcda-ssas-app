@@ -12,7 +12,7 @@ import (
 	"testing"
 
 	"github.com/CMSgov/bcda-ssas-app/ssas"
-	"github.com/jinzhu/gorm"
+	"gorm.io/gorm"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

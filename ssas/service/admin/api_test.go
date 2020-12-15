@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -16,9 +17,9 @@ import (
 
 	"github.com/CMSgov/bcda-ssas-app/ssas"
 	"github.com/go-chi/chi"
-	"github.com/jinzhu/gorm"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
+	"gorm.io/gorm"
 )
 
 const SampleGroup string = `{
@@ -61,7 +62,6 @@ type APITestSuite struct {
 }
 
 func (s *APITestSuite) SetupSuite() {
-	ssas.InitializeSystemModels()
 	s.db = ssas.GetGORMDbConnection()
 	service.StartBlacklist()
 }
@@ -80,7 +80,7 @@ func (s *APITestSuite) TestCreateGroup() {
 	assert.Equal(s.T(), http.StatusCreated, rr.Result().StatusCode)
 	assert.Equal(s.T(), "application/json", rr.Result().Header.Get("Content-Type"))
 	g := ssas.Group{}
-	if s.db.Where("group_id = ?", gid).Find(&g).RecordNotFound() {
+	if errors.Is(s.db.First(&g, "group_id = ?", gid).Error, gorm.ErrRecordNotFound) {
 		assert.FailNow(s.T(), fmt.Sprintf("record not found for group_id=%s", gid))
 	}
 
@@ -103,7 +103,7 @@ func (s *APITestSuite) TestCreateGroupFailure() {
 	assert.Equal(s.T(), http.StatusCreated, rr.Result().StatusCode)
 	assert.Equal(s.T(), "application/json", rr.Result().Header.Get("Content-Type"))
 	g := ssas.Group{}
-	if s.db.Where("group_id = ?", gid).Find(&g).RecordNotFound() {
+	if errors.Is(s.db.First(&g, "group_id = ?", gid).Error, gorm.ErrRecordNotFound) {
 		assert.FailNow(s.T(), fmt.Sprintf("record not found for group_id=%s", gid))
 	}
 	err := ssas.CleanDatabase(g)
@@ -233,8 +233,7 @@ func (s *APITestSuite) TestDeleteGroup() {
 	rr := httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
 	assert.Equal(s.T(), http.StatusOK, rr.Result().StatusCode)
-	deleted := s.db.Find(&ssas.Group{}, g.ID).RecordNotFound()
-	assert.True(s.T(), deleted)
+	assert.True(s.T(), errors.Is(s.db.First(&ssas.Group{}, g.ID).Error, gorm.ErrRecordNotFound))
 	err = ssas.CleanDatabase(g)
 	assert.Nil(s.T(), err)
 }

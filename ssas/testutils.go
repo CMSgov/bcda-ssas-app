@@ -10,7 +10,7 @@ import (
 	"net"
 	"testing"
 
-	"github.com/jinzhu/gorm"
+	"gorm.io/gorm"
 	"github.com/pborman/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

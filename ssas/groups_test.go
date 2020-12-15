@@ -2,13 +2,14 @@ package ssas
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"testing"
 
-	"github.com/jinzhu/gorm"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+	"gorm.io/gorm"
 )
 
 const SampleGroup string = `{  
@@ -53,7 +54,6 @@ type GroupsTestSuite struct {
 
 func (s *GroupsTestSuite) SetupSuite() {
 	s.db = GetGORMDbConnection()
-	InitializeSystemModels()
 }
 
 func (s *GroupsTestSuite) TearDownSuite() {
@@ -83,7 +83,7 @@ func (s *GroupsTestSuite) TestCreateGroup() {
 	dbGroup := Group{}
 	db := GetGORMDbConnection()
 	defer Close(db)
-	if db.Where("id = ?", g.ID).Find(&dbGroup).RecordNotFound() {
+	if err := db.First(&dbGroup, g.ID).Error; errors.Is(err, gorm.ErrRecordNotFound) {
 		assert.FailNow(s.T(), fmt.Sprintf("record not found for id=%d", g.ID))
 	}
 	assert.Equal(s.T(), gid, dbGroup.GroupID)
@@ -100,7 +100,7 @@ func (s *GroupsTestSuite) TestCreateGroup() {
 }
 
 func (s *GroupsTestSuite) TestListGroups() {
-	var startingCount int
+	var startingCount int64
 	GetGORMDbConnection().Table("groups").Count(&startingCount)
 	groupBytes := []byte(fmt.Sprintf(SampleGroup, RandomHexID(), SampleXdata))
 	gd := GroupData{}
@@ -116,7 +116,7 @@ func (s *GroupsTestSuite) TestListGroups() {
 
 	groupList, err := ListGroups("test-list-groups")
 	assert.Nil(s.T(), err)
-	assert.Len(s.T(), groupList.Groups, 2+startingCount)
+	assert.Len(s.T(), groupList.Groups, int(2+startingCount))
 
 	err = CleanDatabase(g1)
 	assert.Nil(s.T(), err)
@@ -125,7 +125,7 @@ func (s *GroupsTestSuite) TestListGroups() {
 
 	groupList, err = ListGroups("test-list-groups")
 	assert.Nil(s.T(), err)
-	assert.Len(s.T(), groupList.Groups, startingCount)
+	assert.Len(s.T(), groupList.Groups, int(startingCount))
 }
 
 func (s *GroupsTestSuite) TestUpdateGroup() {

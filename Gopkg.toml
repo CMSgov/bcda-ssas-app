@@ -47,3 +47,11 @@
 [[constraint]]
   name = "github.com/sirupsen/logrus"
   version = "v1.6.0"
+
+[[constraint]]
+  name = "gorm.io/gorm"
+  version = "1.20.8"
+
+[[constraint]]
+  name = "gorm.io/driver/postgres"
+  version = "0.2.4"

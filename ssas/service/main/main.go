@@ -41,7 +41,7 @@ import (
 	"time"
 
 	"github.com/go-chi/chi"
-	"github.com/jinzhu/gorm"
+	"gorm.io/gorm"
 
 	"github.com/CMSgov/bcda-ssas-app/ssas"
 	"github.com/CMSgov/bcda-ssas-app/ssas/cfg"
@@ -277,7 +277,8 @@ func newAdminSystem(name string) {
 	}
 
 	db := ssas.GetGORMDbConnection()
-	defer db.Close()
+	defer ssas.Close(db)
+
 	if err = db.Model(&ssas.System{}).Where("id = ?", uint(u)).Update("api_scope", "bcda-admin").Error; err != nil {
 		ssas.Logger.Warnf("bcda-admin scope not set for new system %s", c.SystemID)
 	} else {
@@ -297,7 +298,7 @@ func listIPs() {
 
 func listExpiringCredentials() {
 	db := ssas.GetGORMDbConnection()
-	defer db.Close()
+	defer ssas.Close(db)
 
 	type result struct {
 		ClientID    string     `json:"client_id"`
