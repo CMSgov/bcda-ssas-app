@@ -537,7 +537,7 @@ func GetSystemByClientID(clientID string) (System, error) {
 	)
 	defer Close(db)
 
-	if err1 := db.First(&system, "client_id = ?", clientID).Error; errors.Is(err1, gorm.ErrRecordNotFound) {
+	if err = db.First(&system, "client_id = ?", clientID).Error; errors.Is(err, gorm.ErrRecordNotFound) {
 		err = fmt.Errorf("no System record found for client %s", clientID)
 	}
 	return system, err

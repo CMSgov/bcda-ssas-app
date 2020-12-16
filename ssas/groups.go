@@ -37,7 +37,7 @@ type GroupSummary struct {
 	GroupID   string          `json:"group_id"`
 	XData     string          `json:"xdata"`
 	CreatedAt time.Time       `json:"created_at"`
-	Systems   []SystemSummary `gorm:"foreignkey:GID;association_foreignkey:ID"`
+	Systems   []SystemSummary `json:"systems" gorm:"foreignkey:GID;association_foreignkey:ID"`
 }
 
 func (GroupSummary) TableName() string {
@@ -279,7 +279,7 @@ func GetGroupByGroupID(groupID string) (Group, error) {
 	)
 	defer Close(db)
 
-	if err := db.First(&group, "group_id = ?", groupID).Error; err != nil && errors.Is(err, gorm.ErrRecordNotFound) {
+	if err = db.First(&group, "group_id = ?", groupID).Error; err != nil && errors.Is(err, gorm.ErrRecordNotFound) {
 		err = fmt.Errorf("no Group record found for groupID %s", groupID)
 	}
 
