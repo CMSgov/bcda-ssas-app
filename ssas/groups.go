@@ -93,7 +93,7 @@ func ListGroups(trackingID string) (list GroupList, err error) {
 	groups := []GroupSummary{}
 	db := GetGORMDbConnection()
 	defer Close(db)
-	err = db.Table("groups").Preload("Systems", "deleted_at IS NULL").Find(&groups).Error
+	err = db.Table("groups").Where("deleted_at IS NULL").Preload("Systems").Find(&groups).Error
 	if err != nil {
 		event.Help = err.Error()
 		OperationFailed(event)
