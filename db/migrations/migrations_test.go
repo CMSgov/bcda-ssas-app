@@ -12,19 +12,19 @@ import (
 	"testing"
 
 	"github.com/CMSgov/bcda-ssas-app/ssas"
-	"gorm.io/gorm"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"gorm.io/gorm"
 )
 
 var (
-	db *gorm.DB
+	db    *gorm.DB
 	dbURL string
 )
 
 type SchemaMigration struct {
 	Version int
-	Dirty  bool
+	Dirty   bool
 }
 
 // The tests in this suite need models with specific columns, and cannot indefinitely refer to ssas.System and ssas.Group
@@ -36,8 +36,8 @@ type systemv1 struct {
 	SoftwareID     string               `json:"software_id"`
 	ClientName     string               `json:"client_name"`
 	APIScope       string               `json:"api_scope"`
-	EncryptionKeys []ssas.EncryptionKey `json:"encryption_keys,omitempty"`
-	Secrets        []ssas.Secret        `json:"secrets,omitempty"`
+	EncryptionKeys []ssas.EncryptionKey `json:"encryption_keys,omitempty" gorm:"foreignkey:SystemID;association_foreignkey:ID"`
+	Secrets        []ssas.Secret        `json:"secrets,omitempty" gorm:"foreignkey:SystemID;association_foreignkey:ID"`
 }
 
 func (systemv1) TableName() string {
@@ -46,10 +46,10 @@ func (systemv1) TableName() string {
 
 type groupv1 struct {
 	gorm.Model
-	GroupID		string         `gorm:"unique;not null" json:"group_id"`
-	XData		string         `gorm:"type:text" json:"xdata"`
-	Data		ssas.GroupData `gorm:"type:jsonb" json:"data"`
-	Systems		[]systemv1       `gorm:"foreignkey:GID"`
+	GroupID string         `gorm:"unique;not null" json:"group_id"`
+	XData   string         `gorm:"type:text" json:"xdata"`
+	Data    ssas.GroupData `gorm:"type:jsonb" json:"data"`
+	Systems []systemv1     `gorm:"foreignkey:GID"`
 }
 
 func (groupv1) TableName() string {
@@ -83,7 +83,7 @@ func up1(t *testing.T) {
 	if success {
 		tables := []string{"blacklist_entries", "encryption_keys", "secrets", "systems", "groups"}
 		for _, table := range tables {
-			if !db.HasTable(table) {
+			if !db.Migrator().HasTable(table) {
 				t.Errorf("table %s was not created", table)
 			}
 		}
@@ -182,26 +182,26 @@ func up4(t *testing.T) {
 	success := runMigration(t, "4")
 	assert.True(t, success)
 
-	if !db.HasTable("ips") {
+	if !db.Migrator().HasTable("ips") {
 		t.Errorf("table ips was not created")
 	}
 }
 
 func up5(t *testing.T) {
 	assert.True(t, runMigration(t, "5"))
-	assert.True(t, db.Dialect().HasColumn("systems", "last_token_at"))
+	assert.True(t, db.Migrator().HasColumn(&ssas.System{}, "last_token_at"))
 }
 
 func down5(t *testing.T) {
 	assert.True(t, runMigration(t, "4"))
-	assert.False(t, db.Dialect().HasColumn("systems", "last_token_at"))
+	assert.False(t, db.Migrator().HasColumn(&ssas.System{}, "last_token_at"))
 }
 
 func down4(t *testing.T) {
 	success := runMigration(t, "3")
 	assert.True(t, success)
 
-	if db.HasTable("ips") {
+	if db.Migrator().HasTable("ips") {
 		t.Errorf("table ips is still present")
 	}
 }
@@ -270,7 +270,7 @@ func down1(t *testing.T) {
 	if success {
 		tables := []string{"blacklist_entries", "encryption_keys", "secrets", "systems", "groups"}
 		for _, table := range tables {
-			if db.HasTable(table) {
+			if db.Migrator().HasTable(table) {
 				t.Errorf("table %s was not dropped\n", table)
 			}
 		}
