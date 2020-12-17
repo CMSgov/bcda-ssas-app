@@ -4,6 +4,8 @@ import (
 	"database/sql"
 	"os"
 	"runtime"
+	"sync"
+	"time"
 
 	_ "github.com/lib/pq"
 	log "github.com/sirupsen/logrus"
@@ -13,6 +15,11 @@ import (
 
 // Variable substitution to support testing.
 var LogFatal = log.Fatal
+
+var (
+	once sync.Once
+	db1  *gorm.DB
+)
 
 func GetDbConnection() *sql.DB {
 	databaseURL := os.Getenv("DATABASE_URL")
@@ -34,6 +41,25 @@ func GetGORMDbConnection() *gorm.DB {
 		LogFatal(err)
 	}
 	return db
+}
+
+func GetGORMDbConnection1() *gorm.DB {
+	once.Do(func() {
+		databaseURL := os.Getenv("DATABASE_URL")
+		db, err := gorm.Open(postgres.Open(databaseURL), &gorm.Config{})
+		if err != nil {
+			LogFatal(err)
+		}
+		dbc, err := db.DB()
+		if err != nil {
+			log.Fatalf("Failed to retrieve database connection. Err: %v", err)
+		}
+		dbc.SetMaxOpenConns(25)
+		dbc.SetMaxIdleConns(25)
+		dbc.SetConnMaxLifetime(5 * time.Minute)
+		db1 = db
+	})
+	return db1
 }
 
 func Close(db *gorm.DB) {

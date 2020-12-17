@@ -9,11 +9,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/go-chi/render"
-	"github.com/pborman/uuid"
 	"io/ioutil"
 	"net/http"
 	"strconv"
+
+	"github.com/go-chi/render"
+	"github.com/pborman/uuid"
 
 	"github.com/CMSgov/bcda-ssas-app/ssas"
 	"github.com/CMSgov/bcda-ssas-app/ssas/service"
@@ -555,17 +556,18 @@ func introspect(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	system, err := ssas.GetSystemByClientID(clientID)
-	if err != nil {
+	db := ssas.GetGORMDbConnection1()
+	var system ssas.System
+	if err := db.Table("systems").Where("client_id = ?", clientID).Preload("Secrets").First(&system).Error; err != nil {
 		jsonError(w, http.StatusText(http.StatusUnauthorized), fmt.Sprintf("invalid client id; %s", err))
 		return
 	}
 
-	savedSecret, err := system.GetSecret()
-	if err != nil {
-		jsonError(w, http.StatusText(http.StatusUnauthorized), fmt.Sprintf("can't get secret; %s", err))
+	if len(system.Secrets) == 0 {
+		jsonError(w, http.StatusText(http.StatusUnauthorized), "can't get secret;")
 		return
 	}
+	savedSecret := system.Secrets[0]
 
 	if !ssas.Hash(savedSecret.Hash).IsHashOf(secret) {
 		jsonError(w, http.StatusText(http.StatusUnauthorized), "invalid client secret")
@@ -575,13 +577,13 @@ func introspect(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 
 	var reqV map[string]string
-	if err = json.NewDecoder(r.Body).Decode(&reqV); err != nil {
+	if err := json.NewDecoder(r.Body).Decode(&reqV); err != nil {
 		jsonError(w, http.StatusText(http.StatusBadRequest), "invalid body")
 		return
 	}
 	var answer = make(map[string]bool)
 	answer["active"] = true
-	if err = tokenValidity(reqV["token"], "AccessToken"); err != nil {
+	if err := tokenValidity(reqV["token"], "AccessToken"); err != nil {
 		ssas.Logger.Infof("token failed tokenValidity")
 		answer["active"] = false
 	}
