@@ -295,11 +295,12 @@ func GetGroupByID(id string) (Group, error) {
 	)
 	defer Close(db)
 
-	if _, err = strconv.ParseUint(id, 10, 64); err != nil {
+	id1, err := strconv.ParseUint(id, 10, 64)
+	if err != nil {
 		return Group{}, fmt.Errorf("invalid input %s; %s", id, err)
 	}
-	// must use the explicit where clause here because the id argument is a string
-	if err = db.Find(&group, "id = ?", id).Error; err != nil {
+
+	if err = db.First(&group, id1).Error; err != nil {
 		err = fmt.Errorf("no Group record found with ID %s", id)
 	}
 	return group, err
