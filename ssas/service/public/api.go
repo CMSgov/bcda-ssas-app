@@ -15,6 +15,7 @@ import (
 
 	"github.com/go-chi/render"
 	"github.com/pborman/uuid"
+	"gorm.io/gorm"
 
 	"github.com/CMSgov/bcda-ssas-app/ssas"
 	"github.com/CMSgov/bcda-ssas-app/ssas/service"
@@ -557,19 +558,28 @@ func introspect(w http.ResponseWriter, r *http.Request) {
 	}
 
 	db := ssas.GetGORMDbConnection1()
-	var system ssas.System
-	if err := db.Table("systems").Where("client_id = ?", clientID).Preload("Secrets").First(&system).Error; err != nil {
+	// var system ssas.System
+	// if err := db.Table("systems").Where("client_id = ?", clientID).Preload("Secrets").First(&system).Error; err != nil {
+	// jsonError(w, http.StatusText(http.StatusUnauthorized), fmt.Sprintf("invalid client id; %s", err))
+	// return
+	// }
+
+	// if len(system.Secrets) == 0 {
+	// jsonError(w, http.StatusText(http.StatusUnauthorized), "can't get secret;")
+	// return
+	// }
+	// savedSecret := system.Secrets[0]
+	var h string
+	if err := db.Raw("SELECT hash FROM secrets a JOIN systems b ON a.system_id = b.id WHERE b.client_id = ? AND a.deleted_at IS NULL AND b.deleted_at IS NULL", clientID).Take(&h).Error; errors.Is(err, gorm.ErrRecordNotFound) {
 		jsonError(w, http.StatusText(http.StatusUnauthorized), fmt.Sprintf("invalid client id; %s", err))
 		return
 	}
-
-	if len(system.Secrets) == 0 {
+	if len(h) == 0 {
 		jsonError(w, http.StatusText(http.StatusUnauthorized), "can't get secret;")
 		return
 	}
-	savedSecret := system.Secrets[0]
 
-	if !ssas.Hash(savedSecret.Hash).IsHashOf(secret) {
+	if !ssas.Hash(h).IsHashOf(secret) {
 		jsonError(w, http.StatusText(http.StatusUnauthorized), "invalid client secret")
 		return
 	}

@@ -48,7 +48,8 @@ func GetGORMDbConnection1() *gorm.DB {
 	once.Do(func() {
 		databaseURL := os.Getenv("DATABASE_URL")
 		db, err := gorm.Open(postgres.Open(databaseURL), &gorm.Config{
-			Logger: logger.Default.LogMode(logger.Info),
+			Logger:      logger.Default.LogMode(logger.Info),
+			PrepareStmt: true,
 		})
 		if err != nil {
 			LogFatal(err)
