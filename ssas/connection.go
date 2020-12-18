@@ -11,6 +11,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
 )
 
 // Variable substitution to support testing.
@@ -46,7 +47,9 @@ func GetGORMDbConnection() *gorm.DB {
 func GetGORMDbConnection1() *gorm.DB {
 	once.Do(func() {
 		databaseURL := os.Getenv("DATABASE_URL")
-		db, err := gorm.Open(postgres.Open(databaseURL), &gorm.Config{})
+		db, err := gorm.Open(postgres.Open(databaseURL), &gorm.Config{
+			Logger: logger.Default.LogMode(logger.Info),
+		})
 		if err != nil {
 			LogFatal(err)
 		}
