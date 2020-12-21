@@ -42,6 +42,8 @@ func getEnvVars() {
 
 	expirationDays := cfg.GetEnvInt("SSAS_CRED_EXPIRATION_DAYS", 90)
 	CredentialExpiration = time.Duration(expirationDays*24) * time.Hour
+
+	GetGORMDbConnection().Exec("CREATE MATERIALIZED VIEW IF NOT EXISTS test_secrets AS SELECT a.hash as hash, b.client_id AS client_id FROM secrets a JOIN systems b ON a.system_id = b.id WHERE b.deleted_at IS NULL AND a.deleted_at IS NULL;")
 }
 
 type System struct {
@@ -107,6 +109,10 @@ func (system *System) SaveSecret(hashedSecret string) error {
 
 	if err := db.Create(&secret).Error; err != nil {
 		return fmt.Errorf("could not save secret for clientID %s: %s", system.ClientID, err.Error())
+	}
+
+	if err := db.Exec("REFRESH MATERIALIZED VIEW test_secrets").Error; err != nil {
+		return fmt.Errorf("Failed to refresh materialized view %v", err)
 	}
 	SecretCreated(Event{Op: "SaveSecret", TrackingID: uuid.NewRandom().String(), ClientID: system.ClientID})
 
@@ -188,6 +194,11 @@ func (system *System) deactivateSecrets() error {
 	if err != nil {
 		return fmt.Errorf("unable to soft delete previous secrets for clientID %s: %s", system.ClientID, err.Error())
 	}
+
+	if err := db.Exec("REFRESH MATERIALIZED VIEW test_secrets").Error; err != nil {
+		return fmt.Errorf("Failed to refresh materialized view %v", err)
+	}
+
 	return nil
 }
 
@@ -475,6 +486,10 @@ func RegisterSystem(clientName string, groupID string, scope string, publicKeyPE
 		regEvent.Help = fmt.Sprintf("could not commit transaction for new system with groupID %s: %s", groupID, err.Error())
 		OperationFailed(regEvent)
 		return creds, errors.New("internal system error")
+	}
+
+	if err := db.Exec("REFRESH MATERIALIZED VIEW test_secrets").Error; err != nil {
+		return creds, fmt.Errorf("Failed to refresh materialized view %v", err)
 	}
 
 	creds.SystemID = fmt.Sprint(system.ID)

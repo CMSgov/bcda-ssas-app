@@ -570,7 +570,7 @@ func introspect(w http.ResponseWriter, r *http.Request) {
 	// }
 	// savedSecret := system.Secrets[0]
 	var h string
-	if err := db.Raw("SELECT hash FROM secrets a JOIN systems b ON a.system_id = b.id WHERE b.client_id = ? AND a.deleted_at IS NULL AND b.deleted_at IS NULL", clientID).Take(&h).Error; errors.Is(err, gorm.ErrRecordNotFound) {
+	if err := db.Raw("SELECT hash FROM test_secrets WHERE client_id = ?", clientID).Take(&h).Error; errors.Is(err, gorm.ErrRecordNotFound) {
 		jsonError(w, http.StatusText(http.StatusUnauthorized), fmt.Sprintf("invalid client id; %s", err))
 		return
 	}
