@@ -5,7 +5,7 @@ import (
 	"github.com/pborman/uuid"
 	"time"
 
-	"github.com/jinzhu/gorm"
+	"gorm.io/gorm"
 )
 
 type BlacklistEntry struct {

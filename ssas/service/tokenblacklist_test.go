@@ -7,9 +7,9 @@ import (
 	"time"
 
 	"github.com/CMSgov/bcda-ssas-app/ssas"
-	"github.com/jinzhu/gorm"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
+	"gorm.io/gorm"
 )
 
 // Using a constant for this makes the tests more readable; any arbitrary value longer than the test execution time
@@ -32,7 +32,7 @@ func (s *TokenCacheTestSuite) SetupSuite() {
 }
 
 func (s *TokenCacheTestSuite) TearDownSuite() {
-	s.db.Close()
+	ssas.Close(s.db)
 }
 
 func (s *TokenCacheTestSuite) TearDownTest() {

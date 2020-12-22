@@ -11,7 +11,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/jinzhu/gorm"
+	"gorm.io/gorm"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 
@@ -30,7 +30,6 @@ type PublicRouterTestSuite struct {
 func (s *PublicRouterTestSuite) SetupSuite() {
 	os.Setenv("DEBUG", "true")
 	s.publicRouter = routes()
-	ssas.InitializeSystemModels()
 	s.db = ssas.GetGORMDbConnection()
 	s.rr = httptest.NewRecorder()
 	groupBytes := []byte(`{"group_id":"T1234","users":["fake_okta_id","abcdefg"]}`)

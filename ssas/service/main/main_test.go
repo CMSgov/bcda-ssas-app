@@ -3,15 +3,16 @@ package main
 import (
 	"bytes"
 	"encoding/base64"
+	"errors"
 	"io"
 	"os"
 	"testing"
 	"time"
 
-	"github.com/jinzhu/gorm"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+	"gorm.io/gorm"
 
 	"github.com/CMSgov/bcda-ssas-app/ssas"
 )
@@ -22,7 +23,6 @@ type MainTestSuite struct {
 }
 
 func (s *MainTestSuite) SetupSuite() {
-	ssas.InitializeSystemModels()
 	s.db = ssas.GetGORMDbConnection()
 }
 
@@ -166,7 +166,7 @@ func (s *MainTestSuite) TestListExpiringCredentials() {
 	fixtureClientID := "0c527d2e-2e8a-4808-b11d-0fa06baf8254"
 	system, err := ssas.GetSystemByClientID(fixtureClientID)
 	assert.Nil(s.T(), err)
-	assert.False(s.T(), db.Find(&secret, "system_id = ?", system.ID).RecordNotFound())
+	assert.False(s.T(), errors.Is(db.First(&secret, "system_id = ?", system.ID).Error, gorm.ErrRecordNotFound))
 	origCreatedAt := secret.CreatedAt
 	origLastTokenAt := system.LastTokenAt
 

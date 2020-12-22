@@ -56,6 +56,14 @@
   revision = "04140366298a54a039076d798123ffa108fff46c"
 
 [[projects]]
+  digest = "1:3458e5dd5934a9c852e11a4ea54a07de091fdad4c36d0ac033bb90bc16b0a046"
+  name = "github.com/jinzhu/now"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "7e7333ac029d4aad7e88500a30889fcd22489425"
+  version = "v1.1.1"
+
+[[projects]]
   digest = "1:31e761d97c76151dde79e9d28964a812c46efc5baee4085b86f68f0c654450de"
   name = "github.com/konsorten/go-windows-terminal-sequences"
   packages = ["."]
@@ -135,6 +143,30 @@
   pruneopts = "UT"
   revision = "904bdc257025c7b3f43c19360ad3ab85783fad78"
 
+[[projects]]
+  digest = "1:cf0eeff871fb146d0a77cfb6eecc38e79f7458fe6d05726ee59654d9799711ca"
+  name = "gorm.io/driver/postgres"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "2591a12c4fdf62e81734996d0361db21fe90ae45"
+  version = "v0.2.4"
+
+[[projects]]
+  digest = "1:5051ed026b2633aab6de4ac829eb0b781ab9f92ab66370b3601dbc41feacb19d"
+  name = "gorm.io/gorm"
+  packages = [
+    ".",
+    "callbacks",
+    "clause",
+    "logger",
+    "migrator",
+    "schema",
+    "utils",
+  ]
+  pruneopts = "UT"
+  revision = "f2321ca164c0e5fd6cdcd5727152b39f2062ca6b"
+  version = "v1.20.8"
+
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
@@ -154,6 +186,7 @@
     "github.com/stretchr/testify/require",
     "github.com/stretchr/testify/suite",
     "golang.org/x/crypto/pbkdf2",
+    "gorm.io/driver/postgres",
   ]
   solver-name = "gps-cdcl"
   solver-version = 1

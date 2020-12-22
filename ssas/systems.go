@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"log"
 	"net"
 	"os"
 	"strconv"
@@ -18,8 +17,8 @@ import (
 
 	"github.com/CMSgov/bcda-ssas-app/ssas/cfg"
 
-	"github.com/jinzhu/gorm"
 	"github.com/pborman/uuid"
+	"gorm.io/gorm"
 )
 
 var DefaultScope string
@@ -43,23 +42,6 @@ func getEnvVars() {
 
 	expirationDays := cfg.GetEnvInt("SSAS_CRED_EXPIRATION_DAYS", 90)
 	CredentialExpiration = time.Duration(expirationDays*24) * time.Hour
-}
-
-/*
-	InitializeSystemModels will call gorm.DB.AutoMigrate() for models associated with systems, and set up foreign key
-	relationships for those models if needed
-*/
-func InitializeSystemModels() *gorm.DB {
-	log.Println("Initialize system models")
-	db := GetGORMDbConnection()
-	defer Close(db)
-
-	db.Model(&System{}).AddForeignKey("g_id", "groups(id)", "RESTRICT", "RESTRICT")
-	db.Model(&EncryptionKey{}).AddForeignKey("system_id", "systems(id)", "RESTRICT", "RESTRICT")
-	db.Model(&Secret{}).AddForeignKey("system_id", "systems(id)", "RESTRICT", "RESTRICT")
-	db.Model(&IP{}).AddForeignKey("system_id", "systems(id)", "RESTRICT", "RESTRICT")
-
-	return db
 }
 
 type System struct {
@@ -220,7 +202,7 @@ func (system *System) GetEncryptionKey(trackingID string) (EncryptionKey, error)
 	OperationStarted(getKeyEvent)
 
 	var encryptionKey EncryptionKey
-	err := db.Where("system_id = ?", system.ID).Find(&encryptionKey).Error
+	err := db.First(&encryptionKey, "system_id = ?", system.ID).Error
 	if err != nil {
 		OperationFailed(getKeyEvent)
 		return encryptionKey, fmt.Errorf("cannot find key for clientID %s: %s", system.ClientID, err.Error())
@@ -300,8 +282,7 @@ func (system *System) GenerateSystemKeyPair() (string, error) {
 	db := GetGORMDbConnection()
 	defer Close(db)
 
-	var key EncryptionKey
-	if !db.Where("system_id = ?", system.ID).Find(&key).RecordNotFound() {
+	if err := db.First(&EncryptionKey{}, "system_id = ?", system.ID).Error; !errors.Is(err, gorm.ErrRecordNotFound) {
 		return "", fmt.Errorf("encryption keypair already exists for system ID %d", system.ID)
 	}
 
@@ -556,7 +537,7 @@ func GetSystemByClientID(clientID string) (System, error) {
 	)
 	defer Close(db)
 
-	if db.Find(&system, "client_id = ?", clientID).RecordNotFound() {
+	if err = db.First(&system, "client_id = ?", clientID).Error; errors.Is(err, gorm.ErrRecordNotFound) {
 		err = fmt.Errorf("no System record found for client %s", clientID)
 	}
 	return system, err
@@ -571,12 +552,13 @@ func GetSystemByID(id string) (System, error) {
 	)
 	defer Close(db)
 
-	if _, err = strconv.ParseUint(id, 10, 64); err != nil {
+	id1, err := strconv.ParseUint(id, 10, 64)
+	if err != nil {
 		return System{}, fmt.Errorf("invalid input %s; %s", id, err)
 	}
-	// must use the explicit where clause here because the id argument is a string
-	if err = db.Find(&system, "id = ?", id).Error; err != nil {
-		err = fmt.Errorf("no System record found with ID %s", id)
+
+	if err = db.First(&system, id1).Error; err != nil {
+		err = fmt.Errorf("no System record found with ID %s %v", id, err)
 	}
 	return system, err
 }
@@ -604,8 +586,8 @@ func GetAllIPs() ([]string, error) {
 		"WHERE secrets.deleted_at IS NULL AND systems.deleted_at IS NULL AND groups.deleted_at IS NULL AND secrets.updated_at > ?)"
 	exp := time.Now().Add(-1 * CredentialExpiration)
 
-	if err = db.Order("address").Model(&IP{}).Where(where, exp).Pluck(
-		"DISTINCT address", &ips).Error; err != nil {
+	if err = db.Order("address").Model(&IP{}).Where(where, exp).Distinct("address").Pluck(
+		"address", &ips).Error; err != nil {
 		err = fmt.Errorf("no IP's found: %s", err.Error())
 	}
 	return ips, err
@@ -712,7 +694,7 @@ func CleanDatabase(group Group) error {
 		return fmt.Errorf("unable to find group %d: %s", group.ID, err.Error())
 	}
 
-	err = db.Table("systems").Where("g_id = ?", group.ID).Pluck("ID", &systemIds).Error
+	err = db.Table("systems").Where("g_id = ?", group.ID).Pluck("id", &systemIds).Error
 	if err != nil {
 		Logger.Errorf("unable to find associated systems: %s", err.Error())
 	} else {

@@ -18,7 +18,7 @@ import (
 	"github.com/go-chi/chi"
 	"github.com/pborman/uuid"
 
-	"github.com/jinzhu/gorm"
+	"gorm.io/gorm"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -33,7 +33,6 @@ type APITestSuite struct {
 }
 
 func (s *APITestSuite) SetupSuite() {
-	ssas.InitializeSystemModels()
 	s.db = ssas.GetGORMDbConnection()
 	s.server = Server()
 	s.badSigningKeyPath = "../../../shared_files/ssas/admin_test_signing_key.pem"

@@ -3,7 +3,7 @@ package service
 import (
 	"encoding/json"
 	"github.com/CMSgov/bcda-ssas-app/ssas"
-	"github.com/jinzhu/gorm"
+	"gorm.io/gorm"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 	"io/ioutil"
@@ -18,7 +18,6 @@ type APICommonTestSuite struct {
 }
 
 func (s *APICommonTestSuite) SetupSuite() {
-	ssas.InitializeSystemModels()
 	s.db = ssas.GetGORMDbConnection()
 }
 
