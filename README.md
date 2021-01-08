@@ -135,13 +135,13 @@ environmental variables. It is also possible to run individual tests, but that m
 docker run --rm --network bcda-ssas-app_default -it postgres pg_dump -s -h bcda-ssas-app_db_1 -U postgres bcda > schema.sql
 ```
 ```
-docker-compose run --rm ssas sh -c 'tmp/ssas-service --reset-secret --client-id=[client_id]'
+docker-compose run --rm ssas sh -c 'main --reset-secret --client-id=[client_id]'
 ```
 ```
-docker-compose run --rm ssas sh -c 'tmp/ssas-service --list-ips'
+docker-compose run --rm ssas sh -c 'main --list-ips'
 ```
 ```
-docker-compose run --rm ssas sh -c 'tmp/ssas-service --new-admin-system --system-name=[entity name]'
+docker-compose run --rm ssas sh -c 'main --new-admin-system --system-name=[entity name]'
 ```
 
 # Swagger Documentation
