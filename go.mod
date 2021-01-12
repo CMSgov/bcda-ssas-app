@@ -3,8 +3,8 @@ module github.com/CMSgov/bcda-ssas-app
 go 1.15
 
 require (
-	github.com/dgrijalva/jwt-go v3.2.0+incompatible
-	github.com/go-chi/chi v1.5.2-0.20201224172805-681ea79f56a2
+	github.com/dgrijalva/jwt-go v3.2.1-0.20180309185540-3c771ce311b7+incompatible
+	github.com/go-chi/chi v4.0.3-0.20190508141739-08c92af09aaf+incompatible
 	github.com/go-chi/render v1.0.1
 	github.com/lib/pq v1.6.0
 	github.com/patrickmn/go-cache v2.1.1-0.20180815053127-5633e0862627+incompatible

@@ -3,16 +3,8 @@ github.com/alexbrainman/sspi v0.0.0-20180613141037-e580b900e9f5/go.mod h1:976q2E
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
-github.com/dgrijalva/jwt-go v3.2.0+incompatible h1:7qlOGliEKZXTDg6OTjfoBKDXWrumCAMpl/TFQ4/5kLM=
-github.com/dgrijalva/jwt-go v3.2.0+incompatible/go.mod h1:E3ru+11k8xSBh+hMPgOLZmtrrCbhqsmaPHjLKYnJCaQ=
 github.com/dgrijalva/jwt-go v3.2.1-0.20180309185540-3c771ce311b7+incompatible h1:ZCU4h5mU67cGL0nd9gmdVi7nZl44TWZXpEGcvIQCFEQ=
 github.com/dgrijalva/jwt-go v3.2.1-0.20180309185540-3c771ce311b7+incompatible/go.mod h1:E3ru+11k8xSBh+hMPgOLZmtrrCbhqsmaPHjLKYnJCaQ=
-github.com/dgrijalva/jwt-go v3.2.1-0.20200107013213-dc14462fd587+incompatible h1:CiQ/hJK0Lsc/2Gm9uMSIe7cFE+h0sbTwHuTGQkIZpio=
-github.com/dgrijalva/jwt-go v3.2.1-0.20200107013213-dc14462fd587+incompatible/go.mod h1:E3ru+11k8xSBh+hMPgOLZmtrrCbhqsmaPHjLKYnJCaQ=
-github.com/go-chi/chi v1.5.1 h1:kfTK3Cxd/dkMu/rKs5ZceWYp+t5CtiE7vmaTv3LjC6w=
-github.com/go-chi/chi v1.5.1/go.mod h1:REp24E+25iKvxgeTfHmdUoL5x15kBiDBlnIl5bCwe2k=
-github.com/go-chi/chi v1.5.2-0.20201224172805-681ea79f56a2 h1:t8LuC7Hl89Y/ZTSrf8ALhqoXgcDNylViNyTyLMJfVSc=
-github.com/go-chi/chi v1.5.2-0.20201224172805-681ea79f56a2/go.mod h1:REp24E+25iKvxgeTfHmdUoL5x15kBiDBlnIl5bCwe2k=
 github.com/go-chi/chi v4.0.3-0.20190508141739-08c92af09aaf+incompatible h1:HF+bhjfo/9wCMgEZ3tGKrpy2Wapt9kM88cSGpWeAjbE=
 github.com/go-chi/chi v4.0.3-0.20190508141739-08c92af09aaf+incompatible/go.mod h1:eB3wogJHnLi3x/kFX2A+IbTBlXxmMeXJVKy9tTv1XzQ=
 github.com/go-chi/render v1.0.1 h1:4/5tis2cKaNdnv9zFLfXzcquC9HbeZgCnxGnKrltBS8=
