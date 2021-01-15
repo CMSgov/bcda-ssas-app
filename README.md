@@ -74,6 +74,10 @@ To avoid committing and pushing unencrypted secret files, use the included `scri
 cp ops/pre-commit .git/hooks
 ```
 
+## Go Modules
+
+The project uses [Go Modules](https://golang.org/ref/mod) allowing you to clone the repo outside of the `$GOPATH`. This also means that running `go get` inside the repo will add the dependency to the project, not globally.  
+
 # Build
 
 Build all the code and containers with `make docker-bootstrap`. Alternatively, `docker-compose up ssas` will build and run the SSAS by itself. Note that SSAS needs the db container to be running as well.
