@@ -2,6 +2,9 @@ name: "SSAS CI Workflow"
 
 on: [push]
 
+env:
+  SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+
 jobs:
   build:
     name: "Build and Test"
@@ -15,3 +18,16 @@ jobs:
       - name: "Run all tests"
         run: |
           make test
+
+  snyk:
+    name: "Run Snyk Workflow"
+    runs-on: ubuntu-latest
+    steps:
+    - name: "Checkout code"
+      uses: actions/checkout@v2
+    - name: "Run Snyk"
+      uses: snyk/actions/golang@master
+      continue-on-error: false
+      with:
+        command: test
+        args: --severity-threshold=high
