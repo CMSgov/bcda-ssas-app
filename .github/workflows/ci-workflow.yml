@@ -32,10 +32,18 @@ jobs:
         command: test
         args: --severity-threshold=high
     - name: Build Docker Image
-      run: docker build -f Dockerfiles/Dockerfile.package -t bcda-snyk .
-    - name: "Run Snyk - Docker"
+      run: |
+        docker build -f Dockerfiles/Dockerfile.package -t ssas-package .
+        docker build -f Dockerfiles/Dockerfile.tests -t ssas-tests .
+    - name: "Run Snyk - Docker/Package"
       uses: snyk/actions/docker@master
       continue-on-error: false
       with:
-        image: bcda-snyk
+        image: ssas-package
         args: --file=Dockerfiles/Dockerfile.package --severity-threshold=high
+    - name: "Run Snyk - Docker/Tests"
+      uses: snyk/actions/docker@master
+      continue-on-error: false
+      with:
+        image: ssas-tests
+        args: --file=Dockerfiles/Dockerfile.tests --severity-threshold=high
