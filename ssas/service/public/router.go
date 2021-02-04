@@ -37,6 +37,7 @@ func routes() *chi.Mux {
 	router := chi.NewRouter()
 	router.Use(service.NewAPILogger(), service.ConnectionClose)
 	router.Post("/token", token)
+	router.Post("/hydra-token", hydraToken)
 	router.Post("/introspect", introspect)
 	router.Post("/authn", VerifyPassword)
 	router.With(parseToken, requireMFATokenAuth).Post("/authn/challenge", RequestMultifactorChallenge)

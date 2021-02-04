@@ -541,6 +541,21 @@ func token(w http.ResponseWriter, r *http.Request) {
 	render.JSON(w, r, m)
 }
 
+func hydraToken(w http.ResponseWriter, r *http.Request) {
+	trackingID := uuid.NewRandom().String()
+	event := ssas.Event{Op: "Token", TrackingID: trackingID, Help: "calling from public.token()"}
+	ssas.OperationCalled(event)
+	token := server.MintHydraToken()
+
+	m := TokenResponse{AccessToken: token.AccessToken, TokenType: "bearer", ExpiresIn: strconv.FormatInt(int64(token.ExpiresIn), 10)}
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Cache-Control", "no-store")
+	w.Header().Set("Pragma", "no-cache")
+	ssas.AccessTokenIssued(event)
+	ssas.OperationSucceeded(event)
+	render.JSON(w, r, m)
+}
+
 func introspect(w http.ResponseWriter, r *http.Request) {
 	clientID, secret, ok := r.BasicAuth()
 

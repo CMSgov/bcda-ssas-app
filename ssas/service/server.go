@@ -3,10 +3,13 @@ package service
 import (
 	"crypto/rsa"
 	"database/sql"
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/dgrijalva/jwt-go"
@@ -34,6 +37,14 @@ type Server struct {
 	tokenSigningKey *rsa.PrivateKey
 	tokenTTL        time.Duration
 	server          http.Server
+}
+
+// HydraResponse contains the token response from Hydra
+type HydraResponse struct {
+	AccessToken string `json:"access_token"`
+	ExpiresIn   int    `json:"expires_in"`
+	Scope       string `json:"scope"`
+	TokenType   string `json:"token_type"`
 }
 
 // NewServer correctly initializes an instance of the Server type.
@@ -221,6 +232,43 @@ func (s *Server) MintTokenWithDuration(claims *CommonClaims, duration time.Durat
 // MintToken generates a tokenstring that expires in tokenTTL time
 func (s *Server) MintToken(claims *CommonClaims) (*jwt.Token, string, error) {
 	return s.mintToken(claims, time.Now().Unix(), time.Now().Add(s.tokenTTL).Unix())
+}
+
+func (s *Server) MintHydraToken() HydraResponse {
+	url := "http://ory-hydra-example--hydra:4444/oauth2/token"
+	method := "POST"
+
+	payload := strings.NewReader("grant_type=client_credentials")
+
+	client := &http.Client{}
+	req, err := http.NewRequest(method, url, payload)
+
+	if err != nil {
+		fmt.Println("error:", err)
+		return HydraResponse{}
+	}
+	req.SetBasicAuth("some-consumer", "some-secret")
+	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+
+	res, err := client.Do(req)
+	if err != nil {
+		fmt.Println("error:", err)
+		return HydraResponse{}
+	}
+	defer res.Body.Close()
+
+	body, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		fmt.Println("error:", err)
+		return HydraResponse{}
+	}
+	var h HydraResponse
+	err = json.Unmarshal(body, &h)
+	if err != nil {
+		fmt.Println("error:", err)
+		return HydraResponse{}
+	}
+	return h
 }
 
 func (s *Server) mintToken(claims *CommonClaims, issuedAt int64, expiresAt int64) (*jwt.Token, string, error) {
