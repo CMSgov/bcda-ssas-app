@@ -39,6 +39,7 @@ func routes() *chi.Mux {
 	router.Post("/token", token)
 	router.Post("/hydra-token", hydraToken)
 	router.Post("/introspect", introspect)
+	router.Post("/hydra-introspect", hydraIntrospect)
 	router.Post("/authn", VerifyPassword)
 	router.With(parseToken, requireMFATokenAuth).Post("/authn/challenge", RequestMultifactorChallenge)
 	router.With(parseToken, requireMFATokenAuth).Post("/authn/verify", VerifyMultifactorResponse)

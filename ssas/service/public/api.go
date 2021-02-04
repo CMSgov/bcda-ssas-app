@@ -607,3 +607,20 @@ func introspect(w http.ResponseWriter, r *http.Request) {
 
 	render.JSON(w, r, answer)
 }
+
+func hydraIntrospect(w http.ResponseWriter, r *http.Request) {
+	defer r.Body.Close()
+
+	var reqV map[string]string
+	if err := json.NewDecoder(r.Body).Decode(&reqV); err != nil {
+		jsonError(w, http.StatusText(http.StatusBadRequest), "invalid body")
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Cache-Control", "no-store")
+	w.Header().Set("Pragma", "no-cache")
+
+	answer := server.GetTokenInfoFromHydra(reqV["token"])
+	render.JSON(w, r, answer)
+}

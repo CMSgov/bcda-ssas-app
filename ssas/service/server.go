@@ -47,6 +47,17 @@ type HydraResponse struct {
 	TokenType   string `json:"token_type"`
 }
 
+// HydraTokenDetails contains the details returned when introspecting a token
+type HydraTokenDetails struct {
+	Active    bool   `json:"active"`
+	ClientId  string `json:"client_id"`
+	Sub       string `json:"sub"`
+	Exp       int    `json:"exp"`
+	Iat       int    `json:"iat"`
+	Iss       string `json:"iss"`
+	TokenType string `json:"token_type"`
+}
+
 // NewServer correctly initializes an instance of the Server type.
 func NewServer(name, port, version string, info interface{}, routes *chi.Mux, notSecure bool, signingKeyPath string, ttl time.Duration) *Server {
 	sk, err := getPrivateKey(signingKeyPath)
@@ -319,4 +330,41 @@ func (s *Server) CheckRequiredClaims(claims *CommonClaims, requiredTokenType str
 	}
 
 	return nil
+}
+
+func (s *Server) GetTokenInfoFromHydra(tokenString string) HydraTokenDetails {
+	url := "http://ory-hydra-example--hydra:4445/oauth2/introspect"
+	method := "POST"
+
+	payload := strings.NewReader(fmt.Sprintf("token=%s", tokenString))
+
+	client := &http.Client{}
+	req, err := http.NewRequest(method, url, payload)
+
+	if err != nil {
+		fmt.Println("error:", err)
+		return HydraTokenDetails{}
+	}
+	req.SetBasicAuth("some-consumer", "some-secret")
+	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+
+	res, err := client.Do(req)
+	if err != nil {
+		fmt.Println("error:", err)
+		return HydraTokenDetails{}
+	}
+	defer res.Body.Close()
+
+	body, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		fmt.Println("error:", err)
+		return HydraTokenDetails{}
+	}
+	var h HydraTokenDetails
+	err = json.Unmarshal(body, &h)
+	if err != nil {
+		fmt.Println("error:", err)
+		return HydraTokenDetails{}
+	}
+	return h
 }
