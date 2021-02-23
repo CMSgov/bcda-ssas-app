@@ -6,17 +6,26 @@
 package public
 
 import (
+	"crypto/rand"
+	"crypto/rsa"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/go-chi/render"
-	"github.com/pborman/uuid"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"strconv"
+	"time"
+
+	"github.com/go-chi/render"
+	"github.com/pborman/uuid"
 
 	"github.com/CMSgov/bcda-ssas-app/ssas"
 	"github.com/CMSgov/bcda-ssas-app/ssas/service"
+
+	"github.com/ory/fosite"
+	"github.com/ory/fosite/compose"
+	fositeStorage "github.com/ory/fosite/storage"
 )
 
 type Key struct {
@@ -506,6 +515,34 @@ func token(w http.ResponseWriter, r *http.Request) {
 		service.JsonError(w, http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized), "credentials expired")
 		return
 	}
+	var storage = fositeStorage.NewExampleStore()
+
+	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		panic("unable to create private key")
+	}
+	var config = &compose.Config{
+		AccessTokenLifespan: time.Minute * 10,
+		// ...
+	}
+
+	var oauth2Provider = compose.ComposeAllEnabled(config, storage, []byte(savedSecret.Hash), privateKey)
+	mySessionData := new(fosite.DefaultSession)
+	ctx := r.Context()
+
+	accessRequest, err := oauth2Provider.NewAccessRequest(ctx, r, mySessionData)
+	if err != nil {
+		oauth2Provider.WriteAccessError(w, accessRequest, err)
+		return
+	}
+
+	response, err := oauth2Provider.NewAccessResponse(ctx, accessRequest)
+	if err != nil {
+		oauth2Provider.WriteAccessError(w, accessRequest, err)
+		return
+	}
+
+	oauth2Provider.WriteAccessResponse(w, accessRequest, response)
 
 	trackingID := uuid.NewRandom().String()
 
@@ -543,52 +580,93 @@ func token(w http.ResponseWriter, r *http.Request) {
 
 func introspect(w http.ResponseWriter, r *http.Request) {
 	clientID, secret, ok := r.BasicAuth()
-
 	if !ok {
-		jsonError(w, http.StatusText(http.StatusUnauthorized), "invalid auth header")
-		return
-	}
-
-	if clientID == "" || secret == "" {
-		msg := "empty value in clientID and/or secret"
-		jsonError(w, http.StatusText(http.StatusUnauthorized), msg)
+		basicError(w, http.StatusBadRequest)
 		return
 	}
 
 	system, err := ssas.GetSystemByClientID(clientID)
 	if err != nil {
-		jsonError(w, http.StatusText(http.StatusUnauthorized), fmt.Sprintf("invalid client id; %s", err))
+		service.JsonError(w, http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized), "invalid client id")
 		return
 	}
+
+	ctx := r.Context()
+	var storage = fositeStorage.NewExampleStore()
 
 	savedSecret, err := system.GetSecret()
+	if err != nil || !ssas.Hash(savedSecret.Hash).IsHashOf(secret) {
+		service.JsonError(w, http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized), "invalid client secret")
+		return
+	}
+
+	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {
-		jsonError(w, http.StatusText(http.StatusUnauthorized), fmt.Sprintf("can't get secret; %s", err))
+		panic("unable to create private key")
+	}
+	var config = &compose.Config{
+		AccessTokenLifespan: time.Minute * 10,
+		// ...
+	}
+
+	var oauth2 = compose.ComposeAllEnabled(config, storage, []byte(savedSecret.Hash), privateKey)
+	mySessionData := new(fosite.DefaultSession)
+	ir, err := oauth2.NewIntrospectionRequest(ctx, r, mySessionData)
+	if err != nil {
+		log.Printf("Error occurred in NewIntrospectionRequest: %+v", err)
+		oauth2.WriteIntrospectionError(w, err)
 		return
 	}
 
-	if !ssas.Hash(savedSecret.Hash).IsHashOf(secret) {
-		jsonError(w, http.StatusText(http.StatusUnauthorized), "invalid client secret")
-		return
-	}
+	oauth2.WriteIntrospectionResponse(w, ir)
 
-	defer r.Body.Close()
+	// clientID, secret, ok := r.BasicAuth()
 
-	var reqV map[string]string
-	if err = json.NewDecoder(r.Body).Decode(&reqV); err != nil {
-		jsonError(w, http.StatusText(http.StatusBadRequest), "invalid body")
-		return
-	}
-	var answer = make(map[string]bool)
-	answer["active"] = true
-	if err = tokenValidity(reqV["token"], "AccessToken"); err != nil {
-		ssas.Logger.Infof("token failed tokenValidity")
-		answer["active"] = false
-	}
+	// if !ok {
+	// 	jsonError(w, http.StatusText(http.StatusUnauthorized), "invalid auth header")
+	// 	return
+	// }
 
-	w.Header().Set("Content-Type", "application/json")
-	w.Header().Set("Cache-Control", "no-store")
-	w.Header().Set("Pragma", "no-cache")
+	// if clientID == "" || secret == "" {
+	// 	msg := "empty value in clientID and/or secret"
+	// 	jsonError(w, http.StatusText(http.StatusUnauthorized), msg)
+	// 	return
+	// }
 
-	render.JSON(w, r, answer)
+	// system, err := ssas.GetSystemByClientID(clientID)
+	// if err != nil {
+	// 	jsonError(w, http.StatusText(http.StatusUnauthorized), fmt.Sprintf("invalid client id; %s", err))
+	// 	return
+	// }
+
+	// savedSecret, err := system.GetSecret()
+	// if err != nil {
+	// 	jsonError(w, http.StatusText(http.StatusUnauthorized), fmt.Sprintf("can't get secret; %s", err))
+	// 	return
+	// }
+
+	// if !ssas.Hash(savedSecret.Hash).IsHashOf(secret) {
+	// 	jsonError(w, http.StatusText(http.StatusUnauthorized), "invalid client secret")
+	// 	return
+	// }
+
+	// defer r.Body.Close()
+
+	// var reqV map[string]string
+	// if err = json.NewDecoder(r.Body).Decode(&reqV); err != nil {
+	// 	jsonError(w, http.StatusText(http.StatusBadRequest), "invalid body")
+	// 	return
+	// }
+	// var answer = make(map[string]bool)
+	// answer["active"] = true
+	// if err = tokenValidity(reqV["token"], "AccessToken"); err != nil {
+	// 	ssas.Logger.Infof("token failed tokenValidity")
+	// 	answer["active"] = false
+	// }
+
+	// w.Header().Set("Content-Type", "application/json")
+	// w.Header().Set("Cache-Control", "no-store")
+	// w.Header().Set("Pragma", "no-cache")
+
+	// render.JSON(w, r, answer)
 }

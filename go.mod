@@ -7,11 +7,12 @@ require (
 	github.com/go-chi/chi v4.0.3-0.20190508141739-08c92af09aaf+incompatible
 	github.com/go-chi/render v1.0.1
 	github.com/lib/pq v1.6.0
+	github.com/ory/fosite v0.36.1
 	github.com/patrickmn/go-cache v2.1.1-0.20180815053127-5633e0862627+incompatible
-	github.com/pborman/uuid v0.0.0-20180122190007-c65b2f87fee3
+	github.com/pborman/uuid v1.2.0
 	github.com/sirupsen/logrus v1.6.0
-	github.com/stretchr/testify v1.5.1
-	golang.org/x/crypto v0.0.0-20200622213623-75b288015ac9
+	github.com/stretchr/testify v1.6.1
+	golang.org/x/crypto v0.0.0-20201203163018-be400aefbc4c
 	gorm.io/driver/postgres v1.0.6
 	gorm.io/gorm v1.20.8
 )
