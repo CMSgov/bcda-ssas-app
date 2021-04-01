@@ -190,11 +190,11 @@ func addFixtureData() {
 	}
 	makeSystem(db, "admin", "31e029ef-0e97-47f8-873c-0e8b7e7f99bf",
 		"BCDA API Admin", "bcda-admin",
-		"nbZ5oAnTlzyzeep46bL4qDGGuidXuYxs3xknVWBKjTI=:9s/Tnqvs8M7GN6VjGkLhCgjmS59r6TaVguos8dKV9lGqC1gVG8ywZVEpDMkdwOaj8GoNe4TU3jS+OZsK3kTfEQ==",
+		"ofSsVmNaR6+nq93pGUhzKcLvJlokzE4mKqBxS8kt5Fc=:yt+N0wLzqZsY4Lw0pIEWlySbU7y7P7mNnn8IUjsZR0qis9/X2aKtjAMKlFRcCp+CYDeF/+FrvzuCDqacQwX+hA==:130000",
 	)
 	makeSystem(db, "0c527d2e-2e8a-4808-b11d-0fa06baf8254",
 		"0c527d2e-2e8a-4808-b11d-0fa06baf8254", "ACO Dev", "bcda-api",
-		"h5hF9cm0Wmm+ClnoF0+Dq5JCQFmDVtzAsaquigoYcTk=:mptcWsBLNYFylRT1q95brbfKiaQkUt8oZXml0EMXobghbVVewZeG40EfNqe10u1+RftftEMvzSCB/oG17MRpVA==")
+		"bUtFIoldpvBjK92JoJrZEQCZbjTAI0o5RRJ+krdHMFA=:iKOi8/rskQ+ykmA32f3iVNQ6SWBJbWrC0weq7K6R1LF164zKcmQ8PXa4CMUZ1kd8sBBqvP+ISTYqwDu9C+5dtA==:130000")
 }
 
 func makeSystem(db *gorm.DB, groupID, clientID, clientName, scope, hash string) {
