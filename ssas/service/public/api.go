@@ -9,12 +9,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/dgrijalva/jwt-go"
 	"github.com/go-chi/render"
 	"github.com/pborman/uuid"
 	"io/ioutil"
 	"net/http"
+	"regexp"
 	"strconv"
-
 	"github.com/CMSgov/bcda-ssas-app/ssas"
 	"github.com/CMSgov/bcda-ssas-app/ssas/service"
 )
@@ -478,6 +479,7 @@ func setHeaders(w http.ResponseWriter) {
 }
 
 type TokenResponse struct {
+	Scope 		string `json:"scope"`
 	AccessToken string `json:"access_token"`
 	TokenType   string `json:"token_type"`
 	ExpiresIn   string `json:"expires_in"`
@@ -539,6 +541,114 @@ func token(w http.ResponseWriter, r *http.Request) {
 	ssas.AccessTokenIssued(event)
 	ssas.OperationSucceeded(event)
 	render.JSON(w, r, m)
+}
+
+func tokenV2(w http.ResponseWriter, r *http.Request) {
+	trackingID := uuid.NewRandom().String()
+	event := ssas.Event{Op: "V2-Token", TrackingID: trackingID, Help: "calling from public.tokenV2()"}
+	ssas.OperationCalled(event)
+
+	//Verify required headers are present with correct values
+	contentTypeHeader := r.Header.Get("Content-Type")
+	if contentTypeHeader == "" {
+		event.Help = "no Content-Type header found"
+		ssas.AuthorizationFailure(event)
+		basicError(w, http.StatusBadRequest)
+		return
+	}
+
+	if contentTypeHeader != "application/x-www-form-urlencoded" {
+		event.Help = "incorrect Content-Type header, required 'application/x-www-form-urlencoded'"
+		ssas.AuthorizationFailure(event)
+		basicError(w, http.StatusBadRequest)
+		return
+	}
+
+	acceptHeader := r.Header.Get("Content-Type")
+	if acceptHeader == "" {
+		event.Help = "no Accept found"
+		ssas.AuthorizationFailure(event)
+		basicError(w, http.StatusBadRequest)
+		return
+	}
+
+	if acceptHeader != "application/x-www-form-urlencoded" {
+		event.Help = "incorrect Content-Type header, required 'application/json'"
+		ssas.AuthorizationFailure(event)
+		basicError(w, http.StatusBadRequest)
+		return
+	}
+
+	tokenString, err := getBearerToken(r,event)
+	if err!=nil {
+		basicError(w, http.StatusBadRequest)
+		return
+	}
+
+	token, err := parseClientSignedToken(tokenString, trackingID)
+	if err!= nil{
+		event.Help = "invalid JWT token"
+		ssas.AuthorizationFailure(event)
+		basicError(w, http.StatusBadRequest)
+		return
+	}
+	clientID := token.Claims.(*service.CommonClaims).Issuer
+	system, err := ssas.GetSystemByID(clientID)
+	if err != nil {
+		service.JsonError(w, http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized), "invalid client id")
+		return
+	}
+
+	data, err := ssas.XDataFor(system)
+	ssas.Logger.Infof("public.api.token: XDataFor(%d) returned '%s'", system.ID, data)
+	if err != nil {
+		jsonError(w, http.StatusText(http.StatusUnauthorized), "no group for system")
+		return
+	}
+
+	accessToken, ts, err := MintAccessToken(fmt.Sprintf("%d", system.ID), system.ClientID, data)
+	if err != nil {
+		event.Help = "failure minting token: " + err.Error()
+		ssas.OperationFailed(event)
+		basicError(w, http.StatusUnauthorized)
+		return
+	}
+
+	system.SaveTokenTime()
+	event.Help = fmt.Sprintf("token created in group %s with XData: %s", system.GroupID, data)
+
+	// https://tools.ietf.org/html/rfc6749#section-5.1
+	// expires_in is duration in seconds
+	expiresIn := accessToken.Claims.(*service.CommonClaims).ExpiresAt - accessToken.Claims.(*service.CommonClaims).IssuedAt
+	m := TokenResponse{Scope:"system/*.*", AccessToken: ts, TokenType: "bearer", ExpiresIn: strconv.FormatInt(expiresIn, 10)}
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Cache-Control", "no-store")
+	w.Header().Set("Pragma", "no-cache")
+	ssas.AccessTokenIssued(event)
+	ssas.OperationSucceeded(event)
+	render.JSON(w, r, m)
+}
+
+func getBearerToken(r *http.Request, event ssas.Event) (string, error){
+	authHeader := r.Header.Get("Authorization")
+	if authHeader == "" {
+		event.Help = "no authorization header found"
+		ssas.AuthorizationFailure(event)
+		return "", fmt.Errorf("missing Authorization header")
+	}
+
+	authRegexp := regexp.MustCompile(`^Bearer (\S+)$`)
+	authSubmatches := authRegexp.FindStringSubmatch(authHeader)
+	if len(authSubmatches) < 2 {
+		event.Help = "invalid Authorization header value"
+		ssas.AuthorizationFailure(event)
+		return "",  fmt.Errorf("invalid Authorization header value")
+	}
+	return authSubmatches[1], nil
+}
+
+func parseClientSignedToken(jwt string, trackingID string)(*jwt.Token, error){
+	return server.VerifyClientSignedToken(jwt, trackingID)
 }
 
 func introspect(w http.ResponseWriter, r *http.Request) {

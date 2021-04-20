@@ -136,6 +136,10 @@ func checkTokenClaims(claims *service.CommonClaims) error {
 		if claims.Data == "" {
 			return fmt.Errorf("access token must have Data claim")
 		}
+	case "ClientAssertion":
+		if claims.Issuer == "" {
+			return fmt.Errorf("token must have Issuer (iss) claim")
+		}
 	default:
 		return fmt.Errorf("missing token type claim")
 	}

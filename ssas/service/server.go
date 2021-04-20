@@ -8,12 +8,10 @@ import (
 	"net/http"
 	"os"
 	"time"
-
 	"github.com/dgrijalva/jwt-go"
 	"github.com/go-chi/chi"
 	"github.com/go-chi/render"
 	"github.com/pborman/uuid"
-
 	"github.com/CMSgov/bcda-ssas-app/ssas"
 	"github.com/CMSgov/bcda-ssas-app/ssas/cfg"
 )
@@ -34,10 +32,11 @@ type Server struct {
 	tokenSigningKey *rsa.PrivateKey
 	tokenTTL        time.Duration
 	server          http.Server
+	clientAssertAud string
 }
 
 // NewServer correctly initializes an instance of the Server type.
-func NewServer(name, port, version string, info interface{}, routes *chi.Mux, notSecure bool, signingKeyPath string, ttl time.Duration) *Server {
+func NewServer(name, port, version string, info interface{}, routes *chi.Mux, notSecure bool, signingKeyPath string, ttl time.Duration, clientAssertAud string) *Server {
 	sk, err := getPrivateKey(signingKeyPath)
 	if err != nil {
 		msg := fmt.Sprintf("bad signing key; path %s; %v", signingKeyPath, err)
@@ -57,6 +56,7 @@ func NewServer(name, port, version string, info interface{}, routes *chi.Mux, no
 	s.notSecure = notSecure
 	s.tokenSigningKey = sk
 	s.tokenTTL = ttl
+	s.clientAssertAud = clientAssertAud
 	s.server = http.Server{
 		Handler:      s.router,
 		Addr:         s.port,
@@ -196,7 +196,7 @@ func ConnectionClose(next http.Handler) http.Handler {
 // CommonClaims contains the superset of claims that may be found in the token
 type CommonClaims struct {
 	jwt.StandardClaims
-	// AccessToken, MFAToken, or RegistrationToken
+	// AccessToken, MFAToken, ClientAssertion, or RegistrationToken
 	TokenType string `json:"use,omitempty"`
 	// In an MFA token, presence of an OktaID is taken as proof of username/password authentication
 	OktaID   string `json:"oid,omitempty"`
@@ -246,7 +246,6 @@ func newTokenID() string {
 }
 
 func (s *Server) VerifyToken(tokenString string) (*jwt.Token, error) {
-
 	keyFunc := func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodRSA); !ok {
 			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
@@ -257,6 +256,30 @@ func (s *Server) VerifyToken(tokenString string) (*jwt.Token, error) {
 	return jwt.ParseWithClaims(tokenString, &CommonClaims{}, keyFunc)
 }
 
+func (s *Server) VerifyClientSignedToken(tokenString string, trackingId string) (*jwt.Token, error) {
+	keyFunc := func(token *jwt.Token) (interface{}, error) {
+		if _, ok := token.Method.(*jwt.SigningMethodRSA); !ok {
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+		}
+		claims := token.Claims.(*CommonClaims)
+		system,err := ssas.GetSystemByID(claims.Issuer)
+		if err !=nil {
+			return nil, err
+		}
+		key, err := system.GetEncryptionKey(trackingId)
+		if err !=nil {
+			return nil, err
+		}
+		//TODO check key key has been soft deleted
+		//if key.DeletedAt == nil {
+		pubKey,err := ssas.ReadPublicKey(key.Body)
+		if err !=nil {
+			return nil, err
+		}
+		return pubKey, nil
+	}
+	return jwt.ParseWithClaims(tokenString, &CommonClaims{}, keyFunc)
+}
 func (s *Server) CheckRequiredClaims(claims *CommonClaims, requiredTokenType string) error {
 	if claims.ExpiresAt == 0 ||
 		claims.IssuedAt == 0 ||

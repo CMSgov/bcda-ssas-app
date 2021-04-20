@@ -3,8 +3,10 @@ package public
 import (
 	"bytes"
 	"context"
+	"crypto/rsa"
 	"encoding/json"
 	"fmt"
+	"github.com/dgrijalva/jwt-go"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -12,12 +14,11 @@ import (
 	"os"
 	"strings"
 	"testing"
-
+	"time"
 	"github.com/CMSgov/bcda-ssas-app/ssas"
 	"github.com/CMSgov/bcda-ssas-app/ssas/service"
 	"github.com/go-chi/chi"
 	"github.com/pborman/uuid"
-
 	"gorm.io/gorm"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -461,4 +462,71 @@ func (s *APITestSuite) TestJsonError() {
 
 func TestAPITestSuite(t *testing.T) {
 	suite.Run(t, new(APITestSuite))
+}
+
+//Authenticate and generate access token using JWT (v2/token/)
+func (s *APITestSuite) TestAuthenticatingWithJWT() {
+	groupID := ssas.RandomHexID()[0:4]
+	group := ssas.Group{GroupID: groupID, XData: "x_data"}
+	err := s.db.Create(&group).Error
+	require.Nil(s.T(), err)
+
+	privateKey, pubKey, err := ssas.GenerateTestKeys(2048)
+	require.Nil(s.T(), err)
+
+	pemString, err := ssas.ConvertPublicKeyToPEMString(&pubKey)
+	require.Nil(s.T(), err)
+
+	creds, err := ssas.RegisterSystem("Token Test", groupID, ssas.DefaultScope, pemString, []string{}, uuid.NewRandom().String())
+	assert.Nil(s.T(), err)
+	assert.Equal(s.T(), "Token Test", creds.ClientName)
+	assert.NotNil(s.T(), creds.ClientSecret)
+
+	// now for the actual test
+	token, clientAssertion, _ := mintClientAssertion(creds.SystemID,time.Now().Unix(), time.Now().Add(time.Duration(10000)).Unix(), privateKey)
+
+	claims := token.Claims.(service.CommonClaims)
+	errors := checkTokenClaims(&claims)
+	assert.Nil(s.T(), errors)
+
+	req := httptest.NewRequest("POST", "/v2/token", nil)
+	req.Header.Add("Accept", "application/json")
+	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Add("Authorization", "Bearer " + clientAssertion)
+
+	handler := http.HandlerFunc(tokenV2)
+	handler.ServeHTTP(s.rr, req)
+	assert.Equal(s.T(), http.StatusOK, s.rr.Code)
+	//t := TokenResponse{}
+	//assert.NoError(s.T(), json.NewDecoder(s.rr.Body).Decode(&t))
+	//assert.NotEmpty(s.T(), t)
+	//assert.NotEmpty(s.T(), t.AccessToken)
+	//
+	//err = ssas.CleanDatabase(group)
+	//assert.Nil(s.T(), err)
+}
+
+func mintClientAssertion(systemID string,issuedAt int64, expiresAt int64,privateKey *rsa.PrivateKey) (*jwt.Token, string, error) {
+	claims := service.CommonClaims{
+		StandardClaims : jwt.StandardClaims{
+			Issuer : "cat",
+		},
+		TokenType: "ClientAssertion",
+	}
+
+	token := jwt.New(jwt.SigningMethodRS512)
+	tokenID := uuid.NewRandom().String()
+	claims.IssuedAt = issuedAt
+	claims.ExpiresAt = expiresAt
+	claims.Id = tokenID
+	claims.Issuer = systemID
+	token.Claims = claims
+	var signedString, err = token.SignedString(privateKey)
+	if err != nil {
+		ssas.TokenMintingFailure(ssas.Event{TokenID: tokenID})
+		ssas.Logger.Errorf("token signing error %s", err)
+		return nil, "", err
+	}
+	// not emitting AccessTokenIssued here because it hasn't been given to anyone
+	return token, signedString, nil
 }
