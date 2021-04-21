@@ -262,16 +262,17 @@ func (s *Server) VerifyClientSignedToken(tokenString string, trackingId string) 
 			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 		}
 		claims := token.Claims.(*CommonClaims)
+		if claims.Issuer == ""{
+			return nil, fmt.Errorf("missing issuer (iss) in jwt claims")
+		}
 		system,err := ssas.GetSystemByID(claims.Issuer)
 		if err !=nil {
 			return nil, err
 		}
 		key, err := system.GetEncryptionKey(trackingId)
 		if err !=nil {
-			return nil, err
+			return nil, fmt.Errorf("key not found for system: %v", claims.Issuer)
 		}
-		//TODO check key key has been soft deleted
-		//if key.DeletedAt == nil {
 		pubKey,err := ssas.ReadPublicKey(key.Body)
 		if err !=nil {
 			return nil, err
@@ -292,6 +293,9 @@ func (s *Server) CheckRequiredClaims(claims *CommonClaims, requiredTokenType str
 	if requiredTokenType != claims.TokenType {
 		return fmt.Errorf(fmt.Sprintf("wrong token type: %s; required type: %s", claims.TokenType, requiredTokenType))
 	}
-
 	return nil
+}
+
+func (s *Server) GetClientAssertionAudience() string{
+	return s.clientAssertAud
 }

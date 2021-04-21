@@ -21,7 +21,7 @@ func init() {
 	publicSigningKeyPath = os.Getenv("SSAS_PUBLIC_SIGNING_KEY_PATH")
 	ssas.Logger.Info("public signing key sourced from ", publicSigningKeyPath)
 	clientAssertAud = os.Getenv("SSAS_CLIENT_ASSERTION_AUD")
-	ssas.Logger.Info("aud value required in client assertion tokens", clientAssertAud)
+	ssas.Logger.Info("aud value required in client assertion tokens:", clientAssertAud)
 }
 
 func Server() *service.Server {

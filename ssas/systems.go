@@ -60,6 +60,7 @@ type EncryptionKey struct {
 	Body     string `json:"body"`
 	System   System `gorm:"foreignkey:SystemID;association_foreignkey:ID"`
 	SystemID uint   `json:"system_id"`
+
 }
 
 type Secret struct {

@@ -9,15 +9,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/CMSgov/bcda-ssas-app/ssas"
+	"github.com/CMSgov/bcda-ssas-app/ssas/service"
 	"github.com/dgrijalva/jwt-go"
 	"github.com/go-chi/render"
 	"github.com/pborman/uuid"
 	"io/ioutil"
 	"net/http"
-	"regexp"
 	"strconv"
-	"github.com/CMSgov/bcda-ssas-app/ssas"
-	"github.com/CMSgov/bcda-ssas-app/ssas/service"
 )
 
 type Key struct {
@@ -479,7 +478,7 @@ func setHeaders(w http.ResponseWriter) {
 }
 
 type TokenResponse struct {
-	Scope 		string `json:"scope"`
+	Scope 		string `json:"scope,omitempty"`
 	AccessToken string `json:"access_token"`
 	TokenType   string `json:"token_type"`
 	ExpiresIn   string `json:"expires_in"`
@@ -547,55 +546,49 @@ func tokenV2(w http.ResponseWriter, r *http.Request) {
 	trackingID := uuid.NewRandom().String()
 	event := ssas.Event{Op: "V2-Token", TrackingID: trackingID, Help: "calling from public.tokenV2()"}
 	ssas.OperationCalled(event)
-
-	//Verify required headers are present with correct values
-	contentTypeHeader := r.Header.Get("Content-Type")
-	if contentTypeHeader == "" {
-		event.Help = "no Content-Type header found"
+	valError := validateClientAssertionParams(r)
+	if valError!="" {
+		event.Help = valError
 		ssas.AuthorizationFailure(event)
-		basicError(w, http.StatusBadRequest)
+		jsonError(w,valError, "")
 		return
 	}
 
-	if contentTypeHeader != "application/x-www-form-urlencoded" {
-		event.Help = "incorrect Content-Type header, required 'application/x-www-form-urlencoded'"
-		ssas.AuthorizationFailure(event)
-		basicError(w, http.StatusBadRequest)
-		return
-	}
-
-	acceptHeader := r.Header.Get("Content-Type")
-	if acceptHeader == "" {
-		event.Help = "no Accept found"
-		ssas.AuthorizationFailure(event)
-		basicError(w, http.StatusBadRequest)
-		return
-	}
-
-	if acceptHeader != "application/x-www-form-urlencoded" {
-		event.Help = "incorrect Content-Type header, required 'application/json'"
-		ssas.AuthorizationFailure(event)
-		basicError(w, http.StatusBadRequest)
-		return
-	}
-
-	tokenString, err := getBearerToken(r,event)
-	if err!=nil {
-		basicError(w, http.StatusBadRequest)
-		return
-	}
-
+	tokenString := r.Form.Get("client_assertion")
 	token, err := parseClientSignedToken(tokenString, trackingID)
 	if err!= nil{
-		event.Help = "invalid JWT token"
+		event.Help = err.Error()
 		ssas.AuthorizationFailure(event)
-		basicError(w, http.StatusBadRequest)
+		jsonError(w,err.Error(), "")
 		return
 	}
-	clientID := token.Claims.(*service.CommonClaims).Issuer
-	system, err := ssas.GetSystemByID(clientID)
+	claims := token.Claims.(*service.CommonClaims)
+	if claims.Subject != claims.Issuer{
+		event.Help = "subject (sub) and issuer (iss) claims do not match"
+		ssas.AuthorizationFailure(event)
+		jsonError(w,"subject (sub) and issuer (iss) claims do not match", "")
+		return
+	}
+
+	if claims.Audience != server.GetClientAssertionAudience() {
+		event.Help = "invalid audience (aud) claim"
+		ssas.AuthorizationFailure(event)
+		jsonError(w,"invalid audience (aud) claim", "")
+		return
+	}
+
+	tokenDuration := claims.ExpiresAt - claims.IssuedAt
+	if tokenDuration > 300 { //5 minute max duration
+		event.Help = "IssuedAt (iat) and ExpiresAt (exp) claims are more than 5 minutes apart"
+		ssas.AuthorizationFailure(event)
+		jsonError(w,"IssuedAt (iat) and ExpiresAt (exp) claims are more than 5 minutes apart", "")
+		return
+	}
+
+	systemID := claims.Issuer
+	system, err := ssas.GetSystemByID(systemID)
 	if err != nil {
-		service.JsonError(w, http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized), "invalid client id")
+		service.JsonError(w, http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized), "invalid issuer (iss) claim. system not found")
 		return
 	}
 
@@ -629,22 +622,39 @@ func tokenV2(w http.ResponseWriter, r *http.Request) {
 	render.JSON(w, r, m)
 }
 
-func getBearerToken(r *http.Request, event ssas.Event) (string, error){
-	authHeader := r.Header.Get("Authorization")
-	if authHeader == "" {
-		event.Help = "no authorization header found"
-		ssas.AuthorizationFailure(event)
-		return "", fmt.Errorf("missing Authorization header")
+func validateClientAssertionParams(r *http.Request) string {
+	if err := r.ParseForm(); err != nil {
+		return "unable to parse form data"
+	}
+	contentTypeHeader := r.Header.Get("Content-Type")
+	if contentTypeHeader == "" {
+		return "missing Content-Type header"
 	}
 
-	authRegexp := regexp.MustCompile(`^Bearer (\S+)$`)
-	authSubmatches := authRegexp.FindStringSubmatch(authHeader)
-	if len(authSubmatches) < 2 {
-		event.Help = "invalid Authorization header value"
-		ssas.AuthorizationFailure(event)
-		return "",  fmt.Errorf("invalid Authorization header value")
+	if contentTypeHeader != "application/x-www-form-urlencoded" {
+		return "invalid Content Type Header value. Supported Types: [application/x-www-form-urlencoded]"
 	}
-	return authSubmatches[1], nil
+
+	if r.Header.Get("Accept") != "application/json" {
+		return "invalid Accept header value. Supported types: [application/json]"
+	}
+
+	if r.Form.Get("client_assertion_type") != "urn:ietf:params:oauth:client-assertion-type:jwt-bearer" {
+		return "invalid value for client_assertion_type"
+	}
+
+	if r.Form.Get("grant_type") != "client_credentials" {
+		return "invalid value for grant_type"
+	}
+
+	if r.Form.Get("scope") != "system/*.*" {
+		return "invalid scope value"
+	}
+
+	if r.Form.Get("client_assertion") == "" {
+		return "missing client_assertion"
+	}
+	return ""
 }
 
 func parseClientSignedToken(jwt string, trackingID string)(*jwt.Token, error){

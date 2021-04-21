@@ -6,23 +6,24 @@ import (
 	"crypto/rsa"
 	"encoding/json"
 	"fmt"
+	"github.com/CMSgov/bcda-ssas-app/ssas"
+	"github.com/CMSgov/bcda-ssas-app/ssas/service"
 	"github.com/dgrijalva/jwt-go"
+	"github.com/go-chi/chi"
+	"github.com/pborman/uuid"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/suite"
+	"gorm.io/gorm"
 	"io"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"strings"
 	"testing"
 	"time"
-	"github.com/CMSgov/bcda-ssas-app/ssas"
-	"github.com/CMSgov/bcda-ssas-app/ssas/service"
-	"github.com/go-chi/chi"
-	"github.com/pborman/uuid"
-	"gorm.io/gorm"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-	"github.com/stretchr/testify/suite"
 )
 
 type APITestSuite struct {
@@ -31,12 +32,14 @@ type APITestSuite struct {
 	db                *gorm.DB
 	server            *service.Server
 	badSigningKeyPath string
+	assertAud         string
 }
 
 func (s *APITestSuite) SetupSuite() {
 	s.db = ssas.GetGORMDbConnection()
 	s.server = Server()
 	s.badSigningKeyPath = "../../../shared_files/ssas/admin_test_signing_key.pem"
+	s.assertAud = "http://local.testing.cms.gov/api/v2/Token/auth"
 	service.StartBlacklist()
 }
 
@@ -464,8 +467,7 @@ func TestAPITestSuite(t *testing.T) {
 	suite.Run(t, new(APITestSuite))
 }
 
-//Authenticate and generate access token using JWT (v2/token/)
-func (s *APITestSuite) TestAuthenticatingWithJWT() {
+func (s *APITestSuite) SetupClientAssertionTest() (ssas.Credentials, ssas.Group, *rsa.PrivateKey) {
 	groupID := ssas.RandomHexID()[0:4]
 	group := ssas.Group{GroupID: groupID, XData: "x_data"}
 	err := s.db.Create(&group).Error
@@ -482,44 +484,388 @@ func (s *APITestSuite) TestAuthenticatingWithJWT() {
 	assert.Equal(s.T(), "Token Test", creds.ClientName)
 	assert.NotNil(s.T(), creds.ClientSecret)
 
-	// now for the actual test
-	token, clientAssertion, _ := mintClientAssertion(creds.SystemID,time.Now().Unix(), time.Now().Add(time.Duration(10000)).Unix(), privateKey)
+	return creds, group, privateKey
+}
 
-	claims := token.Claims.(service.CommonClaims)
-	errors := checkTokenClaims(&claims)
+//Authenticate and generate access token using JWT (v2/token/)
+func (s *APITestSuite) TestAuthenticatingWithJWT() {
+	creds, group, privateKey := s.SetupClientAssertionTest()
+	_, clientAssertion, errors := mintClientAssertion(creds.SystemID, creds.SystemID, s.assertAud, time.Now().Unix(), time.Now().Add(time.Duration(100000)).Unix(), privateKey)
 	assert.Nil(s.T(), errors)
 
-	req := httptest.NewRequest("POST", "/v2/token", nil)
+	form := url.Values{}
+	form.Add("scope", "system/*.*")
+	form.Add("grant_type", "client_credentials")
+	form.Add("client_assertion_type", "urn:ietf:params:oauth:client-assertion-type:jwt-bearer")
+	form.Add("client_assertion", clientAssertion)
+
+	req := httptest.NewRequest("POST", "/v2/token", strings.NewReader(form.Encode()))
 	req.Header.Add("Accept", "application/json")
 	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
-	req.Header.Add("Authorization", "Bearer " + clientAssertion)
 
 	handler := http.HandlerFunc(tokenV2)
 	handler.ServeHTTP(s.rr, req)
 	assert.Equal(s.T(), http.StatusOK, s.rr.Code)
-	//t := TokenResponse{}
-	//assert.NoError(s.T(), json.NewDecoder(s.rr.Body).Decode(&t))
-	//assert.NotEmpty(s.T(), t)
-	//assert.NotEmpty(s.T(), t.AccessToken)
-	//
-	//err = ssas.CleanDatabase(group)
-	//assert.Nil(s.T(), err)
+	t := TokenResponse{}
+	assert.NoError(s.T(), json.NewDecoder(s.rr.Body).Decode(&t))
+	assert.NotEmpty(s.T(), t)
+	assert.NotEmpty(s.T(), t.AccessToken)
+	assert.NotEmpty(s.T(), t.Scope)
+	assert.Equal(s.T(), "system/*.*", t.Scope)
+
+	err := ssas.CleanDatabase(group)
+	assert.Nil(s.T(), err)
 }
 
-func mintClientAssertion(systemID string,issuedAt int64, expiresAt int64,privateKey *rsa.PrivateKey) (*jwt.Token, string, error) {
-	claims := service.CommonClaims{
-		StandardClaims : jwt.StandardClaims{
-			Issuer : "cat",
-		},
-		TokenType: "ClientAssertion",
-	}
+func (s *APITestSuite) TestAuthenticatingWithJWTWithExpBeforeIssuedTime() {
+	creds, group, privateKey := s.SetupClientAssertionTest()
+	expiresAt := time.Now().Unix()+200
+	issuedAt := expiresAt+1
+	_, clientAssertion, errors := mintClientAssertion(creds.SystemID, creds.SystemID, s.assertAud,issuedAt, expiresAt, privateKey)
+	assert.Nil(s.T(), errors)
+
+	form := url.Values{}
+	form.Add("scope", "system/*.*")
+	form.Add("grant_type", "client_credentials")
+	form.Add("client_assertion_type", "urn:ietf:params:oauth:client-assertion-type:jwt-bearer")
+	form.Add("client_assertion", clientAssertion)
+
+	req := httptest.NewRequest("POST", "/v2/token", strings.NewReader(form.Encode()))
+	req.Header.Add("Accept", "application/json")
+	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+
+	handler := http.HandlerFunc(tokenV2)
+	handler.ServeHTTP(s.rr, req)
+
+	s.verifyErrorResponse(http.StatusBadRequest, "token used before issued")
+	err := ssas.CleanDatabase(group)
+	assert.Nil(s.T(), err)
+}
+
+func (s *APITestSuite) TestAuthenticatingWithJWTWithMoreThan5MinutesExpTime() {
+	creds, group, privateKey := s.SetupClientAssertionTest()
+	issuedAt := time.Now().Unix()
+	expiresAt := issuedAt+350
+
+	_, clientAssertion, errors := mintClientAssertion(creds.SystemID, creds.SystemID, s.assertAud,issuedAt, expiresAt, privateKey)
+	assert.Nil(s.T(), errors)
+
+	form := url.Values{}
+	form.Add("scope", "system/*.*")
+	form.Add("grant_type", "client_credentials")
+	form.Add("client_assertion_type", "urn:ietf:params:oauth:client-assertion-type:jwt-bearer")
+	form.Add("client_assertion", clientAssertion)
+
+	req := httptest.NewRequest("POST", "/v2/token", strings.NewReader(form.Encode()))
+	req.Header.Add("Accept", "application/json")
+	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+
+	handler := http.HandlerFunc(tokenV2)
+	handler.ServeHTTP(s.rr, req)
+
+	s.verifyErrorResponse(http.StatusBadRequest, "IssuedAt (iat) and ExpiresAt (exp) claims are more than 5 minutes apart")
+	err := ssas.CleanDatabase(group)
+	assert.Nil(s.T(), err)
+}
+
+func (s *APITestSuite) TestAuthenticatingWithJWTWithExpiredToken() {
+	creds, group, privateKey := s.SetupClientAssertionTest()
+	issuedAt := time.Now().Unix()-3600 //simulate token issued an hour ago.
+	expiresAt := issuedAt+200 //exp within 5 min of iat time
+
+	_, clientAssertion, errors := mintClientAssertion(creds.SystemID, creds.SystemID, s.assertAud,issuedAt, expiresAt, privateKey)
+	assert.Nil(s.T(), errors)
+
+	form := url.Values{}
+	form.Add("scope", "system/*.*")
+	form.Add("grant_type", "client_credentials")
+	form.Add("client_assertion_type", "urn:ietf:params:oauth:client-assertion-type:jwt-bearer")
+	form.Add("client_assertion", clientAssertion)
+
+	req := httptest.NewRequest("POST", "/v2/token", strings.NewReader(form.Encode()))
+	req.Header.Add("Accept", "application/json")
+	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+
+	handler := http.HandlerFunc(tokenV2)
+	handler.ServeHTTP(s.rr, req)
+
+	s.verifyErrorResponse(http.StatusBadRequest, "Token is expired")
+	err := ssas.CleanDatabase(group)
+	assert.Nil(s.T(), err)
+}
+
+func (s *APITestSuite) TestAuthenticatingWithJWTSignedWithWrongKey() {
+	creds, group, _ := s.SetupClientAssertionTest() //Correct private key is created and uploaded here
+	issuedAt := time.Now().Unix()
+	expiresAt := issuedAt+200
+
+	wrongPrivateKey, _, err := ssas.GenerateTestKeys(2048)
+	require.Nil(s.T(), err)
+
+	_, clientAssertion, errors := mintClientAssertion(creds.SystemID, creds.SystemID, s.assertAud,issuedAt, expiresAt, wrongPrivateKey)
+	assert.Nil(s.T(), errors)
+
+	form := url.Values{}
+	form.Add("scope", "system/*.*")
+	form.Add("grant_type", "client_credentials")
+	form.Add("client_assertion_type", "urn:ietf:params:oauth:client-assertion-type:jwt-bearer")
+	form.Add("client_assertion", clientAssertion)
+
+	req := httptest.NewRequest("POST", "/v2/token", strings.NewReader(form.Encode()))
+	req.Header.Add("Accept", "application/json")
+	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+
+	handler := http.HandlerFunc(tokenV2)
+	handler.ServeHTTP(s.rr, req)
+
+	s.verifyErrorResponse(http.StatusBadRequest, "crypto/rsa: verification error")
+	err = ssas.CleanDatabase(group)
+	assert.Nil(s.T(), err)
+}
+
+func (s *APITestSuite) TestAuthenticatingWithJWTWithSoftDeletedPublicKey() {
+	creds, group, privateKey := s.SetupClientAssertionTest()
+	issuedAt := time.Now().Unix()
+	expiresAt := issuedAt+200
+
+	_, clientAssertion, errors := mintClientAssertion(creds.SystemID, creds.SystemID, s.assertAud,issuedAt, expiresAt, privateKey)
+	assert.Nil(s.T(), errors)
+
+	form := url.Values{}
+	form.Add("scope", "system/*.*")
+	form.Add("grant_type", "client_credentials")
+	form.Add("client_assertion_type", "urn:ietf:params:oauth:client-assertion-type:jwt-bearer")
+	form.Add("client_assertion", clientAssertion)
+
+	req := httptest.NewRequest("POST", "/v2/token", strings.NewReader(form.Encode()))
+	req.Header.Add("Accept", "application/json")
+	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+
+
+	system, err := ssas.GetSystemByID(creds.SystemID)
+	assert.Nil(s.T(), err)
+	key, err := system.GetEncryptionKey(uuid.NewRandom().String())
+	assert.Nil(s.T(), err)
+
+	//Soft delete public key
+	db := ssas.GetGORMDbConnection()
+	defer ssas.Close(db)
+	assert.Nil(s.T(),s.db.Delete(&key).Error)
+
+	//Ensure record was soft deleted, and not permanently deleted.
+	key, err = system.GetEncryptionKey(uuid.NewRandom().String())
+	assert.NotNil(s.T(), err)
+	assert.Empty(s.T(), key)
+	var encryptionKey ssas.EncryptionKey
+	err = db.Unscoped().First(&encryptionKey, "system_id = ?", creds.SystemID).Error
+	assert.Nil(s.T(),err)
+	assert.NotEmpty(s.T(),encryptionKey)
+
+	handler := http.HandlerFunc(tokenV2)
+	handler.ServeHTTP(s.rr, req)
+
+	s.verifyErrorResponse(http.StatusBadRequest, "key not found for system: "+creds.SystemID)
+	err = ssas.CleanDatabase(group)
+	assert.Nil(s.T(), err)
+}
+
+func (s *APITestSuite) TestAuthenticatingWithJWTWithMissingIssuerClaim() {
+	creds, group, privateKey := s.SetupClientAssertionTest()
+	_, clientAssertion, errors := mintClientAssertion("", creds.SystemID, s.assertAud, time.Now().Unix(), time.Now().Add(time.Duration(100000)).Unix(), privateKey)
+	assert.Nil(s.T(), errors)
+
+	form := url.Values{}
+	form.Add("scope", "system/*.*")
+	form.Add("grant_type", "client_credentials")
+	form.Add("client_assertion_type", "urn:ietf:params:oauth:client-assertion-type:jwt-bearer")
+	form.Add("client_assertion", clientAssertion)
+
+	req := httptest.NewRequest("POST", "/v2/token", strings.NewReader(form.Encode()))
+	req.Header.Add("Accept", "application/json")
+	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+
+	handler := http.HandlerFunc(tokenV2)
+	handler.ServeHTTP(s.rr, req)
+
+	s.verifyErrorResponse(http.StatusBadRequest, "missing issuer (iss) in jwt claims")
+	err := ssas.CleanDatabase(group)
+	assert.Nil(s.T(), err)
+}
+
+func (s *APITestSuite) TestAuthenticatingWithJWTWithBadAudienceClaim() {
+	creds, group, privateKey := s.SetupClientAssertionTest()
+	_, clientAssertion, errors := mintClientAssertion(creds.SystemID, creds.SystemID, "https://invalid.url.com",time.Now().Unix(), time.Now().Add(time.Duration(100000)).Unix(), privateKey)
+	assert.Nil(s.T(), errors)
+
+	form := url.Values{}
+	form.Add("scope", "system/*.*")
+	form.Add("grant_type", "client_credentials")
+	form.Add("client_assertion_type", "urn:ietf:params:oauth:client-assertion-type:jwt-bearer")
+	form.Add("client_assertion", clientAssertion)
+
+	req := httptest.NewRequest("POST", "/v2/token", strings.NewReader(form.Encode()))
+	req.Header.Add("Accept", "application/json")
+	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+
+	handler := http.HandlerFunc(tokenV2)
+	handler.ServeHTTP(s.rr, req)
+
+	s.verifyErrorResponse(http.StatusBadRequest, "invalid audience (aud) claim")
+	err := ssas.CleanDatabase(group)
+	assert.Nil(s.T(), err)
+}
+
+func (s *APITestSuite) TestAuthenticatingWithJWTWithMissingSubjectClaim() {
+	creds, group, privateKey := s.SetupClientAssertionTest()
+	_, clientAssertion, errors := mintClientAssertion(creds.SystemID, "",s.assertAud, time.Now().Unix(), time.Now().Add(time.Duration(100000)).Unix(), privateKey)
+	assert.Nil(s.T(), errors)
+
+	form := url.Values{}
+	form.Add("scope", "system/*.*")
+	form.Add("grant_type", "client_credentials")
+	form.Add("client_assertion_type", "urn:ietf:params:oauth:client-assertion-type:jwt-bearer")
+	form.Add("client_assertion", clientAssertion)
+
+	req := httptest.NewRequest("POST", "/v2/token", strings.NewReader(form.Encode()))
+	req.Header.Add("Accept", "application/json")
+	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+
+	handler := http.HandlerFunc(tokenV2)
+	handler.ServeHTTP(s.rr, req)
+
+	s.verifyErrorResponse(http.StatusBadRequest, "subject (sub) and issuer (iss) claims do not match")
+	err := ssas.CleanDatabase(group)
+	assert.Nil(s.T(), err)
+}
+
+func (s *APITestSuite) TestClientAssertionAuthWithBadScopeParam() {
+	//System does not need to be created for this test since header and param checks are done before assertion is parsed/looked up.
+	form := url.Values{}
+	form.Set("grant_type", "client_credentials")
+	form.Set("client_assertion_type", "urn:ietf:params:oauth:client-assertion-type:jwt-bearer")
+	form.Set("client_assertion", "value_does_not_matter_for_this_test")
+	handler := http.HandlerFunc(tokenV2)
+
+	//Invalid scope value
+	form.Set("scope", "system/invalid")
+	req := httptest.NewRequest("POST", "/v2/token", strings.NewReader(form.Encode()))
+	req.Header.Set("Accept", "application/json")
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	handler.ServeHTTP(s.rr, req)
+	s.verifyErrorResponse(http.StatusBadRequest, "invalid scope value")
+}
+
+func (s *APITestSuite) TestClientAssertionAuthWithBadAcceptHeader() {
+	//System does not need to be created for this test since header and param checks are done before assertion is parsed/looked up.
+	form := url.Values{}
+	form.Add("scope", "system/*.*")
+	form.Add("grant_type", "client_credentials")
+	form.Add("client_assertion_type", "urn:ietf:params:oauth:client-assertion-type:jwt-bearer")
+	form.Add("client_assertion", "value_does_not_matter_for_this_test")
+	handler := http.HandlerFunc(tokenV2)
+
+	//Invalid accept header value
+	req := httptest.NewRequest("POST", "/v2/token", strings.NewReader(form.Encode()))
+	req.Header.Set("Accept", "application/txt")
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	handler.ServeHTTP(s.rr, req)
+	s.verifyErrorResponse(http.StatusBadRequest, "invalid Accept header value. Supported types: [application/json]")
+}
+
+func (s *APITestSuite) TestClientAssertionAuthWithBadContentTypeHeader() {
+	//System does not need to be created for this test since header and param checks are done before assertion is parsed/looked up.
+	form := url.Values{}
+	form.Set("scope", "system/*.*")
+	form.Set("grant_type", "client_credentials")
+	form.Set("client_assertion_type", "urn:ietf:params:oauth:client-assertion-type:jwt-bearer")
+	form.Set("client_assertion", "value_does_not_matter_for_this_test")
+	handler := http.HandlerFunc(tokenV2)
+
+	//Missing Content-Type header
+	req := httptest.NewRequest("POST", "/v2/token", strings.NewReader(form.Encode()))
+	req.Header.Set("Accept", "application/json")
+	handler.ServeHTTP(s.rr, req)
+	s.verifyErrorResponse(http.StatusBadRequest, "missing Content-Type header")
+
+	//Invalid Content-Type header value
+	req = httptest.NewRequest("POST", "/v2/token", strings.NewReader(form.Encode()))
+	req.Header.Set("Accept", "application/json")
+	req.Header.Set("Content-Type", "application/bad-type")
+	handler.ServeHTTP(s.rr, req)
+	s.verifyErrorResponse(http.StatusBadRequest, "invalid Content Type Header value. Supported Types: [application/x-www-form-urlencoded]")
+}
+
+func (s *APITestSuite) TestClientAssertionAuthWithBadGrantTypeParam() {
+	//System does not need to be created for this test since header and param checks are done before assertion is parsed/looked up.
+	form := url.Values{}
+	form.Set("scope", "system/*.*")
+	form.Set("client_assertion_type", "urn:ietf:params:oauth:client-assertion-type:jwt-bearer")
+	form.Set("client_assertion", "value_does_not_matter_for_this_test")
+	handler := http.HandlerFunc(tokenV2)
+
+	//Invalid grant_type param
+	form.Set("grant_type", "invalid_grant_type")
+	req := httptest.NewRequest("POST", "/v2/token", strings.NewReader(form.Encode()))
+	req.Header.Add("Accept", "application/json")
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	handler.ServeHTTP(s.rr, req)
+	s.verifyErrorResponse(http.StatusBadRequest, "invalid value for grant_type")
+}
+
+func (s *APITestSuite) TestClientAssertionAuthWithBadClientAssertionTypeParam() {
+	//System does not need to be created for this test since header and param checks are done before assertion is parsed/looked up.
+	form := url.Values{}
+	form.Set("scope", "system/*.*")
+	form.Set("grant_type", "client_credentials")
+	form.Set("client_assertion", "value_does_not_matter_for_this_test")
+	handler := http.HandlerFunc(tokenV2)
+
+	//Invalid client_assertion_type param
+	form.Set("client_assertion_type", "invalid_client_assertion_type")
+	req := httptest.NewRequest("POST", "/v2/token", strings.NewReader(form.Encode()))
+	req.Header.Add("Accept", "application/json")
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	handler.ServeHTTP(s.rr, req)
+	s.verifyErrorResponse(http.StatusBadRequest, "invalid value for client_assertion_type")
+}
+
+func (s *APITestSuite) TestClientAssertionAuthWithMissingClientAssertionParam() {
+	//Create system and valid client assertion token
+	form := url.Values{}
+	form.Set("scope", "system/*.*")
+	form.Set("grant_type", "client_credentials")
+	form.Set("client_assertion_type", "urn:ietf:params:oauth:client-assertion-type:jwt-bearer")
+	handler := http.HandlerFunc(tokenV2)
+
+	//Missing client_assertion param
+	req := httptest.NewRequest("POST", "/v2/token", strings.NewReader(form.Encode()))
+	req.Header.Set("Accept", "application/json")
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+	handler.ServeHTTP(s.rr, req)
+	s.verifyErrorResponse(http.StatusBadRequest, "missing client_assertion")
+}
+
+func (s *APITestSuite) verifyErrorResponse(expectedStatus interface{}, expectedMsg string) {
+	assert.Equal(s.T(), expectedStatus, s.rr.Code)
+	t := ssas.ErrorResponse{}
+	assert.NoError(s.T(), json.NewDecoder(s.rr.Body).Decode(&t))
+	assert.NotEmpty(s.T(), t)
+	assert.Equal(s.T(), expectedMsg, t.Error)
+}
+
+func mintClientAssertion(issuer string, subject string, aud string, issuedAt int64, expiresAt int64, privateKey *rsa.PrivateKey) (*jwt.Token, string, error) {
+	claims := service.CommonClaims{}
 
 	token := jwt.New(jwt.SigningMethodRS512)
 	tokenID := uuid.NewRandom().String()
+	claims.TokenType = "ClientAssertion"
 	claims.IssuedAt = issuedAt
 	claims.ExpiresAt = expiresAt
 	claims.Id = tokenID
-	claims.Issuer = systemID
+	claims.Subject = subject
+	claims.Issuer = issuer
+	claims.Audience = aud
 	token.Claims = claims
 	var signedString, err = token.SignedString(privateKey)
 	if err != nil {
@@ -527,6 +873,5 @@ func mintClientAssertion(systemID string,issuedAt int64, expiresAt int64,private
 		ssas.Logger.Errorf("token signing error %s", err)
 		return nil, "", err
 	}
-	// not emitting AccessTokenIssued here because it hasn't been given to anyone
 	return token, signedString, nil
 }
