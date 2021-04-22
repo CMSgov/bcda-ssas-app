@@ -715,6 +715,39 @@ func (s *APITestSuite) TestAuthenticatingWithJWTWithBadAudienceClaim() {
 	assert.Nil(s.T(), err)
 }
 
+func (s *APITestSuite) TestAuthenticatingWithJWTWithMissingJTI() {
+	creds, group, privateKey := s.SetupClientAssertionTest()
+	claims := service.CommonClaims{}
+
+	token := jwt.New(jwt.SigningMethodRS512)
+	claims.TokenType = "ClientAssertion"
+	claims.IssuedAt = time.Now().Unix()
+	claims.ExpiresAt =  time.Now().Add(time.Duration(100000)).Unix()
+	claims.Subject = creds.SystemID
+	claims.Issuer = creds.SystemID
+	claims.Audience = s.assertAud
+	token.Claims = claims
+	var signedString, err = token.SignedString(privateKey)
+	assert.Nil(s.T(), err)
+
+	form := url.Values{}
+	form.Add("scope", "system/*.*")
+	form.Add("grant_type", "client_credentials")
+	form.Add("client_assertion_type", "urn:ietf:params:oauth:client-assertion-type:jwt-bearer")
+	form.Add("client_assertion", signedString)
+
+	req := httptest.NewRequest("POST", "/v2/token", strings.NewReader(form.Encode()))
+	req.Header.Add("Accept", "application/json")
+	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+
+	handler := http.HandlerFunc(tokenV2)
+	handler.ServeHTTP(s.rr, req)
+
+	s.verifyErrorResponse(http.StatusBadRequest, "missing Token ID (jti) claim")
+	err = ssas.CleanDatabase(group)
+	assert.Nil(s.T(), err)
+}
+
 func (s *APITestSuite) TestAuthenticatingWithJWTWithMissingSubjectClaim() {
 	creds, group, privateKey := s.SetupClientAssertionTest()
 	_, clientAssertion, errors := mintClientAssertion(creds.SystemID, "",s.assertAud, time.Now().Unix(), time.Now().Add(time.Duration(100000)).Unix(), privateKey)

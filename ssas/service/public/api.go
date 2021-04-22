@@ -562,11 +562,19 @@ func tokenV2(w http.ResponseWriter, r *http.Request) {
 		jsonError(w,err.Error(), "")
 		return
 	}
+
 	claims := token.Claims.(*service.CommonClaims)
 	if claims.Subject != claims.Issuer{
 		event.Help = "subject (sub) and issuer (iss) claims do not match"
 		ssas.AuthorizationFailure(event)
 		jsonError(w,"subject (sub) and issuer (iss) claims do not match", "")
+		return
+	}
+
+	if claims.Id ==""{
+		event.Help = "missing Token ID (jti) claim"
+		ssas.AuthorizationFailure(event)
+		jsonError(w,"missing Token ID (jti) claim", "")
 		return
 	}
 
