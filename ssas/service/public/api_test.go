@@ -519,9 +519,9 @@ func (s *APITestSuite) TestAuthenticatingWithJWT() {
 
 func (s *APITestSuite) TestAuthenticatingWithJWTWithExpBeforeIssuedTime() {
 	creds, group, privateKey := s.SetupClientAssertionTest()
-	expiresAt := time.Now().Unix()+200
-	issuedAt := expiresAt+1
-	_, clientAssertion, errors := mintClientAssertion(creds.SystemID, creds.SystemID, s.assertAud,issuedAt, expiresAt, privateKey)
+	expiresAt := time.Now().Unix() + 200
+	issuedAt := expiresAt + 1
+	_, clientAssertion, errors := mintClientAssertion(creds.SystemID, creds.SystemID, s.assertAud, issuedAt, expiresAt, privateKey)
 	assert.Nil(s.T(), errors)
 
 	form := url.Values{}
@@ -545,9 +545,9 @@ func (s *APITestSuite) TestAuthenticatingWithJWTWithExpBeforeIssuedTime() {
 func (s *APITestSuite) TestAuthenticatingWithJWTWithMoreThan5MinutesExpTime() {
 	creds, group, privateKey := s.SetupClientAssertionTest()
 	issuedAt := time.Now().Unix()
-	expiresAt := issuedAt+350
+	expiresAt := issuedAt + 350
 
-	_, clientAssertion, errors := mintClientAssertion(creds.SystemID, creds.SystemID, s.assertAud,issuedAt, expiresAt, privateKey)
+	_, clientAssertion, errors := mintClientAssertion(creds.SystemID, creds.SystemID, s.assertAud, issuedAt, expiresAt, privateKey)
 	assert.Nil(s.T(), errors)
 
 	form := url.Values{}
@@ -570,10 +570,10 @@ func (s *APITestSuite) TestAuthenticatingWithJWTWithMoreThan5MinutesExpTime() {
 
 func (s *APITestSuite) TestAuthenticatingWithJWTWithExpiredToken() {
 	creds, group, privateKey := s.SetupClientAssertionTest()
-	issuedAt := time.Now().Unix()-3600 //simulate token issued an hour ago.
-	expiresAt := issuedAt+200 //exp within 5 min of iat time
+	issuedAt := time.Now().Unix() - 3600 //simulate token issued an hour ago.
+	expiresAt := issuedAt + 200          //exp within 5 min of iat time
 
-	_, clientAssertion, errors := mintClientAssertion(creds.SystemID, creds.SystemID, s.assertAud,issuedAt, expiresAt, privateKey)
+	_, clientAssertion, errors := mintClientAssertion(creds.SystemID, creds.SystemID, s.assertAud, issuedAt, expiresAt, privateKey)
 	assert.Nil(s.T(), errors)
 
 	form := url.Values{}
@@ -597,12 +597,12 @@ func (s *APITestSuite) TestAuthenticatingWithJWTWithExpiredToken() {
 func (s *APITestSuite) TestAuthenticatingWithJWTSignedWithWrongKey() {
 	creds, group, _ := s.SetupClientAssertionTest() //Correct private key is created and uploaded here
 	issuedAt := time.Now().Unix()
-	expiresAt := issuedAt+200
+	expiresAt := issuedAt + 200
 
 	wrongPrivateKey, _, err := ssas.GenerateTestKeys(2048)
 	require.Nil(s.T(), err)
 
-	_, clientAssertion, errors := mintClientAssertion(creds.SystemID, creds.SystemID, s.assertAud,issuedAt, expiresAt, wrongPrivateKey)
+	_, clientAssertion, errors := mintClientAssertion(creds.SystemID, creds.SystemID, s.assertAud, issuedAt, expiresAt, wrongPrivateKey)
 	assert.Nil(s.T(), errors)
 
 	form := url.Values{}
@@ -626,9 +626,9 @@ func (s *APITestSuite) TestAuthenticatingWithJWTSignedWithWrongKey() {
 func (s *APITestSuite) TestAuthenticatingWithJWTWithSoftDeletedPublicKey() {
 	creds, group, privateKey := s.SetupClientAssertionTest()
 	issuedAt := time.Now().Unix()
-	expiresAt := issuedAt+200
+	expiresAt := issuedAt + 200
 
-	_, clientAssertion, errors := mintClientAssertion(creds.SystemID, creds.SystemID, s.assertAud,issuedAt, expiresAt, privateKey)
+	_, clientAssertion, errors := mintClientAssertion(creds.SystemID, creds.SystemID, s.assertAud, issuedAt, expiresAt, privateKey)
 	assert.Nil(s.T(), errors)
 
 	form := url.Values{}
@@ -641,7 +641,6 @@ func (s *APITestSuite) TestAuthenticatingWithJWTWithSoftDeletedPublicKey() {
 	req.Header.Add("Accept", "application/json")
 	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 
-
 	system, err := ssas.GetSystemByID(creds.SystemID)
 	assert.Nil(s.T(), err)
 	key, err := system.GetEncryptionKey(uuid.NewRandom().String())
@@ -650,7 +649,7 @@ func (s *APITestSuite) TestAuthenticatingWithJWTWithSoftDeletedPublicKey() {
 	//Soft delete public key
 	db := ssas.GetGORMDbConnection()
 	defer ssas.Close(db)
-	assert.Nil(s.T(),s.db.Delete(&key).Error)
+	assert.Nil(s.T(), s.db.Delete(&key).Error)
 
 	//Ensure record was soft deleted, and not permanently deleted.
 	key, err = system.GetEncryptionKey(uuid.NewRandom().String())
@@ -658,8 +657,8 @@ func (s *APITestSuite) TestAuthenticatingWithJWTWithSoftDeletedPublicKey() {
 	assert.Empty(s.T(), key)
 	var encryptionKey ssas.EncryptionKey
 	err = db.Unscoped().First(&encryptionKey, "system_id = ?", creds.SystemID).Error
-	assert.Nil(s.T(),err)
-	assert.NotEmpty(s.T(),encryptionKey)
+	assert.Nil(s.T(), err)
+	assert.NotEmpty(s.T(), encryptionKey)
 
 	handler := http.HandlerFunc(tokenV2)
 	handler.ServeHTTP(s.rr, req)
@@ -694,7 +693,7 @@ func (s *APITestSuite) TestAuthenticatingWithJWTWithMissingIssuerClaim() {
 
 func (s *APITestSuite) TestAuthenticatingWithJWTWithBadAudienceClaim() {
 	creds, group, privateKey := s.SetupClientAssertionTest()
-	_, clientAssertion, errors := mintClientAssertion(creds.SystemID, creds.SystemID, "https://invalid.url.com",time.Now().Unix(), time.Now().Add(time.Duration(100000)).Unix(), privateKey)
+	_, clientAssertion, errors := mintClientAssertion(creds.SystemID, creds.SystemID, "https://invalid.url.com", time.Now().Unix(), time.Now().Add(time.Duration(100000)).Unix(), privateKey)
 	assert.Nil(s.T(), errors)
 
 	form := url.Values{}
@@ -722,7 +721,7 @@ func (s *APITestSuite) TestAuthenticatingWithJWTWithMissingJTI() {
 	token := jwt.New(jwt.SigningMethodRS512)
 	claims.TokenType = "ClientAssertion"
 	claims.IssuedAt = time.Now().Unix()
-	claims.ExpiresAt =  time.Now().Add(time.Duration(100000)).Unix()
+	claims.ExpiresAt = time.Now().Add(time.Duration(100000)).Unix()
 	claims.Subject = creds.SystemID
 	claims.Issuer = creds.SystemID
 	claims.Audience = s.assertAud
@@ -750,7 +749,7 @@ func (s *APITestSuite) TestAuthenticatingWithJWTWithMissingJTI() {
 
 func (s *APITestSuite) TestAuthenticatingWithJWTWithMissingSubjectClaim() {
 	creds, group, privateKey := s.SetupClientAssertionTest()
-	_, clientAssertion, errors := mintClientAssertion(creds.SystemID, "",s.assertAud, time.Now().Unix(), time.Now().Add(time.Duration(100000)).Unix(), privateKey)
+	_, clientAssertion, errors := mintClientAssertion(creds.SystemID, "", s.assertAud, time.Now().Unix(), time.Now().Add(time.Duration(100000)).Unix(), privateKey)
 	assert.Nil(s.T(), errors)
 
 	form := url.Values{}
