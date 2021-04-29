@@ -101,7 +101,7 @@ Note that to initialize our docker container, we use migrate-and-start, which co
 
 # Test
 
-The SSAS can be tested by running `make unit-test`. You can also use the repo-wide commands `make test` and `make unit-test`, which will run tests against the entire repo, including the SSAS code.  Some tests are designed to be only run as needed, and are excluded from `make` by a build tag.  To include
+The SSAS can be tested by running `make unit-test`. You can also use the repo-wide command `make test`, which will run tests against the entire repo, including the SSAS code.  Some tests are designed to be only run as needed, and are excluded from `make` by a build tag.  To include
 one of these test suites, follow the instructions at the top of the test file.
 
 # Integration Testing
