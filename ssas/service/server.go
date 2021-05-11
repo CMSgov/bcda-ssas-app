@@ -267,7 +267,7 @@ func (s *Server) VerifyClientSignedToken(tokenString string, trackingId string) 
 		}
 		system,err := ssas.GetSystemByID(claims.Issuer)
 		if err !=nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to retrieve system information")
 		}
 		key, err := system.GetEncryptionKey(trackingId)
 		if err !=nil {
@@ -275,7 +275,8 @@ func (s *Server) VerifyClientSignedToken(tokenString string, trackingId string) 
 		}
 		pubKey,err := ssas.ReadPublicKey(key.Body)
 		if err !=nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to read public key")
+
 		}
 		return pubKey, nil
 	}
