@@ -571,7 +571,7 @@ func tokenV2(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if claims.Id ==""{
+	if claims.Id =="" {
 		event.Help = "missing Token ID (jti) claim"
 		ssas.AuthorizationFailure(event)
 		jsonError(w,"missing Token ID (jti) claim", "")
