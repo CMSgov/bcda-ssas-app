@@ -267,6 +267,7 @@ func (s *Server) VerifyClientSignedToken(tokenString string, trackingId string) 
 		}
 		system, err := ssas.GetSystemByID(claims.Issuer)
 		if err != nil {
+			ssas.Logger.Error(err)
 			return nil, fmt.Errorf("failed to retrieve system information")
 		}
 		key, err := system.GetEncryptionKey(trackingId)
