@@ -4,16 +4,16 @@ import (
 	"crypto/rsa"
 	"database/sql"
 	"fmt"
-	"log"
-	"net/http"
-	"os"
-	"time"
+	"github.com/CMSgov/bcda-ssas-app/ssas"
+	"github.com/CMSgov/bcda-ssas-app/ssas/cfg"
 	"github.com/dgrijalva/jwt-go"
 	"github.com/go-chi/chi"
 	"github.com/go-chi/render"
 	"github.com/pborman/uuid"
-	"github.com/CMSgov/bcda-ssas-app/ssas"
-	"github.com/CMSgov/bcda-ssas-app/ssas/cfg"
+	"log"
+	"net/http"
+	"os"
+	"time"
 )
 
 // Server configures and provisions an SSAS server
@@ -262,19 +262,21 @@ func (s *Server) VerifyClientSignedToken(tokenString string, trackingId string) 
 			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 		}
 		claims := token.Claims.(*CommonClaims)
-		if claims.Issuer == ""{
+		if claims.Issuer == "" {
 			return nil, fmt.Errorf("missing issuer (iss) in jwt claims")
 		}
-		system,err := ssas.GetSystemByID(claims.Issuer)
-		if err !=nil {
+		system, err := ssas.GetSystemByID(claims.Issuer)
+		if err != nil {
 			return nil, fmt.Errorf("failed to retrieve system information")
 		}
 		key, err := system.GetEncryptionKey(trackingId)
-		if err !=nil {
+		if err != nil {
+			ssas.Logger.Error(err)
 			return nil, fmt.Errorf("key not found for system: %v", claims.Issuer)
 		}
-		pubKey,err := ssas.ReadPublicKey(key.Body)
-		if err !=nil {
+		pubKey, err := ssas.ReadPublicKey(key.Body)
+		if err != nil {
+			ssas.Logger.Error(err)
 			return nil, fmt.Errorf("failed to read public key")
 
 		}
@@ -297,6 +299,6 @@ func (s *Server) CheckRequiredClaims(claims *CommonClaims, requiredTokenType str
 	return nil
 }
 
-func (s *Server) GetClientAssertionAudience() string{
+func (s *Server) GetClientAssertionAudience() string {
 	return s.clientAssertAud
 }
