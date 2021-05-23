@@ -478,7 +478,7 @@ func setHeaders(w http.ResponseWriter) {
 }
 
 type TokenResponse struct {
-	Scope 		string `json:"scope,omitempty"`
+	Scope       string `json:"scope,omitempty"`
 	AccessToken string `json:"access_token"`
 	TokenType   string `json:"token_type"`
 	ExpiresIn   string `json:"expires_in"`
@@ -547,41 +547,41 @@ func tokenV2(w http.ResponseWriter, r *http.Request) {
 	event := ssas.Event{Op: "V2-Token", TrackingID: trackingID, Help: "calling from public.tokenV2()"}
 	ssas.OperationCalled(event)
 	valError := validateClientAssertionParams(r)
-	if valError!="" {
+	if valError != "" {
 		event.Help = valError
 		ssas.AuthorizationFailure(event)
-		jsonError(w,valError, "")
+		jsonError(w, valError, "")
 		return
 	}
 
 	tokenString := r.Form.Get("client_assertion")
 	token, err := parseClientSignedToken(tokenString, trackingID)
-	if err!= nil{
+	if err != nil {
 		event.Help = err.Error()
 		ssas.AuthorizationFailure(event)
-		jsonError(w,err.Error(), "")
+		jsonError(w, err.Error(), "")
 		return
 	}
 
 	claims := token.Claims.(*service.CommonClaims)
-	if claims.Subject != claims.Issuer{
+	if claims.Subject != claims.Issuer {
 		event.Help = "subject (sub) and issuer (iss) claims do not match"
 		ssas.AuthorizationFailure(event)
-		jsonError(w,"subject (sub) and issuer (iss) claims do not match", "")
+		jsonError(w, "subject (sub) and issuer (iss) claims do not match", "")
 		return
 	}
 
-	if claims.Id =="" {
+	if claims.Id == "" {
 		event.Help = "missing Token ID (jti) claim"
 		ssas.AuthorizationFailure(event)
-		jsonError(w,"missing Token ID (jti) claim", "")
+		jsonError(w, "missing Token ID (jti) claim", "")
 		return
 	}
 
 	if claims.Audience != server.GetClientAssertionAudience() {
 		event.Help = "invalid audience (aud) claim"
 		ssas.AuthorizationFailure(event)
-		jsonError(w,"invalid audience (aud) claim", "")
+		jsonError(w, "invalid audience (aud) claim", "")
 		return
 	}
 
@@ -589,7 +589,7 @@ func tokenV2(w http.ResponseWriter, r *http.Request) {
 	if tokenDuration > 300 { //5 minute max duration
 		event.Help = "IssuedAt (iat) and ExpiresAt (exp) claims are more than 5 minutes apart"
 		ssas.AuthorizationFailure(event)
-		jsonError(w,"IssuedAt (iat) and ExpiresAt (exp) claims are more than 5 minutes apart", "")
+		jsonError(w, "IssuedAt (iat) and ExpiresAt (exp) claims are more than 5 minutes apart", "")
 		return
 	}
 
@@ -621,7 +621,7 @@ func tokenV2(w http.ResponseWriter, r *http.Request) {
 	// https://tools.ietf.org/html/rfc6749#section-5.1
 	// expires_in is duration in seconds
 	expiresIn := accessToken.Claims.(*service.CommonClaims).ExpiresAt - accessToken.Claims.(*service.CommonClaims).IssuedAt
-	m := TokenResponse{Scope:"system/*.*", AccessToken: ts, TokenType: "bearer", ExpiresIn: strconv.FormatInt(expiresIn, 10)}
+	m := TokenResponse{Scope: "system/*.*", AccessToken: ts, TokenType: "bearer", ExpiresIn: strconv.FormatInt(expiresIn, 10)}
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Cache-Control", "no-store")
 	w.Header().Set("Pragma", "no-cache")
@@ -665,7 +665,7 @@ func validateClientAssertionParams(r *http.Request) string {
 	return ""
 }
 
-func parseClientSignedToken(jwt string, trackingID string)(*jwt.Token, error){
+func parseClientSignedToken(jwt string, trackingID string) (*jwt.Token, error) {
 	return server.VerifyClientSignedToken(jwt, trackingID)
 }
 

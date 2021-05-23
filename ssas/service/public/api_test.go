@@ -891,7 +891,6 @@ func mintClientAssertion(issuer string, subject string, aud string, issuedAt int
 
 	token := jwt.New(jwt.SigningMethodRS512)
 	tokenID := uuid.NewRandom().String()
-	claims.TokenType = "ClientAssertion"
 	claims.IssuedAt = issuedAt
 	claims.ExpiresAt = expiresAt
 	claims.Id = tokenID
