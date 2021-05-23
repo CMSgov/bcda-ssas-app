@@ -22,6 +22,7 @@ import (
 )
 
 var DefaultScope string
+var MaxIPs int
 var CredentialExpiration time.Duration
 
 func init() {
@@ -42,6 +43,7 @@ func getEnvVars() {
 
 	expirationDays := cfg.GetEnvInt("SSAS_CRED_EXPIRATION_DAYS", 90)
 	CredentialExpiration = time.Duration(expirationDays*24) * time.Hour
+	MaxIPs = cfg.GetEnvInt("SSAS_MAX_SYSTEM_IPS", 8)
 }
 
 type System struct {
@@ -487,6 +489,60 @@ func RegisterSystem(clientName string, groupID string, scope string, publicKeyPE
 	regEvent.Help = fmt.Sprintf("system registered in group %s with XData: %s", group.GroupID, group.XData)
 	OperationSucceeded(regEvent)
 	return creds, nil
+}
+
+func (system *System) RegisterIP(address string, trackingID string) (IP, error) {
+	db := GetGORMDbConnection()
+	defer Close(db)
+
+	// The caller of this function should have logged OperationCalled() with the same trackingID
+	regEvent := Event{Op: "RegisterIP", TrackingID: trackingID, Help: "calling from admin.RegisterIP()"}
+	OperationStarted(regEvent)
+
+	if !ValidAddress(address) {
+		regEvent.Help = fmt.Sprintf("invalid IP %s", address)
+		OperationFailed(regEvent)
+		return IP{}, errors.New("invalid ip address")
+	}
+
+	ip := IP{
+		Address:  address,
+		SystemID: uint(system.ID),
+	}
+	count := int64(0)
+	db.Model(&IP{}).Where("ips.system_id = ? AND ips.address = ? AND ips.deleted_at IS NULL", system.ID, address).Count(&count)
+	if count != 0 {
+		regEvent.Help = fmt.Sprintf("can not create duplicate IP address:  %s for system %d", address, system.ID)
+		OperationFailed(regEvent)
+		return IP{}, errors.New("duplicate ip address")
+	}
+
+	count = int64(0)
+	db.Model(&IP{}).Where("ips.system_id = ? AND ips.deleted_at IS NULL", system.ID, address).Count(&count)
+	if count >= int64(MaxIPs) {
+		regEvent.Help = fmt.Sprintf("could not add ip, max number of ips reached. Max %d", count)
+		OperationFailed(regEvent)
+		return IP{}, errors.New("max ip address reached")
+	}
+	err := db.Create(&ip).Error
+	if err != nil {
+		regEvent.Help = fmt.Sprintf("could not save IP %s; %s", address, err.Error())
+		OperationFailed(regEvent)
+		return IP{}, errors.New("error in ip address")
+	}
+	return ip, nil
+}
+
+func (system *System) GetIps(trackingID string) ([]IP, error) {
+	db := GetGORMDbConnection()
+	defer Close(db)
+
+	regEvent := Event{Op: "RegisterIP", TrackingID: trackingID, Help: "calling from admin.RegisterIP()"}
+	OperationStarted(regEvent)
+
+	var ips []IP
+	db.Find(&ips, "system_id=? AND deleted_at IS NULL", system.ID)
+	return ips, nil
 }
 
 // DataForSystem returns the group extra data associated with this system

@@ -573,6 +573,187 @@ func (s *APITestSuite) TestJsonError() {
 	assert.Equal(s.T(), `{"error":"Unauthorized","error_description":"unauthorized"}`, string(body))
 }
 
+func (s *APITestSuite) TestGetSystemIPs() {
+	group := ssas.Group{GroupID: "test-reset-creds-group"}
+	s.db.Create(&group)
+	system := ssas.System{GID: group.ID, ClientID: "test-reset-creds-client"}
+	s.db.Create(&system)
+
+	systemID := strconv.FormatUint(uint64(system.ID), 10)
+	req := httptest.NewRequest("GET", "/system/"+systemID+"/ip", nil)
+	rctx := chi.NewRouteContext()
+	rctx.URLParams.Add("systemID", systemID)
+	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+	handler := http.HandlerFunc(getSystemIPs)
+
+	//No ips
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+	assert.Equal(s.T(), http.StatusOK, rr.Result().StatusCode)
+	assert.Equal(s.T(), "application/json", rr.Result().Header.Get("Content-Type"))
+	var ips []ssas.IP
+	_ = json.Unmarshal(rr.Body.Bytes(), &ips)
+	assert.Empty(s.T(), ips)
+
+	//Single IP
+	ip1 := ssas.IP{Address: "192.168.1.1", SystemID: system.ID}
+	s.db.Create(&ip1)
+
+	rr = httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+	assert.Equal(s.T(), http.StatusOK, rr.Result().StatusCode)
+	assert.Equal(s.T(), "application/json", rr.Result().Header.Get("Content-Type"))
+	_ = json.Unmarshal(rr.Body.Bytes(), &ips)
+	assert.NotEmpty(s.T(), ips)
+
+	//Multiple IPs (should include ip1 created previously)
+	ip2 := ssas.IP{Address: "192.168.1.2", SystemID: system.ID}
+	s.db.Create(&ip2)
+	ip3 := ssas.IP{Address: "192.168.1.3", SystemID: system.ID}
+	s.db.Create(&ip3)
+
+	rr = httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+	assert.Equal(s.T(), http.StatusOK, rr.Result().StatusCode)
+	assert.Equal(s.T(), "application/json", rr.Result().Header.Get("Content-Type"))
+	_ = json.Unmarshal(rr.Body.Bytes(), &ips)
+	assert.NotEmpty(s.T(), ips)
+	assert.Len(s.T(), ips, 3)
+
+	_ = ssas.CleanDatabase(group)
+}
+
+func (s *APITestSuite) TestGetSystemIPsBadSystem() {
+	//Should not exits
+	badSysId := 42
+
+	systemID := strconv.FormatUint(uint64(badSysId), 10)
+	req := httptest.NewRequest("GET", "/system/"+systemID+"/ip", nil)
+	rctx := chi.NewRouteContext()
+	rctx.URLParams.Add("systemID", systemID)
+	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+	handler := http.HandlerFunc(getSystemIPs)
+
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+	assert.Equal(s.T(), http.StatusNotFound, rr.Result().StatusCode)
+}
+
+func (s *APITestSuite) TestRegisterSystemIP() {
+	group := ssas.Group{GroupID: "test-reset-creds-group"}
+	s.db.Create(&group)
+	system := ssas.System{GID: group.ID, ClientID: "test-reset-creds-client"}
+	s.db.Create(&system)
+
+	systemID := strconv.FormatUint(uint64(system.ID), 10)
+	body := "{\"address\":\"192.12.22.81\"}"
+	req := httptest.NewRequest("POST", "/system/"+systemID+"/ip", strings.NewReader(body))
+	rctx := chi.NewRouteContext()
+	rctx.URLParams.Add("systemID", systemID)
+	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+	handler := http.HandlerFunc(registerIP)
+
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+	assert.Equal(s.T(), http.StatusCreated, rr.Result().StatusCode)
+	assert.Equal(s.T(), "application/json", rr.Result().Header.Get("Content-Type"))
+
+	//Retrieve to confirm
+	req = httptest.NewRequest("GET", "/system/"+systemID+"/ip", nil)
+	rctx = chi.NewRouteContext()
+	rctx.URLParams.Add("systemID", systemID)
+	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+	handler = getSystemIPs
+
+	rr = httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+	assert.Equal(s.T(), http.StatusOK, rr.Result().StatusCode)
+	assert.Equal(s.T(), "application/json", rr.Result().Header.Get("Content-Type"))
+	var ips []ssas.IP
+	_ = json.Unmarshal(rr.Body.Bytes(), &ips)
+	assert.Len(s.T(), ips, 1)
+
+	_ = ssas.CleanDatabase(group)
+}
+
+func (s *APITestSuite) TestRegisterInvalidIP() {
+	group := ssas.Group{GroupID: "test-reset-creds-group"}
+	s.db.Create(&group)
+	system := ssas.System{GID: group.ID, ClientID: "test-reset-creds-client"}
+	s.db.Create(&system)
+
+	systemID := strconv.FormatUint(uint64(system.ID), 10)
+	body := "{\"address\":\"600.1\"}"
+	req := httptest.NewRequest("POST", "/system/"+systemID+"/ip", strings.NewReader(body))
+	rctx := chi.NewRouteContext()
+	rctx.URLParams.Add("systemID", systemID)
+	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+	handler := http.HandlerFunc(registerIP)
+
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+	assert.Equal(s.T(), http.StatusBadRequest, rr.Result().StatusCode)
+
+	_ = ssas.CleanDatabase(group)
+}
+
+func (s *APITestSuite) TestRegisterMaxSystemIP() {
+	ssas.MaxIPs = 3
+	group := ssas.Group{GroupID: "test-reset-creds-group"}
+	s.db.Create(&group)
+	system := ssas.System{GID: group.ID, ClientID: "test-reset-creds-client"}
+	s.db.Create(&system)
+
+	ip1 := ssas.IP{Address: "192.12.22.81", SystemID: system.ID}
+	s.db.Create(&ip1)
+	ip2 := ssas.IP{Address: "192.12.22.82", SystemID: system.ID}
+	s.db.Create(&ip2)
+	ip3 := ssas.IP{Address: "192.12.22.83", SystemID: system.ID}
+	s.db.Create(&ip3)
+
+	//Max is 3 (for test), 4th should produce error
+	systemID := strconv.FormatUint(uint64(system.ID), 10)
+	body := "{\"address\":\"192.12.22.84\"}"
+	req := httptest.NewRequest("POST", "/system/"+systemID+"/ip", strings.NewReader(body))
+	rctx := chi.NewRouteContext()
+	rctx.URLParams.Add("systemID", systemID)
+	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+	handler := http.HandlerFunc(registerIP)
+
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+	assert.Equal(s.T(), http.StatusBadRequest, rr.Result().StatusCode)
+	assert.Contains(s.T(), rr.Body.String(), "max ip addresses reached")
+	_ = ssas.CleanDatabase(group)
+}
+
+func (s *APITestSuite) TestRegisterDuplicateSystemIP() {
+	ssas.MaxIPs = 3
+	group := ssas.Group{GroupID: "test-reset-creds-group"}
+	s.db.Create(&group)
+	system := ssas.System{GID: group.ID, ClientID: "test-reset-creds-client"}
+	s.db.Create(&system)
+
+	ip1 := ssas.IP{Address: "192.12.22.81", SystemID: system.ID}
+	s.db.Create(&ip1)
+	ip2 := ssas.IP{Address: "192.12.22.82", SystemID: system.ID}
+	s.db.Create(&ip2)
+
+	systemID := strconv.FormatUint(uint64(system.ID), 10)
+	body := "{\"address\":\"192.12.22.81\"}"
+	req := httptest.NewRequest("POST", "/system/"+systemID+"/ip", strings.NewReader(body))
+	rctx := chi.NewRouteContext()
+	rctx.URLParams.Add("systemID", systemID)
+	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+	handler := http.HandlerFunc(registerIP)
+
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+	assert.Equal(s.T(), http.StatusConflict, rr.Result().StatusCode)
+	assert.Contains(s.T(), rr.Body.String(), "duplicate ip address")
+	_ = ssas.CleanDatabase(group)
+}
+
 func TestAPITestSuite(t *testing.T) {
 	suite.Run(t, new(APITestSuite))
 }
