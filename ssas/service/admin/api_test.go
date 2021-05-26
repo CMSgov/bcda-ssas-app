@@ -740,7 +740,7 @@ func (s *APITestSuite) TestRegisterDuplicateSystemIP() {
 	s.db.Create(&ip2)
 
 	systemID := strconv.FormatUint(uint64(system.ID), 10)
-	body := "{\"address\":\"192.12.22.81\"}"
+	body := `{"address":"192.12.22.81"}`
 	req := httptest.NewRequest("POST", "/system/"+systemID+"/ip", strings.NewReader(body))
 	rctx := chi.NewRouteContext()
 	rctx.URLParams.Add("systemID", systemID)
