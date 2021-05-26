@@ -64,6 +64,7 @@ type APITestSuite struct {
 func (s *APITestSuite) SetupSuite() {
 	s.db = ssas.GetGORMDbConnection()
 	service.StartBlacklist()
+	ssas.MaxIPs = 3
 }
 
 func (s *APITestSuite) TearDownSuite() {
@@ -698,7 +699,6 @@ func (s *APITestSuite) TestRegisterInvalidIP() {
 }
 
 func (s *APITestSuite) TestRegisterMaxSystemIP() {
-	ssas.MaxIPs = 3
 	group := ssas.Group{GroupID: "test-reset-creds-group"}
 	s.db.Create(&group)
 	system := ssas.System{GID: group.ID, ClientID: "test-reset-creds-client"}
@@ -728,7 +728,6 @@ func (s *APITestSuite) TestRegisterMaxSystemIP() {
 }
 
 func (s *APITestSuite) TestRegisterDuplicateSystemIP() {
-	ssas.MaxIPs = 3
 	group := ssas.Group{GroupID: "test-reset-creds-group"}
 	s.db.Create(&group)
 	system := ssas.System{GID: group.ID, ClientID: "test-reset-creds-client"}
