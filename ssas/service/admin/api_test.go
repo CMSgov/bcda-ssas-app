@@ -624,7 +624,7 @@ func (s *APITestSuite) TestGetSystemIPs() {
 }
 
 func (s *APITestSuite) TestGetSystemIPsBadSystem() {
-	//Should not exits
+	//Should not exist
 	badSysId := 42
 
 	systemID := strconv.FormatUint(uint64(badSysId), 10)
