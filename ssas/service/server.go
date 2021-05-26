@@ -265,7 +265,7 @@ func (s *Server) VerifyClientSignedToken(tokenString string, trackingId string) 
 		if claims.Issuer == "" {
 			return nil, fmt.Errorf("missing issuer (iss) in jwt claims")
 		}
-		system, err := ssas.GetSystemByID(claims.Issuer)
+		system, err := ssas.GetSystemByClientID(claims.Issuer)
 		if err != nil {
 			ssas.Logger.Error(err)
 			return nil, fmt.Errorf("failed to retrieve system information")

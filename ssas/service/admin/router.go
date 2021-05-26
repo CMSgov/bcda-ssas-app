@@ -50,6 +50,7 @@ func routes() *chi.Mux {
 
 	r.With(requireBasicAuth).Post("/v2/system/{systemID}/ip", registerIP)
 	r.With(requireBasicAuth).Get("/v2/system/{systemID}/ip", getSystemIPs)
+	r.With(requireBasicAuth).Post("/v2/token_info", validateAndParseToken)
 
 	swaggerPath := "./swaggerui"
 	if _, err := os.Stat(swaggerPath); os.IsNotExist(err) {

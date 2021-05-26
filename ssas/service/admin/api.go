@@ -499,6 +499,54 @@ func getSystemIPs(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func validateAndParseToken(w http.ResponseWriter, r *http.Request) {
+	//TODO basic auth
+	trackingID := uuid.NewRandom().String()
+	event := ssas.Event{Op: "V2-Token", TrackingID: trackingID, Help: "calling from public.tokenV2()"}
+	ssas.OperationCalled(event)
+
+	defer r.Body.Close()
+
+	var reqV map[string]string
+	if err := json.NewDecoder(r.Body).Decode(&reqV); err != nil {
+		jsonError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+	var answer = make(map[string]bool)
+	answer["active"] = true
+	if err = tokenValidity(reqV["token"], "AccessToken"); err != nil {
+		ssas.Logger.Infof("token failed tokenValidity")
+		answer["active"] = false
+	}
+
+	var tokenString string
+	if err := json.NewDecoder(r.Body).Decode(&tokenString); err != nil {
+		jsonError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+	token, err := server.VerifyClientSignedToken(tokenString, trackingID)
+	if err != nil {
+		event.Help = err.Error()
+		ssas.AuthorizationFailure(event)
+		jsonError(w, err.Error(), "")
+		return
+	}
+
+	parsedToken, err := json.Marshal(ips)
+	if err != nil {
+		ssas.Logger.Error("Could not marshal system ips", err)
+		jsonError(w, http.StatusInternalServerError, "internal error")
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	_, err = w.Write(ipJson)
+	if err != nil {
+		jsonError(w, http.StatusInternalServerError, "internal error")
+	}
+}
+
 type IPAddressInput struct {
 	Address string `json:"address"`
 }
