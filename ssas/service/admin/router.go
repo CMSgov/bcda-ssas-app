@@ -48,6 +48,9 @@ func routes() *chi.Mux {
 	r.With(requireBasicAuth).Delete("/system/{systemID}/credentials", deactivateSystemCredentials)
 	r.With(requireBasicAuth).Delete("/token/{tokenID}", revokeToken)
 
+	r.With(requireBasicAuth).Post("/v2/system/{systemID}/ip", registerIP)
+	r.With(requireBasicAuth).Get("/v2/system/{systemID}/ip", getSystemIPs)
+
 	swaggerPath := "./swaggerui"
 	if _, err := os.Stat(swaggerPath); os.IsNotExist(err) {
 		ssas.Logger.Info("swagger path not found: " + swaggerPath)
