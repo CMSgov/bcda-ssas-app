@@ -683,7 +683,7 @@ func (s *APITestSuite) TestRegisterInvalidIP() {
 	s.db.Create(&system)
 
 	systemID := strconv.FormatUint(uint64(system.ID), 10)
-	body := "{\"address\":\"600.1\"}"
+	body := `{"address":"600.1"}`
 	req := httptest.NewRequest("POST", "/system/"+systemID+"/ip", strings.NewReader(body))
 	rctx := chi.NewRouteContext()
 	rctx.URLParams.Add("systemID", systemID)
