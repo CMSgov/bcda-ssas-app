@@ -713,7 +713,7 @@ func (s *APITestSuite) TestRegisterMaxSystemIP() {
 
 	//Max is 3 (for test), 4th should produce error
 	systemID := strconv.FormatUint(uint64(system.ID), 10)
-	body := "{\"address\":\"192.12.22.84\"}"
+	body := `{"address":"192.12.22.84"}`
 	req := httptest.NewRequest("POST", "/system/"+systemID+"/ip", strings.NewReader(body))
 	rctx := chi.NewRouteContext()
 	rctx.URLParams.Add("systemID", systemID)
