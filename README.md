@@ -66,6 +66,7 @@ Some variables below have a note indicating their name should be changed. These 
 | SSAS_TOKEN_BLACKLIST_CACHE_ <br/> REFRESH_MINUTES  | No | X | | Configures the number of minutes between times the token blacklist cache is refreshed from the database. |
 | BCDA_TLS_CERT        | Depends  | X |   | The cert used when the SSAS service is running in secure mode. When setting vars for AWS envs, you must include a var for the cert material. This var should be renamed to SSAS_TLS_CERT. |
 | BCDA_TLS_KEY         | Depends  | X |   | The private key used when the SSAS service is running in secure mode. When setting vars for AWS envs, you must include a var for the key material. This var should be renamed to SSAS_TLS_KEY. |
+| SSAS_CLIENT_ASSERTION_AUD         | Yes  | X |   | The audience (aud) claim value required when authenticating using client assertion tokens (v2/token). |
 
 # Development Setup
 
@@ -100,7 +101,7 @@ Note that to initialize our docker container, we use migrate-and-start, which co
 
 # Test
 
-The SSAS can be tested by running `make test-ssas` or `make unit-test-ssas`. You can also use the repo-wide commands `make test` and `make unit-test`, which will run tests against the entire repo, including the SSAS code.  Some tests are designed to be only run as needed, and are excluded from `make` by a build tag.  To include
+The SSAS can be tested by running `make unit-test`. You can also use the repo-wide command `make test`, which will run tests against the entire repo, including the SSAS code.  Some tests are designed to be only run as needed, and are excluded from `make` by a build tag.  To include
 one of these test suites, follow the instructions at the top of the test file.
 
 # Integration Testing

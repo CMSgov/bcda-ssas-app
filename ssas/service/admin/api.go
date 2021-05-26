@@ -416,6 +416,93 @@ func revokeToken(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
+func registerIP(w http.ResponseWriter, r *http.Request) {
+	systemID := chi.URLParam(r, "systemID")
+	input := IPAddressInput{}
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+		jsonError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	system, err := ssas.GetSystemByID(systemID)
+	if err != nil {
+		jsonError(w, http.StatusNotFound, "Invalid system ID")
+		return
+	}
+
+	trackingID := uuid.NewRandom().String()
+
+	if !ssas.ValidAddress(input.Address) {
+		jsonError(w, http.StatusBadRequest, "invalid ip address")
+		return
+	}
+
+	ssas.OperationCalled(ssas.Event{Op: "RegisterIP", TrackingID: trackingID, Help: "calling from admin.resetCredentials()"})
+	ip, err := system.RegisterIP(input.Address, trackingID)
+	if err != nil {
+		if err.Error() == "duplicate ip address" {
+			jsonError(w, http.StatusConflict, "duplicate ip address")
+			return
+		}
+		if err.Error() == "max ip address reached" {
+			jsonError(w, http.StatusBadRequest, "max ip addresses reached")
+			return
+		}
+		jsonError(w, http.StatusInternalServerError, "internal error")
+		return
+	}
+
+	ipJson, err := json.Marshal(ip)
+	if err != nil {
+		jsonError(w, http.StatusInternalServerError, "internal error")
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	_, err = w.Write(ipJson)
+	if err != nil {
+		jsonError(w, http.StatusInternalServerError, "internal error")
+	}
+}
+
+func getSystemIPs(w http.ResponseWriter, r *http.Request) {
+	systemID := chi.URLParam(r, "systemID")
+
+	system, err := ssas.GetSystemByID(systemID)
+	if err != nil {
+		jsonError(w, http.StatusNotFound, "Invalid system ID")
+		return
+	}
+
+	trackingID := uuid.NewRandom().String()
+	ssas.OperationCalled(ssas.Event{Op: "GetSystemIPs", TrackingID: trackingID, Help: "calling from admin.getSystemIPs()"})
+	ips, err := system.GetIps(trackingID)
+	if err != nil {
+		ssas.Logger.Error("Could not retrieve system ips", err)
+		jsonError(w, http.StatusInternalServerError, "internal error")
+		return
+	}
+
+	ipJson, err := json.Marshal(ips)
+	if err != nil {
+		ssas.Logger.Error("Could not marshal system ips", err)
+		jsonError(w, http.StatusInternalServerError, "internal error")
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	_, err = w.Write(ipJson)
+	if err != nil {
+		jsonError(w, http.StatusInternalServerError, "internal error")
+	}
+}
+
+type IPAddressInput struct {
+	Address string `json:"address"`
+}
+
 func jsonError(w http.ResponseWriter, errorStatus int, description string) {
 	service.JsonError(w, errorStatus, http.StatusText(errorStatus), description)
 }
