@@ -9,14 +9,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/CMSgov/bcda-ssas-app/ssas"
+	"github.com/CMSgov/bcda-ssas-app/ssas/service"
+	"github.com/dgrijalva/jwt-go"
 	"github.com/go-chi/render"
 	"github.com/pborman/uuid"
 	"io/ioutil"
 	"net/http"
 	"strconv"
-
-	"github.com/CMSgov/bcda-ssas-app/ssas"
-	"github.com/CMSgov/bcda-ssas-app/ssas/service"
 )
 
 type Key struct {
@@ -478,6 +478,7 @@ func setHeaders(w http.ResponseWriter) {
 }
 
 type TokenResponse struct {
+	Scope       string `json:"scope,omitempty"`
 	AccessToken string `json:"access_token"`
 	TokenType   string `json:"token_type"`
 	ExpiresIn   string `json:"expires_in"`
@@ -539,6 +540,133 @@ func token(w http.ResponseWriter, r *http.Request) {
 	ssas.AccessTokenIssued(event)
 	ssas.OperationSucceeded(event)
 	render.JSON(w, r, m)
+}
+
+func tokenV2(w http.ResponseWriter, r *http.Request) {
+	trackingID := uuid.NewRandom().String()
+	event := ssas.Event{Op: "V2-Token", TrackingID: trackingID, Help: "calling from public.tokenV2()"}
+	ssas.OperationCalled(event)
+	valError := validateClientAssertionParams(r)
+	if valError != "" {
+		event.Help = valError
+		ssas.AuthorizationFailure(event)
+		jsonError(w, valError, "")
+		return
+	}
+
+	tokenString := r.Form.Get("client_assertion")
+	token, err := parseClientSignedToken(tokenString, trackingID)
+	if err != nil {
+		event.Help = err.Error()
+		ssas.AuthorizationFailure(event)
+		jsonError(w, err.Error(), "")
+		return
+	}
+
+	claims := token.Claims.(*service.CommonClaims)
+	if claims.Subject != claims.Issuer {
+		event.Help = "subject (sub) and issuer (iss) claims do not match"
+		ssas.AuthorizationFailure(event)
+		jsonError(w, "subject (sub) and issuer (iss) claims do not match", "")
+		return
+	}
+
+	if claims.Id == "" {
+		event.Help = "missing Token ID (jti) claim"
+		ssas.AuthorizationFailure(event)
+		jsonError(w, "missing Token ID (jti) claim", "")
+		return
+	}
+
+	if claims.Audience != server.GetClientAssertionAudience() {
+		event.Help = "invalid audience (aud) claim"
+		ssas.AuthorizationFailure(event)
+		jsonError(w, "invalid audience (aud) claim", "")
+		return
+	}
+
+	tokenDuration := claims.ExpiresAt - claims.IssuedAt
+	if tokenDuration > 300 { //5 minute max duration
+		event.Help = "IssuedAt (iat) and ExpiresAt (exp) claims are more than 5 minutes apart"
+		ssas.AuthorizationFailure(event)
+		jsonError(w, "IssuedAt (iat) and ExpiresAt (exp) claims are more than 5 minutes apart", "")
+		return
+	}
+
+	systemID := claims.Issuer
+	system, err := ssas.GetSystemByID(systemID)
+	if err != nil {
+		service.JsonError(w, http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized), "invalid issuer (iss) claim. system not found")
+		return
+	}
+
+	data, err := ssas.XDataFor(system)
+	ssas.Logger.Infof("public.api.token: XDataFor(%d) returned '%s'", system.ID, data)
+	if err != nil {
+		jsonError(w, http.StatusText(http.StatusUnauthorized), "no group for system")
+		return
+	}
+
+	accessToken, ts, err := MintAccessToken(fmt.Sprintf("%d", system.ID), system.ClientID, data)
+	if err != nil {
+		event.Help = "failure minting token: " + err.Error()
+		ssas.OperationFailed(event)
+		basicError(w, http.StatusUnauthorized)
+		return
+	}
+
+	system.SaveTokenTime()
+	event.Help = fmt.Sprintf("token created in group %s with XData: %s", system.GroupID, data)
+
+	// https://tools.ietf.org/html/rfc6749#section-5.1
+	// expires_in is duration in seconds
+	expiresIn := accessToken.Claims.(*service.CommonClaims).ExpiresAt - accessToken.Claims.(*service.CommonClaims).IssuedAt
+	m := TokenResponse{Scope: "system/*.*", AccessToken: ts, TokenType: "bearer", ExpiresIn: strconv.FormatInt(expiresIn, 10)}
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Cache-Control", "no-store")
+	w.Header().Set("Pragma", "no-cache")
+	ssas.AccessTokenIssued(event)
+	ssas.OperationSucceeded(event)
+	render.JSON(w, r, m)
+}
+
+func validateClientAssertionParams(r *http.Request) string {
+	if err := r.ParseForm(); err != nil {
+		return "unable to parse form data"
+	}
+	contentTypeHeader := r.Header.Get("Content-Type")
+	if contentTypeHeader == "" {
+		return "missing Content-Type header"
+	}
+
+	if contentTypeHeader != "application/x-www-form-urlencoded" {
+		return "invalid Content Type Header value. Supported Types: [application/x-www-form-urlencoded]"
+	}
+
+	if r.Header.Get("Accept") != "application/json" {
+		return "invalid Accept header value. Supported types: [application/json]"
+	}
+
+	if r.Form.Get("client_assertion_type") != "urn:ietf:params:oauth:client-assertion-type:jwt-bearer" {
+		return "invalid value for client_assertion_type"
+	}
+
+	if r.Form.Get("grant_type") != "client_credentials" {
+		return "invalid value for grant_type"
+	}
+
+	if r.Form.Get("scope") != "system/*.*" {
+		return "invalid scope value"
+	}
+
+	if r.Form.Get("client_assertion") == "" {
+		return "missing client_assertion"
+	}
+	return ""
+}
+
+func parseClientSignedToken(jwt string, trackingID string) (*jwt.Token, error) {
+	return server.VerifyClientSignedToken(jwt, trackingID)
 }
 
 func introspect(w http.ResponseWriter, r *http.Request) {

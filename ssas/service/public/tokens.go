@@ -2,13 +2,11 @@ package public
 
 import (
 	"fmt"
-	"time"
-
-	"github.com/dgrijalva/jwt-go"
-
 	"github.com/CMSgov/bcda-ssas-app/ssas"
 	"github.com/CMSgov/bcda-ssas-app/ssas/cfg"
 	"github.com/CMSgov/bcda-ssas-app/ssas/service"
+	"github.com/dgrijalva/jwt-go"
+	"time"
 )
 
 var selfRegistrationTokenDuration time.Duration
@@ -139,6 +137,5 @@ func checkTokenClaims(claims *service.CommonClaims) error {
 	default:
 		return fmt.Errorf("missing token type claim")
 	}
-
 	return nil
 }
