@@ -14,9 +14,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
-
 	"github.com/CMSgov/bcda-ssas-app/ssas/cfg"
-
 	"github.com/pborman/uuid"
 	"gorm.io/gorm"
 )
@@ -64,6 +62,7 @@ type EncryptionKey struct {
 	Body     string `json:"body"`
 	System   System `gorm:"foreignkey:SystemID;association_foreignkey:ID"`
 	SystemID uint   `json:"system_id"`
+
 }
 
 type Secret struct {
@@ -76,6 +75,10 @@ type Secret struct {
 // IsExpired tests whether this secret has expired
 func (secret *Secret) IsExpired() bool {
 	return secret.UpdatedAt.Add(CredentialExpiration).Before(time.Now())
+}
+
+func (key *EncryptionKey) IsEncryptionKeyExpired() bool {
+	return key.UpdatedAt.Add(CredentialExpiration).Before(time.Now())
 }
 
 type IP struct {
