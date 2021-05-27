@@ -597,7 +597,7 @@ func (s *APITestSuite) TestGetSystemIPs() {
 	assert.Empty(s.T(), ips)
 
 	//Single IP
-	ip1 := ssas.IP{Address: "192.168.1.1", SystemID: system.ID}
+	ip1 := ssas.IP{Address: "2.5.1.1", SystemID: system.ID}
 	s.db.Create(&ip1)
 
 	rr = httptest.NewRecorder()
@@ -608,9 +608,9 @@ func (s *APITestSuite) TestGetSystemIPs() {
 	assert.NotEmpty(s.T(), ips)
 
 	//Multiple IPs (should include ip1 created previously)
-	ip2 := ssas.IP{Address: "192.168.1.2", SystemID: system.ID}
+	ip2 := ssas.IP{Address: "2.5.1.2", SystemID: system.ID}
 	s.db.Create(&ip2)
-	ip3 := ssas.IP{Address: "192.168.1.3", SystemID: system.ID}
+	ip3 := ssas.IP{Address: "2.5.1.3", SystemID: system.ID}
 	s.db.Create(&ip3)
 
 	rr = httptest.NewRecorder()
@@ -647,7 +647,7 @@ func (s *APITestSuite) TestRegisterSystemIP() {
 	s.db.Create(&system)
 
 	systemID := strconv.FormatUint(uint64(system.ID), 10)
-	body := `{"address":"192.12.22.81"}`
+	body := `{"address":"2.5.22.81"}`
 	req := httptest.NewRequest("POST", "/system/"+systemID+"/ip", strings.NewReader(body))
 	rctx := chi.NewRouteContext()
 	rctx.URLParams.Add("systemID", systemID)
@@ -704,16 +704,16 @@ func (s *APITestSuite) TestRegisterMaxSystemIP() {
 	system := ssas.System{GID: group.ID, ClientID: "test-reset-creds-client"}
 	s.db.Create(&system)
 
-	ip1 := ssas.IP{Address: "192.12.22.81", SystemID: system.ID}
+	ip1 := ssas.IP{Address: "2.5.22.81", SystemID: system.ID}
 	s.db.Create(&ip1)
-	ip2 := ssas.IP{Address: "192.12.22.82", SystemID: system.ID}
+	ip2 := ssas.IP{Address: "2.5.22.82", SystemID: system.ID}
 	s.db.Create(&ip2)
-	ip3 := ssas.IP{Address: "192.12.22.83", SystemID: system.ID}
+	ip3 := ssas.IP{Address: "2.5.22.83", SystemID: system.ID}
 	s.db.Create(&ip3)
 
 	//Max is 3 (for test), 4th should produce error
 	systemID := strconv.FormatUint(uint64(system.ID), 10)
-	body := `{"address":"192.12.22.84"}`
+	body := `{"address":"2.5.22.84"}`
 	req := httptest.NewRequest("POST", "/system/"+systemID+"/ip", strings.NewReader(body))
 	rctx := chi.NewRouteContext()
 	rctx.URLParams.Add("systemID", systemID)
@@ -733,13 +733,13 @@ func (s *APITestSuite) TestRegisterDuplicateSystemIP() {
 	system := ssas.System{GID: group.ID, ClientID: "test-reset-creds-client"}
 	s.db.Create(&system)
 
-	ip1 := ssas.IP{Address: "192.12.22.81", SystemID: system.ID}
+	ip1 := ssas.IP{Address: "2.5.22.81", SystemID: system.ID}
 	s.db.Create(&ip1)
-	ip2 := ssas.IP{Address: "192.12.22.82", SystemID: system.ID}
+	ip2 := ssas.IP{Address: "2.5.22.82", SystemID: system.ID}
 	s.db.Create(&ip2)
 
 	systemID := strconv.FormatUint(uint64(system.ID), 10)
-	body := `{"address":"192.12.22.81"}`
+	body := `{"address":"2.5.22.81"}`
 	req := httptest.NewRequest("POST", "/system/"+systemID+"/ip", strings.NewReader(body))
 	rctx := chi.NewRouteContext()
 	rctx.URLParams.Add("systemID", systemID)
