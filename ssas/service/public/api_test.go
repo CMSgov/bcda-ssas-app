@@ -490,7 +490,7 @@ func (s *APITestSuite) SetupClientAssertionTest() (ssas.Credentials, ssas.Group,
 //Authenticate and generate access token using JWT (v2/token/)
 func (s *APITestSuite) TestAuthenticatingWithJWT() {
 	creds, group, privateKey := s.SetupClientAssertionTest()
-	_, clientAssertion, errors := mintClientAssertion(creds.SystemID, creds.SystemID, s.assertAud, time.Now().Unix(), time.Now().Add(time.Duration(100000)).Unix(), privateKey)
+	_, clientAssertion, errors := mintClientAssertion(creds.SystemID, creds.SystemID, s.assertAud, time.Now().Unix(), time.Now().Add(time.Minute*5).Unix(), privateKey)
 	assert.Nil(s.T(), errors)
 
 	form := url.Values{}
@@ -670,7 +670,7 @@ func (s *APITestSuite) TestAuthenticatingWithJWTWithSoftDeletedPublicKey() {
 
 func (s *APITestSuite) TestAuthenticatingWithJWTWithMissingIssuerClaim() {
 	creds, group, privateKey := s.SetupClientAssertionTest()
-	_, clientAssertion, errors := mintClientAssertion("", creds.SystemID, s.assertAud, time.Now().Unix(), time.Now().Add(time.Duration(100000)).Unix(), privateKey)
+	_, clientAssertion, errors := mintClientAssertion("", creds.SystemID, s.assertAud, time.Now().Unix(), time.Now().Add(time.Minute*5).Unix(), privateKey)
 	assert.Nil(s.T(), errors)
 
 	form := url.Values{}
@@ -693,7 +693,7 @@ func (s *APITestSuite) TestAuthenticatingWithJWTWithMissingIssuerClaim() {
 
 func (s *APITestSuite) TestAuthenticatingWithJWTWithBadAudienceClaim() {
 	creds, group, privateKey := s.SetupClientAssertionTest()
-	_, clientAssertion, errors := mintClientAssertion(creds.SystemID, creds.SystemID, "https://invalid.url.com", time.Now().Unix(), time.Now().Add(time.Duration(100000)).Unix(), privateKey)
+	_, clientAssertion, errors := mintClientAssertion(creds.SystemID, creds.SystemID, "https://invalid.url.com", time.Now().Unix(), time.Now().Add(time.Minute*5).Unix(), privateKey)
 	assert.Nil(s.T(), errors)
 
 	form := url.Values{}
@@ -721,7 +721,7 @@ func (s *APITestSuite) TestAuthenticatingWithJWTWithMissingJTI() {
 	token := jwt.New(jwt.SigningMethodRS512)
 	claims.TokenType = "ClientAssertion"
 	claims.IssuedAt = time.Now().Unix()
-	claims.ExpiresAt = time.Now().Add(time.Duration(100000)).Unix()
+	claims.ExpiresAt = time.Now().Add(time.Minute * 5).Unix()
 	claims.Subject = creds.SystemID
 	claims.Issuer = creds.SystemID
 	claims.Audience = s.assertAud
@@ -749,7 +749,7 @@ func (s *APITestSuite) TestAuthenticatingWithJWTWithMissingJTI() {
 
 func (s *APITestSuite) TestAuthenticatingWithJWTWithMissingSubjectClaim() {
 	creds, group, privateKey := s.SetupClientAssertionTest()
-	_, clientAssertion, errors := mintClientAssertion(creds.SystemID, "", s.assertAud, time.Now().Unix(), time.Now().Add(time.Duration(100000)).Unix(), privateKey)
+	_, clientAssertion, errors := mintClientAssertion(creds.SystemID, "", s.assertAud, time.Now().Unix(), time.Now().Add(time.Minute*5).Unix(), privateKey)
 	assert.Nil(s.T(), errors)
 
 	form := url.Values{}
