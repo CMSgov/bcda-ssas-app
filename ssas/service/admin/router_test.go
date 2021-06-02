@@ -173,6 +173,15 @@ func (s *RouterTestSuite) TestPostV2Group() {
 	assert.Equal(s.T(), http.StatusBadRequest, res.StatusCode)
 }
 
+func (s *RouterTestSuite) TestGetV2Group() {
+	req := httptest.NewRequest("GET", "/v2/group", nil)
+	req.Header.Add("Authorization", "Basic "+s.basicAuth)
+	rr := httptest.NewRecorder()
+	s.router.ServeHTTP(rr, req)
+	res := rr.Result()
+	assert.Equal(s.T(), http.StatusOK, res.StatusCode)
+}
+
 func TestRouterTestSuite(t *testing.T) {
 	suite.Run(t, new(RouterTestSuite))
 }
