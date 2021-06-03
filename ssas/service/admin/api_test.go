@@ -6,12 +6,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/dgrijalva/jwt-go"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/CMSgov/bcda-ssas-app/ssas/service"
 
@@ -58,11 +60,13 @@ const SampleXdata string = `"{\"cms_ids\":[\"T67890\",\"T54321\"]}"`
 
 type APITestSuite struct {
 	suite.Suite
-	db *gorm.DB
+	server *service.Server
+	db     *gorm.DB
 }
 
 func (s *APITestSuite) SetupSuite() {
 	s.db = ssas.GetGORMDbConnection()
+	s.server = Server()
 	service.StartBlacklist()
 	ssas.MaxIPs = 3
 }
@@ -751,6 +755,101 @@ func (s *APITestSuite) TestRegisterDuplicateSystemIP() {
 	assert.Equal(s.T(), http.StatusConflict, rr.Result().StatusCode)
 	assert.Contains(s.T(), rr.Body.String(), "duplicate ip address")
 	_ = ssas.CleanDatabase(group)
+}
+
+func (s *APITestSuite) TestGetTokenInfo() {
+	_, access, err := s.MintTestAccessToken()
+	assert.NoError(s.T(), err)
+
+	body := fmt.Sprintf("{\"token\":\"%s\"}", access)
+
+	req := httptest.NewRequest("POST", "/token_info", strings.NewReader(body))
+	rctx := chi.NewRouteContext()
+	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+	handler := http.HandlerFunc(validateAndParseToken)
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+	assert.Equal(s.T(), http.StatusOK, rr.Result().StatusCode)
+	assert.Equal(s.T(), "application/json; charset=utf-8", rr.Result().Header.Get("Content-Type"))
+}
+
+func (s *APITestSuite) TestGetTokenInfoWithMissingToken() {
+	body := "{}"
+	req := httptest.NewRequest("POST", "/token_info", strings.NewReader(body))
+	rCtx := chi.NewRouteContext()
+	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rCtx))
+	handler := http.HandlerFunc(validateAndParseToken)
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+	assert.Equal(s.T(), http.StatusBadRequest, rr.Result().StatusCode)
+
+	var resMap map[string]string
+	json.NewDecoder(rr.Body).Decode(&resMap)
+	assert.Equal(s.T(), "missing \"token\" field in body", resMap["error_description"])
+}
+
+func (s *APITestSuite) TestGetTokenInfoWithEmptyToken() {
+	body := `{"token":""}`
+	req := httptest.NewRequest("POST", "/token_info", strings.NewReader(body))
+	rCtx := chi.NewRouteContext()
+	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rCtx))
+	handler := http.HandlerFunc(validateAndParseToken)
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+	assert.Equal(s.T(), http.StatusBadRequest, rr.Result().StatusCode)
+
+	var resMap map[string]string
+	json.NewDecoder(rr.Body).Decode(&resMap)
+	assert.Equal(s.T(), "missing \"token\" field in body", resMap["error_description"])
+}
+
+func (s *APITestSuite) TestGetTokenInfoWithCorruptToken() {
+	body := `{"token":"dafdasfdsfadfdasfdsafadsfadsf"}`
+
+	req := httptest.NewRequest("POST", "/token_info", strings.NewReader(body))
+	rCtx := chi.NewRouteContext()
+	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rCtx))
+	handler := http.HandlerFunc(validateAndParseToken)
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+	assert.Equal(s.T(), http.StatusOK, rr.Result().StatusCode)
+	assert.Contains(s.T(), rr.Body.String(), `{"valid":false}`)
+}
+
+func (s *APITestSuite) TestGetTokenInfoWithExpiredToken() {
+	_, access, err := s.MintTestAccessTokenWithDuration(time.Second * 1)
+	assert.NoError(s.T(), err)
+	time.Sleep(5 * time.Second)
+
+	body := fmt.Sprintf("{\"token\":\"%s\"}", access)
+	req := httptest.NewRequest("POST", "/token_info", strings.NewReader(body))
+	rCtx := chi.NewRouteContext()
+	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rCtx))
+	handler := http.HandlerFunc(validateAndParseToken)
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+	assert.Equal(s.T(), http.StatusOK, rr.Result().StatusCode)
+	assert.Contains(s.T(), rr.Body.String(), `{"valid":false}`)
+}
+
+func (s *APITestSuite) MintTestAccessTokenWithDuration(duration time.Duration) (*jwt.Token, string, error) {
+	creds, _ := ssas.CreateTestXData(s.T(), s.db)
+	system, err := ssas.GetSystemByClientID(creds.ClientID)
+	assert.Nil(s.T(), err)
+	data, err := ssas.XDataFor(system)
+	assert.Nil(s.T(), err)
+
+	claims := service.CommonClaims{
+		TokenType: "AccessToken",
+		SystemID:  fmt.Sprintf("%d", system.ID),
+		ClientID:  creds.ClientID,
+		Data:      data,
+	}
+	return s.server.MintTokenWithDuration(&claims, duration)
+}
+
+func (s *APITestSuite) MintTestAccessToken() (*jwt.Token, string, error) {
+	return s.MintTestAccessTokenWithDuration(time.Minute * 10)
 }
 
 func TestAPITestSuite(t *testing.T) {

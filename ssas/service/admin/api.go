@@ -3,6 +3,8 @@ package admin
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/dgrijalva/jwt-go"
+	"github.com/go-chi/render"
 	"io/ioutil"
 	"net/http"
 	"strings"
@@ -500,9 +502,8 @@ func getSystemIPs(w http.ResponseWriter, r *http.Request) {
 }
 
 func validateAndParseToken(w http.ResponseWriter, r *http.Request) {
-	//TODO basic auth
 	trackingID := uuid.NewRandom().String()
-	event := ssas.Event{Op: "V2-Token", TrackingID: trackingID, Help: "calling from public.tokenV2()"}
+	event := ssas.Event{Op: "V2-Token-Info", TrackingID: trackingID, Help: "calling from admin.validateAndParseToken()"}
 	ssas.OperationCalled(event)
 
 	defer r.Body.Close()
@@ -512,39 +513,28 @@ func validateAndParseToken(w http.ResponseWriter, r *http.Request) {
 		jsonError(w, http.StatusBadRequest, "invalid request body")
 		return
 	}
-	var answer = make(map[string]bool)
-	answer["active"] = true
-	if err = tokenValidity(reqV["token"], "AccessToken"); err != nil {
+	tokenS := reqV["token"]
+	if tokenS == "" {
+		jsonError(w, http.StatusBadRequest, `missing "token" field in body`)
+		return
+	}
+	var response = make(map[string]interface{})
+
+	if err := tokenValidity(tokenS, "AccessToken"); err != nil {
 		ssas.Logger.Infof("token failed tokenValidity")
-		answer["active"] = false
+		response["valid"] = false
+	} else {
+		claims := jwt.MapClaims{}
+		if _, _, err := new(jwt.Parser).ParseUnverified(tokenS, claims); err != nil {
+			ssas.Logger.Infof("could not unmarshal access token")
+			jsonError(w, http.StatusInternalServerError, "internal server error")
+			return
+		}
+		response["valid"] = true
+		response["claims"] = claims
 	}
-
-	var tokenString string
-	if err := json.NewDecoder(r.Body).Decode(&tokenString); err != nil {
-		jsonError(w, http.StatusBadRequest, "invalid request body")
-		return
-	}
-	token, err := server.VerifyClientSignedToken(tokenString, trackingID)
-	if err != nil {
-		event.Help = err.Error()
-		ssas.AuthorizationFailure(event)
-		jsonError(w, err.Error(), "")
-		return
-	}
-
-	parsedToken, err := json.Marshal(ips)
-	if err != nil {
-		ssas.Logger.Error("Could not marshal system ips", err)
-		jsonError(w, http.StatusInternalServerError, "internal error")
-		return
-	}
-
 	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	_, err = w.Write(ipJson)
-	if err != nil {
-		jsonError(w, http.StatusInternalServerError, "internal error")
-	}
+	render.JSON(w, r, response)
 }
 
 type IPAddressInput struct {
