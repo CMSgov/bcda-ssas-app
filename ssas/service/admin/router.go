@@ -48,9 +48,12 @@ func routes() *chi.Mux {
 	r.With(requireBasicAuth).Delete("/system/{systemID}/credentials", deactivateSystemCredentials)
 	r.With(requireBasicAuth).Delete("/token/{tokenID}", revokeToken)
 
-	r.With(requireBasicAuth).Post("/v2/system/{systemID}/ip", registerIP)
-	r.With(requireBasicAuth).Get("/v2/system/{systemID}/ip", getSystemIPs)
-	r.With(requireBasicAuth).Post("/v2/token_info", validateAndParseToken)
+	r.Route("/v2", func(r chi.Router) {
+		r.With(requireBasicAuth).Post("/group", createGroup)
+    	r.With(requireBasicAuth).Post("/system/{systemID}/ip", registerIP)
+	  	r.With(requireBasicAuth).Get("/system/{systemID}/ip", getSystemIPs)
+		r.With(requireBasicAuth).Post("/token_info", validateAndParseToken)
+	})
 
 	swaggerPath := "./swaggerui"
 	if _, err := os.Stat(swaggerPath); os.IsNotExist(err) {
