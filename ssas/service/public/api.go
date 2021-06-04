@@ -593,8 +593,8 @@ func tokenV2(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	clientId := claims.Issuer
-	system, err := ssas.GetSystemByClientID(clientId)
+	systemId := claims.Issuer
+	system, err := ssas.GetSystemByID(systemId)
 	if err != nil {
 		service.JsonError(w, http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized), "invalid issuer (iss) claim. system not found")
 		return

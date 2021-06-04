@@ -3,16 +3,10 @@ package admin
 import (
 	"fmt"
 	"github.com/CMSgov/bcda-ssas-app/ssas"
-	"github.com/CMSgov/bcda-ssas-app/ssas/cfg"
 	"github.com/CMSgov/bcda-ssas-app/ssas/service"
-	"time"
 )
 
-var selfRegistrationTokenDuration time.Duration
-
 func init() {
-	minutes := cfg.GetEnvInt("SSAS_MFA_TOKEN_TIMEOUT_MINUTES", 60)
-	selfRegistrationTokenDuration = time.Duration(int64(time.Minute) * int64(minutes))
 }
 
 func empty(arr []string) bool {

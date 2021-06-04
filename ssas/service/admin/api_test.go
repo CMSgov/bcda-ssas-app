@@ -784,7 +784,8 @@ func (s *APITestSuite) TestGetTokenInfoWithMissingToken() {
 	assert.Equal(s.T(), http.StatusBadRequest, rr.Result().StatusCode)
 
 	var resMap map[string]string
-	json.NewDecoder(rr.Body).Decode(&resMap)
+	err := json.NewDecoder(rr.Body).Decode(&resMap)
+	assert.NoError(s.T(), err)
 	assert.Equal(s.T(), "missing \"token\" field in body", resMap["error_description"])
 }
 
@@ -799,7 +800,8 @@ func (s *APITestSuite) TestGetTokenInfoWithEmptyToken() {
 	assert.Equal(s.T(), http.StatusBadRequest, rr.Result().StatusCode)
 
 	var resMap map[string]string
-	json.NewDecoder(rr.Body).Decode(&resMap)
+	err := json.NewDecoder(rr.Body).Decode(&resMap)
+	assert.NoError(s.T(), err)
 	assert.Equal(s.T(), "missing \"token\" field in body", resMap["error_description"])
 }
 
