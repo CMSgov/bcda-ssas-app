@@ -175,11 +175,20 @@ func (s *RouterTestSuite) TestPostV2Group() {
 
 func (s *RouterTestSuite) TestGetV2Group() {
 	req := httptest.NewRequest("GET", "/v2/group", nil)
+  req.Header.Add("Authorization", "Basic "+s.basicAuth)
+	rr := httptest.NewRecorder()
+	s.router.ServeHTTP(rr, req)
+	res := rr.Result()
+  assert.Equal(s.T(), http.StatusOK, res.StatusCode)
+}
+
+func (s *RouterTestSuite) TestPatchV2Group() {
+	req := httptest.NewRequest(http.MethodPatch, "/v2/group/1", nil)
 	req.Header.Add("Authorization", "Basic "+s.basicAuth)
 	rr := httptest.NewRecorder()
 	s.router.ServeHTTP(rr, req)
 	res := rr.Result()
-	assert.Equal(s.T(), http.StatusOK, res.StatusCode)
+	assert.Equal(s.T(), http.StatusBadRequest, res.StatusCode)
 }
 
 func TestRouterTestSuite(t *testing.T) {
