@@ -539,7 +539,6 @@ func registerSystem(clientName string, groupID string, scope string, publicKeyPE
 			return creds, errors.New("internal system error")
 		}
 		SecretCreated(regEvent)
-		creds.ClientID = system.ClientID
 		creds.ClientSecret = clientSecret
 	}
 
@@ -552,6 +551,7 @@ func registerSystem(clientName string, groupID string, scope string, publicKeyPE
 
 	creds.SystemID = fmt.Sprint(system.ID)
 	creds.ClientName = system.ClientName
+	creds.ClientID = system.ClientID
 	creds.IPs = ips
 	creds.ExpiresAt = time.Now().Add(CredentialExpiration)
 

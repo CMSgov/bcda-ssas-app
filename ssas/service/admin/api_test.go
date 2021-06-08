@@ -783,9 +783,9 @@ func (s *APITestSuite) TestCreateV2System() {
 	assert.Equal(s.T(), "application/json", rr.Result().Header.Get("Content-Type"))
 	var result map[string]interface{}
 	_ = json.Unmarshal(rr.Body.Bytes(), &result)
-	assert.Empty(s.T(), result["client_id"])
-	assert.Empty(s.T(), result["client_secret"])
+	assert.NotEmpty(s.T(), result["client_id"])
 	assert.NotEmpty(s.T(), result["client_token"])
+	assert.Empty(s.T(), result["client_secret"])
 	assert.Equal(s.T(), "Test Client", result["client_name"])
 
 	err = ssas.CleanDatabase(group)
@@ -812,4 +812,93 @@ func (s *APITestSuite) TestCreateV2SystemWithMissingPublicKey() {
 
 	err = ssas.CleanDatabase(group)
 	assert.Nil(s.T(), err)
+}
+
+func (s *APITestSuite) TestCreateV2SystemMultipleIps() {
+	randomIPv4 := ssas.RandomIPv4()
+	randomIPv6 := ssas.RandomIPv6()
+	group := ssas.Group{GroupID: "test-group-id"}
+	err := s.db.Save(&group).Error
+	if err != nil {
+		s.FailNow("Error creating test data", err.Error())
+	}
+
+	reqBody := fmt.Sprintf(`{"client_name": "Test Client", "group_id": "test-group-id", "scope": "bcda-api", "ips": ["%s", "%s"],"public_key": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEArhxobShmNifzW3xznB+L\nI8+hgaePpSGIFCtFz2IXGU6EMLdeufhADaGPLft9xjwdN1ts276iXQiaChKPA2CK\n/CBpuKcnU3LhU8JEi7u/db7J4lJlh6evjdKVKlMuhPcljnIKAiGcWln3zwYrFCeL\ncN0aTOt4xnQpm8OqHawJ18y0WhsWT+hf1DeBDWvdfRuAPlfuVtl3KkrNYn1yqCgQ\nlT6v/WyzptJhSR1jxdR7XLOhDGTZUzlHXh2bM7sav2n1+sLsuCkzTJqWZ8K7k7cI\nXK354CNpCdyRYUAUvr4rORIAUmcIFjaR3J4y/Dh2JIyDToOHg7vjpCtNnNoS+ON2\nHwIDAQAB\n-----END PUBLIC KEY-----","tracking_id": "T00000"}`, randomIPv4, randomIPv6)
+	req := httptest.NewRequest("POST", "/auth/system", strings.NewReader(reqBody))
+	handler := http.HandlerFunc(createV2System)
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+	assert.Equal(s.T(), http.StatusCreated, rr.Result().StatusCode)
+	assert.Equal(s.T(), "application/json", rr.Result().Header.Get("Content-Type"))
+
+	creds := ssas.Credentials{}
+	err = json.NewDecoder(bytes.NewReader(rr.Body.Bytes())).Decode(&creds)
+	assert.Nil(s.T(), err)
+	assert.NotEmpty(s.T(), creds)
+	assert.NotEqual(s.T(), "", creds.ClientID)
+	assert.Equal(s.T(), "Test Client", creds.ClientName)
+
+	system, err := ssas.GetSystemByClientID(creds.ClientID)
+	assert.Nil(s.T(), err)
+	ips, err := system.GetIPs()
+	assert.Nil(s.T(), err)
+	assert.True(s.T(), contains(ips, randomIPv4))
+	assert.True(s.T(), contains(ips, randomIPv6))
+
+	err = ssas.CleanDatabase(group)
+	assert.Nil(s.T(), err)
+}
+
+func (s *APITestSuite) TestCreateV2SystemBadIp() {
+	group := ssas.Group{GroupID: "test-group-id"}
+	err := s.db.Save(&group).Error
+	if err != nil {
+		s.FailNow("Error creating test data", err.Error())
+	}
+
+	req := httptest.NewRequest("POST", "/auth/system", strings.NewReader(`{"client_name": "Test Client", "group_id": "test-group-id", "scope": "bcda-api", ips: ["304.0.2.1/32"],"tracking_id": "T00000"}`))
+	handler := http.HandlerFunc(createV2System)
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+	assert.Equal(s.T(), http.StatusBadRequest, rr.Result().StatusCode)
+
+	err = ssas.CleanDatabase(group)
+	assert.Nil(s.T(), err)
+}
+
+func (s *APITestSuite) TestCreateV2SystemEmptyKey() {
+	group := ssas.Group{GroupID: "test-group-id"}
+	err := s.db.Save(&group).Error
+	if err != nil {
+		s.FailNow("Error creating test data", err.Error())
+	}
+
+	req := httptest.NewRequest("POST", "/auth/system", strings.NewReader(`{"client_name": "Test Client", "group_id": "test-group-id", "scope": "bcda-api", "public_key": "", "tracking_id": "T00000"}`))
+	handler := http.HandlerFunc(createV2System)
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+	assert.Equal(s.T(), http.StatusBadRequest, rr.Result().StatusCode)
+	var result map[string]interface{}
+	_ = json.Unmarshal(rr.Body.Bytes(), &result)
+	assert.Empty(s.T(), result["client_token"])
+	assert.Equal(s.T(), "could not create v2 system; public key is required", result["error_description"])
+
+	err = ssas.CleanDatabase(group)
+	assert.Nil(s.T(), err)
+}
+
+func (s *APITestSuite) TestCreateV2SystemInvalidRequest() {
+	req := httptest.NewRequest("POST", "/auth/system", strings.NewReader("{ badJSON }"))
+	handler := http.HandlerFunc(createV2System)
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+	assert.Equal(s.T(), http.StatusBadRequest, rr.Result().StatusCode)
+}
+
+func (s *APITestSuite) TestCreateV2SystemMissingRequiredParam() {
+	req := httptest.NewRequest("POST", "/auth/system", strings.NewReader(`{"group_id": "T00001", "client_name": "Test Client 1", "scope": "bcda-api"}`))
+	handler := http.HandlerFunc(createV2System)
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+	assert.Equal(s.T(), http.StatusBadRequest, rr.Result().StatusCode)
 }
