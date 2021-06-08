@@ -52,7 +52,6 @@ func routes() *chi.Mux {
 		r.With(requireBasicAuth).Post("/group", createGroup)
 		r.With(requireBasicAuth).Post("/system/{systemID}/ip", registerIP)
 		r.With(requireBasicAuth).Get("/system/{systemID}/ip", getSystemIPs)
-		r.With(requireBasicAuth).Post("/token_info", validateAndParseToken)
 	})
 
 	swaggerPath := "./swaggerui"

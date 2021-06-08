@@ -906,3 +906,100 @@ func mintClientAssertion(issuer string, subject string, aud string, issuedAt int
 	}
 	return token, signedString, nil
 }
+
+func (s *APITestSuite) TestGetTokenInfo() {
+	_, access, err := s.MintTestAccessToken()
+	assert.NoError(s.T(), err)
+
+	body := fmt.Sprintf("{\"token\":\"%s\"}", access)
+
+	req := httptest.NewRequest("POST", "/token_info", strings.NewReader(body))
+	rctx := chi.NewRouteContext()
+	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+	handler := http.HandlerFunc(validateAndParseToken)
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+	assert.Equal(s.T(), http.StatusOK, rr.Result().StatusCode)
+	assert.Equal(s.T(), "application/json; charset=utf-8", rr.Result().Header.Get("Content-Type"))
+}
+
+func (s *APITestSuite) TestGetTokenInfoWithMissingToken() {
+	body := "{}"
+	req := httptest.NewRequest("POST", "/token_info", strings.NewReader(body))
+	rCtx := chi.NewRouteContext()
+	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rCtx))
+	handler := http.HandlerFunc(validateAndParseToken)
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+	assert.Equal(s.T(), http.StatusBadRequest, rr.Result().StatusCode)
+
+	var resMap map[string]string
+	err := json.NewDecoder(rr.Body).Decode(&resMap)
+	assert.NoError(s.T(), err)
+	assert.Equal(s.T(), "missing \"token\" field in body", resMap["error_description"])
+}
+
+func (s *APITestSuite) TestGetTokenInfoWithEmptyToken() {
+	body := `{"token":""}`
+	req := httptest.NewRequest("POST", "/token_info", strings.NewReader(body))
+	rCtx := chi.NewRouteContext()
+	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rCtx))
+	handler := http.HandlerFunc(validateAndParseToken)
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+	assert.Equal(s.T(), http.StatusBadRequest, rr.Result().StatusCode)
+
+	var resMap map[string]string
+	err := json.NewDecoder(rr.Body).Decode(&resMap)
+	assert.NoError(s.T(), err)
+	assert.Equal(s.T(), "missing \"token\" field in body", resMap["error_description"])
+}
+
+func (s *APITestSuite) TestGetTokenInfoWithCorruptToken() {
+	body := `{"token":"dafdasfdsfadfdasfdsafadsfadsf"}`
+
+	req := httptest.NewRequest("POST", "/token_info", strings.NewReader(body))
+	rCtx := chi.NewRouteContext()
+	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rCtx))
+	handler := http.HandlerFunc(validateAndParseToken)
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+	assert.Equal(s.T(), http.StatusOK, rr.Result().StatusCode)
+	assert.Contains(s.T(), rr.Body.String(), `{"valid":false}`)
+}
+
+func (s *APITestSuite) TestGetTokenInfoWithExpiredToken() {
+	_, access, err := s.MintTestAccessTokenWithDuration(time.Second * 1)
+	assert.NoError(s.T(), err)
+	time.Sleep(5 * time.Second)
+
+	body := fmt.Sprintf("{\"token\":\"%s\"}", access)
+	req := httptest.NewRequest("POST", "/token_info", strings.NewReader(body))
+	rCtx := chi.NewRouteContext()
+	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rCtx))
+	handler := http.HandlerFunc(validateAndParseToken)
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+	assert.Equal(s.T(), http.StatusOK, rr.Result().StatusCode)
+	assert.Contains(s.T(), rr.Body.String(), `{"valid":false}`)
+}
+
+func (s *APITestSuite) MintTestAccessTokenWithDuration(duration time.Duration) (*jwt.Token, string, error) {
+	creds, _ := ssas.CreateTestXData(s.T(), s.db)
+	system, err := ssas.GetSystemByClientID(creds.ClientID)
+	assert.Nil(s.T(), err)
+	data, err := ssas.XDataFor(system)
+	assert.Nil(s.T(), err)
+
+	claims := service.CommonClaims{
+		TokenType: "AccessToken",
+		SystemID:  fmt.Sprintf("%d", system.ID),
+		ClientID:  creds.ClientID,
+		Data:      data,
+	}
+	return s.server.MintTokenWithDuration(&claims, duration)
+}
+
+func (s *APITestSuite) MintTestAccessToken() (*jwt.Token, string, error) {
+	return s.MintTestAccessTokenWithDuration(time.Minute * 10)
+}
