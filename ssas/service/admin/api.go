@@ -499,6 +499,42 @@ func getSystemIPs(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func deleteSystemIP(w http.ResponseWriter, r *http.Request) {
+	systemID := chi.URLParam(r, "systemID")
+	system, err := ssas.GetSystemByID(systemID)
+	if err != nil {
+		jsonError(w, http.StatusNotFound, "Invalid system ID")
+		return
+	}
+
+	ipID := chi.URLParam(r, "id")
+
+	trackingID := uuid.NewRandom().String()
+	ssas.OperationCalled(ssas.Event{Op: "DeleteSystemIP", TrackingID: trackingID, Help: "calling from admin.deleteSystemIP()"})
+
+	ips, err := system.DeleteIP(ipID, trackingID)
+	if err != nil {
+		//ssas.OperationFailed
+		jsonError(w, http.StatusBadRequest, fmt.Sprintf("Failed to delete IP: %s", err))
+		return
+	}
+
+	ipJson, err := json.Marshal(ips)
+	if err != nil {
+		jsonError(w, http.StatusInternalServerError, "internal error")
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+
+	_, err = w.Write(ipJson)
+	if err != nil {
+		jsonError(w, http.StatusInternalServerError, "internal error")
+		return
+	}
+}
+
 type IPAddressInput struct {
 	Address string `json:"address"`
 }
