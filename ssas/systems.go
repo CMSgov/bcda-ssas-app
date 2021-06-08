@@ -475,7 +475,6 @@ func registerSystem(clientName string, groupID string, scope string, publicKeyPE
 		}
 	}
 
-	// The public key is optional
 	if publicKeyPEM != "" {
 		_, err = ReadPublicKey(publicKeyPEM)
 		if err != nil {

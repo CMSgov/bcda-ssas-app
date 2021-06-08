@@ -6,14 +6,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/CMSgov/bcda-ssas-app/ssas/service"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
 	"strings"
 	"testing"
-
-	"github.com/CMSgov/bcda-ssas-app/ssas/service"
 
 	"github.com/CMSgov/bcda-ssas-app/ssas"
 	"github.com/go-chi/chi"
@@ -69,6 +68,10 @@ func (s *APITestSuite) SetupSuite() {
 
 func (s *APITestSuite) TearDownSuite() {
 	ssas.Close(s.db)
+}
+
+func TestAPITestSuite(t *testing.T) {
+	suite.Run(t, new(APITestSuite))
 }
 
 func (s *APITestSuite) TestCreateGroup() {
@@ -754,10 +757,6 @@ func (s *APITestSuite) TestRegisterDuplicateSystemIP() {
 	_ = ssas.CleanDatabase(group)
 }
 
-func TestAPITestSuite(t *testing.T) {
-	suite.Run(t, new(APITestSuite))
-}
-
 func contains(list []string, target string) bool {
 	for _, item := range list {
 		if item == target {
@@ -775,7 +774,7 @@ func (s *APITestSuite) TestCreateV2System() {
 		s.FailNow("Error creating test data", err.Error())
 	}
 
-	req := httptest.NewRequest("POST", "/system", strings.NewReader(`{"client_name": "Test Client", "group_id": "test-group-id", "scope": "bcda-api", "public_key": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEArhxobShmNifzW3xznB+L\nI8+hgaePpSGIFCtFz2IXGU6EMLdeufhADaGPLft9xjwdN1ts276iXQiaChKPA2CK\n/CBpuKcnU3LhU8JEi7u/db7J4lJlh6evjdKVKlMuhPcljnIKAiGcWln3zwYrFCeL\ncN0aTOt4xnQpm8OqHawJ18y0WhsWT+hf1DeBDWvdfRuAPlfuVtl3KkrNYn1yqCgQ\nlT6v/WyzptJhSR1jxdR7XLOhDGTZUzlHXh2bM7sav2n1+sLsuCkzTJqWZ8K7k7cI\nXK354CNpCdyRYUAUvr4rORIAUmcIFjaR3J4y/Dh2JIyDToOHg7vjpCtNnNoS+ON2\nHwIDAQAB\n-----END PUBLIC KEY-----", "tracking_id": "T00000"}`))
+	req := httptest.NewRequest("POST", "/v2/system", strings.NewReader(`{"client_name": "Test Client", "group_id": "test-group-id", "scope": "bcda-api", "public_key": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEArhxobShmNifzW3xznB+L\nI8+hgaePpSGIFCtFz2IXGU6EMLdeufhADaGPLft9xjwdN1ts276iXQiaChKPA2CK\n/CBpuKcnU3LhU8JEi7u/db7J4lJlh6evjdKVKlMuhPcljnIKAiGcWln3zwYrFCeL\ncN0aTOt4xnQpm8OqHawJ18y0WhsWT+hf1DeBDWvdfRuAPlfuVtl3KkrNYn1yqCgQ\nlT6v/WyzptJhSR1jxdR7XLOhDGTZUzlHXh2bM7sav2n1+sLsuCkzTJqWZ8K7k7cI\nXK354CNpCdyRYUAUvr4rORIAUmcIFjaR3J4y/Dh2JIyDToOHg7vjpCtNnNoS+ON2\nHwIDAQAB\n-----END PUBLIC KEY-----", "tracking_id": "T00000"}`))
 	handler := http.HandlerFunc(createV2System)
 	rr := httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
@@ -792,7 +791,6 @@ func (s *APITestSuite) TestCreateV2System() {
 	assert.Nil(s.T(), err)
 }
 
-//V2 Tests Below
 func (s *APITestSuite) TestCreateV2SystemWithMissingPublicKey() {
 	group := ssas.Group{GroupID: "test-group-id"}
 	err := s.db.Save(&group).Error
@@ -824,7 +822,7 @@ func (s *APITestSuite) TestCreateV2SystemMultipleIps() {
 	}
 
 	reqBody := fmt.Sprintf(`{"client_name": "Test Client", "group_id": "test-group-id", "scope": "bcda-api", "ips": ["%s", "%s"],"public_key": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEArhxobShmNifzW3xznB+L\nI8+hgaePpSGIFCtFz2IXGU6EMLdeufhADaGPLft9xjwdN1ts276iXQiaChKPA2CK\n/CBpuKcnU3LhU8JEi7u/db7J4lJlh6evjdKVKlMuhPcljnIKAiGcWln3zwYrFCeL\ncN0aTOt4xnQpm8OqHawJ18y0WhsWT+hf1DeBDWvdfRuAPlfuVtl3KkrNYn1yqCgQ\nlT6v/WyzptJhSR1jxdR7XLOhDGTZUzlHXh2bM7sav2n1+sLsuCkzTJqWZ8K7k7cI\nXK354CNpCdyRYUAUvr4rORIAUmcIFjaR3J4y/Dh2JIyDToOHg7vjpCtNnNoS+ON2\nHwIDAQAB\n-----END PUBLIC KEY-----","tracking_id": "T00000"}`, randomIPv4, randomIPv6)
-	req := httptest.NewRequest("POST", "/auth/system", strings.NewReader(reqBody))
+	req := httptest.NewRequest("POST", "/v2/system", strings.NewReader(reqBody))
 	handler := http.HandlerFunc(createV2System)
 	rr := httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
@@ -856,7 +854,7 @@ func (s *APITestSuite) TestCreateV2SystemBadIp() {
 		s.FailNow("Error creating test data", err.Error())
 	}
 
-	req := httptest.NewRequest("POST", "/auth/system", strings.NewReader(`{"client_name": "Test Client", "group_id": "test-group-id", "scope": "bcda-api", ips: ["304.0.2.1/32"],"tracking_id": "T00000"}`))
+	req := httptest.NewRequest("POST", "/v2/system", strings.NewReader(`{"client_name": "Test Client", "group_id": "test-group-id", "scope": "bcda-api", ips: ["304.0.2.1/32"],"tracking_id": "T00000"}`))
 	handler := http.HandlerFunc(createV2System)
 	rr := httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
@@ -873,7 +871,7 @@ func (s *APITestSuite) TestCreateV2SystemEmptyKey() {
 		s.FailNow("Error creating test data", err.Error())
 	}
 
-	req := httptest.NewRequest("POST", "/auth/system", strings.NewReader(`{"client_name": "Test Client", "group_id": "test-group-id", "scope": "bcda-api", "public_key": "", "tracking_id": "T00000"}`))
+	req := httptest.NewRequest("POST", "/v2/system", strings.NewReader(`{"client_name": "Test Client", "group_id": "test-group-id", "scope": "bcda-api", "public_key": "", "tracking_id": "T00000"}`))
 	handler := http.HandlerFunc(createV2System)
 	rr := httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
@@ -888,7 +886,7 @@ func (s *APITestSuite) TestCreateV2SystemEmptyKey() {
 }
 
 func (s *APITestSuite) TestCreateV2SystemInvalidRequest() {
-	req := httptest.NewRequest("POST", "/auth/system", strings.NewReader("{ badJSON }"))
+	req := httptest.NewRequest("POST", "/v2/system", strings.NewReader("{ badJSON }"))
 	handler := http.HandlerFunc(createV2System)
 	rr := httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
@@ -896,7 +894,7 @@ func (s *APITestSuite) TestCreateV2SystemInvalidRequest() {
 }
 
 func (s *APITestSuite) TestCreateV2SystemMissingRequiredParam() {
-	req := httptest.NewRequest("POST", "/auth/system", strings.NewReader(`{"group_id": "T00001", "client_name": "Test Client 1", "scope": "bcda-api"}`))
+	req := httptest.NewRequest("POST", "/v2/system", strings.NewReader(`{"group_id": "T00001", "client_name": "Test Client 1", "scope": "bcda-api"}`))
 	handler := http.HandlerFunc(createV2System)
 	rr := httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
