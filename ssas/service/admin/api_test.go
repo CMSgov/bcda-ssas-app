@@ -839,25 +839,25 @@ func (s *APITestSuite) TestUpdateSystem() {
 func (s *APITestSuite) TestUpdateSystemWithInvalidBody() {
 	req := httptest.NewRequest("Patch", V2_SYSTEM_ROUTE+"0", strings.NewReader(`{"client_name": invalid json`))
 	rctx := chi.NewRouteContext()
-	rctx.URLParams.Add("id", fmt.Sprint("0"))
+	rctx.URLParams.Add("id", "0")
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
 	handler := http.HandlerFunc(updateSystem)
 	rr := httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
 	assert.Equal(s.T(), http.StatusBadRequest, rr.Result().StatusCode)
-	assert.Contains(s.T(), rr.Body.String(),"invalid request body")
+	assert.Contains(s.T(), rr.Body.String(), "invalid request body")
 }
 
 func (s *APITestSuite) TestUpdateNonExistingSystem() {
 	req := httptest.NewRequest("Patch", V2_SYSTEM_ROUTE+"-1", strings.NewReader(`{"client_name":"updated_client"}`))
 	rctx := chi.NewRouteContext()
-	rctx.URLParams.Add("id", fmt.Sprint("-1"))
+	rctx.URLParams.Add("id", "-1")
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
 	handler := http.HandlerFunc(updateSystem)
 	rr := httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
 	assert.Equal(s.T(), http.StatusBadRequest, rr.Result().StatusCode)
-	assert.Contains(s.T(), rr.Body.String(),"failed to update system")
+	assert.Contains(s.T(), rr.Body.String(), "failed to update system")
 }
 
 func TestAPITestSuite(t *testing.T) {
