@@ -222,12 +222,6 @@ func updateSystem(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err != nil {
-		systemEvent.Help = err.Error()
-		ssas.OperationFailed(systemEvent)
-		jsonError(w, http.StatusInternalServerError, "internal error")
-	}
-
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusNoContent)
 	if err != nil {
