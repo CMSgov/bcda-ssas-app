@@ -2,12 +2,12 @@ package public
 
 import (
 	"fmt"
-	"os"
-	"time"
-	"github.com/go-chi/chi"
 	"github.com/CMSgov/bcda-ssas-app/ssas"
 	"github.com/CMSgov/bcda-ssas-app/ssas/constants"
 	"github.com/CMSgov/bcda-ssas-app/ssas/service"
+	"github.com/go-chi/chi"
+	"os"
+	"time"
 )
 
 var infoMap map[string][]string
@@ -49,5 +49,7 @@ func routes() *chi.Mux {
 
 	//v2 Routes
 	router.Post("/v2/token", tokenV2)
+	router.Post("/v2/token_info", validateAndParseToken)
+
 	return router
 }
