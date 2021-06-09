@@ -779,7 +779,6 @@ func (s *APITestSuite) TestDeleteIP() {
 	assert.Equal(s.T(), "application/json", rr.Result().Header.Get("Content-Type"))
 	var ips []ssas.IP
 	_ = json.Unmarshal(rr.Body.Bytes(), &ips)
-	originalIPcount := len(ips)
 	assert.Len(s.T(), ips, 2)
 
 	// Get ID of first IP associated with system
