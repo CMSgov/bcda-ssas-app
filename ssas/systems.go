@@ -7,6 +7,9 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
+	"github.com/CMSgov/bcda-ssas-app/ssas/cfg"
+	"github.com/pborman/uuid"
+	"gorm.io/gorm"
 	"io"
 	"io/ioutil"
 	"net"
@@ -14,9 +17,6 @@ import (
 	"strconv"
 	"strings"
 	"time"
-	"github.com/CMSgov/bcda-ssas-app/ssas/cfg"
-	"github.com/pborman/uuid"
-	"gorm.io/gorm"
 )
 
 var DefaultScope string
@@ -62,7 +62,6 @@ type EncryptionKey struct {
 	Body     string `json:"body"`
 	System   System `gorm:"foreignkey:SystemID;association_foreignkey:ID"`
 	SystemID uint   `json:"system_id"`
-
 }
 
 type Secret struct {
@@ -534,6 +533,48 @@ func (system *System) RegisterIP(address string, trackingID string) (IP, error) 
 		return IP{}, errors.New("error in ip address")
 	}
 	return ip, nil
+}
+
+func UpdateSystem(id string, v map[string]string) (System, error) {
+	event := Event{Op: "UpdateSystem", TrackingID: id}
+	OperationStarted(event)
+
+	db := GetGORMDbConnection()
+	defer Close(db)
+
+	sys, err := GetSystemByID(id)
+	if err != nil {
+		errString := fmt.Sprintf("record not found for id=%s", id)
+		event.Help = errString + ": " + err.Error()
+		err := fmt.Errorf(errString)
+		OperationFailed(event)
+		return System{}, err
+	}
+
+	scope, ok := v["api_scope"]
+	if ok {
+		sys.APIScope = scope
+	}
+
+	cn, ok := v["client_name"]
+	if ok{
+		sys.ClientName = cn
+	}
+
+	si, ok := v["software_id"]
+	if ok {
+		sys.SoftwareID = si
+	}
+
+	err = db.Save(&sys).Error
+	if err != nil {
+		event.Help = err.Error()
+		OperationFailed(event)
+		return System{}, fmt.Errorf("system failed to meet database constraints")
+	}
+
+	OperationSucceeded(event)
+	return sys, nil
 }
 
 func (system *System) GetIps(trackingID string) ([]IP, error) {
