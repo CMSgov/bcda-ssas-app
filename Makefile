@@ -18,7 +18,7 @@ lint:
 # The following vars are available to tests needing SSAS admin credentials; currently they are used in smoke-test-ssas, postman-ssas, and unit-test-ssas
 # Note that these variables should only be used for smoke tests, must be set before the api starts, and cannot be changed after the api starts
 SSAS_ADMIN_CLIENT_ID ?= 31e029ef-0e97-47f8-873c-0e8b7e7f99bf
-SSAS_ADMIN_CLIENT_SECRET := $(shell docker-compose run --rm ssas sh -c 'main --reset-secret --client-id=$(SSAS_ADMIN_CLIENT_ID)'|tail -n1)
+SSAS_ADMIN_CLIENT_SECRET := $(shell docker-compose run --rm ssas sh -c 'ssas --reset-secret --client-id=$(SSAS_ADMIN_CLIENT_ID)'|tail -n1)
 
 smoke-test:
 	docker-compose -f docker-compose.test.yml run --rm postman_test test/postman_test/SSAS_Smoke_Test.postman_collection.json -e test/postman_test/local.postman_environment.json --global-var "token=$(token)" --global-var adminClientId=$(SSAS_ADMIN_CLIENT_ID) --global-var adminClientSecret=$(SSAS_ADMIN_CLIENT_SECRET)
@@ -42,7 +42,7 @@ test:
 
 load-fixtures:
 	docker-compose -f docker-compose.migrate.yml run --rm migrate  -database "postgres://postgres:toor@db:5432/bcda?sslmode=disable" -path /go/src/github.com/CMSgov/bcda-ssas-app/db/migrations up
-	docker-compose -f docker-compose.yml run ssas sh -c 'main --add-fixture-data'
+	docker-compose -f docker-compose.yml run ssas sh -c 'ssas --add-fixture-data'
 
 docker-build:
 	docker-compose build --force-rm
