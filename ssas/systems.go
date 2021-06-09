@@ -504,6 +504,7 @@ func registerSystem(clientName string, groupID string, scope string, publicKeyPE
 		if err != nil {
 			regEvent.Help = fmt.Sprintf("could not save client token for clientID %s, groupID %s: %s", clientID, groupID, err.Error())
 			OperationFailed(regEvent)
+			tx.Rollback()
 			return creds, errors.New("internal system error")
 		}
 		ct := b64.StdEncoding.EncodeToString([]byte("client-token-placeholder"))
