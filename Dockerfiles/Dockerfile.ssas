@@ -17,7 +17,7 @@ RUN go get github.com/mattn/go-colorable
 WORKDIR /go/src/github.com/CMSgov/bcda-ssas-app
 COPY . .
 WORKDIR /go/src/github.com/CMSgov/bcda-ssas-app/ssas
-COPY --from=documentation /go/src/github.com/CMSgov/bcda-ssas-app/ssas/swaggerui/swagger.json .
+COPY --from=documentation /go/src/github.com/CMSgov/bcda-ssas-app/ssas/swaggerui ./swaggerui
 RUN go build -ldflags "-X github.com/CMSgov/bcda-ssas-app/ssas/constants.Version=$VERSION" -o ssas ./service/main
 
 FROM golang:1.15-alpine3.12
@@ -25,7 +25,7 @@ RUN apk update upgrade
 RUN apk --no-cache add ca-certificates
 WORKDIR /usr/local/bin
 COPY --from=builder /go/src/github.com/CMSgov/bcda-ssas-app/ssas/ssas .
-COPY --from=documentation /go/src/github.com/CMSgov/bcda-ssas-app/ssas/swaggerui/swagger.json .
+COPY --from=documentation /go/src/github.com/CMSgov/bcda-ssas-app/ssas/swaggerui ./swaggerui
 EXPOSE 3003
 EXPOSE 3004
 EXPOSE 3005

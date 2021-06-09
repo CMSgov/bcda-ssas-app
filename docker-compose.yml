@@ -21,6 +21,8 @@ services:
     build:
       context: .
       dockerfile: Dockerfiles/Dockerfile.ssas
+      args:
+        VERSION: latest
     environment:
       - DATABASE_URL=postgresql://postgres:toor@db:5432/bcda?sslmode=disable
       - DEBUG=true
@@ -58,7 +60,6 @@ services:
       - SSAS_TOKEN_BLACKLIST_CACHE_TIMEOUT_MINUTES=1440
       - SSAS_TOKEN_BLACKLIST_CACHE_REFRESH_MINUTES=5
       - SSAS_CLIENT_ASSERTION_AUD=http://local.testing.cms.gov/api/v2/Token/auth
-      - VERSION=true
     volumes:
       - ./shared_files:/usr/local/shared_files
     ports:
