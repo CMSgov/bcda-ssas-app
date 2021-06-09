@@ -557,7 +557,7 @@ func UpdateSystem(id string, v map[string]string) (System, error) {
 	}
 
 	cn, ok := v["client_name"]
-	if ok{
+	if ok {
 		sys.ClientName = cn
 	}
 
