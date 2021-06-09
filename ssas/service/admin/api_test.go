@@ -771,7 +771,7 @@ func (s *APITestSuite) TestUpdateSystem() {
 	sysId := result["system_id"].(string)
 
 	//Update Client name
-	req = httptest.NewRequest("Patch", "V2_SYSTEM_ROUTE"+sysId, strings.NewReader(`{"client_name": "Updated Client Name"}`))
+	req = httptest.NewRequest("Patch", V2_SYSTEM_ROUTE+sysId, strings.NewReader(`{"client_name": "Updated Client Name"}`))
 	rctx := chi.NewRouteContext()
 	rctx.URLParams.Add("id", fmt.Sprint(sysId))
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
@@ -786,7 +786,7 @@ func (s *APITestSuite) TestUpdateSystem() {
 	assert.Equal(s.T(), "Updated Client Name", sys.ClientName)
 
 	//Update API Scope
-	req = httptest.NewRequest("Patch", "V2_SYSTEM_ROUTE"+sysId, strings.NewReader(`{"api_scope": "updated_scope"}`))
+	req = httptest.NewRequest("Patch", V2_SYSTEM_ROUTE+sysId, strings.NewReader(`{"api_scope": "updated_scope"}`))
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
 	handler = http.HandlerFunc(updateSystem)
 	rr = httptest.NewRecorder()
@@ -799,7 +799,7 @@ func (s *APITestSuite) TestUpdateSystem() {
 	assert.Equal(s.T(), "updated_scope", sys.APIScope)
 
 	//Update Software Id
-	req = httptest.NewRequest("Patch", "V2_SYSTEM_ROUTE"+sysId, strings.NewReader(`{"software_id": "42"}`))
+	req = httptest.NewRequest("Patch", V2_SYSTEM_ROUTE+sysId, strings.NewReader(`{"software_id": "42"}`))
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
 	handler = http.HandlerFunc(updateSystem)
 	rr = httptest.NewRecorder()
@@ -812,7 +812,7 @@ func (s *APITestSuite) TestUpdateSystem() {
 	assert.Equal(s.T(), "42", sys.SoftwareID)
 
 	//Update prohibited attributes
-	req = httptest.NewRequest("Patch", "V2_SYSTEM_ROUTE"+sysId, strings.NewReader(`{"client_id": "42"}`))
+	req = httptest.NewRequest("Patch", V2_SYSTEM_ROUTE+sysId, strings.NewReader(`{"client_id": "42"}`))
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
 	handler = http.HandlerFunc(updateSystem)
 	rr = httptest.NewRecorder()
@@ -823,7 +823,7 @@ func (s *APITestSuite) TestUpdateSystem() {
 	assert.Equal(s.T(), "attribute: client_id is not valid", result["error_description"])
 
 	//Update attributes with empty string
-	req = httptest.NewRequest("Patch", "V2_SYSTEM_ROUTE"+sysId, strings.NewReader(`{"api_scope": ""}`))
+	req = httptest.NewRequest("Patch", V2_SYSTEM_ROUTE+sysId, strings.NewReader(`{"api_scope": ""}`))
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
 	handler = http.HandlerFunc(updateSystem)
 	rr = httptest.NewRecorder()
