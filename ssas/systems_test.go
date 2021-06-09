@@ -17,9 +17,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"gorm.io/gorm"
 	"github.com/pborman/uuid"
 	"github.com/stretchr/testify/suite"
+	"gorm.io/gorm"
 )
 
 type SystemsTestSuite struct {
@@ -411,6 +411,59 @@ func (s *SystemsTestSuite) TestRegisterSystemSuccess() {
 
 	err = CleanDatabase(group)
 	assert.Nil(err)
+}
+
+func (s *SystemsTestSuite) TestUpdateSystemSuccess() {
+	assert := s.Assert()
+
+	trackingID := uuid.NewRandom().String()
+	groupID := "T54321"
+	group := Group{GroupID: groupID}
+	err := s.db.Create(&group).Error
+	if err != nil {
+		s.FailNow(err.Error())
+	}
+
+	pubKey, err := generatePublicKey(2048)
+	assert.Nil(err)
+
+	creds, err := RegisterSystem("Create System Test", groupID, DefaultScope, pubKey, []string{}, trackingID)
+	assert.Nil(err)
+	assert.Equal("Create System Test", creds.ClientName)
+	assert.NotEqual("", creds.ClientSecret)
+
+	var input = map[string]string{"client_name": "updated client name"}
+	_, err = UpdateSystem(creds.SystemID, input)
+	assert.Nil(err)
+	sys, err := GetSystemByID(creds.SystemID)
+	assert.Nil(err)
+	assert.Equal("updated client name", sys.ClientName)
+
+	input = map[string]string{"api_scope": "modified-scope"}
+	_, err = UpdateSystem(creds.SystemID, input)
+	assert.Nil(err)
+	sys, err = GetSystemByID(creds.SystemID)
+	assert.Nil(err)
+	assert.Equal("modified-scope", sys.APIScope)
+
+	input = map[string]string{"software_id": "modified-software-id"}
+	_, err = UpdateSystem(creds.SystemID, input)
+	assert.Nil(err)
+	sys, err = GetSystemByID(creds.SystemID)
+	assert.Nil(err)
+	assert.Equal("modified-software-id", sys.SoftwareID)
+
+	err = CleanDatabase(group)
+	assert.Nil(err)
+}
+
+func (s *SystemsTestSuite) TestUpdateNonExistingSystem() {
+	assert := s.Assert()
+
+	var input = map[string]string{"client_name": "updated client name"}
+	_, err := UpdateSystem("non-existing-system-id", input)
+	assert.NotNil(err)
+	assert.Equal("record not found for id=non-existing-system-id", err.Error())
 }
 
 func (s *SystemsTestSuite) TestRegisterSystemMissingData() {
