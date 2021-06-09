@@ -1,19 +1,33 @@
-FROM golang:1.15-alpine3.12
-
+FROM golang:1.15-alpine3.12 AS documentation
 RUN apk update upgrade
-RUN apk add git openssl
+RUN apk add git build-base gcc
+WORKDIR /go/src/github.com/CMSgov/bcda-ssas-app
+COPY . .
+RUN go get -u github.com/go-swagger/go-swagger/cmd/swagger
+WORKDIR /go/src/github.com/CMSgov/bcda-ssas-app/ssas/service/main
+RUN swagger generate spec -i ../../swaggerui/tags.yml -o ../../swaggerui/swagger.json -m
 
-RUN openssl genrsa -out /var/local/private.pem 2048
-RUN openssl rsa -in /var/local/private.pem -outform PEM -pubout -out /var/local/public.pem
-
-RUN go get -u github.com/derekparker/delve/cmd/dlv
+FROM golang:1.15-alpine3.12 AS builder
+ARG VERSION
+RUN apk update upgrade
+RUN apk add git
 RUN go get github.com/BurntSushi/toml
 RUN go get github.com/howeyc/fsnotify
 RUN go get github.com/mattn/go-colorable
-
 WORKDIR /go/src/github.com/CMSgov/bcda-ssas-app
 COPY . .
-
 WORKDIR /go/src/github.com/CMSgov/bcda-ssas-app/ssas
-RUN go install github.com/CMSgov/bcda-ssas-app/ssas/service/main
-CMD ["main", "--start"]
+COPY --from=documentation /go/src/github.com/CMSgov/bcda-ssas-app/ssas/swaggerui/swagger.json .
+RUN go build -ldflags "-X github.com/CMSgov/bcda-ssas-app/ssas/constants.Version=$VERSION" -o ssas ./service/main
+
+FROM golang:1.15-alpine3.12
+RUN apk update upgrade
+RUN apk --no-cache add ca-certificates
+WORKDIR /usr/local/bin
+COPY --from=builder /go/src/github.com/CMSgov/bcda-ssas-app/ssas/ssas .
+COPY --from=documentation /go/src/github.com/CMSgov/bcda-ssas-app/ssas/swaggerui/swagger.json .
+EXPOSE 3003
+EXPOSE 3004
+EXPOSE 3005
+CMD ["ssas", "--start"]
+
