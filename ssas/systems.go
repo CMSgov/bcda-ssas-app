@@ -62,7 +62,6 @@ type EncryptionKey struct {
 	Body     string `json:"body"`
 	System   System `gorm:"foreignkey:SystemID;association_foreignkey:ID"`
 	SystemID uint   `json:"system_id"`
-
 }
 
 type Secret struct {
@@ -549,7 +548,7 @@ func (system *System) GetIps(trackingID string) ([]IP, error) {
 }
 
 // DeleteIP soft-deletes an IP associated with a specific system
-func (system *System) DeleteIP(ipID string, trackingID string) (IP, error) {
+func (system *System) DeleteIP(ipID string, trackingID string) error {
 	var (
 		db  = GetGORMDbConnection()
 		ip  IP
@@ -565,7 +564,7 @@ func (system *System) DeleteIP(ipID string, trackingID string) (IP, error) {
 	if err != nil {
 		regEvent.Help = fmt.Sprintf("Unable to find IP address with ID %s: %s", ipID, err)
 		OperationFailed(regEvent)
-		return IP{}, fmt.Errorf("Unable to find IP address with ID %s: %s", ipID, err)
+		return fmt.Errorf("Unable to find IP address with ID %s: %s", ipID, err)
 	}
 
 	// Soft delete IP
@@ -574,10 +573,10 @@ func (system *System) DeleteIP(ipID string, trackingID string) (IP, error) {
 	if err != nil {
 		regEvent.Help = fmt.Sprintf("Unable to delete IP address with ID %s: %s", ipID, err)
 		OperationFailed(regEvent)
-		return IP{}, fmt.Errorf("Unable to delete IP address with ID %s: %s", ipID, err)
+		return fmt.Errorf("Unable to delete IP address with ID %s: %s", ipID, err)
 	}
 
-	return ip, nil
+	return nil
 }
 
 // DataForSystem returns the group extra data associated with this system

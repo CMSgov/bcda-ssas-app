@@ -794,8 +794,7 @@ func (s *APITestSuite) TestDeleteIP() {
 	handler.ServeHTTP(rr, req)
 
 	// Test that the IP was deleted
-	assert.Equal(s.T(), http.StatusOK, rr.Result().StatusCode)
-	assert.Equal(s.T(), "application/json", rr.Result().Header.Get("Content-Type"))
+	assert.Equal(s.T(), http.StatusNoContent, rr.Result().StatusCode)
 	assert.Equal(s.T(), strconv.FormatUint(uint64(ips[0].ID), 10), ipID)
 
 	_ = ssas.CleanDatabase(group)
