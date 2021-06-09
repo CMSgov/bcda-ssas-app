@@ -50,8 +50,10 @@ func routes() *chi.Mux {
 
 	r.Route("/v2", func(r chi.Router) {
 		r.With(requireBasicAuth).Post("/group", createGroup)
-    r.With(requireBasicAuth).Post("/system/{systemID}/ip", registerIP)
-	  r.With(requireBasicAuth).Get("/system/{systemID}/ip", getSystemIPs)
+		r.With(requireBasicAuth).Get("/group", listGroups)
+		r.With(requireBasicAuth).Patch("/group/{id}", updateGroup)
+		r.With(requireBasicAuth).Post("/system/{systemID}/ip", registerIP)
+		r.With(requireBasicAuth).Get("/system/{systemID}/ip", getSystemIPs)
 	})
 
 	swaggerPath := "./swaggerui"
