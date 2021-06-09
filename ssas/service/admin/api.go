@@ -199,9 +199,10 @@ func updateSystem(w http.ResponseWriter, r *http.Request) {
 	systemEvent.Help = "calling from admin.updateSystem()"
 	ssas.OperationCalled(systemEvent)
 
-	attrs := map[string]bool{"api_scope": false, "client_name": false, "software_id": true}
+	//If attribute is in map, then update is allowed. if value is true, field can have an empty value.
+	mutableFields := map[string]bool{"api_scope": false, "client_name": false, "software_id": true}
 	for k, val := range v {
-		blankAllowed, updateAllowed := attrs[k]
+		blankAllowed, updateAllowed := mutableFields[k]
 		if !updateAllowed {
 			systemEvent.Help = fmt.Sprintf("error in request to update group; %v is not valid", k)
 			ssas.OperationFailed(systemEvent)
