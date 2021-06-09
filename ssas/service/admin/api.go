@@ -499,6 +499,25 @@ func getSystemIPs(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+/*
+	swagger:route DELETE /system/{system_id}/ip/{ip_id} system deleteSystemIP
+
+	Delete IP
+
+	Soft-deletes the IP of the associated system. Returns the deleted IP.
+
+	Produces:
+	- application/json
+
+	Security:
+		basic_auth:
+
+	Responses:
+		200: okResponse
+		400: badRequestResponse
+		500: serverErrorResponse
+		404: notFoundResponse
+*/
 func deleteSystemIP(w http.ResponseWriter, r *http.Request) {
 	systemID := chi.URLParam(r, "systemID")
 	system, err := ssas.GetSystemByID(systemID)
