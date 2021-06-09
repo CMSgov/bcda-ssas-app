@@ -105,7 +105,7 @@ func (system *System) GetClientTokens(trackingID string) ([]ClientToken, error) 
 	db := GetGORMDbConnection()
 	defer Close(db)
 
-	getEvent := Event{Op: "GetClientTokes", TrackingID: trackingID, Help: "calling from systems.GetClientTokens()"}
+	getEvent := Event{Op: "GetClientToken", TrackingID: trackingID, Help: "calling from systems.GetClientTokens()"}
 	OperationStarted(getEvent)
 
 	var tokens []ClientToken
