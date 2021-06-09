@@ -751,7 +751,7 @@ func validateAndParseToken(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		response["valid"] = true
-		response["claims"] = claims
+		response["data"] = claims["dat"]
 	}
 	w.Header().Set("Content-Type", "application/json")
 	render.JSON(w, r, response)
