@@ -57,7 +57,7 @@ const SampleXdata string = `"{\"cms_ids\":[\"T67890\",\"T54321\"]}"`
 
 type APITestSuite struct {
 	suite.Suite
-	db *gorm.DB
+	db     *gorm.DB
 }
 
 func (s *APITestSuite) SetupSuite() {
