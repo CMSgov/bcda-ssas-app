@@ -784,7 +784,7 @@ func (s *APITestSuite) TestDeleteIP() {
 	// Get ID of first IP associated with system
 	ipID := strconv.FormatUint(uint64(ips[0].ID), 10)
 
-	// Test that the IP was deleted
+	// Delete IP
 	req = httptest.NewRequest("DELETE", "/system/"+systemID+"/ip/"+ipID, nil)
 	rctx.URLParams.Add("id", ipID)
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
@@ -792,10 +792,10 @@ func (s *APITestSuite) TestDeleteIP() {
 
 	rr = httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
+
+	// Test that the IP was deleted
 	assert.Equal(s.T(), http.StatusOK, rr.Result().StatusCode)
 	assert.Equal(s.T(), "application/json", rr.Result().Header.Get("Content-Type"))
-
-	// Ensure the desired IP was deleted
 	assert.Equal(s.T(), strconv.FormatUint(uint64(ips[0].ID), 10), ipID)
 
 	_ = ssas.CleanDatabase(group)
