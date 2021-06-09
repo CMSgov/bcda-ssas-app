@@ -23,6 +23,7 @@ services:
       dockerfile: Dockerfiles/Dockerfile.ssas
       args:
         VERSION: latest
+    image: bcda-ssas:latest
     environment:
       - DATABASE_URL=postgresql://postgres:toor@db:5432/bcda?sslmode=disable
       - DEBUG=true
