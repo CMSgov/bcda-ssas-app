@@ -13,17 +13,19 @@ services:
   documentation:
     build:
       context: .
-      dockerfile: Dockerfiles/Dockerfile.documentation
+      dockerfile: Dockerfiles/Dockerfile.ssas
+      target: documentation
     volumes:
       - .:/go/src/github.com/CMSgov/bcda-ssas-app
   ssas:
     build:
       context: .
       dockerfile: Dockerfiles/Dockerfile.ssas
+      args:
+        VERSION: latest
+    image: bcda-ssas:latest
     environment:
       - DATABASE_URL=postgresql://postgres:toor@db:5432/bcda?sslmode=disable
-      - JWT_PUBLIC_KEY_FILE=/var/local/public.pem
-      - JWT_PRIVATE_KEY_FILE=/var/local/private.pem
       - DEBUG=true
       - ATO_PUBLIC_KEY_FILE=../shared_files/ATO_public.pem
       - ATO_PRIVATE_KEY_FILE=../shared_files/ATO_private.pem
@@ -60,7 +62,7 @@ services:
       - SSAS_TOKEN_BLACKLIST_CACHE_REFRESH_MINUTES=5
       - SSAS_CLIENT_ASSERTION_AUD=http://local.testing.cms.gov/api/v2/Token/auth
     volumes:
-      - .:/go/src/github.com/CMSgov/bcda-ssas-app
+      - ./shared_files:/usr/local/shared_files
     ports:
       - "3103:3003"
       - "3104:3004"
