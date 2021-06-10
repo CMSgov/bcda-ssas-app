@@ -137,6 +137,11 @@ func SecretCreated(data Event) {
 	mergeNonEmpty(data).WithField("Event", "SecretCreated").Print(data.Help)
 }
 
+// ClientTokenCreated should be called every time a system  client token is generated
+func ClientTokenCreated(data Event) {
+	mergeNonEmpty(data).WithField("Event", "ClientTokenCreated").Print(data.Help)
+}
+
 // ServiceHalted should be called to log an unexpected stop to the service
 func ServiceHalted(data Event) {
 	mergeNonEmpty(data).WithField("Event", "ServiceHalted").Print(data.Help)
