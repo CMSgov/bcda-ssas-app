@@ -52,12 +52,12 @@ const SampleGroup string = `{
   ],
   "xdata": %s
 }`
-
+const V2_SYSTEM_ROUTE = "/v2/system/"
 const SampleXdata string = `"{\"cms_ids\":[\"T67890\",\"T54321\"]}"`
 
 type APITestSuite struct {
 	suite.Suite
-	db     *gorm.DB
+	db *gorm.DB
 }
 
 func (s *APITestSuite) SetupSuite() {
@@ -755,6 +755,113 @@ func (s *APITestSuite) TestRegisterDuplicateSystemIP() {
 	assert.Equal(s.T(), http.StatusConflict, rr.Result().StatusCode)
 	assert.Contains(s.T(), rr.Body.String(), "duplicate ip address")
 	_ = ssas.CleanDatabase(group)
+}
+
+func (s *APITestSuite) TestUpdateSystem() {
+	group := ssas.Group{GroupID: "test-group-id"}
+	err := s.db.Save(&group).Error
+	if err != nil {
+		s.FailNow("Error creating test data", err.Error())
+	}
+
+	//Create system
+	req := httptest.NewRequest("POST", "/system", strings.NewReader(`{"client_name": "Test Client", "group_id": "test-group-id", "scope": "bcda-api", "public_key": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEArhxobShmNifzW3xznB+L\nI8+hgaePpSGIFCtFz2IXGU6EMLdeufhADaGPLft9xjwdN1ts276iXQiaChKPA2CK\n/CBpuKcnU3LhU8JEi7u/db7J4lJlh6evjdKVKlMuhPcljnIKAiGcWln3zwYrFCeL\ncN0aTOt4xnQpm8OqHawJ18y0WhsWT+hf1DeBDWvdfRuAPlfuVtl3KkrNYn1yqCgQ\nlT6v/WyzptJhSR1jxdR7XLOhDGTZUzlHXh2bM7sav2n1+sLsuCkzTJqWZ8K7k7cI\nXK354CNpCdyRYUAUvr4rORIAUmcIFjaR3J4y/Dh2JIyDToOHg7vjpCtNnNoS+ON2\nHwIDAQAB\n-----END PUBLIC KEY-----", "tracking_id": "T00000"}`))
+	handler := http.HandlerFunc(createSystem)
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+	var result map[string]interface{}
+	_ = json.Unmarshal(rr.Body.Bytes(), &result)
+	assert.Equal(s.T(), "Test Client", result["client_name"])
+	sysId := result["system_id"].(string)
+
+	//Update Client name
+	req = httptest.NewRequest("Patch", V2_SYSTEM_ROUTE+sysId, strings.NewReader(`{"client_name": "Updated Client Name"}`))
+	rctx := chi.NewRouteContext()
+	rctx.URLParams.Add("id", fmt.Sprint(sysId))
+	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+	handler = http.HandlerFunc(updateSystem)
+	rr = httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+	assert.Equal(s.T(), http.StatusNoContent, rr.Result().StatusCode)
+
+	//Verify patch
+	sys, err := ssas.GetSystemByID(sysId)
+	assert.NoError(s.T(), err)
+	assert.Equal(s.T(), "Updated Client Name", sys.ClientName)
+
+	//Update API Scope
+	req = httptest.NewRequest("Patch", V2_SYSTEM_ROUTE+sysId, strings.NewReader(`{"api_scope": "updated_scope"}`))
+	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+	handler = http.HandlerFunc(updateSystem)
+	rr = httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+	assert.Equal(s.T(), http.StatusNoContent, rr.Result().StatusCode)
+
+	//Verify API Scope patch
+	sys, err = ssas.GetSystemByID(sysId)
+	assert.NoError(s.T(), err)
+	assert.Equal(s.T(), "updated_scope", sys.APIScope)
+
+	//Update Software Id
+	req = httptest.NewRequest("Patch", V2_SYSTEM_ROUTE+sysId, strings.NewReader(`{"software_id": "42"}`))
+	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+	handler = http.HandlerFunc(updateSystem)
+	rr = httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+	assert.Equal(s.T(), http.StatusNoContent, rr.Result().StatusCode)
+
+	//Verify Software Id patch
+	sys, err = ssas.GetSystemByID(sysId)
+	assert.NoError(s.T(), err)
+	assert.Equal(s.T(), "42", sys.SoftwareID)
+
+	//Update prohibited attributes
+	req = httptest.NewRequest("Patch", V2_SYSTEM_ROUTE+sysId, strings.NewReader(`{"client_id": "42"}`))
+	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+	handler = http.HandlerFunc(updateSystem)
+	rr = httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+	result = make(map[string]interface{})
+	_ = json.Unmarshal(rr.Body.Bytes(), &result)
+	assert.Equal(s.T(), http.StatusBadRequest, rr.Result().StatusCode)
+	assert.Equal(s.T(), "attribute: client_id is not valid", result["error_description"])
+
+	//Update attributes with empty string
+	req = httptest.NewRequest("Patch", V2_SYSTEM_ROUTE+sysId, strings.NewReader(`{"api_scope": ""}`))
+	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+	handler = http.HandlerFunc(updateSystem)
+	rr = httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+	result = make(map[string]interface{})
+	_ = json.Unmarshal(rr.Body.Bytes(), &result)
+	assert.Equal(s.T(), http.StatusBadRequest, rr.Result().StatusCode)
+	assert.Equal(s.T(), "attribute: api_scope may not be empty", result["error_description"])
+
+	err = ssas.CleanDatabase(group)
+	assert.Nil(s.T(), err)
+}
+func (s *APITestSuite) TestUpdateSystemWithInvalidBody() {
+	req := httptest.NewRequest("Patch", V2_SYSTEM_ROUTE+"0", strings.NewReader(`{"client_name": invalid json`))
+	rctx := chi.NewRouteContext()
+	rctx.URLParams.Add("id", "0")
+	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+	handler := http.HandlerFunc(updateSystem)
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+	assert.Equal(s.T(), http.StatusBadRequest, rr.Result().StatusCode)
+	assert.Contains(s.T(), rr.Body.String(), "invalid request body")
+}
+
+func (s *APITestSuite) TestUpdateNonExistingSystem() {
+	req := httptest.NewRequest("Patch", V2_SYSTEM_ROUTE+"-1", strings.NewReader(`{"client_name":"updated_client"}`))
+	rctx := chi.NewRouteContext()
+	rctx.URLParams.Add("id", "-1")
+	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+	handler := http.HandlerFunc(updateSystem)
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+	assert.Equal(s.T(), http.StatusBadRequest, rr.Result().StatusCode)
+	assert.Contains(s.T(), rr.Body.String(), "failed to update system")
 }
 
 func contains(list []string, target string) bool {

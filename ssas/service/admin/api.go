@@ -180,6 +180,53 @@ func updateGroup(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func updateSystem(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	trackingID := ssas.RandomHexID()
+	systemEvent := ssas.Event{Op: "UpdateSystem", TrackingID: trackingID}
+
+	defer r.Body.Close()
+
+	var v map[string]string
+	err := json.NewDecoder(r.Body).Decode(&v)
+	if err != nil {
+		systemEvent.Help = fmt.Sprintf("error in request to update system; %v", err.Error())
+		ssas.OperationFailed(systemEvent)
+		jsonError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	systemEvent.Help = "calling from admin.updateSystem()"
+	ssas.OperationCalled(systemEvent)
+
+	//If attribute is in map, then update is allowed. if value is true, field can have an empty value.
+	mutableFields := map[string]bool{"api_scope": false, "client_name": false, "software_id": true}
+	for k, val := range v {
+		blankAllowed, updateAllowed := mutableFields[k]
+		if !updateAllowed {
+			systemEvent.Help = fmt.Sprintf("error in request to update group; %v is not valid", k)
+			ssas.OperationFailed(systemEvent)
+			jsonError(w, http.StatusBadRequest, fmt.Sprintf("attribute: %v is not valid", k))
+			return
+		}
+		if !blankAllowed && val == "" {
+			systemEvent.Help = fmt.Sprintf("error in request to update group; %v may not be empty", k)
+			ssas.OperationFailed(systemEvent)
+			jsonError(w, http.StatusBadRequest, fmt.Sprintf("attribute: %v may not be empty", k))
+			return
+		}
+	}
+
+	_, err = ssas.UpdateSystem(id, v)
+	if err != nil {
+		jsonError(w, http.StatusBadRequest, fmt.Sprintf("failed to update system; %s", err))
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusNoContent)
+}
+
 /*
 	swagger:route DELETE /group/{group_id} group deleteGroup
 
