@@ -57,7 +57,7 @@ const SampleXdata string = `"{\"cms_ids\":[\"T67890\",\"T54321\"]}"`
 
 type APITestSuite struct {
 	suite.Suite
-	db     *gorm.DB
+	db *gorm.DB
 }
 
 func (s *APITestSuite) SetupSuite() {
@@ -862,10 +862,6 @@ func (s *APITestSuite) TestUpdateNonExistingSystem() {
 	handler.ServeHTTP(rr, req)
 	assert.Equal(s.T(), http.StatusBadRequest, rr.Result().StatusCode)
 	assert.Contains(s.T(), rr.Body.String(), "failed to update system")
-}
-
-func TestAPITestSuite(t *testing.T) {
-	suite.Run(t, new(APITestSuite))
 }
 
 func contains(list []string, target string) bool {
