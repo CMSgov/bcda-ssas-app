@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
+	b64 "encoding/base64"
 	"encoding/pem"
 	"errors"
 	"fmt"
@@ -69,6 +70,47 @@ type Secret struct {
 	Hash     string `json:"hash"`
 	System   System `gorm:"foreignkey:SystemID;association_foreignkey:ID"`
 	SystemID uint   `json:"system_id"`
+}
+
+type ClientToken struct {
+	gorm.Model
+	Label    string `json:"label"`
+	Uuid     string `json:"uuid"`
+	System   System `gorm:"foreignkey:SystemID;association_foreignkey:ID"`
+	SystemID uint   `json:"system_id"`
+}
+
+/*
+	SaveClientToken should be provided with a token label and toke uuid, which will
+	be saved to the client tokens table and associated with the current system.
+*/
+func (system *System) SaveClientToken(uuidS string, label string) error {
+	db := GetGORMDbConnection()
+	defer Close(db)
+
+	ct := ClientToken{
+		Label:    label,
+		Uuid:     uuidS,
+		SystemID: system.ID,
+	}
+
+	if err := db.Create(&ct).Error; err != nil {
+		return fmt.Errorf("could not save client token for clientID %s: %s", system.ClientID, err.Error())
+	}
+	ClientTokenCreated(Event{Op: "SaveClientToken", TrackingID: uuid.NewRandom().String(), ClientID: system.ClientID})
+	return nil
+}
+
+func (system *System) GetClientTokens(trackingID string) ([]ClientToken, error) {
+	db := GetGORMDbConnection()
+	defer Close(db)
+
+	getEvent := Event{Op: "GetClientToken", TrackingID: trackingID, Help: "calling from systems.GetClientTokens()"}
+	OperationStarted(getEvent)
+
+	var tokens []ClientToken
+	db.Find(&tokens, "system_id=? AND deleted_at IS NULL", system.ID)
+	return tokens, nil
 }
 
 // IsExpired tests whether this secret has expired
@@ -326,8 +368,9 @@ func (system *System) GenerateSystemKeyPair() (string, error) {
 }
 
 type Credentials struct {
-	ClientID     string    `json:"client_id"`
-	ClientSecret string    `json:"client_secret"`
+	ClientID     string    `json:"client_id,omitempty"`
+	ClientSecret string    `json:"client_secret,omitempty"`
+	ClientToken  string    `json:"client_token,omitempty"`
 	SystemID     string    `json:"system_id"`
 	ClientName   string    `json:"client_name"`
 	IPs          []string  `json:"ips,omitempty"`
@@ -339,6 +382,14 @@ type Credentials struct {
 	a ssas.Credentials struct including the generated clientID and secret.
 */
 func RegisterSystem(clientName string, groupID string, scope string, publicKeyPEM string, ips []string, trackingID string) (Credentials, error) {
+	return registerSystem(clientName, groupID, scope, publicKeyPEM, ips, trackingID, false)
+}
+
+func RegisterV2System(clientName string, groupID string, scope string, publicKeyPEM string, ips []string, trackingID string) (Credentials, error) {
+	return registerSystem(clientName, groupID, scope, publicKeyPEM, ips, trackingID, true)
+}
+
+func registerSystem(clientName string, groupID string, scope string, publicKeyPEM string, ips []string, trackingID string, isV2 bool) (Credentials, error) {
 	db := GetGORMDbConnection()
 	defer Close(db)
 
@@ -360,6 +411,12 @@ func RegisterSystem(clientName string, groupID string, scope string, publicKeyPE
 
 	if clientName == "" {
 		regEvent.Help = "clientName is required"
+		OperationFailed(regEvent)
+		return creds, errors.New(regEvent.Help)
+	}
+
+	if isV2 && publicKeyPEM == "" {
+		regEvent.Help = "public key is required"
 		OperationFailed(regEvent)
 		return creds, errors.New(regEvent.Help)
 	}
@@ -418,7 +475,6 @@ func RegisterSystem(clientName string, groupID string, scope string, publicKeyPE
 		}
 	}
 
-	// The public key is optional
 	if publicKeyPEM != "" {
 		_, err = ReadPublicKey(publicKeyPEM)
 		if err != nil {
@@ -443,36 +499,48 @@ func RegisterSystem(clientName string, groupID string, scope string, publicKeyPE
 			return creds, errors.New("internal system error")
 		}
 	}
+	if isV2 {
+		err = system.SaveClientToken(uuid.NewRandom().String(), "Initial Token")
+		if err != nil {
+			regEvent.Help = fmt.Sprintf("could not save client token for clientID %s, groupID %s: %s", clientID, groupID, err.Error())
+			OperationFailed(regEvent)
+			tx.Rollback()
+			return creds, errors.New("internal system error")
+		}
+		ct := b64.StdEncoding.EncodeToString([]byte("client-token-placeholder"))
+		creds.ClientToken = ct
+	} else {
+		clientSecret, err := GenerateSecret()
+		if err != nil {
+			regEvent.Help = fmt.Sprintf("cannot generate secret for clientID %s: %s", system.ClientID, err.Error())
+			OperationFailed(regEvent)
+			tx.Rollback()
+			return creds, errors.New("internal system error")
+		}
 
-	clientSecret, err := GenerateSecret()
-	if err != nil {
-		regEvent.Help = fmt.Sprintf("cannot generate secret for clientID %s: %s", system.ClientID, err.Error())
-		OperationFailed(regEvent)
-		tx.Rollback()
-		return creds, errors.New("internal system error")
-	}
+		hashedSecret, err := NewHash(clientSecret)
+		if err != nil {
+			regEvent.Help = fmt.Sprintf("cannot generate hash of secret for clientID %s: %s", system.ClientID, err.Error())
+			OperationFailed(regEvent)
+			tx.Rollback()
+			return creds, errors.New("internal system error")
+		}
 
-	hashedSecret, err := NewHash(clientSecret)
-	if err != nil {
-		regEvent.Help = fmt.Sprintf("cannot generate hash of secret for clientID %s: %s", system.ClientID, err.Error())
-		OperationFailed(regEvent)
-		tx.Rollback()
-		return creds, errors.New("internal system error")
-	}
+		secret := Secret{
+			Hash:     hashedSecret.String(),
+			SystemID: system.ID,
+		}
 
-	secret := Secret{
-		Hash:     hashedSecret.String(),
-		SystemID: system.ID,
+		err = tx.Create(&secret).Error
+		if err != nil {
+			regEvent.Help = fmt.Sprintf("cannot save secret for clientID %s: %s", system.ClientID, err.Error())
+			OperationFailed(regEvent)
+			tx.Rollback()
+			return creds, errors.New("internal system error")
+		}
+		SecretCreated(regEvent)
+		creds.ClientSecret = clientSecret
 	}
-
-	err = tx.Create(&secret).Error
-	if err != nil {
-		regEvent.Help = fmt.Sprintf("cannot save secret for clientID %s: %s", system.ClientID, err.Error())
-		OperationFailed(regEvent)
-		tx.Rollback()
-		return creds, errors.New("internal system error")
-	}
-	SecretCreated(regEvent)
 
 	err = tx.Commit().Error
 	if err != nil {
@@ -482,9 +550,8 @@ func RegisterSystem(clientName string, groupID string, scope string, publicKeyPE
 	}
 
 	creds.SystemID = fmt.Sprint(system.ID)
-	creds.ClientID = system.ClientID
-	creds.ClientSecret = clientSecret
 	creds.ClientName = system.ClientName
+	creds.ClientID = system.ClientID
 	creds.IPs = ips
 	creds.ExpiresAt = time.Now().Add(CredentialExpiration)
 
@@ -535,12 +602,54 @@ func (system *System) RegisterIP(address string, trackingID string) (IP, error) 
 	return ip, nil
 }
 
+func UpdateSystem(id string, v map[string]string) (System, error) {
+	event := Event{Op: "UpdateSystem", TrackingID: id}
+	OperationStarted(event)
+
+	db := GetGORMDbConnection()
+	defer Close(db)
+
+	sys, err := GetSystemByID(id)
+	if err != nil {
+		errString := fmt.Sprintf("record not found for id=%s", id)
+		event.Help = errString + ": " + err.Error()
+		err := fmt.Errorf(errString)
+		OperationFailed(event)
+		return System{}, err
+	}
+
+	scope, ok := v["api_scope"]
+	if ok {
+		sys.APIScope = scope
+	}
+
+	cn, ok := v["client_name"]
+	if ok {
+		sys.ClientName = cn
+	}
+
+	si, ok := v["software_id"]
+	if ok {
+		sys.SoftwareID = si
+	}
+
+	err = db.Save(&sys).Error
+	if err != nil {
+		event.Help = err.Error()
+		OperationFailed(event)
+		return System{}, fmt.Errorf("system failed to meet database constraints")
+	}
+
+	OperationSucceeded(event)
+	return sys, nil
+}
+
 func (system *System) GetIps(trackingID string) ([]IP, error) {
 	db := GetGORMDbConnection()
 	defer Close(db)
 
-	regEvent := Event{Op: "RegisterIP", TrackingID: trackingID, Help: "calling from admin.RegisterIP()"}
-	OperationStarted(regEvent)
+	getEvent := Event{Op: "GetIPs", TrackingID: trackingID, Help: "calling from systems.GetIps()"}
+	OperationStarted(getEvent)
 
 	var ips []IP
 	db.Find(&ips, "system_id=? AND deleted_at IS NULL", system.ID)
