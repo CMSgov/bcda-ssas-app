@@ -307,6 +307,34 @@ func createSystem(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func createV2System(w http.ResponseWriter, r *http.Request) {
+	sys := ssas.SystemInput{}
+	if err := json.NewDecoder(r.Body).Decode(&sys); err != nil {
+		jsonError(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	ssas.OperationCalled(ssas.Event{Op: "RegisterClient", TrackingID: sys.TrackingID, Help: "calling from admin.createSystem()"})
+	creds, err := ssas.RegisterV2System(sys.ClientName, sys.GroupID, sys.Scope, sys.PublicKey, sys.IPs, sys.TrackingID)
+	if err != nil {
+		jsonError(w, http.StatusBadRequest, fmt.Sprintf("could not create v2 system; %s", err))
+		return
+	}
+
+	credsJSON, err := json.Marshal(creds)
+	if err != nil {
+		jsonError(w, http.StatusInternalServerError, "internal error")
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	_, err = w.Write(credsJSON)
+	if err != nil {
+		jsonError(w, http.StatusInternalServerError, "internal error")
+	}
+}
+
 /*
 	swagger:route PUT /system/{system_id}/credentials system resetCredentials
 
