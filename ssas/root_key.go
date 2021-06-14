@@ -21,7 +21,10 @@ type RootKey struct {
 
 type Caveats map[string]string
 
-func NewRootKey(db *gorm.DB, expiration time.Duration) (*RootKey, error) {
+func NewRootKey(expiration time.Duration) (*RootKey, error) {
+	db := GetGORMDbConnection()
+	defer Close(db)
+
 	secret, err := generateRandomString()
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate macaroon secret: %s", err.Error())

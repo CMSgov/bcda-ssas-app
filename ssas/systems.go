@@ -23,6 +23,7 @@ import (
 var DefaultScope string
 var MaxIPs int
 var CredentialExpiration time.Duration
+var MacaroonExpiration time.Duration
 var Location string
 
 func init() {
@@ -44,7 +45,9 @@ func getEnvVars() {
 	expirationDays := cfg.GetEnvInt("SSAS_CRED_EXPIRATION_DAYS", 90)
 	CredentialExpiration = time.Duration(expirationDays*24) * time.Hour
 	MaxIPs = cfg.GetEnvInt("SSAS_MAX_SYSTEM_IPS", 8)
-	Location = cfg.FromEnv("SSAS_CRED_LOCATION", "localhost")
+	macaroonExpirationDays := cfg.GetEnvInt("SSAS_MACAROON_EXPIRATION_DAYS", 365)
+	MacaroonExpiration = time.Duration(macaroonExpirationDays*24) * time.Hour
+	Location = cfg.FromEnv("SSAS_MACAROON_LOCATION", "localhost")
 }
 
 type System struct {
@@ -91,7 +94,7 @@ func (system *System) SaveClientToken(label string, xData string) (string, error
 	db := GetGORMDbConnection()
 	defer Close(db)
 
-	rk, err := NewRootKey(db, CredentialExpiration)
+	rk, err := NewRootKey(MacaroonExpiration)
 	if err != nil {
 		return "", fmt.Errorf("could not create a root key for macaroon generation for clientID %s: %s", system.ClientID, err.Error())
 	}
