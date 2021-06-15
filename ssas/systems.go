@@ -570,7 +570,11 @@ func registerSystem(clientName string, groupID string, scope string, publicKeyPE
 	creds.ClientName = system.ClientName
 	creds.ClientID = system.ClientID
 	creds.IPs = ips
-	creds.ExpiresAt = time.Now().Add(CredentialExpiration)
+	if isV2 {
+		creds.ExpiresAt = time.Now().Add(MacaroonExpiration)
+	} else {
+		creds.ExpiresAt = time.Now().Add(CredentialExpiration)
+	}
 
 	regEvent.Help = fmt.Sprintf("system registered in group %s with XData: %s", group.GroupID, group.XData)
 	OperationSucceeded(regEvent)
