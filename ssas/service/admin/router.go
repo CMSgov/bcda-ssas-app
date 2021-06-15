@@ -49,9 +49,11 @@ func routes() *chi.Mux {
 	r.With(requireBasicAuth).Delete("/token/{tokenID}", revokeToken)
 
 	r.Route("/v2", func(r chi.Router) {
+		r.With(requireBasicAuth).Post("/system", createV2System)
 		r.With(requireBasicAuth).Post("/group", createGroup)
 		r.With(requireBasicAuth).Get("/group", listGroups)
 		r.With(requireBasicAuth).Patch("/group/{id}", updateGroup)
+		r.With(requireBasicAuth).Patch("/system/{id}", updateSystem)
 		r.With(requireBasicAuth).Post("/system/{systemID}/ip", registerIP)
 		r.With(requireBasicAuth).Get("/system/{systemID}/ip", getSystemIPs)
 	})
