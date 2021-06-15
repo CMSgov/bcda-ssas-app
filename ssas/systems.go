@@ -107,7 +107,7 @@ func (system *System) SaveClientToken(label string, xData string) (string, error
 	token, _ := rk.Generate(caveats, Location)
 	ct := ClientToken{
 		Label:     label,
-		Uuid:      rk.Uuid,
+		Uuid:      rk.UUID,
 		SystemID:  system.ID,
 		ExpiresAt: rk.ExpiresAt,
 	}

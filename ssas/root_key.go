@@ -14,7 +14,7 @@ import (
 
 type RootKey struct {
 	gorm.Model
-	Uuid      string
+	UUID      string `gorm:"column:uuid"`
 	Key       string
 	ExpiresAt time.Time
 }
@@ -30,7 +30,7 @@ func NewRootKey(expiration time.Duration) (*RootKey, error) {
 		return nil, fmt.Errorf("failed to generate macaroon secret: %s", err.Error())
 	}
 	rk := &RootKey{
-		Uuid:      uuid.NewRandom().String(),
+		UUID:      uuid.NewRandom().String(),
 		Key:       secret,
 		ExpiresAt: time.Now().Add(expiration),
 	}
@@ -43,7 +43,7 @@ func NewRootKey(expiration time.Duration) (*RootKey, error) {
 
 // Generate - Generate a Macaroon from the Token configuration
 func (rk *RootKey) Generate(caveats []Caveats, location string) (string, error) {
-	m, err := macaroon.New([]byte(rk.Uuid), []byte(rk.Uuid), location, macaroon.Version(cfg.GetEnvInt("SSAS_CRED_MACAROON_VERSION", 1)))
+	m, err := macaroon.New([]byte(rk.Key), []byte(rk.UUID), location, macaroon.Version(cfg.GetEnvInt("SSAS_MACAROON_VERSION", 1)))
 	if err != nil {
 		return "", fmt.Errorf("error creating new macaroon: %s", err.Error())
 	}
