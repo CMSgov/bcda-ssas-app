@@ -219,4 +219,6 @@ type SystemInput struct {
 	// A unique identifier for this request to assist in log correlation
 	// Required: true
 	TrackingID string `json:"tracking_id"`
+
+	XData     string     `json:"xdata,omitempty"`
 }

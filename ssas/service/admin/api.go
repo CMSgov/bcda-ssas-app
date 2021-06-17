@@ -315,7 +315,7 @@ func createV2System(w http.ResponseWriter, r *http.Request) {
 	}
 
 	ssas.OperationCalled(ssas.Event{Op: "RegisterClient", TrackingID: sys.TrackingID, Help: "calling from admin.createSystem()"})
-	creds, err := ssas.RegisterV2System(sys.ClientName, sys.GroupID, sys.Scope, sys.PublicKey, sys.IPs, sys.TrackingID)
+	creds, err := ssas.RegisterV2System(sys.ClientName, sys.GroupID, sys.Scope, sys.PublicKey, sys.IPs, sys.TrackingID, sys.XData)
 	if err != nil {
 		jsonError(w, http.StatusBadRequest, fmt.Sprintf("could not create v2 system; %s", err))
 		return

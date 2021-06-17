@@ -66,9 +66,11 @@ func TestAllMigrations(t *testing.T) {
 	require.True(t, t.Run("up4", up4))
 	require.True(t, t.Run("up5", up5))
 	require.True(t, t.Run("up6", up6))
+	require.True(t, t.Run("up7", up7))
 	// Place all "up" migrations in order above this comment
 
 	// Place all "down" migrations in reverse order below this comment
+	require.True(t, t.Run("down7", down7))
 	require.True(t, t.Run("down6", down6))
 	require.True(t, t.Run("down5", down5))
 	require.True(t, t.Run("down4", down4))
@@ -207,6 +209,16 @@ func up6(t *testing.T) {
 func down6(t *testing.T) {
 	assert.True(t, runMigration(t, "5"))
 	assert.False(t, db.Migrator().HasTable("client_tokens"))
+}
+
+func up7(t *testing.T) {
+	assert.True(t, runMigration(t, "7"))
+	assert.True(t, db.Migrator().HasColumn(&ssas.System{}, "x_data"))
+}
+
+func down7(t *testing.T) {
+	assert.True(t, runMigration(t, "6"))
+	assert.False(t, db.Migrator().HasColumn(&ssas.System{}, "x_data"))
 }
 
 func down4(t *testing.T) {
