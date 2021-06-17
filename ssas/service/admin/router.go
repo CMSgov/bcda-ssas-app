@@ -1,12 +1,14 @@
 package admin
 
 import (
+	"crypto/rsa"
 	"fmt"
-	"github.com/CMSgov/bcda-ssas-app/ssas"
 	"net/http"
 	"os"
 	"strings"
 	"time"
+
+	"github.com/CMSgov/bcda-ssas-app/ssas"
 
 	"github.com/go-chi/chi"
 
@@ -16,17 +18,41 @@ import (
 
 var infoMap map[string][]string
 var adminSigningKeyPath string
+var adminSigningKey string
 var server *service.Server
 
 func init() {
 	infoMap = make(map[string][]string)
 	adminSigningKeyPath = os.Getenv("SSAS_ADMIN_SIGNING_KEY_PATH")
+	adminSigningKey = os.Getenv("SSAS_ADMIN_SIGNING_KEY")
 }
 
 // Server creates an SSAS admin server
 func Server() *service.Server {
 	unsafeMode := os.Getenv("HTTP_ONLY") == "true"
-	server = service.NewServer("admin", ":3004", constants.Version, infoMap, routes(), unsafeMode, adminSigningKeyPath, 20*time.Minute, "")
+
+	var signingKey *rsa.PrivateKey
+
+	// get signing key
+	if adminSigningKey != "" {
+		sk, err := ssas.ReadPrivateKey([]byte(adminSigningKey))
+		if err != nil {
+			msg := fmt.Sprintf("bad public signing key; %v", err)
+			ssas.Logger.Error(msg)
+			return nil
+		}
+		signingKey = sk
+	} else {
+		sk, err := service.GetPrivateKey(adminSigningKeyPath)
+		if err != nil {
+			msg := fmt.Sprintf("bad signing key; path %s; %v", adminSigningKeyPath, err)
+			ssas.Logger.Error(msg)
+			return nil
+		}
+		signingKey = sk
+	}
+
+	server = service.NewServer("admin", ":3004", constants.Version, infoMap, routes(), unsafeMode, signingKey, 20*time.Minute, "")
 	if server != nil {
 		r, _ := server.ListRoutes()
 		infoMap["banner"] = []string{fmt.Sprintf("%s server running on port %s", "admin", ":3004")}

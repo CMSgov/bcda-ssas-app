@@ -4,16 +4,17 @@ import (
 	"crypto/rsa"
 	"database/sql"
 	"fmt"
+	"log"
+	"net/http"
+	"os"
+	"time"
+
 	"github.com/CMSgov/bcda-ssas-app/ssas"
 	"github.com/CMSgov/bcda-ssas-app/ssas/cfg"
 	"github.com/dgrijalva/jwt-go"
 	"github.com/go-chi/chi"
 	"github.com/go-chi/render"
 	"github.com/pborman/uuid"
-	"log"
-	"net/http"
-	"os"
-	"time"
 )
 
 // Server configures and provisions an SSAS server
@@ -36,14 +37,11 @@ type Server struct {
 }
 
 // NewServer correctly initializes an instance of the Server type.
-func NewServer(name, port, version string, info interface{}, routes *chi.Mux, notSecure bool, signingKeyPath string, ttl time.Duration, clientAssertAud string) *Server {
-	sk, err := getPrivateKey(signingKeyPath)
-	if err != nil {
-		msg := fmt.Sprintf("bad signing key; path %s; %v", signingKeyPath, err)
-		ssas.Logger.Error(msg)
+func NewServer(name, port, version string, info interface{}, routes *chi.Mux, notSecure bool, signingKey *rsa.PrivateKey, ttl time.Duration, clientAssertAud string) *Server {
+	if signingKey == nil {
+		ssas.Logger.Error("bad Private Key")
 		return nil
 	}
-
 	s := Server{}
 	s.name = name
 	s.port = port
@@ -54,7 +52,7 @@ func NewServer(name, port, version string, info interface{}, routes *chi.Mux, no
 		s.router.Mount("/", routes)
 	}
 	s.notSecure = notSecure
-	s.tokenSigningKey = sk
+	s.tokenSigningKey = signingKey
 	s.tokenTTL = ttl
 	s.clientAssertAud = clientAssertAud
 	s.server = http.Server{
@@ -170,7 +168,7 @@ func doHealthCheck() bool {
 
 // This method gets the private key from the file system. Given that the server is completely unable to fulfill its
 // purpose without a signing key, a server should be considered invalid if it this function returns an error.
-func getPrivateKey(keyPath string) (*rsa.PrivateKey, error) {
+func GetPrivateKey(keyPath string) (*rsa.PrivateKey, error) {
 	keyData, err := ssas.ReadPEMFile(keyPath)
 	if err != nil {
 		return nil, err

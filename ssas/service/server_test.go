@@ -1,6 +1,8 @@
 package service
 
 import (
+	"crypto/rand"
+	"crypto/rsa"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
@@ -11,8 +13,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 )
-
-const unitSigningKeyPath string = "../../shared_files/ssas/unit_test_private_key.pem"
 
 type ServerTestSuite struct {
 	suite.Suite
@@ -26,7 +26,8 @@ func (s *ServerTestSuite) SetupSuite() {
 }
 
 func (s *ServerTestSuite) SetupTest() {
-	s.server = NewServer("test-server", ":9999", "9.99.999", s.info, nil, true, unitSigningKeyPath, 37*time.Minute,"")
+	pk, _ := rsa.GenerateKey(rand.Reader, 2048)
+	s.server = NewServer("test-server", ":9999", "9.99.999", s.info, nil, true, pk, 37*time.Minute, "")
 }
 
 func (s *ServerTestSuite) TestNewServer() {
@@ -45,7 +46,8 @@ func (s *ServerTestSuite) TestNewServer() {
 	r.Get("/test", func(w http.ResponseWriter, r *http.Request) {
 		_, _ = w.Write([]byte("test"))
 	})
-	ts := NewServer("test-server", ":9999", "9.99.999", s.info, r, true, unitSigningKeyPath, 37*time.Minute,"")
+	pk, _ := rsa.GenerateKey(rand.Reader, 2048)
+	ts := NewServer("test-server", ":9999", "9.99.999", s.info, r, true, pk, 37*time.Minute, "")
 	assert.NotEmpty(s.T(), ts.router)
 	routes, err := ts.ListRoutes()
 	assert.Nil(s.T(), err)
@@ -105,7 +107,7 @@ func (s *ServerTestSuite) TestNYI() {
 // MintToken(), MintTokenWithDuration()
 
 func (s *ServerTestSuite) TestNewServerWithBadSigningKey() {
-	ts := NewServer("test-server", ":9999", "9.99.999", s.info, nil, true, "", 37*time.Minute,"")
+	ts := NewServer("test-server", ":9999", "9.99.999", s.info, nil, true, nil, 37*time.Minute, "")
 	assert.Nil(s.T(), ts)
 }
 
