@@ -87,7 +87,7 @@ type ClientToken struct {
 }
 
 /*
-	SaveClientToken should be provided with a token label and toke uuid, which will
+	SaveClientToken should be provided with a token label and token uuid, which will
 	be saved to the client tokens table and associated with the current system.
 */
 func (system *System) SaveClientToken(label string, xData string) (string, error) {
