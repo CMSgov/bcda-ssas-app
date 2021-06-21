@@ -28,7 +28,6 @@ func (s *ServerTestSuite) SetupSuite() {
 }
 
 func (s *ServerTestSuite) SetupTest() {
-	// pk, _ := rsa.GenerateKey(rand.Reader, 2048)
 	s.server = NewServer("test-server", ":9999", "9.99.999", s.info, nil, true, s.privateKey, 37*time.Minute, "")
 }
 

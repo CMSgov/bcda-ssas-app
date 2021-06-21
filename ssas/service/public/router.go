@@ -33,7 +33,6 @@ func Server() *service.Server {
 
 	var signingKey *rsa.PrivateKey
 
-	// get signing key
 	if publicSigningKey != "" {
 		sk, err := ssas.ReadPrivateKey([]byte(publicSigningKey))
 		if err != nil {
