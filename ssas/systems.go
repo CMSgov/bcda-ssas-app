@@ -94,7 +94,7 @@ func (system *System) SaveClientToken(label string, xData string) (string, error
 	db := GetGORMDbConnection()
 	defer Close(db)
 
-	rk, err := NewRootKey(MacaroonExpiration)
+	rk, err := NewRootKey(system.ID, MacaroonExpiration)
 	if err != nil {
 		return "", fmt.Errorf("could not create a root key for macaroon generation for clientID %s: %s", system.ClientID, err.Error())
 	}

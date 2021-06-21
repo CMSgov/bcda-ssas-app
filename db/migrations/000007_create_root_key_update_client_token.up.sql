@@ -14,7 +14,8 @@ CREATE TABLE public.root_keys (
   expires_at timestamp with time zone,
   uuid text not null,
   key text not null,
-  UNIQUE(uuid)
+  system_id integer,
+  UNIQUE(uuid, system_id)
 );
 ALTER SEQUENCE public.root_keys_id_seq OWNED BY public.root_keys.id;
 

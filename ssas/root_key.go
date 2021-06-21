@@ -17,11 +17,12 @@ type RootKey struct {
 	UUID      string `gorm:"column:uuid"`
 	Key       string
 	ExpiresAt time.Time
+	SystemID  uint
 }
 
 type Caveats map[string]string
 
-func NewRootKey(expiration time.Duration) (*RootKey, error) {
+func NewRootKey(systemID uint, expiration time.Duration) (*RootKey, error) {
 	db := GetGORMDbConnection()
 	defer Close(db)
 
@@ -33,6 +34,7 @@ func NewRootKey(expiration time.Duration) (*RootKey, error) {
 		UUID:      uuid.NewRandom().String(),
 		Key:       secret,
 		ExpiresAt: time.Now().Add(expiration),
+		SystemID:  systemID,
 	}
 
 	if err := db.Create(rk).Error; err != nil {
