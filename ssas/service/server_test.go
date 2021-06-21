@@ -16,18 +16,20 @@ import (
 
 type ServerTestSuite struct {
 	suite.Suite
-	server *Server
-	info   map[string][]string
+	server     *Server
+	info       map[string][]string
+	privateKey *rsa.PrivateKey
 }
 
 func (s *ServerTestSuite) SetupSuite() {
 	s.info = make(map[string][]string)
 	s.info["public"] = []string{"token", "register"}
+	s.privateKey, _ = rsa.GenerateKey(rand.Reader, 2048)
 }
 
 func (s *ServerTestSuite) SetupTest() {
-	pk, _ := rsa.GenerateKey(rand.Reader, 2048)
-	s.server = NewServer("test-server", ":9999", "9.99.999", s.info, nil, true, pk, 37*time.Minute, "")
+	// pk, _ := rsa.GenerateKey(rand.Reader, 2048)
+	s.server = NewServer("test-server", ":9999", "9.99.999", s.info, nil, true, s.privateKey, 37*time.Minute, "")
 }
 
 func (s *ServerTestSuite) TestNewServer() {
@@ -46,8 +48,7 @@ func (s *ServerTestSuite) TestNewServer() {
 	r.Get("/test", func(w http.ResponseWriter, r *http.Request) {
 		_, _ = w.Write([]byte("test"))
 	})
-	pk, _ := rsa.GenerateKey(rand.Reader, 2048)
-	ts := NewServer("test-server", ":9999", "9.99.999", s.info, r, true, pk, 37*time.Minute, "")
+	ts := NewServer("test-server", ":9999", "9.99.999", s.info, r, true, s.privateKey, 37*time.Minute, "")
 	assert.NotEmpty(s.T(), ts.router)
 	routes, err := ts.ListRoutes()
 	assert.Nil(s.T(), err)
