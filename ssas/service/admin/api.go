@@ -601,6 +601,7 @@ func deleteSystemIP(w http.ResponseWriter, r *http.Request) {
 
 	system, err := ssas.GetSystemByID(systemID)
 	if err != nil {
+		ssas.OperationFailed(ipEvent)
 		jsonError(w, http.StatusNotFound, "Invalid system ID")
 		return
 	}
