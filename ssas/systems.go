@@ -376,6 +376,7 @@ type Credentials struct {
 	ClientName   string    `json:"client_name"`
 	IPs          []string  `json:"ips,omitempty"`
 	ExpiresAt    time.Time `json:"expires_at"`
+	XData        string    `json:"xdata,omitempty"`
 }
 
 /*
@@ -443,7 +444,7 @@ func registerSystem(clientName string, groupID string, scope string, publicKeyPE
 		ClientID:   clientID,
 		ClientName: clientName,
 		APIScope:   scope,
-		XData: xData,
+		XData:      xData,
 	}
 
 	err = tx.Create(&system).Error
@@ -556,6 +557,9 @@ func registerSystem(clientName string, groupID string, scope string, publicKeyPE
 	creds.ClientID = system.ClientID
 	creds.IPs = ips
 	creds.ExpiresAt = time.Now().Add(CredentialExpiration)
+	if isV2 {
+		creds.XData = system.XData
+	}
 
 	regEvent.Help = fmt.Sprintf("system registered in group %s with XData: %s", group.GroupID, group.XData)
 	OperationSucceeded(regEvent)
