@@ -677,6 +677,38 @@ func (system *System) GetIps(trackingID string) ([]IP, error) {
 	return ips, nil
 }
 
+// DeleteIP soft-deletes an IP associated with a specific system
+func (system *System) DeleteIP(ipID string, trackingID string) error {
+	var (
+		db  = GetGORMDbConnection()
+		ip  IP
+		err error
+	)
+	defer Close(db)
+
+	regEvent := Event{Op: "DeleteIP", TrackingID: trackingID, Help: "calling from ssas.DeleteIP()"}
+	OperationStarted(regEvent)
+
+	// Find IP to delete
+	err = db.First(&ip, "system_id = ? AND id = ?", system.ID, ipID).Error
+	if err != nil {
+		regEvent.Help = fmt.Sprintf("Unable to find IP address with ID %s: %s", ipID, err)
+		OperationFailed(regEvent)
+		return fmt.Errorf("Unable to find IP address with ID %s: %s", ipID, err)
+	}
+
+	// Soft delete IP
+	// Note: db.Delete() soft-deletes by default because the DeletedAt field is set on the Gorm model that IP inherits
+	err = db.Delete(&ip).Error
+	if err != nil {
+		regEvent.Help = fmt.Sprintf("Unable to delete IP address with ID %s: %s", ipID, err)
+		OperationFailed(regEvent)
+		return fmt.Errorf("Unable to delete IP address with ID %s: %s", ipID, err)
+	}
+
+	return nil
+}
+
 // DataForSystem returns the group extra data associated with this system
 func XDataFor(system System) (string, error) {
 	group, err := GetGroupByID(strconv.Itoa(int(system.GID)))

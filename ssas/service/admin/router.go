@@ -67,6 +67,7 @@ func routes() *chi.Mux {
 		r.With(requireBasicAuth).Patch("/system/{id}", updateSystem)
 		r.With(requireBasicAuth).Post("/system/{systemID}/ip", registerIP)
 		r.With(requireBasicAuth).Get("/system/{systemID}/ip", getSystemIPs)
+		r.With(requireBasicAuth).Delete("/system/{systemID}/ip/{id}", deleteSystemIP)
 	})
 
 	swaggerPath := "./swaggerui"
