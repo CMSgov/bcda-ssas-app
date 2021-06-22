@@ -3,10 +3,13 @@ package service
 import (
 	"crypto/rsa"
 	"database/sql"
+	"encoding/base64"
 	"fmt"
+	"gopkg.in/macaroon.v2"
 	"log"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/CMSgov/bcda-ssas-app/ssas"
@@ -244,12 +247,13 @@ type CommonClaims struct {
 	SystemID string `json:"sys,omitempty"`
 	// In a registration token, GroupIDs contains a list of all groups this user is authorized to manage
 	GroupIDs []string `json:"gid,omitempty"`
-	Data     string   `json:"dat,omitempty"`
+	Data     string   `json:"group_data,omitempty"`
 	Scopes   []string `json:"scp,omitempty"`
 	// deprecated
 	ACOID string `json:"aco,omitempty"`
 	// deprecated
-	UUID string `json:"id,omitempty"`
+	UUID        string `json:"id,omitempty"`
+	SystemXData string `json:"system_data,omitempty"`
 }
 
 // MintTokenWithDuration generates a tokenstring that expires after a specific duration from now.
@@ -305,7 +309,9 @@ func (s *Server) VerifyClientSignedToken(tokenString string, trackingId string) 
 		if claims.Issuer == "" {
 			return nil, fmt.Errorf("missing issuer (iss) in jwt claims")
 		}
-		system, err := ssas.GetSystemByID(claims.Issuer)
+
+		systemID, err := s.GetSystemIDFromMacaroon(claims.Issuer)
+		system, err := ssas.GetSystemByID(systemID)
 		if err != nil {
 			ssas.Logger.Error(err)
 			return nil, fmt.Errorf("failed to retrieve system information")
@@ -325,6 +331,44 @@ func (s *Server) VerifyClientSignedToken(tokenString string, trackingId string) 
 	}
 	return jwt.ParseWithClaims(tokenString, &CommonClaims{}, keyFunc)
 }
+
+func (s *Server) GetSystemIDFromMacaroon(issuer string) (string, error) {
+	db := ssas.GetGORMDbConnection()
+	defer ssas.Close(db)
+
+	var um macaroon.Macaroon
+	b, _ := base64.StdEncoding.DecodeString(issuer)
+	_ = um.UnmarshalBinary(b)
+
+	var systemIdCaveat string
+	for _, v := range um.Caveats() {
+		if strings.Contains(string(v.Id), "system_id") {
+			systemIdCaveat = string(v.Id)
+		}
+	}
+	if systemIdCaveat == "" {
+		return "", fmt.Errorf("missing systemID in macaroon caveat")
+	}
+
+	systemCaveatKV := strings.Split(systemIdCaveat, "=")
+	if len(systemCaveatKV) != 2 {
+		return "", fmt.Errorf("could not parse systemID from macaroon caveats")
+	}
+	systemId := systemCaveatKV[1]
+
+	var rootKey ssas.RootKey
+	db.First(&rootKey, "uuid = ?", um.Id(), "system_id = ?", systemId)
+	err := um.Verify([]byte(rootKey.Key), func(caveat string) error {
+		return nil
+	}, nil)
+
+	if err != nil {
+		return "", fmt.Errorf("macaroon failed to verify")
+	}
+
+	return systemCaveatKV[1], nil
+}
+
 func (s *Server) CheckRequiredClaims(claims *CommonClaims, requiredTokenType string) error {
 	if claims.ExpiresAt == 0 ||
 		claims.IssuedAt == 0 ||

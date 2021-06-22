@@ -10,10 +10,10 @@ import (
 	"net"
 	"testing"
 
-	"gorm.io/gorm"
 	"github.com/pborman/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"gorm.io/gorm"
 )
 
 func ResetAdminCreds() (encSecret string, err error) {
@@ -130,6 +130,26 @@ func CreateTestXData(t *testing.T, db *gorm.DB) (creds Credentials, group Group)
 	require.Nil(t, err)
 
 	creds, err = RegisterSystem("Test Client Name", groupID, DefaultScope, pemString, []string{}, uuid.NewRandom().String())
+	assert.Nil(t, err)
+	assert.Equal(t, "Test Client Name", creds.ClientName)
+	assert.NotNil(t, creds.ClientSecret)
+
+	return
+}
+
+func CreateTestXDataV2(t *testing.T, db *gorm.DB) (creds Credentials, group Group) {
+	groupID := RandomHexID()[0:4]
+
+	group = Group{GroupID: groupID, XData: "fake x_data"}
+	err := db.Create(&group).Error
+	require.Nil(t, err)
+
+	_, pubKey, err := GenerateTestKeys(2048)
+	require.Nil(t, err)
+	pemString, err := ConvertPublicKeyToPEMString(&pubKey)
+	require.Nil(t, err)
+
+	creds, err = RegisterV2System("Test Client Name", groupID, DefaultScope, pemString, []string{}, uuid.NewRandom().String(), `{"impl": "blah"}`)
 	assert.Nil(t, err)
 	assert.Equal(t, "Test Client Name", creds.ClientName)
 	assert.NotNil(t, creds.ClientSecret)

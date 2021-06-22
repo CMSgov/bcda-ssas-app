@@ -46,12 +46,13 @@ func MintRegistrationToken(oktaID string, groupIDs []string) (*jwt.Token, string
 }
 
 // MintAccessToken generates a tokenstring that expires in server.tokenTTL time
-func MintAccessToken(systemID, clientID string, data string) (*jwt.Token, string, error) {
+func MintAccessToken(systemID, clientID string, data string, systemXData string) (*jwt.Token, string, error) {
 	claims := service.CommonClaims{
-		TokenType: "AccessToken",
-		SystemID:  systemID,
-		ClientID:  clientID,
-		Data:      data,
+		TokenType:   "AccessToken",
+		SystemID:    systemID,
+		ClientID:    clientID,
+		Data:        data,
+		SystemXData: systemXData,
 	}
 
 	if err := checkTokenClaims(&claims); err != nil {

@@ -479,7 +479,7 @@ func (s *APITestSuite) SetupClientAssertionTest() (ssas.Credentials, ssas.Group,
 	pemString, err := ssas.ConvertPublicKeyToPEMString(&pubKey)
 	require.Nil(s.T(), err)
 
-	creds, err := ssas.RegisterSystem("Token Test", groupID, ssas.DefaultScope, pemString, []string{}, uuid.NewRandom().String())
+	creds, err := ssas.RegisterV2System("Token Test", groupID, ssas.DefaultScope, pemString, []string{}, uuid.NewRandom().String(), "fake system_xdata")
 	assert.Nil(s.T(), err)
 	assert.Equal(s.T(), "Token Test", creds.ClientName)
 	assert.NotNil(s.T(), creds.ClientSecret)
@@ -490,7 +490,7 @@ func (s *APITestSuite) SetupClientAssertionTest() (ssas.Credentials, ssas.Group,
 //Authenticate and generate access token using JWT (v2/token/)
 func (s *APITestSuite) TestAuthenticatingWithJWT() {
 	creds, group, privateKey := s.SetupClientAssertionTest()
-	_, clientAssertion, errors := mintClientAssertion(creds.SystemID, creds.SystemID, s.assertAud, time.Now().Unix(), time.Now().Add(time.Minute*5).Unix(), privateKey)
+	_, clientAssertion, errors := mintClientAssertion(creds.ClientToken, creds.ClientToken, s.assertAud, time.Now().Unix(), time.Now().Add(time.Minute*5).Unix(), privateKey)
 	assert.Nil(s.T(), errors)
 
 	form := url.Values{}
@@ -521,7 +521,7 @@ func (s *APITestSuite) TestAuthenticatingWithJWTWithExpBeforeIssuedTime() {
 	creds, group, privateKey := s.SetupClientAssertionTest()
 	expiresAt := time.Now().Unix() + 200
 	issuedAt := expiresAt + 1
-	_, clientAssertion, errors := mintClientAssertion(creds.SystemID, creds.SystemID, s.assertAud, issuedAt, expiresAt, privateKey)
+	_, clientAssertion, errors := mintClientAssertion(creds.ClientToken, creds.ClientToken, s.assertAud, issuedAt, expiresAt, privateKey)
 	assert.Nil(s.T(), errors)
 
 	form := url.Values{}
@@ -547,7 +547,7 @@ func (s *APITestSuite) TestAuthenticatingWithJWTWithMoreThan5MinutesExpTime() {
 	issuedAt := time.Now().Unix()
 	expiresAt := issuedAt + 350
 
-	_, clientAssertion, errors := mintClientAssertion(creds.SystemID, creds.SystemID, s.assertAud, issuedAt, expiresAt, privateKey)
+	_, clientAssertion, errors := mintClientAssertion(creds.ClientToken, creds.ClientToken, s.assertAud, issuedAt, expiresAt, privateKey)
 	assert.Nil(s.T(), errors)
 
 	form := url.Values{}
@@ -573,7 +573,7 @@ func (s *APITestSuite) TestAuthenticatingWithJWTWithExpiredToken() {
 	issuedAt := time.Now().Unix() - 3600 //simulate token issued an hour ago.
 	expiresAt := issuedAt + 200          //exp within 5 min of iat time
 
-	_, clientAssertion, errors := mintClientAssertion(creds.SystemID, creds.SystemID, s.assertAud, issuedAt, expiresAt, privateKey)
+	_, clientAssertion, errors := mintClientAssertion(creds.ClientToken, creds.ClientToken, s.assertAud, issuedAt, expiresAt, privateKey)
 	assert.Nil(s.T(), errors)
 
 	form := url.Values{}
@@ -602,7 +602,7 @@ func (s *APITestSuite) TestAuthenticatingWithJWTSignedWithWrongKey() {
 	wrongPrivateKey, _, err := ssas.GenerateTestKeys(2048)
 	require.Nil(s.T(), err)
 
-	_, clientAssertion, errors := mintClientAssertion(creds.SystemID, creds.SystemID, s.assertAud, issuedAt, expiresAt, wrongPrivateKey)
+	_, clientAssertion, errors := mintClientAssertion(creds.ClientToken, creds.ClientToken, s.assertAud, issuedAt, expiresAt, wrongPrivateKey)
 	assert.Nil(s.T(), errors)
 
 	form := url.Values{}
@@ -628,7 +628,7 @@ func (s *APITestSuite) TestAuthenticatingWithJWTWithSoftDeletedPublicKey() {
 	issuedAt := time.Now().Unix()
 	expiresAt := issuedAt + 200
 
-	_, clientAssertion, errors := mintClientAssertion(creds.SystemID, creds.SystemID, s.assertAud, issuedAt, expiresAt, privateKey)
+	_, clientAssertion, errors := mintClientAssertion(creds.ClientToken, creds.ClientToken, s.assertAud, issuedAt, expiresAt, privateKey)
 	assert.Nil(s.T(), errors)
 
 	form := url.Values{}
@@ -663,7 +663,7 @@ func (s *APITestSuite) TestAuthenticatingWithJWTWithSoftDeletedPublicKey() {
 	handler := http.HandlerFunc(tokenV2)
 	handler.ServeHTTP(s.rr, req)
 
-	s.verifyErrorResponse(http.StatusBadRequest, "key not found for system: "+creds.SystemID)
+	s.verifyErrorResponse(http.StatusBadRequest, "key not found for system: "+creds.ClientToken)
 	err = ssas.CleanDatabase(group)
 	assert.Nil(s.T(), err)
 }
@@ -693,7 +693,7 @@ func (s *APITestSuite) TestAuthenticatingWithJWTWithMissingIssuerClaim() {
 
 func (s *APITestSuite) TestAuthenticatingWithJWTWithBadAudienceClaim() {
 	creds, group, privateKey := s.SetupClientAssertionTest()
-	_, clientAssertion, errors := mintClientAssertion(creds.SystemID, creds.SystemID, "https://invalid.url.com", time.Now().Unix(), time.Now().Add(time.Minute*5).Unix(), privateKey)
+	_, clientAssertion, errors := mintClientAssertion(creds.ClientToken, creds.ClientToken, "https://invalid.url.com", time.Now().Unix(), time.Now().Add(time.Minute*5).Unix(), privateKey)
 	assert.Nil(s.T(), errors)
 
 	form := url.Values{}
@@ -722,8 +722,8 @@ func (s *APITestSuite) TestAuthenticatingWithJWTWithMissingJTI() {
 	claims.TokenType = "ClientAssertion"
 	claims.IssuedAt = time.Now().Unix()
 	claims.ExpiresAt = time.Now().Add(time.Minute * 5).Unix()
-	claims.Subject = creds.SystemID
-	claims.Issuer = creds.SystemID
+	claims.Subject = creds.ClientToken
+	claims.Issuer = creds.ClientToken
 	claims.Audience = s.assertAud
 	token.Claims = claims
 	var signedString, err = token.SignedString(privateKey)
@@ -749,7 +749,7 @@ func (s *APITestSuite) TestAuthenticatingWithJWTWithMissingJTI() {
 
 func (s *APITestSuite) TestAuthenticatingWithJWTWithMissingSubjectClaim() {
 	creds, group, privateKey := s.SetupClientAssertionTest()
-	_, clientAssertion, errors := mintClientAssertion(creds.SystemID, "", s.assertAud, time.Now().Unix(), time.Now().Add(time.Minute*5).Unix(), privateKey)
+	_, clientAssertion, errors := mintClientAssertion(creds.ClientToken, "", s.assertAud, time.Now().Unix(), time.Now().Add(time.Minute*5).Unix(), privateKey)
 	assert.Nil(s.T(), errors)
 
 	form := url.Values{}
@@ -923,7 +923,9 @@ func (s *APITestSuite) TestGetTokenInfo() {
 	assert.Equal(s.T(), "application/json; charset=utf-8", rr.Result().Header.Get("Content-Type"))
 	var result map[string]interface{}
 	_ = json.Unmarshal(rr.Body.Bytes(), &result)
-	assert.NotEmpty(s.T(), result["data"])
+	assert.NotEmpty(s.T(), result["group_data"])
+	assert.NotEmpty(s.T(), result["system_data"])
+	assert.Equal(s.T(), `{"impl": "blah"}`, result["system_data"])
 }
 
 func (s *APITestSuite) TestGetTokenInfoWithMissingToken() {
@@ -988,17 +990,18 @@ func (s *APITestSuite) TestGetTokenInfoWithExpiredToken() {
 }
 
 func (s *APITestSuite) MintTestAccessTokenWithDuration(duration time.Duration) (*jwt.Token, string, error) {
-	creds, _ := ssas.CreateTestXData(s.T(), s.db)
+	creds, _ := ssas.CreateTestXDataV2(s.T(), s.db)
 	system, err := ssas.GetSystemByClientID(creds.ClientID)
 	assert.Nil(s.T(), err)
 	data, err := ssas.XDataFor(system)
 	assert.Nil(s.T(), err)
 
 	claims := service.CommonClaims{
-		TokenType: "AccessToken",
-		SystemID:  fmt.Sprintf("%d", system.ID),
-		ClientID:  creds.ClientID,
-		Data:      data,
+		TokenType:   "AccessToken",
+		SystemID:    fmt.Sprintf("%d", system.ID),
+		ClientID:    creds.ClientID,
+		Data:        data,
+		SystemXData: system.XData,
 	}
 	return s.server.MintTokenWithDuration(&claims, duration)
 }
