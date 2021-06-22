@@ -4,7 +4,7 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
-	b64 "encoding/base64"
+	"encoding/base64"
 	"encoding/pem"
 	"errors"
 	"fmt"
@@ -23,6 +23,8 @@ import (
 var DefaultScope string
 var MaxIPs int
 var CredentialExpiration time.Duration
+var MacaroonExpiration time.Duration
+var Location string
 
 func init() {
 	getEnvVars()
@@ -43,6 +45,9 @@ func getEnvVars() {
 	expirationDays := cfg.GetEnvInt("SSAS_CRED_EXPIRATION_DAYS", 90)
 	CredentialExpiration = time.Duration(expirationDays*24) * time.Hour
 	MaxIPs = cfg.GetEnvInt("SSAS_MAX_SYSTEM_IPS", 8)
+	macaroonExpirationDays := cfg.GetEnvInt("SSAS_MACAROON_EXPIRATION_DAYS", 365)
+	MacaroonExpiration = time.Duration(macaroonExpirationDays*24) * time.Hour
+	Location = cfg.FromEnv("SSAS_MACAROON_LOCATION", "localhost")
 }
 
 type System struct {
@@ -75,31 +80,44 @@ type Secret struct {
 
 type ClientToken struct {
 	gorm.Model
-	Label    string `json:"label"`
-	Uuid     string `json:"uuid"`
-	System   System `gorm:"foreignkey:SystemID;association_foreignkey:ID"`
-	SystemID uint   `json:"system_id"`
+	Label     string    `json:"label"`
+	Uuid      string    `json:"uuid"`
+	System    System    `gorm:"foreignkey:SystemID;association_foreignkey:ID"`
+	SystemID  uint      `json:"system_id"`
+	ExpiresAt time.Time `json:"expires_at"`
 }
 
 /*
-	SaveClientToken should be provided with a token label and toke uuid, which will
+	SaveClientToken should be provided with a token label and token uuid, which will
 	be saved to the client tokens table and associated with the current system.
 */
-func (system *System) SaveClientToken(uuidS string, label string) error {
+func (system *System) SaveClientToken(label string, xData string) (string, error) {
 	db := GetGORMDbConnection()
 	defer Close(db)
 
+	rk, err := NewRootKey(system.ID, MacaroonExpiration)
+	if err != nil {
+		return "", fmt.Errorf("could not create a root key for macaroon generation for clientID %s: %s", system.ClientID, err.Error())
+	}
+
+	caveats := make([]Caveats, 3)
+	caveats[0] = map[string]string{"expiration": rk.ExpiresAt.Format(time.RFC3339)}
+	caveats[1] = map[string]string{"system_id": strconv.FormatUint(uint64(system.ID), 10)}
+	caveats[2] = map[string]string{"x_data": base64.StdEncoding.EncodeToString([]byte(xData))}
+
+	token, _ := rk.Generate(caveats, Location)
 	ct := ClientToken{
-		Label:    label,
-		Uuid:     uuidS,
-		SystemID: system.ID,
+		Label:     label,
+		Uuid:      rk.UUID,
+		SystemID:  system.ID,
+		ExpiresAt: rk.ExpiresAt,
 	}
 
 	if err := db.Create(&ct).Error; err != nil {
-		return fmt.Errorf("could not save client token for clientID %s: %s", system.ClientID, err.Error())
+		return "", fmt.Errorf("could not save client token for clientID %s: %s", system.ClientID, err.Error())
 	}
 	ClientTokenCreated(Event{Op: "SaveClientToken", TrackingID: uuid.NewRandom().String(), ClientID: system.ClientID})
-	return nil
+	return token, nil
 }
 
 func (system *System) GetClientTokens(trackingID string) ([]ClientToken, error) {
@@ -503,14 +521,13 @@ func registerSystem(clientName string, groupID string, scope string, publicKeyPE
 		}
 	}
 	if isV2 {
-		err = system.SaveClientToken(uuid.NewRandom().String(), "Initial Token")
+		ct, err := system.SaveClientToken("Initial Token", group.XData)
 		if err != nil {
 			regEvent.Help = fmt.Sprintf("could not save client token for clientID %s, groupID %s: %s", clientID, groupID, err.Error())
 			OperationFailed(regEvent)
 			tx.Rollback()
 			return creds, errors.New("internal system error")
 		}
-		ct := b64.StdEncoding.EncodeToString([]byte("client-token-placeholder"))
 		creds.ClientToken = ct
 	} else {
 		clientSecret, err := GenerateSecret()
@@ -556,9 +573,11 @@ func registerSystem(clientName string, groupID string, scope string, publicKeyPE
 	creds.ClientName = system.ClientName
 	creds.ClientID = system.ClientID
 	creds.IPs = ips
-	creds.ExpiresAt = time.Now().Add(CredentialExpiration)
 	if isV2 {
+		creds.ExpiresAt = time.Now().Add(MacaroonExpiration)
 		creds.XData = system.XData
+	} else {
+		creds.ExpiresAt = time.Now().Add(CredentialExpiration)
 	}
 
 	regEvent.Help = fmt.Sprintf("system registered in group %s with XData: %s", group.GroupID, group.XData)
@@ -660,6 +679,38 @@ func (system *System) GetIps(trackingID string) ([]IP, error) {
 	var ips []IP
 	db.Find(&ips, "system_id=? AND deleted_at IS NULL", system.ID)
 	return ips, nil
+}
+
+// DeleteIP soft-deletes an IP associated with a specific system
+func (system *System) DeleteIP(ipID string, trackingID string) error {
+	var (
+		db  = GetGORMDbConnection()
+		ip  IP
+		err error
+	)
+	defer Close(db)
+
+	regEvent := Event{Op: "DeleteIP", TrackingID: trackingID, Help: "calling from ssas.DeleteIP()"}
+	OperationStarted(regEvent)
+
+	// Find IP to delete
+	err = db.First(&ip, "system_id = ? AND id = ?", system.ID, ipID).Error
+	if err != nil {
+		regEvent.Help = fmt.Sprintf("Unable to find IP address with ID %s: %s", ipID, err)
+		OperationFailed(regEvent)
+		return fmt.Errorf("Unable to find IP address with ID %s: %s", ipID, err)
+	}
+
+	// Soft delete IP
+	// Note: db.Delete() soft-deletes by default because the DeletedAt field is set on the Gorm model that IP inherits
+	err = db.Delete(&ip).Error
+	if err != nil {
+		regEvent.Help = fmt.Sprintf("Unable to delete IP address with ID %s: %s", ipID, err)
+		OperationFailed(regEvent)
+		return fmt.Errorf("Unable to delete IP address with ID %s: %s", ipID, err)
+	}
+
+	return nil
 }
 
 // DataForSystem returns the group extra data associated with this system

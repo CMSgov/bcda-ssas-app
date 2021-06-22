@@ -757,6 +757,53 @@ func (s *APITestSuite) TestRegisterDuplicateSystemIP() {
 	_ = ssas.CleanDatabase(group)
 }
 
+func (s *APITestSuite) TestDeleteIP() {
+	group := ssas.Group{GroupID: "test-reset-creds-group"}
+	s.db.Create(&group)
+	system := ssas.System{GID: group.ID, ClientID: "test-reset-creds-client"}
+	s.db.Create(&system)
+
+	ip1 := ssas.IP{Address: "2.5.22.81", SystemID: system.ID}
+	s.db.Create(&ip1)
+	ip2 := ssas.IP{Address: "2.5.22.82", SystemID: system.ID}
+	s.db.Create(&ip2)
+
+	// Fetch IPs associated with system
+	systemID := strconv.FormatUint(uint64(system.ID), 10)
+	req := httptest.NewRequest("GET", "/system/"+systemID+"/ip", nil)
+	rctx := chi.NewRouteContext()
+
+	rctx.URLParams.Add("systemID", systemID)
+	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+	handler := http.HandlerFunc(getSystemIPs)
+
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+	assert.Equal(s.T(), http.StatusOK, rr.Result().StatusCode)
+	assert.Equal(s.T(), "application/json", rr.Result().Header.Get("Content-Type"))
+	var ips []ssas.IP
+	_ = json.Unmarshal(rr.Body.Bytes(), &ips)
+	assert.Len(s.T(), ips, 2)
+
+	// Get ID of first IP associated with system
+	ipID := strconv.FormatUint(uint64(ips[0].ID), 10)
+
+	// Delete IP
+	req = httptest.NewRequest("DELETE", "/system/"+systemID+"/ip/"+ipID, nil)
+	rctx.URLParams.Add("id", ipID)
+	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+	handler = deleteSystemIP
+
+	rr = httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+
+	// Test that the IP was deleted
+	assert.Equal(s.T(), http.StatusNoContent, rr.Result().StatusCode)
+	assert.Equal(s.T(), strconv.FormatUint(uint64(ips[0].ID), 10), ipID)
+
+	_ = ssas.CleanDatabase(group)
+}
+
 func (s *APITestSuite) TestUpdateSystem() {
 	group := ssas.Group{GroupID: "test-group-id"}
 	err := s.db.Save(&group).Error

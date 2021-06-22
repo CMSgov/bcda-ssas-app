@@ -146,7 +146,7 @@ type TokenIDParam struct {
 	TokenID string `json:"token_id"`
 }
 
-// swagger:parameters getPublicKey resetCredentials deleteCredentials
+// swagger:parameters getPublicKey resetCredentials deleteCredentials deleteSystemIP
 type SystemIDParam struct {
 	// ID of system
 	// in: path
@@ -168,6 +168,14 @@ type GroupDataParam struct {
 	// in: body
 	// required: true
 	Body GroupInput `json:"group_input"`
+}
+
+// swagger:parameters deleteSystemIP
+type IpID struct {
+	// ID of IP address
+	// in: path
+	// required: true
+	IpID string `json:"ip_id"`
 }
 
 type GroupInput struct {

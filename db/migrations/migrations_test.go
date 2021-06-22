@@ -206,19 +206,29 @@ func up6(t *testing.T) {
 	assert.True(t, db.Migrator().HasTable("client_tokens"))
 }
 
-func down6(t *testing.T) {
-	assert.True(t, runMigration(t, "5"))
-	assert.False(t, db.Migrator().HasTable("client_tokens"))
-}
-
 func up7(t *testing.T) {
 	assert.True(t, runMigration(t, "7"))
+	assert.True(t, db.Migrator().HasTable("root_keys"))
+}
+
+func up8(t *testing.T) {
+	assert.True(t, runMigration(t, "8"))
 	assert.True(t, db.Migrator().HasColumn(&ssas.System{}, "x_data"))
+}
+
+func down8(t *testing.T) {
+	assert.True(t, runMigration(t, "7"))
+	assert.False(t, db.Migrator().HasColumn(&ssas.System{}, "x_data"))
 }
 
 func down7(t *testing.T) {
 	assert.True(t, runMigration(t, "6"))
-	assert.False(t, db.Migrator().HasColumn(&ssas.System{}, "x_data"))
+	assert.False(t, db.Migrator().HasTable("root_keys"))
+}
+
+func down6(t *testing.T) {
+	assert.True(t, runMigration(t, "5"))
+	assert.False(t, db.Migrator().HasTable("client_tokens"))
 }
 
 func down4(t *testing.T) {
