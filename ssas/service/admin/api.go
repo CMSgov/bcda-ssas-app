@@ -7,11 +7,9 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/go-chi/chi"
-	"github.com/pborman/uuid"
-
 	"github.com/CMSgov/bcda-ssas-app/ssas"
 	"github.com/CMSgov/bcda-ssas-app/ssas/service"
+	"github.com/go-chi/chi"
 )
 
 /*
@@ -94,7 +92,7 @@ func createGroup(w http.ResponseWriter, r *http.Request) {
 		500: serverError
 */
 func listGroups(w http.ResponseWriter, r *http.Request) {
-	trackingID := uuid.NewRandom().String()
+	trackingID := ssas.RandomHexID()
 
 	ssas.OperationCalled(ssas.Event{Op: "ListGroups", TrackingID: trackingID, Help: "calling from admin.listGroups()"})
 	groups, err := ssas.ListGroups(trackingID)
@@ -363,7 +361,7 @@ func resetCredentials(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	trackingID := uuid.NewRandom().String()
+	trackingID := ssas.RandomHexID()
 	ssas.OperationCalled(ssas.Event{Op: "ResetSecret", TrackingID: trackingID, Help: "calling from admin.resetCredentials()"})
 	creds, err := system.ResetSecret(trackingID)
 	if err != nil {
@@ -412,7 +410,7 @@ func getPublicKey(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	trackingID := uuid.NewRandom().String()
+	trackingID := ssas.RandomHexID()
 	ssas.OperationCalled(ssas.Event{Op: "GetEncryptionKey", TrackingID: trackingID, Help: "calling from admin.getPublicKey()"})
 	key, _ := system.GetEncryptionKey(trackingID)
 
@@ -505,7 +503,7 @@ func registerIP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	trackingID := uuid.NewRandom().String()
+	trackingID := ssas.RandomHexID()
 
 	if !ssas.ValidAddress(input.Address) {
 		jsonError(w, http.StatusBadRequest, "invalid ip address")
@@ -550,7 +548,7 @@ func getSystemIPs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	trackingID := uuid.NewRandom().String()
+	trackingID := ssas.RandomHexID()
 	ssas.OperationCalled(ssas.Event{Op: "GetSystemIPs", TrackingID: trackingID, Help: "calling from admin.getSystemIPs()"})
 	ips, err := system.GetIps(trackingID)
 	if err != nil {
