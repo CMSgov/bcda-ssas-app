@@ -5,6 +5,8 @@ services:
     build:
       context: .
       dockerfile: Dockerfiles/Dockerfile.tests
+      args:
+        VERSION: latest
     environment:
       - DB=postgresql://postgres:toor@db:5432
       - DATABASE_URL=postgresql://postgres:toor@db:5432/bcda?sslmode=disable
