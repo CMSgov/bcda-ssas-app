@@ -1,7 +1,6 @@
 package admin
 
 import (
-	"crypto/rsa"
 	"fmt"
 	"net/http"
 	"os"
@@ -31,24 +30,11 @@ func init() {
 func Server() *service.Server {
 	unsafeMode := os.Getenv("HTTP_ONLY") == "true"
 
-	var signingKey *rsa.PrivateKey
-
-	if adminSigningKey != "" {
-		sk, err := ssas.ReadPrivateKey([]byte(adminSigningKey))
-		if err != nil {
-			msg := fmt.Sprintf("bad public signing key; %v", err)
-			ssas.Logger.Error(msg)
-			return nil
-		}
-		signingKey = sk
-	} else {
-		sk, err := service.GetPrivateKey(adminSigningKeyPath)
-		if err != nil {
-			msg := fmt.Sprintf("bad signing key; path %s; %v", adminSigningKeyPath, err)
-			ssas.Logger.Error(msg)
-			return nil
-		}
-		signingKey = sk
+	signingKey, err := service.ChooseSigningKey(adminSigningKeyPath, adminSigningKey)
+	if err != nil {
+		msg := fmt.Sprintf("Unable to get admin server signing key %v", err)
+		ssas.Logger.Error(msg)
+		return nil
 	}
 
 	server = service.NewServer("admin", ":3004", constants.Version, infoMap, routes(), unsafeMode, signingKey, 20*time.Minute, "")

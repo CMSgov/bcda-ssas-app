@@ -36,12 +36,56 @@ type Server struct {
 	clientAssertAud string
 }
 
+// ChooseSigningKey will choose which signing key to use
+func ChooseSigningKey(signingKeyPath, signingKey string) (*rsa.PrivateKey, error) {
+	if signingKey == "" && signingKeyPath == "" {
+		msg := "inline key and path are both empty strings"
+		ssas.Logger.Error(msg)
+		return nil, fmt.Errorf(msg)
+	}
+
+	if !((signingKey == "" && signingKeyPath != "") || (signingKey != "" && signingKeyPath == "")) {
+		msg := "inline key or path must be set, but not both"
+		ssas.Logger.Error(msg)
+		return nil, fmt.Errorf(msg)
+	}
+
+	var key *rsa.PrivateKey
+
+	if signingKey != "" {
+		sk, err := ssas.ReadPrivateKey([]byte(signingKey))
+		if err != nil {
+			msg := fmt.Sprintf("bad inline signing key; %v", err)
+			ssas.Logger.Error(msg)
+			return nil, fmt.Errorf(msg)
+		}
+		key = sk
+	} else {
+		sk, err := GetPrivateKey(signingKeyPath)
+		if err != nil {
+			msg := fmt.Sprintf("bad signing key; path %s; %v", signingKeyPath, err)
+			ssas.Logger.Error(msg)
+			return nil, fmt.Errorf(msg)
+		}
+		key = sk
+	}
+
+	return key, nil
+}
+
 // NewServer correctly initializes an instance of the Server type.
 func NewServer(name, port, version string, info interface{}, routes *chi.Mux, notSecure bool, signingKey *rsa.PrivateKey, ttl time.Duration, clientAssertAud string) *Server {
 	if signingKey == nil {
-		ssas.Logger.Error("bad Private Key")
+		ssas.Logger.Error("Private Key is nil")
 		return nil
 	}
+
+	err := signingKey.Validate()
+	if err != nil {
+		ssas.Logger.Error("Private Key is invalid")
+		return nil
+	}
+
 	s := Server{}
 	s.name = name
 	s.port = port

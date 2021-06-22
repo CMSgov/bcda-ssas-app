@@ -1,7 +1,6 @@
 package public
 
 import (
-	"crypto/rsa"
 	"fmt"
 	"os"
 	"time"
@@ -31,24 +30,11 @@ func init() {
 func Server() *service.Server {
 	unsafeMode := os.Getenv("HTTP_ONLY") == "true"
 
-	var signingKey *rsa.PrivateKey
-
-	if publicSigningKey != "" {
-		sk, err := ssas.ReadPrivateKey([]byte(publicSigningKey))
-		if err != nil {
-			msg := fmt.Sprintf("bad public signing key; %v", err)
-			ssas.Logger.Error(msg)
-			return nil
-		}
-		signingKey = sk
-	} else {
-		sk, err := service.GetPrivateKey(publicSigningKeyPath)
-		if err != nil {
-			msg := fmt.Sprintf("bad signing key; path %s; %v", publicSigningKeyPath, err)
-			ssas.Logger.Error(msg)
-			return nil
-		}
-		signingKey = sk
+	signingKey, err := service.ChooseSigningKey(publicSigningKeyPath, publicSigningKey)
+	if err != nil {
+		msg := fmt.Sprintf("Unable to get public server signing key: %v", err)
+		ssas.Logger.Error(msg)
+		return nil
 	}
 
 	server = service.NewServer("public", ":3003", constants.Version, infoMap, routes(), unsafeMode, signingKey, 20*time.Minute, clientAssertAud)
