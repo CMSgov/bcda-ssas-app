@@ -937,7 +937,7 @@ func (s *APITestSuite) TestCreateV2System() {
 	var result map[string]interface{}
 	_ = json.Unmarshal(rr.Body.Bytes(), &result)
 	assert.NotEmpty(s.T(), result["client_id"])
-	assert.Equal(s.T(), result["xdata"], "test xdata")
+	assert.Equal(s.T(), result["xdata"], "{\"org\":\"testOrgID\"}")
 	assert.NotEmpty(s.T(), result["client_token"])
 	assert.Empty(s.T(), result["client_secret"])
 	assert.Equal(s.T(), "Test Client", result["client_name"])
