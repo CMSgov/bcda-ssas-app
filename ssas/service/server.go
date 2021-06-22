@@ -36,41 +36,39 @@ type Server struct {
 	clientAssertAud string
 }
 
-// ChooseSigningKey will choose which signing key to use
+// ChooseSigningKey will choose which signing key to use, either a file or an inline key.
+// One or the other must be set, but not both.
 func ChooseSigningKey(signingKeyPath, signingKey string) (*rsa.PrivateKey, error) {
-	if signingKey == "" && signingKeyPath == "" {
-		msg := "inline key and path are both empty strings"
-		ssas.Logger.Error(msg)
-		return nil, fmt.Errorf(msg)
-	}
+	var key *rsa.PrivateKey = nil
+	var error error = nil
 
-	if !((signingKey == "" && signingKeyPath != "") || (signingKey != "" && signingKeyPath == "")) {
-		msg := "inline key or path must be set, but not both"
-		ssas.Logger.Error(msg)
-		return nil, fmt.Errorf(msg)
-	}
-
-	var key *rsa.PrivateKey
-
-	if signingKey != "" {
-		sk, err := ssas.ReadPrivateKey([]byte(signingKey))
-		if err != nil {
-			msg := fmt.Sprintf("bad inline signing key; %v", err)
-			ssas.Logger.Error(msg)
-			return nil, fmt.Errorf(msg)
-		}
-		key = sk
-	} else {
+	if signingKey == "" && signingKeyPath != "" {
 		sk, err := GetPrivateKey(signingKeyPath)
 		if err != nil {
 			msg := fmt.Sprintf("bad signing key; path %s; %v", signingKeyPath, err)
 			ssas.Logger.Error(msg)
-			return nil, fmt.Errorf(msg)
+			error = fmt.Errorf(msg)
 		}
 		key = sk
+	} else if signingKey != "" && signingKeyPath == "" {
+		sk, err := ssas.ReadPrivateKey([]byte(signingKey))
+		if err != nil {
+			msg := fmt.Sprintf("bad inline signing key; %v", err)
+			ssas.Logger.Error(msg)
+			error = fmt.Errorf(msg)
+		}
+		key = sk
+	} else if signingKey == "" && signingKeyPath == "" {
+		msg := "inline key and path are both empty strings"
+		ssas.Logger.Error(msg)
+		error = fmt.Errorf(msg)
+	} else {
+		msg := "inline key or path must be set, but not both"
+		ssas.Logger.Error(msg)
+		error = fmt.Errorf(msg)
 	}
 
-	return key, nil
+	return key, error
 }
 
 // NewServer correctly initializes an instance of the Server type.
