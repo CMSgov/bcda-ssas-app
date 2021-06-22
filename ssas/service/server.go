@@ -4,16 +4,17 @@ import (
 	"crypto/rsa"
 	"database/sql"
 	"fmt"
+	"log"
+	"net/http"
+	"os"
+	"time"
+
 	"github.com/CMSgov/bcda-ssas-app/ssas"
 	"github.com/CMSgov/bcda-ssas-app/ssas/cfg"
 	"github.com/dgrijalva/jwt-go"
 	"github.com/go-chi/chi"
 	"github.com/go-chi/render"
 	"github.com/pborman/uuid"
-	"log"
-	"net/http"
-	"os"
-	"time"
 )
 
 // Server configures and provisions an SSAS server
@@ -35,12 +36,51 @@ type Server struct {
 	clientAssertAud string
 }
 
-// NewServer correctly initializes an instance of the Server type.
-func NewServer(name, port, version string, info interface{}, routes *chi.Mux, notSecure bool, signingKeyPath string, ttl time.Duration, clientAssertAud string) *Server {
-	sk, err := getPrivateKey(signingKeyPath)
-	if err != nil {
-		msg := fmt.Sprintf("bad signing key; path %s; %v", signingKeyPath, err)
+// ChooseSigningKey will choose which signing key to use, either a file or an inline key.
+// One or the other must be set, but not both.
+func ChooseSigningKey(signingKeyPath, signingKey string) (*rsa.PrivateKey, error) {
+	var key *rsa.PrivateKey = nil
+	var error error = nil
+
+	if signingKey == "" && signingKeyPath != "" {
+		sk, err := GetPrivateKey(signingKeyPath)
+		if err != nil {
+			msg := fmt.Sprintf("bad signing key; path %s; %v", signingKeyPath, err)
+			ssas.Logger.Error(msg)
+			error = fmt.Errorf(msg)
+		}
+		key = sk
+	} else if signingKey != "" && signingKeyPath == "" {
+		sk, err := ssas.ReadPrivateKey([]byte(signingKey))
+		if err != nil {
+			msg := fmt.Sprintf("bad inline signing key; %v", err)
+			ssas.Logger.Error(msg)
+			error = fmt.Errorf(msg)
+		}
+		key = sk
+	} else if signingKey == "" && signingKeyPath == "" {
+		msg := "inline key and path are both empty strings"
 		ssas.Logger.Error(msg)
+		error = fmt.Errorf(msg)
+	} else {
+		msg := "inline key or path must be set, but not both"
+		ssas.Logger.Error(msg)
+		error = fmt.Errorf(msg)
+	}
+
+	return key, error
+}
+
+// NewServer correctly initializes an instance of the Server type.
+func NewServer(name, port, version string, info interface{}, routes *chi.Mux, notSecure bool, signingKey *rsa.PrivateKey, ttl time.Duration, clientAssertAud string) *Server {
+	if signingKey == nil {
+		ssas.Logger.Error("Private Key is nil")
+		return nil
+	}
+
+	err := signingKey.Validate()
+	if err != nil {
+		ssas.Logger.Error("Private Key is invalid")
 		return nil
 	}
 
@@ -54,7 +94,7 @@ func NewServer(name, port, version string, info interface{}, routes *chi.Mux, no
 		s.router.Mount("/", routes)
 	}
 	s.notSecure = notSecure
-	s.tokenSigningKey = sk
+	s.tokenSigningKey = signingKey
 	s.tokenTTL = ttl
 	s.clientAssertAud = clientAssertAud
 	s.server = http.Server{
@@ -170,7 +210,7 @@ func doHealthCheck() bool {
 
 // This method gets the private key from the file system. Given that the server is completely unable to fulfill its
 // purpose without a signing key, a server should be considered invalid if it this function returns an error.
-func getPrivateKey(keyPath string) (*rsa.PrivateKey, error) {
+func GetPrivateKey(keyPath string) (*rsa.PrivateKey, error) {
 	keyData, err := ssas.ReadPEMFile(keyPath)
 	if err != nil {
 		return nil, err

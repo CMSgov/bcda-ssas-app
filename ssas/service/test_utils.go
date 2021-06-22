@@ -2,9 +2,10 @@ package service
 
 import (
 	"errors"
+	"time"
+
 	"github.com/CMSgov/bcda-ssas-app/ssas"
 	"github.com/dgrijalva/jwt-go"
-	"time"
 )
 
 type TokenFlaw int
@@ -21,7 +22,7 @@ const (
 // BadToken creates invalid tokens for testing.  To avoid exposing token spoofing capabilities, a limited number of
 // bad token types will be supported.
 func BadToken(claims *CommonClaims, flaw TokenFlaw, keyPath string) (token *jwt.Token, signedString string, err error) {
-	signingKey, err := getPrivateKey(keyPath)
+	signingKey, err := GetPrivateKey(keyPath)
 	if err != nil {
 		return
 	}
