@@ -595,16 +595,16 @@ func getSystemIPs(w http.ResponseWriter, r *http.Request) {
 */
 func deleteSystemIP(w http.ResponseWriter, r *http.Request) {
 	systemID := chi.URLParam(r, "systemID")
+	ipID := chi.URLParam(r, "id")
+	trackingID := ssas.RandomHexID()
 	ipEvent := ssas.Event{Op: "UpdateGroup", TrackingID: trackingID, Help: "calling from admin.deleteSystemIP()"}
+
 	system, err := ssas.GetSystemByID(systemID)
 	if err != nil {
 		jsonError(w, http.StatusNotFound, "Invalid system ID")
 		return
 	}
 
-	ipID := chi.URLParam(r, "id")
-
-	trackingID := uuid.NewRandom().String()
 	ssas.OperationCalled(ipEvent)
 
 	err = system.DeleteIP(ipID, trackingID)
