@@ -312,7 +312,7 @@ func (s *Server) VerifyClientSignedToken(tokenString string, trackingId string) 
 
 		systemID, err := s.GetSystemIDFromMacaroon(claims.Issuer)
 		if err != nil {
-			return nil, fmt.Errorf("fail to retrieve systemID form macaroon")
+			return nil, fmt.Errorf("fail to retrieve systemID from macaroon")
 		}
 
 		system, err := ssas.GetSystemByID(systemID)
@@ -361,9 +361,9 @@ func (s *Server) GetSystemIDFromMacaroon(issuer string) (string, error) {
 	systemId := systemCaveatKV[1]
 
 	var rootKey ssas.RootKey
-	db.First(&rootKey, "uuid = ?", um.Id(), "system_id = ?", systemId)
+	db.First(&rootKey, "uuid = ?", um.Id(), "system_id = ? AND deleted_at IS NULL", systemId)
 
-	if rootKey.ExpiresAt.After(time.Now()) || !rootKey.DeletedAt.Valid {
+	if rootKey.IsExpired() {
 		return "", fmt.Errorf("macaroon expired or deleted")
 	}
 
