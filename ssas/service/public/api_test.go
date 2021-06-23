@@ -479,7 +479,16 @@ func (s *APITestSuite) SetupClientAssertionTest() (ssas.Credentials, ssas.Group,
 	pemString, err := ssas.ConvertPublicKeyToPEMString(&pubKey)
 	require.Nil(s.T(), err)
 
-	creds, err := ssas.RegisterV2System("Token Test", groupID, ssas.DefaultScope, pemString, []string{}, uuid.NewRandom().String(), "fake system_xdata")
+	si := ssas.SystemInput{
+		ClientName: "Token Test",
+		GroupID:    groupID,
+		Scope:      ssas.DefaultScope,
+		PublicKey:  pemString,
+		IPs:        []string{},
+		TrackingID: uuid.NewRandom().String(),
+		XData:      `{"impl": "blah"}`,
+	}
+	creds, err := ssas.RegisterV2System(si)
 	assert.Nil(s.T(), err)
 	assert.Equal(s.T(), "Token Test", creds.ClientName)
 	assert.NotNil(s.T(), creds.ClientSecret)

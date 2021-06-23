@@ -7,13 +7,12 @@ import (
 	"encoding/base64"
 	"encoding/pem"
 	"fmt"
-	"net"
-	"testing"
-
 	"github.com/pborman/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
+	"net"
+	"testing"
 )
 
 func ResetAdminCreds() (encSecret string, err error) {
@@ -149,7 +148,16 @@ func CreateTestXDataV2(t *testing.T, db *gorm.DB) (creds Credentials, group Grou
 	pemString, err := ConvertPublicKeyToPEMString(&pubKey)
 	require.Nil(t, err)
 
-	creds, err = RegisterV2System("Test Client Name", groupID, DefaultScope, pemString, []string{}, uuid.NewRandom().String(), `{"impl": "blah"}`)
+	s := SystemInput{
+		ClientName: "Test Client Name",
+		GroupID:    groupID,
+		Scope:      DefaultScope,
+		PublicKey:  pemString,
+		IPs:        []string{},
+		TrackingID: uuid.NewRandom().String(),
+		XData:      `{"impl": "blah"}`,
+	}
+	creds, err = RegisterV2System(s)
 	assert.Nil(t, err)
 	assert.Equal(t, "Test Client Name", creds.ClientName)
 	assert.NotNil(t, creds.ClientSecret)
