@@ -321,7 +321,7 @@ func listExpiringCredentials() {
 			SELECT 
 				client_id, 
 				groups.group_id, 
-				x_data, 
+				groups.x_data, 
 				last_token_at, 
 				COALESCE(last_token_at, secrets.created_at) + ? * interval '1 day' as "timeout", 
 				secrets.created_at + ? * interval '1 day' as "expiration" 

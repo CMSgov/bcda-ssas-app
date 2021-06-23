@@ -61,6 +61,7 @@ type System struct {
 	EncryptionKeys []EncryptionKey `json:"encryption_keys,omitempty"`
 	Secrets        []Secret        `json:"secrets,omitempty"`
 	LastTokenAt    time.Time       `json:"last_token_at"`
+	XData          string          `json:"xdata"`
 }
 
 type EncryptionKey struct {
@@ -393,6 +394,7 @@ type Credentials struct {
 	ClientName   string    `json:"client_name"`
 	IPs          []string  `json:"ips,omitempty"`
 	ExpiresAt    time.Time `json:"expires_at"`
+	XData        string    `json:"xdata,omitempty"`
 }
 
 /*
@@ -400,14 +402,14 @@ type Credentials struct {
 	a ssas.Credentials struct including the generated clientID and secret.
 */
 func RegisterSystem(clientName string, groupID string, scope string, publicKeyPEM string, ips []string, trackingID string) (Credentials, error) {
-	return registerSystem(clientName, groupID, scope, publicKeyPEM, ips, trackingID, false)
+	return registerSystem(clientName, groupID, scope, publicKeyPEM, ips, trackingID, "", false)
 }
 
-func RegisterV2System(clientName string, groupID string, scope string, publicKeyPEM string, ips []string, trackingID string) (Credentials, error) {
-	return registerSystem(clientName, groupID, scope, publicKeyPEM, ips, trackingID, true)
+func RegisterV2System(clientName string, groupID string, scope string, publicKeyPEM string, ips []string, trackingID string, xData string) (Credentials, error) {
+	return registerSystem(clientName, groupID, scope, publicKeyPEM, ips, trackingID, xData, true)
 }
 
-func registerSystem(clientName string, groupID string, scope string, publicKeyPEM string, ips []string, trackingID string, isV2 bool) (Credentials, error) {
+func registerSystem(clientName string, groupID string, scope string, publicKeyPEM string, ips []string, trackingID string, xData string, isV2 bool) (Credentials, error) {
 	db := GetGORMDbConnection()
 	defer Close(db)
 
@@ -460,6 +462,7 @@ func registerSystem(clientName string, groupID string, scope string, publicKeyPE
 		ClientID:   clientID,
 		ClientName: clientName,
 		APIScope:   scope,
+		XData:      xData,
 	}
 
 	err = tx.Create(&system).Error
@@ -572,6 +575,7 @@ func registerSystem(clientName string, groupID string, scope string, publicKeyPE
 	creds.IPs = ips
 	if isV2 {
 		creds.ExpiresAt = time.Now().Add(MacaroonExpiration)
+		creds.XData = system.XData
 	} else {
 		creds.ExpiresAt = time.Now().Add(CredentialExpiration)
 	}
