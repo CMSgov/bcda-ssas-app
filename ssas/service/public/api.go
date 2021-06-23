@@ -6,7 +6,6 @@
 package public
 
 import (
-	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -15,7 +14,6 @@ import (
 	"github.com/dgrijalva/jwt-go"
 	"github.com/go-chi/render"
 	"github.com/pborman/uuid"
-	"gopkg.in/macaroon.v2"
 	"io/ioutil"
 	"net/http"
 	"strconv"
@@ -594,10 +592,6 @@ func tokenV2(w http.ResponseWriter, r *http.Request) {
 		jsonError(w, "IssuedAt (iat) and ExpiresAt (exp) claims are more than 5 minutes apart", "")
 		return
 	}
-
-	var um macaroon.Macaroon
-	b, _ := base64.StdEncoding.DecodeString(claims.Issuer)
-	_ = um.UnmarshalBinary(b)
 
 	systemID, err := server.GetSystemIDFromMacaroon(claims.Issuer)
 	if err != nil {
