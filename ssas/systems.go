@@ -402,14 +402,23 @@ type Credentials struct {
 	a ssas.Credentials struct including the generated clientID and secret.
 */
 func RegisterSystem(clientName string, groupID string, scope string, publicKeyPEM string, ips []string, trackingID string) (Credentials, error) {
-	return registerSystem(clientName, groupID, scope, publicKeyPEM, ips, trackingID, "", false)
+	systemInput := SystemInput{
+		ClientName: clientName,
+		GroupID:    groupID,
+		Scope:      scope,
+		PublicKey:  publicKeyPEM,
+		IPs:        ips,
+		XData:      "",
+		TrackingID: trackingID,
+	}
+	return registerSystem(systemInput, false)
 }
 
-func RegisterV2System(clientName string, groupID string, scope string, publicKeyPEM string, ips []string, trackingID string, xData string) (Credentials, error) {
-	return registerSystem(clientName, groupID, scope, publicKeyPEM, ips, trackingID, xData, true)
+func RegisterV2System(input SystemInput) (Credentials, error) {
+	return registerSystem(input, true)
 }
 
-func registerSystem(clientName string, groupID string, scope string, publicKeyPEM string, ips []string, trackingID string, xData string, isV2 bool) (Credentials, error) {
+func registerSystem(input SystemInput, isV2 bool) (Credentials, error) {
 	db := GetGORMDbConnection()
 	defer Close(db)
 
@@ -426,55 +435,56 @@ func registerSystem(clientName string, groupID string, scope string, publicKeyPE
 	clientID := uuid.NewRandom().String()
 
 	// The caller of this function should have logged OperationCalled() with the same trackingID
-	regEvent := Event{Op: "RegisterClient", TrackingID: trackingID, ClientID: clientID}
+	regEvent := Event{Op: "RegisterClient", TrackingID: input.TrackingID, ClientID: clientID}
 	OperationStarted(regEvent)
 
-	if clientName == "" {
+	if input.ClientName == "" {
 		regEvent.Help = "clientName is required"
 		OperationFailed(regEvent)
 		return creds, errors.New(regEvent.Help)
 	}
 
-	if isV2 && publicKeyPEM == "" {
+	if isV2 && input.PublicKey == "" {
 		regEvent.Help = "public key is required"
 		OperationFailed(regEvent)
 		return creds, errors.New(regEvent.Help)
 	}
 
-	if scope == "" {
+	scope := ""
+	if input.Scope == "" {
 		scope = DefaultScope
-	} else if scope != DefaultScope {
+	} else if input.Scope != DefaultScope {
 		regEvent.Help = "scope must be: " + DefaultScope
 		OperationFailed(regEvent)
 		return creds, errors.New(regEvent.Help)
 	}
 
-	group, err := GetGroupByGroupID(groupID)
+	group, err := GetGroupByGroupID(input.GroupID)
 	if err != nil {
-		regEvent.Help = "unable to find group with id " + groupID
+		regEvent.Help = "unable to find group with id " + input.GroupID
 		OperationFailed(regEvent)
 		return creds, errors.New("no group found")
 	}
 
 	system := System{
 		GID:        group.ID,
-		GroupID:    groupID,
+		GroupID:    input.GroupID,
 		ClientID:   clientID,
-		ClientName: clientName,
+		ClientName: input.ClientName,
 		APIScope:   scope,
-		XData:      xData,
+		XData:      input.XData,
 	}
 
 	err = tx.Create(&system).Error
 	if err != nil {
-		regEvent.Help = fmt.Sprintf("could not save system for clientID %s, groupID %s: %s", clientID, groupID, err.Error())
+		regEvent.Help = fmt.Sprintf("could not save system for clientID %s, groupID %s: %s", clientID, input.GroupID, err.Error())
 		OperationFailed(regEvent)
 		// Returned errors are passed to API callers, and should include enough information to correct invalid submissions
 		// without revealing implementation details.  CLI callers will be able to review logs for more information.
 		return creds, errors.New("internal system error")
 	}
 
-	for _, address := range ips {
+	for _, address := range input.IPs {
 		if !ValidAddress(address) {
 			regEvent.Help = fmt.Sprintf("invalid IP %s", address)
 			OperationFailed(regEvent)
@@ -496,8 +506,8 @@ func registerSystem(clientName string, groupID string, scope string, publicKeyPE
 		}
 	}
 
-	if publicKeyPEM != "" {
-		_, err = ReadPublicKey(publicKeyPEM)
+	if input.PublicKey != "" {
+		_, err = ReadPublicKey(input.PublicKey)
 		if err != nil {
 			regEvent.Help = "error in public key: " + err.Error()
 			OperationFailed(regEvent)
@@ -506,7 +516,7 @@ func registerSystem(clientName string, groupID string, scope string, publicKeyPE
 		}
 
 		encryptionKey := EncryptionKey{
-			Body:     publicKeyPEM,
+			Body:     input.PublicKey,
 			SystemID: system.ID,
 		}
 
@@ -514,7 +524,7 @@ func registerSystem(clientName string, groupID string, scope string, publicKeyPE
 		// we would lose the benefit of the transaction.
 		err = tx.Create(&encryptionKey).Error
 		if err != nil {
-			regEvent.Help = fmt.Sprintf("could not save public key for clientID %s, groupID %s: %s", clientID, groupID, err.Error())
+			regEvent.Help = fmt.Sprintf("could not save public key for clientID %s, groupID %s: %s", clientID, input.GroupID, err.Error())
 			OperationFailed(regEvent)
 			tx.Rollback()
 			return creds, errors.New("internal system error")
@@ -523,7 +533,7 @@ func registerSystem(clientName string, groupID string, scope string, publicKeyPE
 	if isV2 {
 		ct, err := system.SaveClientToken("Initial Token", group.XData)
 		if err != nil {
-			regEvent.Help = fmt.Sprintf("could not save client token for clientID %s, groupID %s: %s", clientID, groupID, err.Error())
+			regEvent.Help = fmt.Sprintf("could not save client token for clientID %s, groupID %s: %s", clientID, input.GroupID, err.Error())
 			OperationFailed(regEvent)
 			tx.Rollback()
 			return creds, errors.New("internal system error")
@@ -564,7 +574,7 @@ func registerSystem(clientName string, groupID string, scope string, publicKeyPE
 
 	err = tx.Commit().Error
 	if err != nil {
-		regEvent.Help = fmt.Sprintf("could not commit transaction for new system with groupID %s: %s", groupID, err.Error())
+		regEvent.Help = fmt.Sprintf("could not commit transaction for new system with groupID %s: %s", input.GroupID, err.Error())
 		OperationFailed(regEvent)
 		return creds, errors.New("internal system error")
 	}
@@ -572,7 +582,7 @@ func registerSystem(clientName string, groupID string, scope string, publicKeyPE
 	creds.SystemID = fmt.Sprint(system.ID)
 	creds.ClientName = system.ClientName
 	creds.ClientID = system.ClientID
-	creds.IPs = ips
+	creds.IPs = input.IPs
 	if isV2 {
 		creds.ExpiresAt = time.Now().Add(MacaroonExpiration)
 		creds.XData = system.XData
