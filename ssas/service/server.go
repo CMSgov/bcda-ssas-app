@@ -362,9 +362,14 @@ func (s *Server) GetSystemIDFromMacaroon(issuer string) (string, error) {
 
 	var rootKey ssas.RootKey
 	db.First(&rootKey, "uuid = ?", um.Id(), "system_id = ?", systemId)
+
+	if rootKey.ExpiresAt.After(time.Now()) || !rootKey.DeletedAt.Valid {
+		return "", fmt.Errorf("macaroon expired or deleted")
+	}
+
 	_, err := um.VerifySignature([]byte(rootKey.Key), nil)
 	if err != nil {
-		return "", fmt.Errorf("macaroon failed to verify")
+		return "", fmt.Errorf("macaroon failed signature verification")
 	}
 
 	return systemCaveatKV[1], nil
