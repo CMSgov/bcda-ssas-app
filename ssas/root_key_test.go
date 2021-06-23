@@ -36,8 +36,8 @@ func (s *RootKeyTestSuite) TestRootKeyMacaroonGeneration() {
 	b, _ := base64.StdEncoding.DecodeString(m)
 	_ = um.UnmarshalBinary(b)
 
-	err := um.Verify([]byte(rk.Key), func(caveat string) error {
-		return nil
-	}, nil)
+	caveats, err := um.VerifySignature([]byte(rk.Key), nil)
+	assert.Len(s.T(), caveats, 1)
+	assert.Equal(s.T(), "foo=bar", caveats[0])
 	assert.NoError(s.T(), err)
 }

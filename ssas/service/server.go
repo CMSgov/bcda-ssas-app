@@ -362,10 +362,7 @@ func (s *Server) GetSystemIDFromMacaroon(issuer string) (string, error) {
 
 	var rootKey ssas.RootKey
 	db.First(&rootKey, "uuid = ?", um.Id(), "system_id = ?", systemId)
-	err := um.Verify([]byte(rootKey.Key), func(caveat string) error {
-		return nil
-	}, nil)
-
+	_, err := um.VerifySignature([]byte(rootKey.Key), nil)
 	if err != nil {
 		return "", fmt.Errorf("macaroon failed to verify")
 	}
