@@ -312,7 +312,7 @@ func (s *Server) VerifyClientSignedToken(tokenString string, trackingId string) 
 
 		systemID, err := s.GetSystemIDFromMacaroon(claims.Issuer)
 		if err != nil {
-			return nil, fmt.Errorf("fail to retrieve systemID from macaroon")
+			return nil, fmt.Errorf("failed to retrieve systemID from macaroon")
 		}
 
 		system, err := ssas.GetSystemByID(systemID)
