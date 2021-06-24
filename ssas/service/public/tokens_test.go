@@ -61,7 +61,7 @@ func (s *PublicTokenTestSuite) TestMintRegistrationTokenMissingID() {
 
 func (s *PublicTokenTestSuite) TestMintAccessToken() {
 	data := `"{\"cms_ids\":[\"T67890\",\"T54321\"]}"`
-	t, ts, err := MintAccessToken("2", "0c527d2e-2e8a-4808-b11d-0fa06baf8254", data)
+	t, ts, err := MintAccessToken("2", "0c527d2e-2e8a-4808-b11d-0fa06baf8254", data, "")
 
 	require.Nil(s.T(), err)
 	assert.NotEmpty(s.T(), ts, "missing token string value")

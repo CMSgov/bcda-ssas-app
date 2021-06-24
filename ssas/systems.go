@@ -91,7 +91,7 @@ type ClientToken struct {
 	SaveClientToken should be provided with a token label and token uuid, which will
 	be saved to the client tokens table and associated with the current system.
 */
-func (system *System) SaveClientToken(label string, xData string) (string, error) {
+func (system *System) SaveClientToken(label string, groupXData string) (string, error) {
 	db := GetGORMDbConnection()
 	defer Close(db)
 
@@ -100,10 +100,13 @@ func (system *System) SaveClientToken(label string, xData string) (string, error
 		return "", fmt.Errorf("could not create a root key for macaroon generation for clientID %s: %s", system.ClientID, err.Error())
 	}
 
-	caveats := make([]Caveats, 3)
+	caveats := make([]Caveats, 4)
 	caveats[0] = map[string]string{"expiration": rk.ExpiresAt.Format(time.RFC3339)}
 	caveats[1] = map[string]string{"system_id": strconv.FormatUint(uint64(system.ID), 10)}
-	caveats[2] = map[string]string{"x_data": base64.StdEncoding.EncodeToString([]byte(xData))}
+	caveats[2] = map[string]string{"group_data": base64.StdEncoding.EncodeToString([]byte(groupXData))}
+	if system.XData != "" {
+		caveats[3] = map[string]string{"system_data": base64.StdEncoding.EncodeToString([]byte(system.XData))}
+	}
 
 	token, _ := rk.Generate(caveats, Location)
 	ct := ClientToken{

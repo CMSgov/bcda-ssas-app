@@ -519,7 +519,7 @@ func token(w http.ResponseWriter, r *http.Request) {
 
 	event := ssas.Event{Op: "Token", TrackingID: trackingID, Help: "calling from public.token()"}
 	ssas.OperationCalled(event)
-	token, ts, err := MintAccessToken(fmt.Sprintf("%d", system.ID), system.ClientID, data)
+	token, ts, err := MintAccessToken(fmt.Sprintf("%d", system.ID), system.ClientID, data, "")
 	if err != nil {
 		event.Help = "failure minting token: " + err.Error()
 		ssas.OperationFailed(event)
@@ -593,8 +593,15 @@ func tokenV2(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	systemId := claims.Issuer
-	system, err := ssas.GetSystemByID(systemId)
+	systemID, err := server.GetSystemIDFromMacaroon(claims.Issuer)
+	if err != nil {
+		event.Help = "Macaroon does not contain system id"
+		ssas.AuthorizationFailure(event)
+		jsonError(w, "Macaroon does not contain system id", "")
+		return
+	}
+
+	system, err := ssas.GetSystemByID(systemID)
 	if err != nil {
 		service.JsonError(w, http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized), "invalid issuer (iss) claim. system not found")
 		return
@@ -607,7 +614,7 @@ func tokenV2(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	accessToken, ts, err := MintAccessToken(fmt.Sprintf("%d", system.ID), system.ClientID, data)
+	accessToken, ts, err := MintAccessToken(fmt.Sprintf("%d", system.ID), system.ClientID, data, system.XData)
 	if err != nil {
 		event.Help = "failure minting token: " + err.Error()
 		ssas.OperationFailed(event)
@@ -752,6 +759,7 @@ func validateAndParseToken(w http.ResponseWriter, r *http.Request) {
 		}
 		response["valid"] = true
 		response["data"] = claims["dat"]
+		response["system_data"] = claims["system_data"]
 	}
 	w.Header().Set("Content-Type", "application/json")
 	render.JSON(w, r, response)
