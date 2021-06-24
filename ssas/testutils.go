@@ -155,7 +155,7 @@ func CreateTestXDataV2(t *testing.T, db *gorm.DB) (creds Credentials, group Grou
 		PublicKey:  pemString,
 		IPs:        []string{},
 		TrackingID: uuid.NewRandom().String(),
-		XData:      `{"impl": "blah"}`,
+		XData:      `{"impl": "2"}`,
 	}
 	creds, err = RegisterV2System(s)
 	assert.Nil(t, err)

@@ -932,9 +932,9 @@ func (s *APITestSuite) TestGetTokenInfo() {
 	assert.Equal(s.T(), "application/json; charset=utf-8", rr.Result().Header.Get("Content-Type"))
 	var result map[string]interface{}
 	_ = json.Unmarshal(rr.Body.Bytes(), &result)
-	assert.NotEmpty(s.T(), result["group_data"])
+	assert.NotEmpty(s.T(), result["dat"])
 	assert.NotEmpty(s.T(), result["system_data"])
-	assert.Equal(s.T(), `{"impl": "blah"}`, result["system_data"])
+	assert.Equal(s.T(), `{"impl": "2"}`, result["system_data"])
 }
 
 func (s *APITestSuite) TestGetTokenInfoWithMissingToken() {
