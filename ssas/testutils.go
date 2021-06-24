@@ -119,7 +119,7 @@ func someRandomBytes(n int) ([]byte, error) {
 func CreateTestXData(t *testing.T, db *gorm.DB) (creds Credentials, group Group) {
 	groupID := RandomHexID()[0:4]
 
-	group = Group{GroupID: groupID, XData: "fake x_data"}
+	group = Group{GroupID: groupID, XData: `{"group":"1"}`}
 	err := db.Create(&group).Error
 	require.Nil(t, err)
 
@@ -139,7 +139,7 @@ func CreateTestXData(t *testing.T, db *gorm.DB) (creds Credentials, group Group)
 func CreateTestXDataV2(t *testing.T, db *gorm.DB) (creds Credentials, group Group) {
 	groupID := RandomHexID()[0:4]
 
-	group = Group{GroupID: groupID, XData: "fake x_data"}
+	group = Group{GroupID: groupID, XData: `{"group":"1"}`}
 	err := db.Create(&group).Error
 	require.Nil(t, err)
 
