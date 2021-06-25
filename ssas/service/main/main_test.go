@@ -39,7 +39,7 @@ func (s *MainTestSuite) TestShowXDataWithClientID() {
 		err := showXData(creds.ClientID, "")
 		assert.Nil(s.T(), err)
 	})
-	assert.Equal(s.T(), "fake x_data\n", output)
+	assert.Equal(s.T(), "{\"group\":\"1\"}\n", output)
 }
 
 func (s *MainTestSuite) TestShowXDataWithAuth() {
@@ -52,7 +52,7 @@ func (s *MainTestSuite) TestShowXDataWithAuth() {
 		err := showXData("", auth)
 		assert.Nil(s.T(), err)
 	})
-	assert.Equal(s.T(), "fake x_data\n", output)
+	assert.Equal(s.T(), "{\"group\":\"1\"}\n", output)
 }
 
 func (s *MainTestSuite) TestResetCredentialsBadClientID() {

@@ -3,10 +3,13 @@ package service
 import (
 	"crypto/rsa"
 	"database/sql"
+	"encoding/base64"
 	"fmt"
+	"gopkg.in/macaroon.v2"
 	"log"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/CMSgov/bcda-ssas-app/ssas"
@@ -233,6 +236,26 @@ func ConnectionClose(next http.Handler) http.Handler {
 	})
 }
 
+// GetFirstPartyCaveat extracts a first party caveat by name from macaroon
+func GetFirstPartyCaveat(um macaroon.Macaroon, caveatName string) (string, error) {
+	var caveatID string
+	for _, v := range um.Caveats() {
+		if strings.Contains(string(v.Id), caveatName) {
+			caveatID = string(v.Id)
+			break
+		}
+	}
+	if caveatID == "" {
+		return "", fmt.Errorf("missing %s in macaroon caveat", caveatName)
+	}
+
+	caveatIDKV := strings.Split(caveatID, "=")
+	if len(caveatIDKV) != 2 {
+		return "", fmt.Errorf("could not parse %s from macaroon caveats", caveatName)
+	}
+	return caveatIDKV[1], nil
+}
+
 // CommonClaims contains the superset of claims that may be found in the token
 type CommonClaims struct {
 	jwt.StandardClaims
@@ -249,7 +272,8 @@ type CommonClaims struct {
 	// deprecated
 	ACOID string `json:"aco,omitempty"`
 	// deprecated
-	UUID string `json:"id,omitempty"`
+	UUID        string `json:"id,omitempty"`
+	SystemXData string `json:"system_data,omitempty"`
 }
 
 // MintTokenWithDuration generates a tokenstring that expires after a specific duration from now.
@@ -305,7 +329,13 @@ func (s *Server) VerifyClientSignedToken(tokenString string, trackingId string) 
 		if claims.Issuer == "" {
 			return nil, fmt.Errorf("missing issuer (iss) in jwt claims")
 		}
-		system, err := ssas.GetSystemByID(claims.Issuer)
+
+		systemID, err := s.GetSystemIDFromMacaroon(claims.Issuer)
+		if err != nil {
+			return nil, fmt.Errorf("failed to retrieve systemID from macaroon")
+		}
+
+		system, err := ssas.GetSystemByID(systemID)
 		if err != nil {
 			ssas.Logger.Error(err)
 			return nil, fmt.Errorf("failed to retrieve system information")
@@ -325,6 +355,36 @@ func (s *Server) VerifyClientSignedToken(tokenString string, trackingId string) 
 	}
 	return jwt.ParseWithClaims(tokenString, &CommonClaims{}, keyFunc)
 }
+
+// GetSystemIDFromMacaroon returns the system id from macaroon and verify macaroon
+func (s *Server) GetSystemIDFromMacaroon(issuer string) (string, error) {
+	db := ssas.GetGORMDbConnection()
+	defer ssas.Close(db)
+
+	var um macaroon.Macaroon
+	b, _ := base64.StdEncoding.DecodeString(issuer)
+	_ = um.UnmarshalBinary(b)
+
+	systemId, err := GetFirstPartyCaveat(um, "system_id")
+	if err != nil {
+		return "", err
+	}
+
+	var rootKey ssas.RootKey
+	db.First(&rootKey, "uuid = ?", um.Id(), "system_id = ? AND deleted_at IS NULL", systemId)
+
+	if rootKey.IsExpired() {
+		return "", fmt.Errorf("macaroon expired or deleted")
+	}
+
+	_, err = um.VerifySignature([]byte(rootKey.Key), nil)
+	if err != nil {
+		return "", fmt.Errorf("macaroon failed signature verification")
+	}
+
+	return systemId, nil
+}
+
 func (s *Server) CheckRequiredClaims(claims *CommonClaims, requiredTokenType string) error {
 	if claims.ExpiresAt == 0 ||
 		claims.IssuedAt == 0 ||

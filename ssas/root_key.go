@@ -43,6 +43,10 @@ func NewRootKey(systemID uint, expiration time.Duration) (*RootKey, error) {
 	return rk, nil
 }
 
+func (rk *RootKey) IsExpired() bool {
+	return time.Now().After(rk.ExpiresAt)
+}
+
 // Generate - Generate a Macaroon from the Token configuration
 func (rk *RootKey) Generate(caveats []Caveats, location string) (string, error) {
 	m, err := macaroon.New([]byte(rk.Key), []byte(rk.UUID), location, macaroon.Version(cfg.GetEnvInt("SSAS_MACAROON_VERSION", 1)))

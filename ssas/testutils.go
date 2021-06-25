@@ -7,13 +7,12 @@ import (
 	"encoding/base64"
 	"encoding/pem"
 	"fmt"
-	"net"
-	"testing"
-
-	"gorm.io/gorm"
 	"github.com/pborman/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"gorm.io/gorm"
+	"net"
+	"testing"
 )
 
 func ResetAdminCreds() (encSecret string, err error) {
@@ -120,7 +119,7 @@ func someRandomBytes(n int) ([]byte, error) {
 func CreateTestXData(t *testing.T, db *gorm.DB) (creds Credentials, group Group) {
 	groupID := RandomHexID()[0:4]
 
-	group = Group{GroupID: groupID, XData: "fake x_data"}
+	group = Group{GroupID: groupID, XData: `{"group":"1"}`}
 	err := db.Create(&group).Error
 	require.Nil(t, err)
 
@@ -130,6 +129,35 @@ func CreateTestXData(t *testing.T, db *gorm.DB) (creds Credentials, group Group)
 	require.Nil(t, err)
 
 	creds, err = RegisterSystem("Test Client Name", groupID, DefaultScope, pemString, []string{}, uuid.NewRandom().String())
+	assert.Nil(t, err)
+	assert.Equal(t, "Test Client Name", creds.ClientName)
+	assert.NotNil(t, creds.ClientSecret)
+
+	return
+}
+
+func CreateTestXDataV2(t *testing.T, db *gorm.DB) (creds Credentials, group Group) {
+	groupID := RandomHexID()[0:4]
+
+	group = Group{GroupID: groupID, XData: `{"group":"1"}`}
+	err := db.Create(&group).Error
+	require.Nil(t, err)
+
+	_, pubKey, err := GenerateTestKeys(2048)
+	require.Nil(t, err)
+	pemString, err := ConvertPublicKeyToPEMString(&pubKey)
+	require.Nil(t, err)
+
+	s := SystemInput{
+		ClientName: "Test Client Name",
+		GroupID:    groupID,
+		Scope:      DefaultScope,
+		PublicKey:  pemString,
+		IPs:        []string{},
+		TrackingID: uuid.NewRandom().String(),
+		XData:      `{"impl": "2"}`,
+	}
+	creds, err = RegisterV2System(s)
 	assert.Nil(t, err)
 	assert.Equal(t, "Test Client Name", creds.ClientName)
 	assert.NotNil(t, creds.ClientSecret)
