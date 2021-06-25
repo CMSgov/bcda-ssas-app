@@ -40,14 +40,14 @@ import (
 	"strings"
 	"time"
 
-	"github.com/go-chi/chi"
-	"gorm.io/gorm"
-
 	"github.com/CMSgov/bcda-ssas-app/ssas"
 	"github.com/CMSgov/bcda-ssas-app/ssas/cfg"
 	"github.com/CMSgov/bcda-ssas-app/ssas/service"
 	"github.com/CMSgov/bcda-ssas-app/ssas/service/admin"
 	"github.com/CMSgov/bcda-ssas-app/ssas/service/public"
+	"github.com/go-chi/chi"
+	"github.com/newrelic/go-agent/v3/newrelic"
+	"gorm.io/gorm"
 )
 
 var doAddFixtureData bool
@@ -90,6 +90,17 @@ func init() {
 
 	// used by both `doResetSecret` and `doGetXdata`
 	flag.StringVar(&clientID, "client-id", "", "a system's client id")
+
+	appName := os.Getenv("NEW_RELIC_APP_NAME")
+	licenseKey := os.Getenv("NEW_RELIC_LICENSE_KEY")
+	_, err := newrelic.NewApplication(
+		newrelic.ConfigAppName(appName),
+		newrelic.ConfigLicense(licenseKey),
+	)
+	if nil != err {
+		fmt.Println(err)
+		os.Exit(1)
+	}
 }
 
 // We provide some simple commands for bootstrapping the system into place. Commands cannot be combined.
