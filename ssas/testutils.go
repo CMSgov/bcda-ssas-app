@@ -153,7 +153,7 @@ func CreateTestXDataV2(t *testing.T, db *gorm.DB) (creds Credentials, group Grou
 		GroupID:    groupID,
 		Scope:      DefaultScope,
 		PublicKey:  pemString,
-		IPs:        []string{},
+		IPs:        []string{"47.189.63.100"},
 		TrackingID: uuid.NewRandom().String(),
 		XData:      `{"impl": "2"}`,
 	}

@@ -82,9 +82,9 @@ type ClientToken struct {
 	gorm.Model
 	Label     string    `json:"label"`
 	Uuid      string    `json:"uuid"`
-	System    System    `gorm:"foreignkey:SystemID;association_foreignkey:ID"`
-	SystemID  uint      `json:"system_id"`
-	ExpiresAt time.Time `json:"expires_at"`
+	System    System    `gorm:"foreignkey:SystemID;association_foreignkey:ID" json:"-"`
+	SystemID  uint      `json:"-"`
+	ExpiresAt time.Time `json:"-"`
 }
 
 /*
@@ -839,6 +839,20 @@ func (system *System) GetIPs() ([]string, error) {
 	defer Close(db)
 
 	if err = db.Model(&IP{}).Where("system_id = ? AND deleted_at IS NULL", system.ID).Pluck("address", &ips).Error; err != nil {
+		err = fmt.Errorf("no IP's found with system_id %d: %s", system.ID, err.Error())
+	}
+	return ips, err
+}
+
+func (system *System) GetIPsData() ([]IP, error) {
+	var (
+		db  = GetGORMDbConnection()
+		ips []IP
+		err error
+	)
+	defer Close(db)
+
+	if err = db.Find(&ips, "system_id = ? AND deleted_at IS NULL", system.ID).Error; err != nil {
 		err = fmt.Errorf("no IP's found with system_id %d: %s", system.ID, err.Error())
 	}
 	return ips, err

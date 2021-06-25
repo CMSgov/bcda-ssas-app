@@ -1055,3 +1055,31 @@ func (s *APITestSuite) TestCreateV2SystemMissingRequiredParam() {
 	handler.ServeHTTP(rr, req)
 	assert.Equal(s.T(), http.StatusBadRequest, rr.Result().StatusCode)
 }
+
+func (s *APITestSuite) TestGetV2System() {
+	creds, _ := ssas.CreateTestXDataV2(s.T(), s.db)
+	req := httptest.NewRequest("GET", fmt.Sprintf("/v2/system/%s", creds.SystemID), nil)
+	rctx := chi.NewRouteContext()
+	rctx.URLParams.Add("id", creds.SystemID)
+	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+	handler := http.HandlerFunc(getSystem)
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+
+	b, _ := ioutil.ReadAll(rr.Body)
+	var system ssas.SystemOutput
+	_ = json.Unmarshal(b, &system)
+
+	assert.NotNil(s.T(), system.GID)
+	assert.NotNil(s.T(), system.GroupID)
+	assert.Equal(s.T(), creds.ClientID, system.ClientID)
+	assert.NotNil(s.T(), system.SoftwareID)
+	assert.Equal(s.T(), creds.ClientName, system.ClientName)
+	assert.NotNil(s.T(), system.APIScope)
+	assert.Equal(s.T(), system.XData, creds.XData)
+	assert.NotNil(s.T(), system.LastTokenAt)
+	assert.Len(s.T(), system.PublicKeys, 1)
+	assert.Len(s.T(), system.IPs, len(creds.IPs))
+	assert.Len(s.T(), system.ClientTokens, 1)
+	assert.Equal(s.T(), system.IPs[0].IP, creds.IPs[0])
+}
