@@ -29,7 +29,7 @@ func TestRootKeyTestSuite(t *testing.T) {
 
 func (s *RootKeyTestSuite) TestRootKeyMacaroonGeneration() {
 	expiration := time.Duration(5*24) * time.Hour
-	rk, _ := NewRootKey(123, expiration)
+	rk, _ := NewRootKey(123, time.Now().Add(expiration))
 	m, _ := rk.Generate([]Caveats{map[string]string{"foo": "bar"}}, "my-location")
 
 	var um macaroon.Macaroon

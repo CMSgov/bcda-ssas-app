@@ -233,10 +233,11 @@ type SystemInput struct {
 }
 
 type ClientTokenOutput struct {
-	ID           string `json:"id"`
-	CreationDate string `json:"creation_date"`
-	Label        string `json:"label"`
-	UUID         string `json:"uuid"`
+	ID           string    `json:"id"`
+	CreationDate time.Time `json:"creation_date"`
+	Label        string    `json:"label"`
+	UUID         string    `json:"uuid"`
+	ExpiresAt    time.Time `json:"expires_at"`
 }
 
 func OutputCT(cts ...ClientToken) []ClientTokenOutput {
@@ -244,9 +245,10 @@ func OutputCT(cts ...ClientToken) []ClientTokenOutput {
 	for _, v := range cts {
 		t := ClientTokenOutput{
 			ID:           fmt.Sprintf("%d", v.ID),
-			CreationDate: v.CreatedAt.Format(time.RFC3339),
+			CreationDate: v.CreatedAt,
 			Label:        v.Label,
 			UUID:         v.Uuid,
+			ExpiresAt:    v.ExpiresAt,
 		}
 		o = append(o, t)
 	}
@@ -254,9 +256,9 @@ func OutputCT(cts ...ClientToken) []ClientTokenOutput {
 }
 
 type PublicKeyOutput struct {
-	ID           string `json:"id"`
-	CreationDate string `json:"creation_date"`
-	Key          string `json:"key"`
+	ID           string    `json:"id"`
+	CreationDate time.Time `json:"creation_date"`
+	Key          string    `json:"key"`
 }
 
 func OutputPK(eks ...EncryptionKey) []PublicKeyOutput {
@@ -264,7 +266,7 @@ func OutputPK(eks ...EncryptionKey) []PublicKeyOutput {
 	for _, v := range eks {
 		pk := &PublicKeyOutput{
 			ID:           fmt.Sprintf("%d", v.ID),
-			CreationDate: v.CreatedAt.Format(time.RFC3339),
+			CreationDate: v.CreatedAt,
 			Key:          v.Body,
 		}
 		o = append(o, *pk)
@@ -273,9 +275,9 @@ func OutputPK(eks ...EncryptionKey) []PublicKeyOutput {
 }
 
 type IPOutput struct {
-	ID           string `json:"id"`
-	CreationDate string `json:"creation_date"`
-	IP           string `json:"ip"`
+	ID           string    `json:"id"`
+	CreationDate time.Time `json:"creation_date"`
+	IP           string    `json:"ip"`
 }
 
 func OutputIP(ips ...IP) []IPOutput {
@@ -283,7 +285,7 @@ func OutputIP(ips ...IP) []IPOutput {
 	for _, v := range ips {
 		ip := IPOutput{
 			ID:           fmt.Sprintf("%d", v.ID),
-			CreationDate: v.CreatedAt.Format(time.RFC3339),
+			CreationDate: v.CreatedAt,
 			IP:           v.Address,
 		}
 		o = append(o, ip)

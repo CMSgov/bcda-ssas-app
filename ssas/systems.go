@@ -82,20 +82,20 @@ type ClientToken struct {
 	gorm.Model
 	Label     string    `json:"label"`
 	Uuid      string    `json:"uuid"`
-	System    System    `gorm:"foreignkey:SystemID;association_foreignkey:ID" json:"-"`
-	SystemID  uint      `json:"-"`
-	ExpiresAt time.Time `json:"-"`
+	System    System    `gorm:"foreignkey:SystemID;association_foreignkey:ID"`
+	SystemID  uint      `json:"system_id"`
+	ExpiresAt time.Time `json:"expires_at"`
 }
 
 /*
 	SaveClientToken should be provided with a token label and token uuid, which will
 	be saved to the client tokens table and associated with the current system.
 */
-func (system *System) SaveClientToken(label string, groupXData string) (string, error) {
+func (system *System) SaveClientToken(label string, groupXData string, expiration time.Time) (string, error) {
 	db := GetGORMDbConnection()
 	defer Close(db)
 
-	rk, err := NewRootKey(system.ID, MacaroonExpiration)
+	rk, err := NewRootKey(system.ID, expiration)
 	if err != nil {
 		return "", fmt.Errorf("could not create a root key for macaroon generation for clientID %s: %s", system.ClientID, err.Error())
 	}
@@ -534,7 +534,8 @@ func registerSystem(input SystemInput, isV2 bool) (Credentials, error) {
 		}
 	}
 	if isV2 {
-		ct, err := system.SaveClientToken("Initial Token", group.XData)
+		expiration := time.Now().Add(MacaroonExpiration)
+		ct, err := system.SaveClientToken("Initial Token", group.XData, expiration)
 		if err != nil {
 			regEvent.Help = fmt.Sprintf("could not save client token for clientID %s, groupID %s: %s", clientID, input.GroupID, err.Error())
 			OperationFailed(regEvent)
@@ -542,6 +543,8 @@ func registerSystem(input SystemInput, isV2 bool) (Credentials, error) {
 			return creds, errors.New("internal system error")
 		}
 		creds.ClientToken = ct
+		creds.ExpiresAt = expiration
+		creds.XData = system.XData
 	} else {
 		clientSecret, err := GenerateSecret()
 		if err != nil {
@@ -573,6 +576,7 @@ func registerSystem(input SystemInput, isV2 bool) (Credentials, error) {
 		}
 		SecretCreated(regEvent)
 		creds.ClientSecret = clientSecret
+		creds.ExpiresAt = time.Now().Add(CredentialExpiration)
 	}
 
 	err = tx.Commit().Error
@@ -586,12 +590,6 @@ func registerSystem(input SystemInput, isV2 bool) (Credentials, error) {
 	creds.ClientName = system.ClientName
 	creds.ClientID = system.ClientID
 	creds.IPs = input.IPs
-	if isV2 {
-		creds.ExpiresAt = time.Now().Add(MacaroonExpiration)
-		creds.XData = system.XData
-	} else {
-		creds.ExpiresAt = time.Now().Add(CredentialExpiration)
-	}
 
 	regEvent.Help = fmt.Sprintf("system registered in group %s with XData: %s", group.GroupID, group.XData)
 	OperationSucceeded(regEvent)
