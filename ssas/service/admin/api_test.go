@@ -1083,3 +1083,22 @@ func (s *APITestSuite) TestGetV2System() {
 	assert.Len(s.T(), system.ClientTokens, 1)
 	assert.Equal(s.T(), system.IPs[0].IP, creds.IPs[0])
 }
+
+func (s *APITestSuite) TestGetV2SystemInactive() {
+	creds, _ := ssas.CreateTestXDataV2(s.T(), s.db)
+	s.db.Delete(&ssas.System{}, creds.SystemID)
+
+	req := httptest.NewRequest("GET", fmt.Sprintf("/v2/system/%s", creds.SystemID), nil)
+	rctx := chi.NewRouteContext()
+	rctx.URLParams.Add("id", creds.SystemID)
+	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+	handler := http.HandlerFunc(getSystem)
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+
+	b, _ := ioutil.ReadAll(rr.Body)
+	var error ssas.ErrorResponse
+	_ = json.Unmarshal(b, &error)
+
+	assert.Equal(s.T(), fmt.Sprintf("could not find system %s", creds.SystemID), error.ErrorDescription)
+}

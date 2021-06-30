@@ -192,13 +192,6 @@ func getSystem(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if s.DeletedAt.Valid {
-		systemEvent.Help = fmt.Sprintf("system %s has been deleted", id)
-		ssas.OperationFailed(systemEvent)
-		jsonError(w, http.StatusNotFound, fmt.Sprintf("could not find system %s", id))
-		return
-	}
-
 	ips, _ := s.GetIPsData()
 	cts, _ := s.GetClientTokens(trackingID)
 	eks, _ := s.GetEncryptionKey(trackingID)
