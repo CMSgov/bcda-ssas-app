@@ -1,6 +1,7 @@
 package ssas
 
 import (
+	"fmt"
 	"time"
 )
 
@@ -228,5 +229,80 @@ type SystemInput struct {
 	// Required: true
 	TrackingID string `json:"tracking_id"`
 
-	XData     string     `json:"xdata,omitempty"`
+	XData string `json:"xdata,omitempty"`
+}
+
+type ClientTokenOutput struct {
+	ID           string    `json:"id"`
+	CreationDate time.Time `json:"creation_date"`
+	Label        string    `json:"label"`
+	UUID         string    `json:"uuid"`
+	ExpiresAt    time.Time `json:"expires_at"`
+}
+
+func OutputCT(cts ...ClientToken) []ClientTokenOutput {
+	var o = make([]ClientTokenOutput, 0)
+	for _, v := range cts {
+		t := ClientTokenOutput{
+			ID:           fmt.Sprintf("%d", v.ID),
+			CreationDate: v.CreatedAt,
+			Label:        v.Label,
+			UUID:         v.Uuid,
+			ExpiresAt:    v.ExpiresAt,
+		}
+		o = append(o, t)
+	}
+	return o
+}
+
+type PublicKeyOutput struct {
+	ID           string    `json:"id"`
+	CreationDate time.Time `json:"creation_date"`
+	Key          string    `json:"key"`
+}
+
+func OutputPK(eks ...EncryptionKey) []PublicKeyOutput {
+	var o = make([]PublicKeyOutput, 0)
+	for _, v := range eks {
+		pk := &PublicKeyOutput{
+			ID:           fmt.Sprintf("%d", v.ID),
+			CreationDate: v.CreatedAt,
+			Key:          v.Body,
+		}
+		o = append(o, *pk)
+	}
+	return o
+}
+
+type IPOutput struct {
+	ID           string    `json:"id"`
+	CreationDate time.Time `json:"creation_date"`
+	IP           string    `json:"ip"`
+}
+
+func OutputIP(ips ...IP) []IPOutput {
+	var o = make([]IPOutput, 0)
+	for _, v := range ips {
+		ip := IPOutput{
+			ID:           fmt.Sprintf("%d", v.ID),
+			CreationDate: v.CreatedAt,
+			IP:           v.Address,
+		}
+		o = append(o, ip)
+	}
+	return o
+}
+
+type SystemOutput struct {
+	GID          string              `json:"g_id"`
+	GroupID      string              `json:"group_id"`
+	ClientID     string              `json:"client_id"`
+	SoftwareID   string              `json:"software_id"`
+	ClientName   string              `json:"client_name"`
+	APIScope     string              `json:"api_scope"`
+	XData        string              `json:"x_data"`
+	LastTokenAt  string              `json:"last_token_at"`
+	PublicKeys   []PublicKeyOutput   `json:"public_keys"`
+	IPs          []IPOutput          `json:"ips"`
+	ClientTokens []ClientTokenOutput `json:"client_tokens"`
 }
