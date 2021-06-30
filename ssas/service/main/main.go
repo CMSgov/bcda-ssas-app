@@ -98,8 +98,7 @@ func init() {
 		newrelic.ConfigLicense(licenseKey),
 	)
 	if nil != err {
-		fmt.Println(err)
-		os.Exit(1)
+		ssas.Logger.Warnf("New Relic integration is disabled: %s", err)
 	}
 }
 
