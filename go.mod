@@ -7,6 +7,7 @@ require (
 	github.com/go-chi/chi v4.0.3-0.20190508141739-08c92af09aaf+incompatible
 	github.com/go-chi/render v1.0.1
 	github.com/lib/pq v1.6.0
+	github.com/newrelic/go-agent/v3 v3.13.0
 	github.com/patrickmn/go-cache v2.1.1-0.20180815053127-5633e0862627+incompatible
 	github.com/pborman/uuid v0.0.0-20180122190007-c65b2f87fee3
 	github.com/sirupsen/logrus v1.6.0
