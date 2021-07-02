@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/CMSgov/bcda-ssas-app/ssas"
 	"github.com/CMSgov/bcda-ssas-app/ssas/service"
@@ -174,6 +175,52 @@ func updateGroup(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		groupEvent.Help = err.Error()
 		ssas.OperationFailed(groupEvent)
+		jsonError(w, http.StatusInternalServerError, "internal error")
+	}
+}
+
+func getSystem(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	trackingID := ssas.RandomHexID()
+	systemEvent := ssas.Event{Op: "UpdateSystem", TrackingID: trackingID}
+
+	s, err := ssas.GetSystemByID(id)
+	if err != nil {
+		systemEvent.Help = fmt.Sprintf("could not find system %s", id)
+		ssas.OperationFailed(systemEvent)
+		jsonError(w, http.StatusNotFound, fmt.Sprintf("could not find system %s", id))
+		return
+	}
+
+	ips, _ := s.GetIPsData()
+	cts, _ := s.GetClientTokens(trackingID)
+	eks, _ := s.GetEncryptionKey(trackingID)
+
+	o := ssas.SystemOutput{
+		GID:          fmt.Sprintf("%d", s.GID),
+		GroupID:      s.GroupID,
+		ClientID:     s.ClientID,
+		SoftwareID:   s.SoftwareID,
+		ClientName:   s.ClientName,
+		APIScope:     s.APIScope,
+		XData:        s.XData,
+		LastTokenAt:  s.LastTokenAt.Format(time.RFC3339),
+		PublicKeys:   ssas.OutputPK(eks),
+		IPs:          ssas.OutputIP(ips...),
+		ClientTokens: ssas.OutputCT(cts...),
+	}
+
+	systemJSON, err := json.Marshal(o)
+	if err != nil {
+		systemEvent.Help = "failed to marshal data"
+		ssas.OperationFailed(systemEvent)
+		jsonError(w, http.StatusInternalServerError, "failed to marshal data")
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	_, err = w.Write(systemJSON)
+	if err != nil {
 		jsonError(w, http.StatusInternalServerError, "internal error")
 	}
 }

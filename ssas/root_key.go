@@ -22,7 +22,7 @@ type RootKey struct {
 
 type Caveats map[string]string
 
-func NewRootKey(systemID uint, expiration time.Duration) (*RootKey, error) {
+func NewRootKey(systemID uint, expiration time.Time) (*RootKey, error) {
 	db := GetGORMDbConnection()
 	defer Close(db)
 
@@ -33,7 +33,7 @@ func NewRootKey(systemID uint, expiration time.Duration) (*RootKey, error) {
 	rk := &RootKey{
 		UUID:      uuid.NewRandom().String(),
 		Key:       secret,
-		ExpiresAt: time.Now().Add(expiration),
+		ExpiresAt: expiration,
 		SystemID:  systemID,
 	}
 
