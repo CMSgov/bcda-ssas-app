@@ -135,6 +135,28 @@ func (system *System) GetClientTokens(trackingID string) ([]ClientToken, error) 
 	return tokens, nil
 }
 
+func (system *System) DeleteClientToken(tokenID string) error {
+	db := GetGORMDbConnection()
+	defer Close(db)
+
+	tx := db.Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
+
+	var rk RootKey
+	tx.Where("uuid = ? AND system_id = ?", tokenID, system.ID).Find(&rk)
+	tx.Where("uuid = ?", rk.UUID).Delete(&ClientToken{})
+	tx.Delete(&rk)
+	err := tx.Commit().Error
+	if err != nil {
+		tx.Rollback()
+	}
+	return err
+}
+
 // IsExpired tests whether this secret has expired
 func (secret *Secret) IsExpired() bool {
 	return secret.UpdatedAt.Add(CredentialExpiration).Before(time.Now())

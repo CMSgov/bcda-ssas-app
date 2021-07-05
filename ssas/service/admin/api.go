@@ -663,6 +663,86 @@ func deleteSystemIP(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+func createToken(w http.ResponseWriter, r *http.Request) {
+	systemID := chi.URLParam(r, "systemID")
+	trackingID := ssas.RandomHexID()
+	tokenEvent := ssas.Event{Op: "CreateToken", TrackingID: trackingID, Help: "calling from admin.createToken()"}
+
+	system, err := ssas.GetSystemByID(systemID)
+	if err != nil {
+		ssas.OperationFailed(tokenEvent)
+		jsonError(w, http.StatusNotFound, "Invalid system ID")
+		return
+	}
+
+	group, err := ssas.GetGroupByGroupID(system.GroupID)
+	if err != nil {
+		ssas.OperationFailed(tokenEvent)
+		jsonError(w, http.StatusInternalServerError, "Internal Error")
+		return
+	}
+
+	ssas.OperationCalled(tokenEvent)
+
+	var body map[string]string
+	b, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		ssas.OperationFailed(tokenEvent)
+		jsonError(w, http.StatusInternalServerError, "Internal Error")
+		return
+	}
+
+	if err := json.Unmarshal(b, &body); err != nil {
+		ssas.OperationFailed(tokenEvent)
+		jsonError(w, http.StatusInternalServerError, "Internal Error")
+		return
+	}
+
+	if body["label"] == "" {
+		ssas.OperationFailed(tokenEvent)
+		jsonError(w, http.StatusInternalServerError, "Internal Error")
+		return
+	}
+
+	expiration := time.Now().Add(ssas.MacaroonExpiration)
+	ct, err := system.SaveClientToken(body["label"], group.XData, expiration)
+	if err != nil {
+		tokenEvent.Help = fmt.Sprintf("could not save client token for clientID %s, groupID %s: %s", system.ClientID, system.GroupID, err.Error())
+		ssas.OperationFailed(tokenEvent)
+		ssas.OperationFailed(tokenEvent)
+		jsonError(w, http.StatusInternalServerError, "Internal Error")
+	}
+
+	_, err = w.Write([]byte(ct))
+	if err != nil {
+		jsonError(w, http.StatusInternalServerError, "internal error")
+	}
+}
+
+func deleteToken(w http.ResponseWriter, r *http.Request) {
+	systemID := chi.URLParam(r, "systemID")
+	tokenID := chi.URLParam(r, "id")
+	trackingID := ssas.RandomHexID()
+	tokenEvent := ssas.Event{Op: "DeleteToken", TrackingID: trackingID, Help: "calling from admin.deleteToken()"}
+
+	system, err := ssas.GetSystemByID(systemID)
+	if err != nil {
+		ssas.OperationFailed(tokenEvent)
+		jsonError(w, http.StatusNotFound, "Invalid system ID")
+		return
+	}
+
+	ssas.OperationCalled(tokenEvent)
+	err = system.DeleteClientToken(tokenID)
+	if err != nil {
+		ssas.OperationFailed(tokenEvent)
+		jsonError(w, http.StatusInternalServerError, "Failed to delete client token")
+		return
+	}
+
+	w.WriteHeader(http.StatusAccepted)
+}
+
 type IPAddressInput struct {
 	Address string `json:"address"`
 }
