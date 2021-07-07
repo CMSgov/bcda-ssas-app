@@ -700,7 +700,7 @@ func createToken(w http.ResponseWriter, r *http.Request) {
 
 	if body["label"] == "" {
 		ssas.OperationFailed(tokenEvent)
-		jsonError(w, http.StatusInternalServerError, "Internal Error")
+		jsonError(w, http.StatusBadRequest, "Missing label")
 		return
 	}
 
@@ -708,7 +708,6 @@ func createToken(w http.ResponseWriter, r *http.Request) {
 	ct, m, err := system.SaveClientToken(body["label"], group.XData, expiration)
 	if err != nil {
 		tokenEvent.Help = fmt.Sprintf("could not save client token for clientID %s, groupID %s: %s", system.ClientID, system.GroupID, err.Error())
-		ssas.OperationFailed(tokenEvent)
 		ssas.OperationFailed(tokenEvent)
 		jsonError(w, http.StatusInternalServerError, "Internal Error")
 	}
@@ -721,7 +720,6 @@ func createToken(w http.ResponseWriter, r *http.Request) {
 	b, err = json.Marshal(response)
 	if err != nil {
 		tokenEvent.Help = fmt.Sprintf("could not marshal response for clientID %s, groupID %s: %s", system.ClientID, system.GroupID, err.Error())
-		ssas.OperationFailed(tokenEvent)
 		ssas.OperationFailed(tokenEvent)
 		jsonError(w, http.StatusInternalServerError, "Internal Error")
 	}
