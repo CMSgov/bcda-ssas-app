@@ -663,6 +663,60 @@ func deleteSystemIP(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+func createKey(w http.ResponseWriter, r *http.Request) {
+	systemID := chi.URLParam(r, "systemID")
+	trackingID := ssas.RandomHexID()
+	keyEvent := ssas.Event{Op: "CreateKey", TrackingID: trackingID, Help: "calling from admin.createKey()"}
+
+	system, err := ssas.GetSystemByID(systemID)
+	if err != nil {
+		ssas.OperationFailed(keyEvent)
+		jsonError(w, http.StatusNotFound, "Invalid system ID")
+		return
+	}
+
+	var pk ssas.PublicKeyInput
+	if err := json.NewDecoder(r.Body).Decode(&pk); err != nil {
+		ssas.OperationFailed(keyEvent)
+		jsonError(w, http.StatusBadRequest, "Failed to read body")
+		return
+	}
+
+	if err := system.SavePublicKey(strings.NewReader(pk.PublicKey)); err != nil {
+		ssas.OperationFailed(keyEvent)
+		jsonError(w, http.StatusInternalServerError, "Failed to save public key")
+		return
+	}
+
+	key, _ := system.GetEncryptionKey(trackingID)
+
+	w.Header().Set("Content-Type", "application/json")
+	keyStr := strings.Replace(key.Body, "\n", "\\n", -1)
+	fmt.Fprintf(w, `{ "client_id": "%s", "public_key": "%s" }`, system.ClientID, keyStr)
+}
+
+func deleteKey(w http.ResponseWriter, r *http.Request) {
+	systemID := chi.URLParam(r, "systemID")
+
+	trackingID := ssas.RandomHexID()
+	keyEvent := ssas.Event{Op: "DeleteKey", TrackingID: trackingID, Help: "calling from admin.deleteKey()"}
+
+	system, err := ssas.GetSystemByID(systemID)
+	if err != nil {
+		ssas.OperationFailed(keyEvent)
+		jsonError(w, http.StatusNotFound, "Invalid system ID")
+		return
+	}
+
+	if err := system.DeleteEncryptionKey(trackingID); err != nil {
+		ssas.OperationFailed(keyEvent)
+		jsonError(w, http.StatusInternalServerError, "Failed to delete key")
+		return
+	}
+
+	w.WriteHeader(http.StatusAccepted)
+}
+
 type IPAddressInput struct {
 	Address string `json:"address"`
 }

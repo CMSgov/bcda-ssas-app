@@ -264,6 +264,9 @@ type PublicKeyOutput struct {
 func OutputPK(eks ...EncryptionKey) []PublicKeyOutput {
 	var o = make([]PublicKeyOutput, 0)
 	for _, v := range eks {
+		if v.Body == "" {
+			continue
+		}
 		pk := &PublicKeyOutput{
 			ID:           fmt.Sprintf("%d", v.ID),
 			CreationDate: v.CreatedAt,
@@ -305,4 +308,8 @@ type SystemOutput struct {
 	PublicKeys   []PublicKeyOutput   `json:"public_keys"`
 	IPs          []IPOutput          `json:"ips"`
 	ClientTokens []ClientTokenOutput `json:"client_tokens"`
+}
+
+type PublicKeyInput struct {
+	PublicKey string `json:"public_key"`
 }

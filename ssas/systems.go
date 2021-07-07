@@ -281,6 +281,27 @@ func (system *System) GetEncryptionKey(trackingID string) (EncryptionKey, error)
 }
 
 /*
+	DeleteEncryptionKey deletes the key associated with the current system.
+*/
+func (system *System) DeleteEncryptionKey(trackingID string) error {
+	db := GetGORMDbConnection()
+	defer Close(db)
+
+	deleteKeyEvent := Event{Op: "DeleteEncryptionKey", TrackingID: trackingID, ClientID: system.ClientID}
+	OperationStarted(deleteKeyEvent)
+
+	var encryptionKey EncryptionKey
+	err := db.Where("system_id = ?", system.ID).Delete(&encryptionKey).Error
+	if err != nil {
+		OperationFailed(deleteKeyEvent)
+		return fmt.Errorf("cannot find key for clientID %s: %s", system.ClientID, err.Error())
+	}
+
+	OperationSucceeded(deleteKeyEvent)
+	return nil
+}
+
+/*
 	SavePublicKey should be provided with a public key in PEM format, which will be saved
 	to the encryption_keys table and associated with the current system.
 */
