@@ -705,7 +705,7 @@ func createToken(w http.ResponseWriter, r *http.Request) {
 	}
 
 	expiration := time.Now().Add(ssas.MacaroonExpiration)
-	ct, err := system.SaveClientToken(body["label"], group.XData, expiration)
+	ct, m, err := system.SaveClientToken(body["label"], group.XData, expiration)
 	if err != nil {
 		tokenEvent.Help = fmt.Sprintf("could not save client token for clientID %s, groupID %s: %s", system.ClientID, system.GroupID, err.Error())
 		ssas.OperationFailed(tokenEvent)
@@ -713,7 +713,20 @@ func createToken(w http.ResponseWriter, r *http.Request) {
 		jsonError(w, http.StatusInternalServerError, "Internal Error")
 	}
 
-	_, err = w.Write([]byte(ct))
+	response := ssas.ClientTokenResponse{
+		ClientTokenOutput: ssas.OutputCT(*ct)[0],
+		Token:             m,
+	}
+
+	b, err = json.Marshal(response)
+	if err != nil {
+		tokenEvent.Help = fmt.Sprintf("could not marshal response for clientID %s, groupID %s: %s", system.ClientID, system.GroupID, err.Error())
+		ssas.OperationFailed(tokenEvent)
+		ssas.OperationFailed(tokenEvent)
+		jsonError(w, http.StatusInternalServerError, "Internal Error")
+	}
+
+	_, err = w.Write(b)
 	if err != nil {
 		jsonError(w, http.StatusInternalServerError, "internal error")
 	}

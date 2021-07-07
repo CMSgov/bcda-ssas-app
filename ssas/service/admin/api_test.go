@@ -1116,7 +1116,10 @@ func (s *APITestSuite) TestCreateAndDeleteAdditionalV2SystemToken() {
 
 	//verify it created a new client token
 	b, _ := ioutil.ReadAll(rr.Body)
-	assert.NotNil(s.T(), string(b))
+	var clr ssas.ClientTokenResponse
+	_ = json.Unmarshal(b, &clr)
+	assert.NotNil(s.T(), clr.Token)
+	assert.Equal(s.T(), "hello", clr.Label)
 
 	req = httptest.NewRequest("GET", fmt.Sprintf("/v2/system/%s", creds.SystemID), nil)
 	rctx = chi.NewRouteContext()
