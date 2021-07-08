@@ -306,3 +306,8 @@ type SystemOutput struct {
 	IPs          []IPOutput          `json:"ips"`
 	ClientTokens []ClientTokenOutput `json:"client_tokens"`
 }
+
+type ClientTokenResponse struct {
+	ClientTokenOutput
+	Token string
+}
