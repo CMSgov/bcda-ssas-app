@@ -1132,8 +1132,8 @@ func (s *APITestSuite) TestCreateAndDeletePublicKey() {
 	var system ssas.SystemOutput
 	_ = json.Unmarshal(b, &system)
 
-	assert.Len(s.T(), system.PublicKeys, 1)
-	assert.Equal(s.T(), key, system.PublicKeys[0].Key)
+	assert.Len(s.T(), system.PublicKeys, 2)
+	assert.Equal(s.T(), key, system.PublicKeys[1].Key)
 
 	//delete the key
 	req = httptest.NewRequest("DELETE", fmt.Sprintf("/v2/system/%s/key", creds.SystemID), nil)
@@ -1156,5 +1156,5 @@ func (s *APITestSuite) TestCreateAndDeletePublicKey() {
 	b, _ = ioutil.ReadAll(rr.Body)
 	_ = json.Unmarshal(b, &system)
 
-	assert.Len(s.T(), system.PublicKeys, 0)
+	assert.Len(s.T(), system.PublicKeys, 1)
 }

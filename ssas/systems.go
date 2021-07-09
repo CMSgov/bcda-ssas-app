@@ -69,6 +69,7 @@ type EncryptionKey struct {
 	Body     string `json:"body"`
 	System   System `gorm:"foreignkey:SystemID;association_foreignkey:ID"`
 	SystemID uint   `json:"system_id"`
+	UUID     string `json:"uuid,omitempty"`
 }
 
 type Secret struct {
@@ -281,9 +282,30 @@ func (system *System) GetEncryptionKey(trackingID string) (EncryptionKey, error)
 }
 
 /*
+	GetEncryptionKeys retrieves the keys associated with the current system.
+*/
+func (system *System) GetEncryptionKeys(trackingID string) ([]EncryptionKey, error) {
+	db := GetGORMDbConnection()
+	defer Close(db)
+
+	getKeyEvent := Event{Op: "GetEncryptionKey", TrackingID: trackingID, ClientID: system.ClientID}
+	OperationStarted(getKeyEvent)
+
+	var encryptionKeys []EncryptionKey
+	err := db.Where("system_id = ?", system.ID).Find(&encryptionKeys).Error
+	if err != nil {
+		OperationFailed(getKeyEvent)
+		return encryptionKeys, fmt.Errorf("cannot find key for clientID %s: %s", system.ClientID, err.Error())
+	}
+
+	OperationSucceeded(getKeyEvent)
+	return encryptionKeys, nil
+}
+
+/*
 	DeleteEncryptionKey deletes the key associated with the current system.
 */
-func (system *System) DeleteEncryptionKey(trackingID string) error {
+func (system *System) DeleteEncryptionKey(trackingID string, keyID string) error {
 	db := GetGORMDbConnection()
 	defer Close(db)
 
@@ -291,7 +313,7 @@ func (system *System) DeleteEncryptionKey(trackingID string) error {
 	OperationStarted(deleteKeyEvent)
 
 	var encryptionKey EncryptionKey
-	err := db.Where("system_id = ?", system.ID).Delete(&encryptionKey).Error
+	err := db.Where("system_id = ? AND uuid = ?", system.ID, keyID).Delete(&encryptionKey).Error
 	if err != nil {
 		OperationFailed(deleteKeyEvent)
 		return fmt.Errorf("cannot find key for clientID %s: %s", system.ClientID, err.Error())
@@ -331,6 +353,37 @@ func (system *System) SavePublicKey(publicKey io.Reader) error {
 	err = db.Where("system_id = ?", system.ID).Delete(&EncryptionKey{}).Error
 	if err != nil {
 		return fmt.Errorf("unable to soft delete previous encryption keys for clientID %s: %s", system.ClientID, err.Error())
+	}
+
+	err = db.Create(&encryptionKey).Error
+	if err != nil {
+		return fmt.Errorf("could not save public key for clientID %s: %s", system.ClientID, err.Error())
+	}
+
+	return nil
+}
+
+func (system *System) AddAdditionalPublicKey(publicKey io.Reader) error {
+	db := GetGORMDbConnection()
+	defer Close(db)
+
+	k, err := ioutil.ReadAll(publicKey)
+	if err != nil {
+		return fmt.Errorf("cannot read public key for clientID %s: %s", system.ClientID, err.Error())
+	}
+
+	key, err := ReadPublicKey(string(k))
+	if err != nil {
+		return fmt.Errorf("invalid public key for clientID %s: %s", system.ClientID, err.Error())
+	}
+	if key == nil {
+		return fmt.Errorf("invalid public key for clientID %s", system.ClientID)
+	}
+
+	encryptionKey := EncryptionKey{
+		Body:     string(k),
+		SystemID: system.ID,
+		UUID:     uuid.NewRandom().String(),
 	}
 
 	err = db.Create(&encryptionKey).Error

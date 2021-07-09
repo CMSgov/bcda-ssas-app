@@ -268,7 +268,7 @@ func OutputPK(eks ...EncryptionKey) []PublicKeyOutput {
 			continue
 		}
 		pk := &PublicKeyOutput{
-			ID:           fmt.Sprintf("%d", v.ID),
+			ID:           v.UUID,
 			CreationDate: v.CreatedAt,
 			Key:          v.Body,
 		}

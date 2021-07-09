@@ -194,7 +194,7 @@ func getSystem(w http.ResponseWriter, r *http.Request) {
 
 	ips, _ := s.GetIPsData()
 	cts, _ := s.GetClientTokens(trackingID)
-	eks, _ := s.GetEncryptionKey(trackingID)
+	eks, _ := s.GetEncryptionKeys(trackingID)
 
 	o := ssas.SystemOutput{
 		GID:          fmt.Sprintf("%d", s.GID),
@@ -205,7 +205,7 @@ func getSystem(w http.ResponseWriter, r *http.Request) {
 		APIScope:     s.APIScope,
 		XData:        s.XData,
 		LastTokenAt:  s.LastTokenAt.Format(time.RFC3339),
-		PublicKeys:   ssas.OutputPK(eks),
+		PublicKeys:   ssas.OutputPK(eks...),
 		IPs:          ssas.OutputIP(ips...),
 		ClientTokens: ssas.OutputCT(cts...),
 	}
@@ -682,9 +682,9 @@ func createKey(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := system.SavePublicKey(strings.NewReader(pk.PublicKey)); err != nil {
+	if err := system.AddAdditionalPublicKey(strings.NewReader(pk.PublicKey)); err != nil {
 		ssas.OperationFailed(keyEvent)
-		jsonError(w, http.StatusInternalServerError, "Failed to save public key")
+		jsonError(w, http.StatusInternalServerError, "Failed to add additional public key")
 		return
 	}
 
@@ -697,6 +697,7 @@ func createKey(w http.ResponseWriter, r *http.Request) {
 
 func deleteKey(w http.ResponseWriter, r *http.Request) {
 	systemID := chi.URLParam(r, "systemID")
+	keyID := chi.URLParam(r, "id")
 
 	trackingID := ssas.RandomHexID()
 	keyEvent := ssas.Event{Op: "DeleteKey", TrackingID: trackingID, Help: "calling from admin.deleteKey()"}
@@ -708,7 +709,7 @@ func deleteKey(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := system.DeleteEncryptionKey(trackingID); err != nil {
+	if err := system.DeleteEncryptionKey(trackingID, keyID); err != nil {
 		ssas.OperationFailed(keyEvent)
 		jsonError(w, http.StatusInternalServerError, "Failed to delete key")
 		return

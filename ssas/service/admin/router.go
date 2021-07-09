@@ -70,7 +70,7 @@ func routes() *chi.Mux {
 		r.With(requireBasicAuth).Get("/system/{systemID}/ip", getSystemIPs)
 		r.With(requireBasicAuth).Delete("/system/{systemID}/ip/{id}", deleteSystemIP)
 		r.With(requireBasicAuth).Post("/system/{systemID}/key", createKey)
-		r.With(requireBasicAuth).Delete("/system/{systemID}/key", deleteKey)
+		r.With(requireBasicAuth).Delete("/system/{systemID}/key/{id}", deleteKey)
 
 	})
 
