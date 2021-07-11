@@ -1103,6 +1103,64 @@ func (s *APITestSuite) TestGetV2SystemInactive() {
 	assert.Equal(s.T(), fmt.Sprintf("could not find system %s", creds.SystemID), error.ErrorDescription)
 }
 
+func (s *APITestSuite) TestCreateAndDeleteAdditionalV2SystemToken() {
+	creds, _ := ssas.CreateTestXDataV2(s.T(), s.db)
+
+	req := httptest.NewRequest("POST", fmt.Sprintf("/v2/system/%s/token", creds.SystemID), strings.NewReader(`{"label":"hello"}`))
+	rctx := chi.NewRouteContext()
+	rctx.URLParams.Add("systemID", creds.SystemID)
+	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+	handler := http.HandlerFunc(createToken)
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+
+	//verify it created a new client token
+	b, _ := ioutil.ReadAll(rr.Body)
+	var clr ssas.ClientTokenResponse
+	_ = json.Unmarshal(b, &clr)
+	assert.NotNil(s.T(), clr.Token)
+	assert.Equal(s.T(), "hello", clr.Label)
+
+	req = httptest.NewRequest("GET", fmt.Sprintf("/v2/system/%s", creds.SystemID), nil)
+	rctx = chi.NewRouteContext()
+	rctx.URLParams.Add("id", creds.SystemID)
+	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+	handler = getSystem
+	rr = httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+
+	b, _ = ioutil.ReadAll(rr.Body)
+	var system ssas.SystemOutput
+	_ = json.Unmarshal(b, &system)
+
+	assert.Len(s.T(), system.ClientTokens, 2)
+	assert.Equal(s.T(), "hello", system.ClientTokens[1].Label)
+
+	//delete the token
+	req = httptest.NewRequest("DELETE", fmt.Sprintf("/v2/system/%s/token/%s", creds.SystemID, system.ClientTokens[1].UUID), strings.NewReader(`{"label":"hello"}`))
+	rctx = chi.NewRouteContext()
+	rctx.URLParams.Add("systemID", creds.SystemID)
+	rctx.URLParams.Add("id", system.ClientTokens[1].UUID)
+	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+	handler = deleteToken
+	rr = httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+
+	//verify the token is deleted
+	req = httptest.NewRequest("GET", fmt.Sprintf("/v2/system/%s", creds.SystemID), nil)
+	rctx = chi.NewRouteContext()
+	rctx.URLParams.Add("id", creds.SystemID)
+	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+	handler = getSystem
+	rr = httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+
+	b, _ = ioutil.ReadAll(rr.Body)
+	_ = json.Unmarshal(b, &system)
+
+	assert.Len(s.T(), system.ClientTokens, 1)
+}
+
 func (s *APITestSuite) TestCreateAndDeletePublicKey() {
 	creds, _ := ssas.CreateTestXDataV2(s.T(), s.db)
 

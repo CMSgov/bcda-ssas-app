@@ -94,13 +94,13 @@ type ClientToken struct {
 	SaveClientToken should be provided with a token label and token uuid, which will
 	be saved to the client tokens table and associated with the current system.
 */
-func (system *System) SaveClientToken(label string, groupXData string, expiration time.Time) (string, error) {
+func (system *System) SaveClientToken(label string, groupXData string, expiration time.Time) (*ClientToken, string, error) {
 	db := GetGORMDbConnection()
 	defer Close(db)
 
 	rk, err := NewRootKey(system.ID, expiration)
 	if err != nil {
-		return "", fmt.Errorf("could not create a root key for macaroon generation for clientID %s: %s", system.ClientID, err.Error())
+		return nil, "", fmt.Errorf("could not create a root key for macaroon generation for clientID %s: %s", system.ClientID, err.Error())
 	}
 
 	caveats := make([]Caveats, 4)
@@ -120,10 +120,10 @@ func (system *System) SaveClientToken(label string, groupXData string, expiratio
 	}
 
 	if err := db.Create(&ct).Error; err != nil {
-		return "", fmt.Errorf("could not save client token for clientID %s: %s", system.ClientID, err.Error())
+		return nil, "", fmt.Errorf("could not save client token for clientID %s: %s", system.ClientID, err.Error())
 	}
 	ClientTokenCreated(Event{Op: "SaveClientToken", TrackingID: uuid.NewRandom().String(), ClientID: system.ClientID})
-	return token, nil
+	return &ct, token, nil
 }
 
 func (system *System) GetClientTokens(trackingID string) ([]ClientToken, error) {
@@ -136,6 +136,28 @@ func (system *System) GetClientTokens(trackingID string) ([]ClientToken, error) 
 	var tokens []ClientToken
 	db.Find(&tokens, "system_id=? AND deleted_at IS NULL", system.ID)
 	return tokens, nil
+}
+
+func (system *System) DeleteClientToken(tokenID string) error {
+	db := GetGORMDbConnection()
+	defer Close(db)
+
+	tx := db.Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
+
+	var rk RootKey
+	tx.Where("uuid = ? AND system_id = ?", tokenID, system.ID).Find(&rk)
+	tx.Where("uuid = ?", rk.UUID).Delete(&ClientToken{})
+	tx.Delete(&rk)
+	err := tx.Commit().Error
+	if err != nil {
+		tx.Rollback()
+	}
+	return err
 }
 
 // IsExpired tests whether this secret has expired
@@ -588,7 +610,7 @@ func registerSystem(input SystemInput, isV2 bool) (Credentials, error) {
 
 	if isV2 {
 		expiration := time.Now().Add(MacaroonExpiration)
-		ct, err := system.SaveClientToken("Initial Token", group.XData, expiration)
+		_, ct, err := system.SaveClientToken("Initial Token", group.XData, expiration)
 		if err != nil {
 			regEvent.Help = fmt.Sprintf("could not save client token for clientID %s, groupID %s: %s", clientID, input.GroupID, err.Error())
 			OperationFailed(regEvent)

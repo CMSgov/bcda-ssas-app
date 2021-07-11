@@ -312,6 +312,11 @@ type SystemOutput struct {
 	ClientTokens []ClientTokenOutput `json:"client_tokens"`
 }
 
+type ClientTokenResponse struct {
+	ClientTokenOutput
+	Token string
+}
+
 type PublicKeyInput struct {
 	PublicKey string `json:"public_key"`
 	Signature string `json:"signature"`
