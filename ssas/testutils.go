@@ -65,6 +65,9 @@ func GeneratePublicKey(bits int) (string, string, error) {
 
 	hash := sha256.Sum256([]byte("This is the snippet used to verify a key pair."))
 	b, err := keyPair.Sign(rand.Reader, hash[:], crypto.SHA256)
+	if err != nil {
+		return "", "", fmt.Errorf("failed to verify signature with public key: %s", err.Error())
+	}
 	return string(publicKeyBytes), base64.StdEncoding.EncodeToString(b), nil
 }
 
