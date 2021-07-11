@@ -203,7 +203,7 @@ func (s *SystemsTestSuite) TestSystemSavePublicKey() {
 	assert.NotNil(publicKeyBytes, "unexpectedly empty public key byte slice")
 
 	// Save key
-	err = system.SavePublicKey(bytes.NewReader(publicKeyBytes))
+	err = system.SavePublicKey(bytes.NewReader(publicKeyBytes), "")
 	if err != nil {
 		assert.FailNow("error saving key: " + err.Error())
 	}
@@ -253,16 +253,16 @@ OwIDAQAB
 	})
 	assert.NotNil(lowBitPubKey, "unexpectedly empty public key byte slice")
 
-	err = system.SavePublicKey(strings.NewReader(""))
+	err = system.SavePublicKey(strings.NewReader(""), "")
 	assert.NotNil(err, "empty string should not be saved")
 
-	err = system.SavePublicKey(strings.NewReader(emptyPEM))
+	err = system.SavePublicKey(strings.NewReader(emptyPEM), "")
 	assert.NotNil(err, "empty PEM should not be saved")
 
-	err = system.SavePublicKey(strings.NewReader(invalidPEM))
+	err = system.SavePublicKey(strings.NewReader(invalidPEM), "")
 	assert.NotNil(err, "invalid PEM should not be saved")
 
-	err = system.SavePublicKey(bytes.NewReader(lowBitPubKey))
+	err = system.SavePublicKey(bytes.NewReader(lowBitPubKey), "")
 	assert.NotNil(err, "insecure public key should not be saved")
 
 	err = CleanDatabase(group)
@@ -284,20 +284,20 @@ func (s *SystemsTestSuite) TestSystemPublicKeyEmpty() {
 	assert.Nil(err)
 
 	emptyPEM := "-----BEGIN RSA PUBLIC KEY-----    -----END RSA PUBLIC KEY-----"
-	validPEM, err := generatePublicKey(2048)
+	validPEM, _, err := generatePublicKey(2048)
 	assert.Nil(err)
 
-	err = system.SavePublicKey(strings.NewReader(""))
+	err = system.SavePublicKey(strings.NewReader(""), "")
 	assert.EqualError(err, fmt.Sprintf("invalid public key for clientID %s: not able to decode PEM-formatted public key", clientID))
 	k, err := system.GetEncryptionKey("")
 	assert.EqualError(err, fmt.Sprintf("cannot find key for clientID %s: record not found", clientID))
 	assert.Empty(k, "Empty string does not yield empty encryption key!")
-	err = system.SavePublicKey(strings.NewReader(emptyPEM))
+	err = system.SavePublicKey(strings.NewReader(emptyPEM), "")
 	assert.EqualError(err, fmt.Sprintf("invalid public key for clientID %s: not able to decode PEM-formatted public key", clientID))
 	k, err = system.GetEncryptionKey("")
 	assert.EqualError(err, fmt.Sprintf("cannot find key for clientID %s: record not found", clientID))
 	assert.Empty(k, "Empty PEM key does not yield empty encryption key!")
-	err = system.SavePublicKey(strings.NewReader(validPEM))
+	err = system.SavePublicKey(strings.NewReader(validPEM), "")
 	assert.Nil(err)
 	k, err = system.GetEncryptionKey("")
 	assert.Nil(err)
@@ -401,7 +401,7 @@ func (s *SystemsTestSuite) TestRegisterSystemSuccess() {
 		s.FailNow(err.Error())
 	}
 
-	pubKey, err := generatePublicKey(2048)
+	pubKey, _, err := generatePublicKey(2048)
 	assert.Nil(err)
 
 	creds, err := RegisterSystem("Create System Test", groupID, DefaultScope, pubKey, []string{}, trackingID)
@@ -424,7 +424,7 @@ func (s *SystemsTestSuite) TestUpdateSystemSuccess() {
 		s.FailNow(err.Error())
 	}
 
-	pubKey, err := generatePublicKey(2048)
+	pubKey, _, err := generatePublicKey(2048)
 	assert.Nil(err)
 
 	creds, err := RegisterSystem("Create System Test", groupID, DefaultScope, pubKey, []string{}, trackingID)
@@ -477,7 +477,7 @@ func (s *SystemsTestSuite) TestRegisterSystemMissingData() {
 		s.FailNow(err.Error())
 	}
 
-	pubKey, err := generatePublicKey(2048)
+	pubKey, _, err := generatePublicKey(2048)
 	assert.Nil(err)
 
 	// No clientName
@@ -524,7 +524,7 @@ func (s *SystemsTestSuite) TestRegisterSystemIps() {
 		s.FailNow(err.Error())
 	}
 
-	pubKey, err := generatePublicKey(2048)
+	pubKey, _, err := generatePublicKey(2048)
 	assert.Nil(err)
 
 	for _, address := range goodIps {
@@ -571,7 +571,7 @@ func (s *SystemsTestSuite) TestRegisterSystemBadKey() {
 		s.FailNow(err.Error())
 	}
 
-	pubKey, err := generatePublicKey(1024)
+	pubKey, _, err := generatePublicKey(1024)
 	assert.Nil(err)
 
 	// Blank key ok
@@ -592,7 +592,7 @@ func (s *SystemsTestSuite) TestRegisterSystemBadKey() {
 	assert.Nil(CleanDatabase(group))
 }
 
-func generatePublicKey(bits int) (string, error) {
+func generatePublicKey(bits int) (string, string, error) {
 	return GeneratePublicKey(bits)
 }
 

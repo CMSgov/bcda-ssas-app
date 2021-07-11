@@ -1,8 +1,10 @@
 package ssas
 
 import (
+	"crypto"
 	"crypto/rand"
 	"crypto/rsa"
+	"crypto/sha256"
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/pem"
@@ -45,15 +47,15 @@ func ExpireAdminCreds() {
 	db.Exec("UPDATE secrets SET created_at = '2000-01-01', updated_at = '2000-01-01' WHERE system_id IN (SELECT id FROM systems WHERE client_id = '31e029ef-0e97-47f8-873c-0e8b7e7f99bf')")
 }
 
-func GeneratePublicKey(bits int) (string, error) {
+func GeneratePublicKey(bits int) (string, string, error) {
 	keyPair, err := rsa.GenerateKey(rand.Reader, bits)
 	if err != nil {
-		return "", fmt.Errorf("unable to generate keyPair: %s", err.Error())
+		return "", "", fmt.Errorf("unable to generate keyPair: %s", err.Error())
 	}
 
 	publicKeyPKIX, err := x509.MarshalPKIXPublicKey(&keyPair.PublicKey)
 	if err != nil {
-		return "", fmt.Errorf("unable to marshal public key: %s", err.Error())
+		return "", "", fmt.Errorf("unable to marshal public key: %s", err.Error())
 	}
 
 	publicKeyBytes := pem.EncodeToMemory(&pem.Block{
@@ -61,7 +63,9 @@ func GeneratePublicKey(bits int) (string, error) {
 		Bytes: publicKeyPKIX,
 	})
 
-	return string(publicKeyBytes), nil
+	hash := sha256.Sum256([]byte("This is the snippet used to verify a key pair."))
+	b, err := keyPair.Sign(rand.Reader, hash[:], crypto.SHA256)
+	return string(publicKeyBytes), base64.StdEncoding.EncodeToString(b), nil
 }
 
 func RandomHexID() string {

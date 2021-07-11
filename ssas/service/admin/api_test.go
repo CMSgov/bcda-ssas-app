@@ -496,14 +496,14 @@ func (s *APITestSuite) TestGetPublicKeyRotation() {
 		s.FailNow(err.Error())
 	}
 
-	key1, _ := ssas.GeneratePublicKey(2048)
-	err = system.SavePublicKey(strings.NewReader(key1))
+	key1, _, _ := ssas.GeneratePublicKey(2048)
+	err = system.SavePublicKey(strings.NewReader(key1), "")
 	if err != nil {
 		s.FailNow(err.Error())
 	}
 
-	key2, _ := ssas.GeneratePublicKey(2048)
-	err = system.SavePublicKey(strings.NewReader(key2))
+	key2, _, _ := ssas.GeneratePublicKey(2048)
+	err = system.SavePublicKey(strings.NewReader(key2), "")
 	if err != nil {
 		s.FailNow(err.Error())
 	}
@@ -1106,9 +1106,9 @@ func (s *APITestSuite) TestGetV2SystemInactive() {
 func (s *APITestSuite) TestCreateAndDeletePublicKey() {
 	creds, _ := ssas.CreateTestXDataV2(s.T(), s.db)
 
-	key, _ := ssas.GeneratePublicKey(2048)
+	key, sig, _ := ssas.GeneratePublicKey(2048)
 	keyStr := strings.Replace(key, "\n", "\\n", -1)
-	req := httptest.NewRequest("POST", fmt.Sprintf("/v2/system/%s/key", creds.SystemID), strings.NewReader(fmt.Sprintf(`{"public_key":"%s"}`, keyStr)))
+	req := httptest.NewRequest("POST", fmt.Sprintf("/v2/system/%s/key", creds.SystemID), strings.NewReader(fmt.Sprintf(`{"public_key":"%s", "signature":"%s"}`, keyStr, sig)))
 	rctx := chi.NewRouteContext()
 	rctx.URLParams.Add("systemID", creds.SystemID)
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
@@ -1136,9 +1136,10 @@ func (s *APITestSuite) TestCreateAndDeletePublicKey() {
 	assert.Equal(s.T(), key, system.PublicKeys[1].Key)
 
 	//delete the key
-	req = httptest.NewRequest("DELETE", fmt.Sprintf("/v2/system/%s/key", creds.SystemID), nil)
+	req = httptest.NewRequest("DELETE", fmt.Sprintf("/v2/system/%s/key/%s", creds.SystemID, system.PublicKeys[1].ID), nil)
 	rctx = chi.NewRouteContext()
 	rctx.URLParams.Add("systemID", creds.SystemID)
+	rctx.URLParams.Add("id", system.PublicKeys[1].ID)
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
 	handler = deleteKey
 	rr = httptest.NewRecorder()

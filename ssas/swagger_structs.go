@@ -223,6 +223,8 @@ type SystemInput struct {
 	Scope string `json:"scope"`
 	// An optional RSA 2048-bit public key to register with this system
 	PublicKey string `json:"public_key"`
+	// An optional signature to verify the public key
+	Signature string `json:"signature,omitempty"`
 	// An optional list of public IP addresses (IPv4 or IPv6) from which this system can make requests
 	IPs []string `json:"ips"`
 	// A unique identifier for this request to assist in log correlation
@@ -312,4 +314,5 @@ type SystemOutput struct {
 
 type PublicKeyInput struct {
 	PublicKey string `json:"public_key"`
+	Signature string `json:"signature"`
 }

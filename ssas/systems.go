@@ -1,8 +1,10 @@
 package ssas
 
 import (
+	"crypto"
 	"crypto/rand"
 	"crypto/rsa"
+	"crypto/sha256"
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/pem"
@@ -312,11 +314,16 @@ func (system *System) DeleteEncryptionKey(trackingID string, keyID string) error
 	deleteKeyEvent := Event{Op: "DeleteEncryptionKey", TrackingID: trackingID, ClientID: system.ClientID}
 	OperationStarted(deleteKeyEvent)
 
+	if keyID == "" {
+		OperationFailed(deleteKeyEvent)
+		return fmt.Errorf("requires keyID to delete key for clientID %s", system.ClientID)
+	}
+
 	var encryptionKey EncryptionKey
 	err := db.Where("system_id = ? AND uuid = ?", system.ID, keyID).Delete(&encryptionKey).Error
 	if err != nil {
 		OperationFailed(deleteKeyEvent)
-		return fmt.Errorf("cannot find key for clientID %s: %s", system.ClientID, err.Error())
+		return fmt.Errorf("cannot find key to delete for clientID %s: %s", system.ClientID, err.Error())
 	}
 
 	OperationSucceeded(deleteKeyEvent)
@@ -327,10 +334,13 @@ func (system *System) DeleteEncryptionKey(trackingID string, keyID string) error
 	SavePublicKey should be provided with a public key in PEM format, which will be saved
 	to the encryption_keys table and associated with the current system.
 */
-func (system *System) SavePublicKey(publicKey io.Reader) error {
+func (system *System) SavePublicKey(publicKey io.Reader, signature string) error {
 	db := GetGORMDbConnection()
 	defer Close(db)
+	return system.SavePublicKeyDB(publicKey, signature, true, db)
+}
 
+func (system *System) SavePublicKeyDB(publicKey io.Reader, signature string, onlyOne bool, db *gorm.DB) error {
 	k, err := ioutil.ReadAll(publicKey)
 	if err != nil {
 		return fmt.Errorf("cannot read public key for clientID %s: %s", system.ClientID, err.Error())
@@ -344,15 +354,24 @@ func (system *System) SavePublicKey(publicKey io.Reader) error {
 		return fmt.Errorf("invalid public key for clientID %s", system.ClientID)
 	}
 
+	if signature != "" {
+		if err := VerifySignature(key, signature); err != nil {
+			return fmt.Errorf("invalid signature for clientID %s", system.ClientID)
+		}
+	}
+
 	encryptionKey := EncryptionKey{
+		UUID:     uuid.NewRandom().String(),
 		Body:     string(k),
 		SystemID: system.ID,
 	}
 
-	// Only one key should be valid per system.  Soft delete the currently active key, if any.
-	err = db.Where("system_id = ?", system.ID).Delete(&EncryptionKey{}).Error
-	if err != nil {
-		return fmt.Errorf("unable to soft delete previous encryption keys for clientID %s: %s", system.ClientID, err.Error())
+	if onlyOne {
+		// Only one key should be valid per system.  Soft delete the currently active key, if any.
+		err = db.Where("system_id = ?", system.ID).Delete(&EncryptionKey{}).Error
+		if err != nil {
+			return fmt.Errorf("unable to soft delete previous encryption keys for clientID %s: %s", system.ClientID, err.Error())
+		}
 	}
 
 	err = db.Create(&encryptionKey).Error
@@ -363,35 +382,10 @@ func (system *System) SavePublicKey(publicKey io.Reader) error {
 	return nil
 }
 
-func (system *System) AddAdditionalPublicKey(publicKey io.Reader) error {
+func (system *System) AddAdditionalPublicKey(publicKey io.Reader, signature string) error {
 	db := GetGORMDbConnection()
 	defer Close(db)
-
-	k, err := ioutil.ReadAll(publicKey)
-	if err != nil {
-		return fmt.Errorf("cannot read public key for clientID %s: %s", system.ClientID, err.Error())
-	}
-
-	key, err := ReadPublicKey(string(k))
-	if err != nil {
-		return fmt.Errorf("invalid public key for clientID %s: %s", system.ClientID, err.Error())
-	}
-	if key == nil {
-		return fmt.Errorf("invalid public key for clientID %s", system.ClientID)
-	}
-
-	encryptionKey := EncryptionKey{
-		Body:     string(k),
-		SystemID: system.ID,
-		UUID:     uuid.NewRandom().String(),
-	}
-
-	err = db.Create(&encryptionKey).Error
-	if err != nil {
-		return fmt.Errorf("could not save public key for clientID %s: %s", system.ClientID, err.Error())
-	}
-
-	return nil
+	return system.SavePublicKeyDB(publicKey, signature, false, db)
 }
 
 /*
@@ -584,29 +578,14 @@ func registerSystem(input SystemInput, isV2 bool) (Credentials, error) {
 	}
 
 	if input.PublicKey != "" {
-		_, err = ReadPublicKey(input.PublicKey)
-		if err != nil {
-			regEvent.Help = "error in public key: " + err.Error()
+		if err := system.SavePublicKeyDB(strings.NewReader(input.PublicKey), input.Signature, !isV2, tx); err != nil {
+			regEvent.Help = "error in saving public key: " + err.Error()
 			OperationFailed(regEvent)
 			tx.Rollback()
-			return creds, errors.New("error in public key")
-		}
-
-		encryptionKey := EncryptionKey{
-			Body:     input.PublicKey,
-			SystemID: system.ID,
-		}
-
-		// While the createEncryptionKey method below _could_ be called here (and system.SaveSecret() below),
-		// we would lose the benefit of the transaction.
-		err = tx.Create(&encryptionKey).Error
-		if err != nil {
-			regEvent.Help = fmt.Sprintf("could not save public key for clientID %s, groupID %s: %s", clientID, input.GroupID, err.Error())
-			OperationFailed(regEvent)
-			tx.Rollback()
-			return creds, errors.New("internal system error")
+			return creds, errors.New("error in saving public key")
 		}
 	}
+
 	if isV2 {
 		expiration := time.Now().Add(MacaroonExpiration)
 		ct, err := system.SaveClientToken("Initial Token", group.XData, expiration)
@@ -668,6 +647,23 @@ func registerSystem(input SystemInput, isV2 bool) (Credentials, error) {
 	regEvent.Help = fmt.Sprintf("system registered in group %s with XData: %s", group.GroupID, group.XData)
 	OperationSucceeded(regEvent)
 	return creds, nil
+}
+
+func VerifySignature(pubKey *rsa.PublicKey, signatureStr string) error {
+	snippet := "This is the snippet used to verify a key pair."
+
+	signature, err := base64.StdEncoding.DecodeString(signatureStr)
+	if err != nil {
+		return err
+	}
+
+	hash := sha256.Sum256([]byte(snippet))
+	err = rsa.VerifyPKCS1v15(pubKey, crypto.SHA256, hash[:], signature)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (system *System) RegisterIP(address string, trackingID string) (IP, error) {

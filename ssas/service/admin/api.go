@@ -682,7 +682,7 @@ func createKey(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := system.AddAdditionalPublicKey(strings.NewReader(pk.PublicKey)); err != nil {
+	if err := system.AddAdditionalPublicKey(strings.NewReader(pk.PublicKey), pk.Signature); err != nil {
 		ssas.OperationFailed(keyEvent)
 		jsonError(w, http.StatusInternalServerError, "Failed to add additional public key")
 		return
