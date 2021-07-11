@@ -582,7 +582,7 @@ func registerSystem(input SystemInput, isV2 bool) (Credentials, error) {
 			regEvent.Help = "error in saving public key: " + err.Error()
 			OperationFailed(regEvent)
 			tx.Rollback()
-			return creds, errors.New("error in saving public key")
+			return creds, errors.New("error in public key")
 		}
 	}
 
