@@ -526,6 +526,31 @@ func (s *APITestSuite) TestAuthenticatingWithJWT() {
 	assert.Nil(s.T(), err)
 }
 
+func (s *APITestSuite) TestAuthenticatingWithMismatchLocation() {
+	os.Setenv("SSAS_MACAROON_LOCATION", "localpost")
+	creds, group, privateKey := s.SetupClientAssertionTest()
+	os.Unsetenv("SSAS_MACAROON_LOCATION")
+
+	_, clientAssertion, errors := mintClientAssertion(creds.ClientToken, creds.ClientToken, s.assertAud, time.Now().Unix(), time.Now().Add(time.Minute*5).Unix(), privateKey)
+	assert.Nil(s.T(), errors)
+
+	form := url.Values{}
+	form.Add("scope", "system/*.*")
+	form.Add("grant_type", "client_credentials")
+	form.Add("client_assertion_type", "urn:ietf:params:oauth:client-assertion-type:jwt-bearer")
+	form.Add("client_assertion", clientAssertion)
+
+	req := httptest.NewRequest("POST", "/v2/token", strings.NewReader(form.Encode()))
+	req.Header.Add("Accept", "application/json")
+	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+
+	handler := http.HandlerFunc(tokenV2)
+	handler.ServeHTTP(s.rr, req)
+	assert.Equal(s.T(), http.StatusBadRequest, s.rr.Code)
+	err := ssas.CleanDatabase(group)
+	assert.Nil(s.T(), err)
+}
+
 func (s *APITestSuite) TestAuthenticatingWithJWTWithExpBeforeIssuedTime() {
 	creds, group, privateKey := s.SetupClientAssertionTest()
 	expiresAt := time.Now().Unix() + 200
