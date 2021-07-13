@@ -365,6 +365,11 @@ func (s *Server) GetSystemIDFromMacaroon(issuer string) (string, error) {
 	b, _ := base64.StdEncoding.DecodeString(issuer)
 	_ = um.UnmarshalBinary(b)
 
+	location := cfg.FromEnv("SSAS_MACAROON_LOCATION", "localhost")
+	if um.Location() != location {
+		return "", fmt.Errorf("location does not match expected %s", location)
+	}
+
 	systemId, err := GetFirstPartyCaveat(um, "system_id")
 	if err != nil {
 		return "", err

@@ -24,7 +24,6 @@ var DefaultScope string
 var MaxIPs int
 var CredentialExpiration time.Duration
 var MacaroonExpiration time.Duration
-var Location string
 
 func init() {
 	getEnvVars()
@@ -47,7 +46,6 @@ func getEnvVars() {
 	MaxIPs = cfg.GetEnvInt("SSAS_MAX_SYSTEM_IPS", 8)
 	macaroonExpirationDays := cfg.GetEnvInt("SSAS_MACAROON_EXPIRATION_DAYS", 365)
 	MacaroonExpiration = time.Duration(macaroonExpirationDays*24) * time.Hour
-	Location = cfg.FromEnv("SSAS_MACAROON_LOCATION", "localhost")
 }
 
 type System struct {
@@ -108,7 +106,7 @@ func (system *System) SaveClientToken(label string, groupXData string, expiratio
 		caveats[3] = map[string]string{"system_data": base64.StdEncoding.EncodeToString([]byte(system.XData))}
 	}
 
-	token, _ := rk.Generate(caveats, Location)
+	token, _ := rk.Generate(caveats, cfg.FromEnv("SSAS_MACAROON_LOCATION", "localhost"))
 	ct := ClientToken{
 		Label:     label,
 		Uuid:      rk.UUID,
