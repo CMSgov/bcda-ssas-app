@@ -59,10 +59,8 @@ Some variables below have a note indicating their name should be changed. These 
 | SSAS_IDLE_TIMEOUT    | No       | X |   | Sets how long the server will keep idle connections open |
 | SSAS_LOG                     | No  | X |   | Directs all ssas logging to a named file |
 | SSAS_ADMIN_PORT <br/> SSAS_PUBLIC_PORT <br/> SSAS_HTTP_TO_HTTPS_PORT | No  | X | X | These values are not yet used by code. Intended to allow changing port assignments. If used, will affect BCDA SSAS URL vars. |
-| SSAS_ADMIN_SIGNING_KEY  | Depends | X |   | Provides the plaintext of the admin server signing key. When setting vars for AWS envs, you must include a var for the key material. Set either the key or the path but not both. |
-| SSAS_ADMIN_SIGNING_KEY_PATH  | Depends | X |   | Provides the location of the admin server signing key. When setting vars for AWS envs, you must include a var for the key material. Set either the key or the path but not both. |
-| SSAS_PUBLIC_SIGNING_KEY | Depends | X |   | Provides the plaintext of the public server signing key. When setting vars for AWS envs, you must include a var for the key material. Set either the key or the path but not both. |
-| SSAS_PUBLIC_SIGNING_KEY_PATH | Depends | X |   | Provides the location of the public server signing key. When setting vars for AWS envs, you must include a var for the key material. Set either the key or the path but not both. |
+| SSAS_ADMIN_SIGNING_KEY <br/>or<br/> SSAS_ADMIN_SIGNING_KEY_PATH| Yes | X |   | Provides the plaintext/path of the admin server signing key. When setting vars for AWS envs, you must include a var for the key material. Set either the key or the path but not both. |
+| SSAS_PUBLIC_SIGNING_KEY <br/>or <br/>SSAS_PUBLIC_SIGNING_KEY_PATH | Yes | X |   | Provides the plaintext/path of the public server signing key. When setting vars for AWS envs, you must include a var for the key material. Set either the key or the path but not both. |
 | SSAS_TOKEN_BLACKLIST_CACHE_ <br/> CLEANUP_MINUTES  | No | X | | Tunes the frequency that expired entries are cleared from the token blacklist cache.  Defaults to 15 minutes. |
 | SSAS_TOKEN_BLACKLIST_CACHE_ <br/> TIMEOUT_MINUTES  | No | X | | Sets the lifetime of token blacklist cache entries.  Defaults to 24 hours. |
 | SSAS_TOKEN_BLACKLIST_CACHE_ <br/> REFRESH_MINUTES  | No | X | | Configures the number of minutes between times the token blacklist cache is refreshed from the database. |
