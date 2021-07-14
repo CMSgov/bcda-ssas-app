@@ -214,6 +214,16 @@ func (s *SystemsTestSuite) TestSystemSavePublicKey() {
 	assert.NotNil(storedKey)
 	assert.Equal(storedKey.Body, string(publicKeyBytes))
 
+	keyPair, _ = rsa.GenerateKey(rand.Reader, 2048)
+	publicKeyPKIX, _ = x509.MarshalPKIXPublicKey(&keyPair.PublicKey)
+	publicKeyBytes = pem.EncodeToMemory(&pem.Block{
+		Type:  "RSA PUBLIC KEY",
+		Bytes: publicKeyPKIX,
+	})
+	_ = system.SavePublicKey(bytes.NewReader(publicKeyBytes), "")
+	keys, _ := system.GetEncryptionKeys("")
+	assert.Len(keys, 1)
+
 	err = CleanDatabase(group)
 	assert.Nil(err)
 }
