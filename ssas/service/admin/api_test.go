@@ -496,14 +496,14 @@ func (s *APITestSuite) TestGetPublicKeyRotation() {
 		s.FailNow(err.Error())
 	}
 
-	key1, _ := ssas.GeneratePublicKey(2048)
-	err = system.SavePublicKey(strings.NewReader(key1))
+	key1, _, _ := ssas.GeneratePublicKey(2048)
+	err = system.SavePublicKey(strings.NewReader(key1), "")
 	if err != nil {
 		s.FailNow(err.Error())
 	}
 
-	key2, _ := ssas.GeneratePublicKey(2048)
-	err = system.SavePublicKey(strings.NewReader(key2))
+	key2, _, _ := ssas.GeneratePublicKey(2048)
+	err = system.SavePublicKey(strings.NewReader(key2), "")
 	if err != nil {
 		s.FailNow(err.Error())
 	}
@@ -1159,4 +1159,66 @@ func (s *APITestSuite) TestCreateAndDeleteAdditionalV2SystemToken() {
 	_ = json.Unmarshal(b, &system)
 
 	assert.Len(s.T(), system.ClientTokens, 1)
+}
+
+func (s *APITestSuite) TestCreateAndDeletePublicKey() {
+	creds, _ := ssas.CreateTestXDataV2(s.T(), s.db)
+
+	key, sig, _ := ssas.GeneratePublicKey(2048)
+	keyStr := strings.Replace(key, "\n", "\\n", -1)
+	req := httptest.NewRequest("POST", fmt.Sprintf("/v2/system/%s/key", creds.SystemID), strings.NewReader(fmt.Sprintf(`{"public_key":"%s", "signature":"%s"}`, keyStr, sig)))
+	rctx := chi.NewRouteContext()
+	rctx.URLParams.Add("systemID", creds.SystemID)
+	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+	handler := http.HandlerFunc(createKey)
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+
+	//verify it created the new key
+	b, _ := ioutil.ReadAll(rr.Body)
+	var responseMap map[string]string
+	_ = json.Unmarshal(b, &responseMap)
+	assert.NotNil(s.T(), string(b))
+	assert.NotNil(s.T(), responseMap["id"])
+	assert.NotNil(s.T(), responseMap["client_id"])
+	assert.NotNil(s.T(), responseMap["public_key"])
+
+	req = httptest.NewRequest("GET", fmt.Sprintf("/v2/system/%s", creds.SystemID), nil)
+	rctx = chi.NewRouteContext()
+	rctx.URLParams.Add("id", creds.SystemID)
+	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+	handler = getSystem
+	rr = httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+
+	b, _ = ioutil.ReadAll(rr.Body)
+	var system ssas.SystemOutput
+	_ = json.Unmarshal(b, &system)
+
+	assert.Len(s.T(), system.PublicKeys, 2)
+	assert.Equal(s.T(), key, system.PublicKeys[1].Key)
+
+	//delete the key
+	req = httptest.NewRequest("DELETE", fmt.Sprintf("/v2/system/%s/key/%s", creds.SystemID, system.PublicKeys[1].ID), nil)
+	rctx = chi.NewRouteContext()
+	rctx.URLParams.Add("systemID", creds.SystemID)
+	rctx.URLParams.Add("id", system.PublicKeys[1].ID)
+	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+	handler = deleteKey
+	rr = httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+
+	//verify the key is deleted
+	req = httptest.NewRequest("GET", fmt.Sprintf("/v2/system/%s", creds.SystemID), nil)
+	rctx = chi.NewRouteContext()
+	rctx.URLParams.Add("id", creds.SystemID)
+	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+	handler = getSystem
+	rr = httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+
+	b, _ = ioutil.ReadAll(rr.Body)
+	_ = json.Unmarshal(b, &system)
+
+	assert.Len(s.T(), system.PublicKeys, 1)
 }
