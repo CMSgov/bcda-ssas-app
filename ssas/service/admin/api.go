@@ -783,7 +783,7 @@ func createKey(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	keyStr := strings.Replace(key.Body, "\n", "\\n", -1)
-	fmt.Fprintf(w, `{ "client_id": "%s", "public_key": "%s" }`, system.ClientID, keyStr)
+	fmt.Fprintf(w, `{ "client_id": "%s", "public_key": "%s", "id": "%s"}`, system.ClientID, keyStr, key.UUID)
 }
 
 func deleteKey(w http.ResponseWriter, r *http.Request) {

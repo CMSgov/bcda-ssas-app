@@ -1176,7 +1176,12 @@ func (s *APITestSuite) TestCreateAndDeletePublicKey() {
 
 	//verify it created the new key
 	b, _ := ioutil.ReadAll(rr.Body)
+	var responseMap map[string]string
+	_ = json.Unmarshal(b, &responseMap)
 	assert.NotNil(s.T(), string(b))
+	assert.NotNil(s.T(), responseMap["id"])
+	assert.NotNil(s.T(), responseMap["client_id"])
+	assert.NotNil(s.T(), responseMap["public_key"])
 
 	req = httptest.NewRequest("GET", fmt.Sprintf("/v2/system/%s", creds.SystemID), nil)
 	rctx = chi.NewRouteContext()
