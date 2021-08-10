@@ -773,13 +773,12 @@ func createKey(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := system.AddAdditionalPublicKey(strings.NewReader(pk.PublicKey), pk.Signature); err != nil {
+	key, err := system.AddAdditionalPublicKey(strings.NewReader(pk.PublicKey), pk.Signature)
+	if err != nil {
 		ssas.OperationFailed(keyEvent)
 		jsonError(w, http.StatusInternalServerError, "Failed to add additional public key")
 		return
 	}
-
-	key, _ := system.GetEncryptionKey(trackingID)
 
 	w.Header().Set("Content-Type", "application/json")
 	keyStr := strings.Replace(key.Body, "\n", "\\n", -1)
