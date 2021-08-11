@@ -1,4 +1,4 @@
-# System-to-System Authentication Service (SSAS)
+# System-to-System Authentication Service (SSAS) 
 
 The SSAS can be run as a standalone web service or embedded as a library.
 
