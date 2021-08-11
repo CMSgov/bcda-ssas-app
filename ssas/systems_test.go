@@ -203,13 +203,12 @@ func (s *SystemsTestSuite) TestSystemSavePublicKey() {
 	assert.NotNil(publicKeyBytes, "unexpectedly empty public key byte slice")
 
 	// Save key
-	err = system.SavePublicKey(bytes.NewReader(publicKeyBytes), "")
+	storedKey, err := system.SavePublicKey(bytes.NewReader(publicKeyBytes), "")
 	if err != nil {
 		assert.FailNow("error saving key: " + err.Error())
 	}
 
 	// Retrieve and verify
-	storedKey, err := system.GetEncryptionKey("")
 	assert.Nil(err)
 	assert.NotNil(storedKey)
 	assert.Equal(storedKey.Body, string(publicKeyBytes))
@@ -220,7 +219,7 @@ func (s *SystemsTestSuite) TestSystemSavePublicKey() {
 		Type:  "RSA PUBLIC KEY",
 		Bytes: publicKeyPKIX,
 	})
-	_ = system.SavePublicKey(bytes.NewReader(publicKeyBytes), "")
+	_, _ = system.SavePublicKey(bytes.NewReader(publicKeyBytes), "")
 	keys, _ := system.GetEncryptionKeys("")
 	assert.Len(keys, 1)
 
@@ -263,16 +262,16 @@ OwIDAQAB
 	})
 	assert.NotNil(lowBitPubKey, "unexpectedly empty public key byte slice")
 
-	err = system.SavePublicKey(strings.NewReader(""), "")
+	_, err = system.SavePublicKey(strings.NewReader(""), "")
 	assert.NotNil(err, "empty string should not be saved")
 
-	err = system.SavePublicKey(strings.NewReader(emptyPEM), "")
+	_, err = system.SavePublicKey(strings.NewReader(emptyPEM), "")
 	assert.NotNil(err, "empty PEM should not be saved")
 
-	err = system.SavePublicKey(strings.NewReader(invalidPEM), "")
+	_, err = system.SavePublicKey(strings.NewReader(invalidPEM), "")
 	assert.NotNil(err, "invalid PEM should not be saved")
 
-	err = system.SavePublicKey(bytes.NewReader(lowBitPubKey), "")
+	_, err = system.SavePublicKey(bytes.NewReader(lowBitPubKey), "")
 	assert.NotNil(err, "insecure public key should not be saved")
 
 	err = CleanDatabase(group)
@@ -297,17 +296,17 @@ func (s *SystemsTestSuite) TestSystemPublicKeyEmpty() {
 	validPEM, _, err := generatePublicKey(2048)
 	assert.Nil(err)
 
-	err = system.SavePublicKey(strings.NewReader(""), "")
+	_, err = system.SavePublicKey(strings.NewReader(""), "")
 	assert.EqualError(err, fmt.Sprintf("invalid public key for clientID %s: not able to decode PEM-formatted public key", clientID))
 	k, err := system.GetEncryptionKey("")
 	assert.EqualError(err, fmt.Sprintf("cannot find key for clientID %s: record not found", clientID))
 	assert.Empty(k, "Empty string does not yield empty encryption key!")
-	err = system.SavePublicKey(strings.NewReader(emptyPEM), "")
+	_, err = system.SavePublicKey(strings.NewReader(emptyPEM), "")
 	assert.EqualError(err, fmt.Sprintf("invalid public key for clientID %s: not able to decode PEM-formatted public key", clientID))
 	k, err = system.GetEncryptionKey("")
 	assert.EqualError(err, fmt.Sprintf("cannot find key for clientID %s: record not found", clientID))
 	assert.Empty(k, "Empty PEM key does not yield empty encryption key!")
-	err = system.SavePublicKey(strings.NewReader(validPEM), "")
+	_, err = system.SavePublicKey(strings.NewReader(validPEM), "")
 	assert.Nil(err)
 	k, err = system.GetEncryptionKey("")
 	assert.Nil(err)

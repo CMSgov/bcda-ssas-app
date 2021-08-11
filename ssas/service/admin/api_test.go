@@ -497,16 +497,18 @@ func (s *APITestSuite) TestGetPublicKeyRotation() {
 	}
 
 	key1, _, _ := ssas.GeneratePublicKey(2048)
-	err = system.SavePublicKey(strings.NewReader(key1), "")
+	rk1, err := system.SavePublicKey(strings.NewReader(key1), "")
 	if err != nil {
 		s.FailNow(err.Error())
 	}
 
 	key2, _, _ := ssas.GeneratePublicKey(2048)
-	err = system.SavePublicKey(strings.NewReader(key2), "")
+	rk2, err := system.SavePublicKey(strings.NewReader(key2), "")
 	if err != nil {
 		s.FailNow(err.Error())
 	}
+
+	assert.NotEqual(s.T(), rk1.UUID, rk2.UUID)
 
 	systemID := strconv.FormatUint(uint64(system.ID), 10)
 	req := httptest.NewRequest("GET", "/system/"+systemID+"/key", nil)
