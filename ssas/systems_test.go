@@ -293,7 +293,7 @@ func (s *SystemsTestSuite) TestSystemPublicKeyEmpty() {
 	assert.Nil(err)
 
 	emptyPEM := "-----BEGIN RSA PUBLIC KEY-----    -----END RSA PUBLIC KEY-----"
-	validPEM, _, err := generatePublicKey(2048)
+	validPEM, _, _, err := generatePublicKey(2048)
 	assert.Nil(err)
 
 	_, err = system.SavePublicKey(strings.NewReader(""), "")
@@ -410,7 +410,7 @@ func (s *SystemsTestSuite) TestRegisterSystemSuccess() {
 		s.FailNow(err.Error())
 	}
 
-	pubKey, _, err := generatePublicKey(2048)
+	pubKey, _, _, err := generatePublicKey(2048)
 	assert.Nil(err)
 
 	creds, err := RegisterSystem("Create System Test", groupID, DefaultScope, pubKey, []string{}, trackingID)
@@ -433,7 +433,7 @@ func (s *SystemsTestSuite) TestUpdateSystemSuccess() {
 		s.FailNow(err.Error())
 	}
 
-	pubKey, _, err := generatePublicKey(2048)
+	pubKey, _, _, err := generatePublicKey(2048)
 	assert.Nil(err)
 
 	creds, err := RegisterSystem("Create System Test", groupID, DefaultScope, pubKey, []string{}, trackingID)
@@ -486,7 +486,7 @@ func (s *SystemsTestSuite) TestRegisterSystemMissingData() {
 		s.FailNow(err.Error())
 	}
 
-	pubKey, _, err := generatePublicKey(2048)
+	pubKey, _, _, err := generatePublicKey(2048)
 	assert.Nil(err)
 
 	// No clientName
@@ -533,7 +533,7 @@ func (s *SystemsTestSuite) TestRegisterSystemIps() {
 		s.FailNow(err.Error())
 	}
 
-	pubKey, _, err := generatePublicKey(2048)
+	pubKey, _, _, err := generatePublicKey(2048)
 	assert.Nil(err)
 
 	for _, address := range goodIps {
@@ -580,7 +580,7 @@ func (s *SystemsTestSuite) TestRegisterSystemBadKey() {
 		s.FailNow(err.Error())
 	}
 
-	pubKey, _, err := generatePublicKey(1024)
+	pubKey, _, _, err := generatePublicKey(1024)
 	assert.Nil(err)
 
 	// Blank key ok
@@ -601,7 +601,7 @@ func (s *SystemsTestSuite) TestRegisterSystemBadKey() {
 	assert.Nil(CleanDatabase(group))
 }
 
-func generatePublicKey(bits int) (string, string, error) {
+func generatePublicKey(bits int) (string, string, *rsa.PrivateKey, error) {
 	return GeneratePublicKey(bits)
 }
 

@@ -340,7 +340,13 @@ func (s *Server) VerifyClientSignedToken(tokenString string, trackingId string) 
 			ssas.Logger.Error(err)
 			return nil, fmt.Errorf("failed to retrieve system information")
 		}
-		key, err := system.GetEncryptionKey(trackingId)
+
+		kid := token.Header["kid"]
+		if kid == nil {
+			return nil, fmt.Errorf("missing public key id (kid) in jwt header")
+		}
+
+		key, err := system.FindEncryptionKey(trackingId, kid.(string))
 		if err != nil {
 			ssas.Logger.Error(err)
 			return nil, fmt.Errorf("key not found for system: %v", claims.Issuer)
