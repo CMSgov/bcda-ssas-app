@@ -1,1746 +1,3168 @@
 {
 	"info": {
-		"_postman_id": "c1130300-8642-4439-be8f-90e38e434028",
+		"_postman_id": "c8cafc54-5b2b-48d4-8966-be3e34ddba3d",
 		"name": "SSAS Smoke Test",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
 	},
 	"item": [
 		{
-			"name": "admin info",
-			"event": [
+			"name": "v1",
+			"item": [
 				{
-					"listen": "test",
-					"script": {
-						"id": "7eed4529-33af-44f5-b850-6c9cf923c890",
-						"exec": [
-							"var schema = {",
-							"    \"properties\": {",
-							"        \"banner\": { \"type\": \"array\", \"items\": { \"type\": \"string\" } },",
-							"        \"routes\": { \"type\": \"array\", \"items\": { \"type\": \"string\" } }",
-							"    }",
-							"};",
-							"var Ajv = require('ajv');",
-							"var ajv = new Ajv({schemas: [schema]});",
-							"",
-							"pm.test(\"Response is 'ok'\", function () {",
-							"    pm.response.to.have.status(200);",
-							"});",
-							"",
-							"pm.test(\"Body contains path of an endpoint\", function () {",
-							"    pm.expect(pm.response.text()).to.include(\"/_info\");",
-							"});",
-							"",
-							"pm.test('Schema is valid', function() {",
-							"    pm.expect(ajv.validate(schema, pm.response.text())).to.be.true;",
-							"});",
-							""
-						],
-						"type": "text/javascript"
-					}
-				}
-			],
-			"request": {
-				"method": "GET",
-				"header": [],
-				"url": {
-					"raw": "{{scheme}}://{{host}}:{{admin-port}}/_info",
-					"protocol": "{{scheme}}",
-					"host": [
-						"{{host}}"
+					"name": "admin info",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var schema = {",
+									"    \"properties\": {",
+									"        \"banner\": { \"type\": \"array\", \"items\": { \"type\": \"string\" } },",
+									"        \"routes\": { \"type\": \"array\", \"items\": { \"type\": \"string\" } }",
+									"    }",
+									"};",
+									"var Ajv = require('ajv');",
+									"var ajv = new Ajv({schemas: [schema]});",
+									"",
+									"pm.test(\"Response is 'ok'\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Body contains path of an endpoint\", function () {",
+									"    pm.expect(pm.response.text()).to.include(\"/_info\");",
+									"});",
+									"",
+									"pm.test('Schema is valid', function() {",
+									"    pm.expect(ajv.validate(schema, pm.response.text())).to.be.true;",
+									"});",
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
 					],
-					"port": "{{admin-port}}",
-					"path": [
-						"_info"
-					]
-				}
-			},
-			"response": []
-		},
-		{
-			"name": "admin health",
-			"event": [
-				{
-					"listen": "test",
-					"script": {
-						"id": "63bf165a-5270-4247-899d-abaf1d5ea1e7",
-						"exec": [
-							"var schema = {",
-							"  \"$id\": \"https://bcda.cms.gov/schemas/health.json\",",
-							"  \"database\": { \"type\": \"string\" }",
-							"};",
-							"",
-							"var Ajv = require('ajv');",
-							"var ajv = new Ajv({schemas: [schema]});",
-							"",
-							"pm.test(\"Response is 'ok'\", function () {",
-							"    pm.response.to.have.status(200);",
-							"});",
-							"",
-							"pm.test(\"Body contains 'ok'\", function () {",
-							"    pm.expect(pm.response.text()).to.include(\"ok\");",
-							"});",
-							"",
-							"pm.test('Schema is valid', function() {",
-							"    pm.expect(ajv.validate(schema, pm.response.text())).to.be.true;",
-							"});",
-							""
-						],
-						"type": "text/javascript"
-					}
-				}
-			],
-			"request": {
-				"method": "GET",
-				"header": [],
-				"url": {
-					"raw": "{{scheme}}://{{host}}:{{public-port}}/_health",
-					"protocol": "{{scheme}}",
-					"host": [
-						"{{host}}"
-					],
-					"port": "{{public-port}}",
-					"path": [
-						"_health"
-					]
-				}
-			},
-			"response": []
-		},
-		{
-			"name": "admin _version",
-			"event": [
-				{
-					"listen": "test",
-					"script": {
-						"id": "e27e97e8-5def-4ef8-9674-6fbdb916bd3c",
-						"exec": [
-							"var schema = {",
-							"    \"properties\": {",
-							"        \"version\": { \"type\": \"string\" },",
-							"    },",
-							"    \"additionalProperties\": false",
-							"};",
-							"var Ajv = require('ajv');",
-							"var ajv = new Ajv({schemas: [schema]});",
-							"",
-							"pm.test(\"Response is 'ok'\", function () {",
-							"    pm.response.to.have.status(200);",
-							"});",
-							"",
-							"// Enable when actual version returned",
-							"//",
-							"// pm.test(\"Response is JSON\", function () {",
-							"    // pm.response.to.have.jsonBody(\"version\")",
-							"// });",
-							"",
-							"//pm.test('Schema is valid', function() {",
-							"//    pm.expect(ajv.validate(schema, pm.response.text())).to.be.true;",
-							"//});"
-						],
-						"type": "text/javascript"
-					}
-				}
-			],
-			"request": {
-				"method": "GET",
-				"header": [],
-				"url": {
-					"raw": "{{scheme}}://{{host}}:{{public-port}}/_version",
-					"protocol": "{{scheme}}",
-					"host": [
-						"{{host}}"
-					],
-					"port": "{{public-port}}",
-					"path": [
-						"_version"
-					]
-				}
-			},
-			"response": []
-		},
-		{
-			"name": "public info",
-			"event": [
-				{
-					"listen": "test",
-					"script": {
-						"id": "ddc77bbc-3c68-4d0b-b7ce-b82aa441ea10",
-						"exec": [
-							"var schema = {",
-							"    \"properties\": {",
-							"        \"banner\": { \"type\": \"array\", \"items\": { \"type\": \"string\" } },",
-							"        \"routes\": { \"type\": \"array\", \"items\": { \"type\": \"string\" } }",
-							"    }",
-							"};",
-							"var Ajv = require('ajv');",
-							"var ajv = new Ajv({schemas: [schema]});",
-							"",
-							"pm.test(\"Response is 'ok'\", function () {",
-							"    pm.response.to.have.status(200);",
-							"});",
-							"",
-							"pm.test(\"Body contains path of an endpoint\", function () {",
-							"    pm.expect(pm.response.text()).to.include(\"/_info\");",
-							"});",
-							"",
-							"pm.test('Schema is valid', function() {",
-							"    pm.expect(ajv.validate(schema, pm.response.text())).to.be.true;",
-							"});",
-							""
-						],
-						"type": "text/javascript"
-					}
-				}
-			],
-			"request": {
-				"method": "GET",
-				"header": [],
-				"url": {
-					"raw": "{{scheme}}://{{host}}:{{public-port}}/_info",
-					"protocol": "{{scheme}}",
-					"host": [
-						"{{host}}"
-					],
-					"port": "{{public-port}}",
-					"path": [
-						"_info"
-					]
-				}
-			},
-			"response": []
-		},
-		{
-			"name": "public health",
-			"event": [
-				{
-					"listen": "test",
-					"script": {
-						"id": "17a9d1b6-b86f-4eb2-87d6-1aa68b59b2d6",
-						"exec": [
-							"var schema = {",
-							"  \"$id\": \"https://bcda.cms.gov/schemas/health.json\",",
-							"  \"database\": { \"type\": \"string\" }",
-							"};",
-							"",
-							"var Ajv = require('ajv');",
-							"var ajv = new Ajv({schemas: [schema]});",
-							"",
-							"pm.test(\"Response is 'ok'\", function () {",
-							"    pm.response.to.have.status(200);",
-							"});",
-							"",
-							"pm.test(\"Body contains 'ok'\", function () {",
-							"    pm.expect(pm.response.text()).to.include(\"ok\");",
-							"});",
-							"",
-							"pm.test('Schema is valid', function() {",
-							"    pm.expect(ajv.validate(schema, pm.response.text())).to.be.true;",
-							"});",
-							""
-						],
-						"type": "text/javascript"
-					}
-				}
-			],
-			"request": {
-				"method": "GET",
-				"header": [],
-				"url": {
-					"raw": "{{scheme}}://{{host}}:{{public-port}}/_health",
-					"protocol": "{{scheme}}",
-					"host": [
-						"{{host}}"
-					],
-					"port": "{{public-port}}",
-					"path": [
-						"_health"
-					]
-				}
-			},
-			"response": []
-		},
-		{
-			"name": "public _version",
-			"event": [
-				{
-					"listen": "test",
-					"script": {
-						"id": "8930dacb-18c0-47b3-a65a-c294f2de0c66",
-						"exec": [
-							"var schema = {",
-							"    \"properties\": {",
-							"        \"version\": { \"type\": \"string\" },",
-							"    },",
-							"    \"additionalProperties\": false",
-							"};",
-							"var Ajv = require('ajv');",
-							"var ajv = new Ajv({schemas: [schema]});",
-							"",
-							"pm.test(\"Response is 'ok'\", function () {",
-							"    pm.response.to.have.status(200);",
-							"});",
-							"",
-							"// Enable when actual version returned",
-							"//",
-							"// pm.test(\"Response is JSON\", function () {",
-							"    // pm.response.to.have.jsonBody(\"version\")",
-							"// });",
-							"",
-							"//pm.test('Schema is valid', function() {",
-							"//    pm.expect(ajv.validate(schema, pm.response.text())).to.be.true;",
-							"//});"
-						],
-						"type": "text/javascript"
-					}
-				}
-			],
-			"request": {
-				"method": "GET",
-				"header": [],
-				"url": {
-					"raw": "{{scheme}}://{{host}}:{{public-port}}/_version",
-					"protocol": "{{scheme}}",
-					"host": [
-						"{{host}}"
-					],
-					"port": "{{public-port}}",
-					"path": [
-						"_version"
-					]
-				}
-			},
-			"response": []
-		},
-		{
-			"name": "create group",
-			"event": [
-				{
-					"listen": "test",
-					"script": {
-						"id": "40b43941-8642-4c9f-b534-7497afc33158",
-						"exec": [
-							"var schema = {",
-							"    \"properties\": {",
-							"        \"ID\": { \"type\": \"integer\" },",
-							"        \"group_id\": { \"type\": \"string\" },",
-							"        \"data\": { ",
-							"            \"properties\": {",
-							"                \"id\": { \"type\": \"string\" },",
-							"                \"name\": { \"type\": \"string\" },",
-							"                \"users\": { \"type\": \"array\", \"items\": { \"type\": \"string\" } },",
-							"                \"scopes\": { \"type\": \"array\", \"items\": { \"type\": \"string\" } },",
-							"                \"resources\": { ",
-							"                    \"type\": \"array\", \"items\": { ",
-							"                        \"properties\": {",
-							"                            \"id\": { \"type\": \"string\" },",
-							"                            \"name\": { \"type\": \"string\" },",
-							"                            \"scopes\": { \"type\": \"array\", \"items\": { \"type\": \"string\" } }",
-							"                        }",
-							"                    }",
-							"                },",
-							"                \"system\": {",
-							"                    \"type\": \"array\", \"items\": {",
-							"                        \"properties\": {",
-							"                            \"client_id\": { \"type\": \"string\" },",
-							"                            \"software_id\": { \"type\": \"string\" },",
-							"                            \"client_name\": { \"type\": \"string\" }",
-							"                        }",
-							"                    }",
-							"                }",
-							"            }",
-							"        }",
-							"    }",
-							"};",
-							"var Ajv = require('ajv');",
-							"var ajv = new Ajv({schemas: [schema]});",
-							"",
-							"pm.test(\"Response is 'created'\", function () {",
-							"    pm.response.to.have.status(201);",
-							"});",
-							"",
-							"pm.test(\"Group.group_id has expected value\", function () {",
-							"    pm.response.to.have.jsonBody(\"group_id\", pm.environment.get(\"group.group_id\"))",
-							"});",
-							"",
-							"pm.test(\"Group.data is JSON\", function () {",
-							"    pm.response.to.have.jsonBody(\"data\")",
-							"});",
-							"",
-							"pm.test('Schema is valid', function() {",
-							"    pm.expect(ajv.validate(schema, pm.response.text())).to.be.true;",
-							"});",
-							"",
-							"var respJson = pm.response.json();",
-							"pm.environment.set(\"group.id\", respJson.ID);"
-						],
-						"type": "text/javascript"
-					}
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{scheme}}://{{host}}:{{admin-port}}/_info",
+							"protocol": "{{scheme}}",
+							"host": [
+								"{{host}}"
+							],
+							"port": "{{admin-port}}",
+							"path": [
+								"_info"
+							]
+						}
+					},
+					"response": []
 				},
 				{
-					"listen": "prerequest",
-					"script": {
-						"id": "74fb0f27-d801-4bb1-8f4d-7c8f6f2e9d46",
-						"exec": [
-							"const uuid = require('uuid')",
-							"pm.environment.set(\"group.group_id\", uuid());"
-						],
-						"type": "text/javascript"
-					}
-				}
-			],
-			"request": {
-				"auth": {
-					"type": "basic",
-					"basic": [
+					"name": "admin health",
+					"event": [
 						{
-							"key": "password",
-							"value": "{{adminClientSecret}}",
-							"type": "string"
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var schema = {",
+									"  \"$id\": \"https://bcda.cms.gov/schemas/health.json\",",
+									"  \"database\": { \"type\": \"string\" }",
+									"};",
+									"",
+									"var Ajv = require('ajv');",
+									"var ajv = new Ajv({schemas: [schema]});",
+									"",
+									"pm.test(\"Response is 'ok'\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Body contains 'ok'\", function () {",
+									"    pm.expect(pm.response.text()).to.include(\"ok\");",
+									"});",
+									"",
+									"pm.test('Schema is valid', function() {",
+									"    pm.expect(ajv.validate(schema, pm.response.text())).to.be.true;",
+									"});",
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{scheme}}://{{host}}:{{public-port}}/_health",
+							"protocol": "{{scheme}}",
+							"host": [
+								"{{host}}"
+							],
+							"port": "{{public-port}}",
+							"path": [
+								"_health"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "admin _version",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var schema = {",
+									"    \"properties\": {",
+									"        \"version\": { \"type\": \"string\" },",
+									"    },",
+									"    \"additionalProperties\": false",
+									"};",
+									"var Ajv = require('ajv');",
+									"var ajv = new Ajv({schemas: [schema]});",
+									"",
+									"pm.test(\"Response is 'ok'\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Response is JSON\", function () {",
+									"    pm.response.to.have.jsonBody(\"version\")",
+									"});",
+									"",
+									"pm.test('Schema is valid', function() {",
+									"   pm.expect(ajv.validate(schema, pm.response.text())).to.be.true;",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{scheme}}://{{host}}:{{public-port}}/_version",
+							"protocol": "{{scheme}}",
+							"host": [
+								"{{host}}"
+							],
+							"port": "{{public-port}}",
+							"path": [
+								"_version"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "public info",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var schema = {",
+									"    \"properties\": {",
+									"        \"banner\": { \"type\": \"array\", \"items\": { \"type\": \"string\" } },",
+									"        \"routes\": { \"type\": \"array\", \"items\": { \"type\": \"string\" } }",
+									"    }",
+									"};",
+									"var Ajv = require('ajv');",
+									"var ajv = new Ajv({schemas: [schema]});",
+									"",
+									"pm.test(\"Response is 'ok'\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Body contains path of an endpoint\", function () {",
+									"    pm.expect(pm.response.text()).to.include(\"/_info\");",
+									"});",
+									"",
+									"pm.test('Schema is valid', function() {",
+									"    pm.expect(ajv.validate(schema, pm.response.text())).to.be.true;",
+									"});",
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{scheme}}://{{host}}:{{public-port}}/_info",
+							"protocol": "{{scheme}}",
+							"host": [
+								"{{host}}"
+							],
+							"port": "{{public-port}}",
+							"path": [
+								"_info"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "public health",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var schema = {",
+									"  \"$id\": \"https://bcda.cms.gov/schemas/health.json\",",
+									"  \"database\": { \"type\": \"string\" }",
+									"};",
+									"",
+									"var Ajv = require('ajv');",
+									"var ajv = new Ajv({schemas: [schema]});",
+									"",
+									"pm.test(\"Response is 'ok'\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Body contains 'ok'\", function () {",
+									"    pm.expect(pm.response.text()).to.include(\"ok\");",
+									"});",
+									"",
+									"pm.test('Schema is valid', function() {",
+									"    pm.expect(ajv.validate(schema, pm.response.text())).to.be.true;",
+									"});",
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{scheme}}://{{host}}:{{public-port}}/_health",
+							"protocol": "{{scheme}}",
+							"host": [
+								"{{host}}"
+							],
+							"port": "{{public-port}}",
+							"path": [
+								"_health"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "public _version",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var schema = {",
+									"    \"properties\": {",
+									"        \"version\": { \"type\": \"string\" },",
+									"    },",
+									"    \"additionalProperties\": false",
+									"};",
+									"var Ajv = require('ajv');",
+									"var ajv = new Ajv({schemas: [schema]});",
+									"",
+									"pm.test(\"Response is 'ok'\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Response is JSON\", function () {",
+									"    pm.response.to.have.jsonBody(\"version\")",
+									"});",
+									"",
+									"pm.test('Schema is valid', function() {",
+									"   pm.expect(ajv.validate(schema, pm.response.text())).to.be.true;",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{scheme}}://{{host}}:{{public-port}}/_version",
+							"protocol": "{{scheme}}",
+							"host": [
+								"{{host}}"
+							],
+							"port": "{{public-port}}",
+							"path": [
+								"_version"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "create group",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var schema = {",
+									"    \"properties\": {",
+									"        \"ID\": { \"type\": \"integer\" },",
+									"        \"group_id\": { \"type\": \"string\" },",
+									"        \"data\": { ",
+									"            \"properties\": {",
+									"                \"id\": { \"type\": \"string\" },",
+									"                \"name\": { \"type\": \"string\" },",
+									"                \"users\": { \"type\": \"array\", \"items\": { \"type\": \"string\" } },",
+									"                \"scopes\": { \"type\": \"array\", \"items\": { \"type\": \"string\" } },",
+									"                \"resources\": { ",
+									"                    \"type\": \"array\", \"items\": { ",
+									"                        \"properties\": {",
+									"                            \"id\": { \"type\": \"string\" },",
+									"                            \"name\": { \"type\": \"string\" },",
+									"                            \"scopes\": { \"type\": \"array\", \"items\": { \"type\": \"string\" } }",
+									"                        }",
+									"                    }",
+									"                },",
+									"                \"system\": {",
+									"                    \"type\": \"array\", \"items\": {",
+									"                        \"properties\": {",
+									"                            \"client_id\": { \"type\": \"string\" },",
+									"                            \"software_id\": { \"type\": \"string\" },",
+									"                            \"client_name\": { \"type\": \"string\" }",
+									"                        }",
+									"                    }",
+									"                }",
+									"            }",
+									"        }",
+									"    }",
+									"};",
+									"var Ajv = require('ajv');",
+									"var ajv = new Ajv({schemas: [schema]});",
+									"",
+									"pm.test(\"Response is 'created'\", function () {",
+									"    pm.response.to.have.status(201);",
+									"});",
+									"",
+									"pm.test(\"Group.group_id has expected value\", function () {",
+									"    pm.response.to.have.jsonBody(\"group_id\", pm.environment.get(\"group.group_id\"))",
+									"});",
+									"",
+									"pm.test(\"Group.data is JSON\", function () {",
+									"    pm.response.to.have.jsonBody(\"data\")",
+									"});",
+									"",
+									"pm.test('Schema is valid', function() {",
+									"    pm.expect(ajv.validate(schema, pm.response.text())).to.be.true;",
+									"});",
+									"",
+									"var respJson = pm.response.json();",
+									"pm.environment.set(\"group.id\", respJson.ID);"
+								],
+								"type": "text/javascript"
+							}
 						},
 						{
-							"key": "username",
-							"value": "{{adminClientId}}",
-							"type": "string"
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"const uuid = require('uuid')",
+									"pm.environment.set(\"group.group_id\", uuid());"
+								],
+								"type": "text/javascript"
+							}
 						}
-					]
-				},
-				"method": "POST",
-				"header": [
-					{
-						"key": "Content-Type",
-						"name": "Content-Type",
-						"value": "application/json",
-						"type": "text"
-					}
-				],
-				"body": {
-					"mode": "raw",
-					"raw": "{\n  \"group_id\": \"{{group.group_id}}\",\n  \"name\": \"Smoke Test Group\",\n  \"xdata\": \"{\\\"cms_ids\\\":[\\\"A9994\\\"]}\",\n  \"resources\": [\n    {\n      \"id\": \"bcda\",\n      \"name\": \"BCDA API\",\n      \"scopes\": [\n        \"bcda-api\"\n      ]\n    }\n  ]\n}"
-				},
-				"url": {
-					"raw": "{{scheme}}://{{host}}:{{admin-port}}/group",
-					"protocol": "{{scheme}}",
-					"host": [
-						"{{host}}"
 					],
-					"port": "{{admin-port}}",
-					"path": [
-						"group"
-					]
-				}
-			},
-			"response": []
-		},
-		{
-			"name": "update group",
-			"event": [
-				{
-					"listen": "test",
-					"script": {
-						"id": "785d8f72-9f92-437c-a069-eb93a993f022",
-						"exec": [
-							"var schema = {",
-							"    \"properties\": {",
-							"        \"ID\": { \"type\": \"integer\" },",
-							"        \"group_id\": { \"type\": \"string\" },",
-							"        \"data\": { ",
-							"            \"properties\": {",
-							"                \"id\": { \"type\": \"string\" },",
-							"                \"name\": { \"type\": \"string\" },",
-							"                \"users\": { \"type\": \"array\", \"items\": { \"type\": \"string\" } },",
-							"                \"scopes\": { \"type\": \"array\", \"items\": { \"type\": \"string\" } },",
-							"                \"resources\": { ",
-							"                    \"type\": \"array\", \"items\": { ",
-							"                        \"properties\": {",
-							"                            \"id\": { \"type\": \"string\" },",
-							"                            \"name\": { \"type\": \"string\" },",
-							"                            \"scopes\": { \"type\": \"array\", \"items\": { \"type\": \"string\" } }",
-							"                        }",
-							"                    }",
-							"                },",
-							"                \"system\": {",
-							"                    \"type\": \"array\", \"items\": {",
-							"                        \"properties\": {",
-							"                            \"client_id\": { \"type\": \"string\" },",
-							"                            \"software_id\": { \"type\": \"string\" },",
-							"                            \"client_name\": { \"type\": \"string\" }",
-							"                        }",
-							"                    }",
-							"                }",
-							"            }",
-							"        }",
-							"    }",
-							"};",
-							"var Ajv = require('ajv');",
-							"var ajv = new Ajv({schemas: [schema]});",
-							"",
-							"pm.test(\"Response is 'ok'\", function () {",
-							"    pm.response.to.have.status(200);",
-							"});",
-							"",
-							"pm.test(\"Group.group_id has original value\", function () {",
-							"    pm.response.to.have.jsonBody(\"group_id\", pm.environment.get(\"group.group_id\"))",
-							"});",
-							"",
-							"pm.test(\"Group.data is JSON\", function () {",
-							"    pm.response.to.have.jsonBody(\"data\")",
-							"});",
-							"",
-							"pm.test('Schema is valid', function() {",
-							"    pm.expect(ajv.validate(schema, pm.response.text())).to.be.true;",
-							"});",
-							"",
-							"var respObj = JSON.parse(pm.response.text());",
-							"pm.test(\"Scope is changed\", function() {",
-							"    pm.expect(respObj.data.resources[0].scopes[0]).to.eql(\"new_scope\");",
-							"});",
-							"",
-							"pm.test(\"Group name has original value\", function() {",
-							"    pm.expect(respObj.data.name).to.eql(\"Smoke Test Group\");",
-							"});",
-							"",
-							""
+					"request": {
+						"auth": {
+							"type": "basic",
+							"basic": [
+								{
+									"key": "password",
+									"value": "{{adminClientSecret}}",
+									"type": "string"
+								},
+								{
+									"key": "username",
+									"value": "{{adminClientId}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
 						],
-						"type": "text/javascript"
-					}
-				}
-			],
-			"request": {
-				"auth": {
-					"type": "basic",
-					"basic": [
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"group_id\": \"{{group.group_id}}\",\n  \"name\": \"Smoke Test Group\",\n  \"xdata\": \"{\\\"cms_ids\\\":[\\\"A9994\\\"]}\",\n  \"resources\": [\n    {\n      \"id\": \"bcda\",\n      \"name\": \"BCDA API\",\n      \"scopes\": [\n        \"bcda-api\"\n      ]\n    }\n  ]\n}"
+						},
+						"url": {
+							"raw": "{{scheme}}://{{host}}:{{admin-port}}/group",
+							"protocol": "{{scheme}}",
+							"host": [
+								"{{host}}"
+							],
+							"port": "{{admin-port}}",
+							"path": [
+								"group"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "update group",
+					"event": [
 						{
-							"key": "password",
-							"value": "{{adminClientSecret}}",
-							"type": "string"
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var schema = {",
+									"    \"properties\": {",
+									"        \"ID\": { \"type\": \"integer\" },",
+									"        \"group_id\": { \"type\": \"string\" },",
+									"        \"data\": { ",
+									"            \"properties\": {",
+									"                \"id\": { \"type\": \"string\" },",
+									"                \"name\": { \"type\": \"string\" },",
+									"                \"users\": { \"type\": \"array\", \"items\": { \"type\": \"string\" } },",
+									"                \"scopes\": { \"type\": \"array\", \"items\": { \"type\": \"string\" } },",
+									"                \"resources\": { ",
+									"                    \"type\": \"array\", \"items\": { ",
+									"                        \"properties\": {",
+									"                            \"id\": { \"type\": \"string\" },",
+									"                            \"name\": { \"type\": \"string\" },",
+									"                            \"scopes\": { \"type\": \"array\", \"items\": { \"type\": \"string\" } }",
+									"                        }",
+									"                    }",
+									"                },",
+									"                \"system\": {",
+									"                    \"type\": \"array\", \"items\": {",
+									"                        \"properties\": {",
+									"                            \"client_id\": { \"type\": \"string\" },",
+									"                            \"software_id\": { \"type\": \"string\" },",
+									"                            \"client_name\": { \"type\": \"string\" }",
+									"                        }",
+									"                    }",
+									"                }",
+									"            }",
+									"        }",
+									"    }",
+									"};",
+									"var Ajv = require('ajv');",
+									"var ajv = new Ajv({schemas: [schema]});",
+									"",
+									"pm.test(\"Response is 'ok'\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Group.group_id has original value\", function () {",
+									"    pm.response.to.have.jsonBody(\"group_id\", pm.environment.get(\"group.group_id\"))",
+									"});",
+									"",
+									"pm.test(\"Group.data is JSON\", function () {",
+									"    pm.response.to.have.jsonBody(\"data\")",
+									"});",
+									"",
+									"pm.test('Schema is valid', function() {",
+									"    pm.expect(ajv.validate(schema, pm.response.text())).to.be.true;",
+									"});",
+									"",
+									"var respObj = JSON.parse(pm.response.text());",
+									"pm.test(\"Scope is changed\", function() {",
+									"    pm.expect(respObj.data.resources[0].scopes[0]).to.eql(\"new_scope\");",
+									"});",
+									"",
+									"pm.test(\"Group name has original value\", function() {",
+									"    pm.expect(respObj.data.name).to.eql(\"Smoke Test Group\");",
+									"});",
+									"",
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "basic",
+							"basic": [
+								{
+									"key": "password",
+									"value": "{{adminClientSecret}}",
+									"type": "string"
+								},
+								{
+									"key": "username",
+									"value": "{{adminClientId}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"type": "text",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"id\": \"this_id_is_ignored_and_should_be_omitted\",\n  \"name\": \"this_name_is_ignored_and_should_be_omitted\",\n  \"resources\": [\n    {\n      \"id\": \"bcda\",\n      \"name\": \"BCDA API\",\n      \"scopes\": [\n        \"new_scope\"\n      ]\n    }\n  ]\n}"
+						},
+						"url": {
+							"raw": "{{scheme}}://{{host}}:{{admin-port}}/group/{{group.id}}",
+							"protocol": "{{scheme}}",
+							"host": [
+								"{{host}}"
+							],
+							"port": "{{admin-port}}",
+							"path": [
+								"group",
+								"{{group.id}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "list group (present)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var schema = {",
+									"    \"properties\": {",
+									"        \"count\": { \"type\": \"integer\" },",
+									"        \"groups\": {",
+									"            \"type\": \"array\", \"items\": {",
+									"                \"properties\": {",
+									"                    \"id\": { \"type\": \"integer\" },                                ",
+									"                    \"group_id\": { \"type\": \"string\" },",
+									"                    \"xdata\": { \"type\": \"string\" },",
+									"                    \"systems\": {",
+									"                        \"type\": \"array\", \"items\": {",
+									"                            \"properties\": {",
+									"                                \"id\": { \"type\": \"integer\" },                                ",
+									"                                \"client_name\": { \"type\": \"string\" },",
+									"                                \"client_id\": { \"type\": \"string\" },",
+									"                                \"ips\": {",
+									"                                    \"type\": \"array\", \"items\": [",
+									"                                        { \"type\": \"string\" }",
+									"                                    ]",
+									"                                }",
+									"                            }",
+									"                        }",
+									"                    }",
+									"                }",
+									"            }",
+									"        }",
+									"    }",
+									"};",
+									"var Ajv = require('ajv');",
+									"var ajv = new Ajv({schemas: [schema]});",
+									"",
+									"pm.test(\"Response is 'ok'\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Schema is valid', function() {",
+									"    pm.expect(ajv.validate(schema, pm.response.text())).to.be.true;",
+									"});",
+									"",
+									"pm.test(\"Response includes Group.group_id\", function() {",
+									"    pm.expect(pm.response.text()).to.include(pm.environment.get(\"group.group_id\"));",
+									"});",
+									"",
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "basic",
+							"basic": [
+								{
+									"key": "password",
+									"value": "{{adminClientSecret}}",
+									"type": "string"
+								},
+								{
+									"key": "username",
+									"value": "{{adminClientId}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{scheme}}://{{host}}:{{admin-port}}/group",
+							"protocol": "{{scheme}}",
+							"host": [
+								"{{host}}"
+							],
+							"port": "{{admin-port}}",
+							"path": [
+								"group"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "create system",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var schema = {",
+									"    \"properties\": {",
+									"        \"client_id\": { \"type\": \"string\" },",
+									"        \"client_secret\": { \"type\": \"string\" },",
+									"        \"client_name\": { \"type\": \"string\" },",
+									"        \"system_id\": { \"type\": \"string\" },",
+									"        \"ips\": {",
+									"            \"type\": \"array\", \"items\": [",
+									"                { \"type\": \"string\" }",
+									"            ]",
+									"        },",
+									"        \"expires_at\": { \"type\": \"string\", \"format\": \"time\" }",
+									"    }",
+									"};",
+									"var Ajv = require('ajv');",
+									"var ajv = new Ajv({schemas: [schema]});",
+									"",
+									"pm.test(\"Response is 'created'\", function () {",
+									"    pm.response.to.have.status(201);",
+									"});",
+									"",
+									"pm.test(\"client_name has expected value\", function () {",
+									"    pm.response.to.have.jsonBody(\"client_name\", \"System 1 for group \" + pm.environment.get(\"group.group_id\"))",
+									"});",
+									"",
+									"pm.test('Schema is valid', function() {",
+									"    pm.expect(ajv.validate(schema, pm.response.text())).to.be.true;",
+									"});",
+									"",
+									"var respJson = pm.response.json();",
+									"pm.environment.set(\"client_id\", respJson.client_id);",
+									"pm.environment.set(\"client_secret\", respJson.client_secret);",
+									"pm.environment.set(\"system_id\", respJson.system_id);"
+								],
+								"type": "text/javascript"
+							}
 						},
 						{
-							"key": "username",
-							"value": "{{adminClientId}}",
-							"type": "string"
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"const uuid = require('uuid')",
+									"pm.environment.set(\"tracking_id\", uuid());"
+								],
+								"type": "text/javascript"
+							}
 						}
-					]
-				},
-				"method": "PUT",
-				"header": [
-					{
-						"key": "Content-Type",
-						"name": "Content-Type",
-						"type": "text",
-						"value": "application/json"
-					}
-				],
-				"body": {
-					"mode": "raw",
-					"raw": "{\n  \"id\": \"this_id_is_ignored_and_should_be_omitted\",\n  \"name\": \"this_name_is_ignored_and_should_be_omitted\",\n  \"resources\": [\n    {\n      \"id\": \"bcda\",\n      \"name\": \"BCDA API\",\n      \"scopes\": [\n        \"new_scope\"\n      ]\n    }\n  ]\n}"
-				},
-				"url": {
-					"raw": "{{scheme}}://{{host}}:{{admin-port}}/group/{{group.id}}",
-					"protocol": "{{scheme}}",
-					"host": [
-						"{{host}}"
 					],
-					"port": "{{admin-port}}",
-					"path": [
-						"group",
-						"{{group.id}}"
-					]
-				}
-			},
-			"response": []
-		},
-		{
-			"name": "list group (present)",
-			"event": [
-				{
-					"listen": "test",
-					"script": {
-						"id": "2d64364b-8582-49ab-85e6-fdc2beb6ed36",
-						"exec": [
-							"var schema = {",
-							"    \"properties\": {",
-							"        \"count\": { \"type\": \"integer\" },",
-							"        \"groups\": {",
-							"            \"type\": \"array\", \"items\": {",
-							"                \"properties\": {",
-							"                    \"id\": { \"type\": \"integer\" },                                ",
-							"                    \"group_id\": { \"type\": \"string\" },",
-							"                    \"xdata\": { \"type\": \"string\" },",
-							"                    \"systems\": {",
-							"                        \"type\": \"array\", \"items\": {",
-							"                            \"properties\": {",
-							"                                \"id\": { \"type\": \"integer\" },                                ",
-							"                                \"client_name\": { \"type\": \"string\" },",
-							"                                \"client_id\": { \"type\": \"string\" },",
-							"                                \"ips\": {",
-							"                                    \"type\": \"array\", \"items\": [",
-							"                                        { \"type\": \"string\" }",
-							"                                    ]",
-							"                                }",
-							"                            }",
-							"                        }",
-							"                    }",
-							"                }",
-							"            }",
-							"        }",
-							"    }",
-							"};",
-							"var Ajv = require('ajv');",
-							"var ajv = new Ajv({schemas: [schema]});",
-							"",
-							"pm.test(\"Response is 'ok'\", function () {",
-							"    pm.response.to.have.status(200);",
-							"});",
-							"",
-							"pm.test('Schema is valid', function() {",
-							"    pm.expect(ajv.validate(schema, pm.response.text())).to.be.true;",
-							"});",
-							"",
-							"pm.test(\"Response includes Group.group_id\", function() {",
-							"    pm.expect(pm.response.text()).to.include(pm.environment.get(\"group.group_id\"));",
-							"});",
-							"",
-							""
+					"request": {
+						"auth": {
+							"type": "basic",
+							"basic": [
+								{
+									"key": "password",
+									"value": "{{adminClientSecret}}",
+									"type": "string"
+								},
+								{
+									"key": "username",
+									"value": "{{adminClientId}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
 						],
-						"type": "text/javascript"
-					}
-				}
-			],
-			"request": {
-				"auth": {
-					"type": "basic",
-					"basic": [
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"client_name\": \"System 1 for group {{group.group_id}}\",\n    \"group_id\": \"{{group.group_id}}\",\n    \"scope\": \"bcda-api\",\n    \"ips\": [\"8.8.8.8\", \"200:1:1:1::1\"],\n    \"tracking_id\": \"{{tracking_id}}\"\n}"
+						},
+						"url": {
+							"raw": "{{scheme}}://{{host}}:{{admin-port}}/system",
+							"protocol": "{{scheme}}",
+							"host": [
+								"{{host}}"
+							],
+							"port": "{{admin-port}}",
+							"path": [
+								"system"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "create system with public key",
+					"event": [
 						{
-							"key": "password",
-							"value": "{{adminClientSecret}}",
-							"type": "string"
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var schema = {",
+									"    \"properties\": {",
+									"        \"client_id\": { \"type\": \"string\" },",
+									"        \"client_secret\": { \"type\": \"string\" },",
+									"        \"client_name\": { \"type\": \"string\" },",
+									"        \"system_id\": { \"type\": \"string\" },",
+									"        \"expires_at\": { \"type\": \"string\", \"format\": \"time\" }",
+									"    }",
+									"};",
+									"var Ajv = require('ajv');",
+									"var ajv = new Ajv({schemas: [schema]});",
+									"",
+									"pm.test(\"Response is 'created'\", function () {",
+									"    pm.response.to.have.status(201);",
+									"});",
+									"",
+									"pm.test(\"client_name has expected value\", function () {",
+									"    pm.response.to.have.jsonBody(\"client_name\", \"System 2 for group \" + pm.environment.get(\"group.group_id\"))",
+									"});",
+									"",
+									"pm.test('Schema is valid', function() {",
+									"    pm.expect(ajv.validate(schema, pm.response.text())).to.be.true;",
+									"});",
+									"",
+									"var respJson = pm.response.json();",
+									"pm.environment.set(\"client_id\", respJson.client_id);",
+									"pm.environment.set(\"client_secret\", respJson.client_secret);",
+									"pm.environment.set(\"system_id\", respJson.system_id);"
+								],
+								"type": "text/javascript"
+							}
 						},
 						{
-							"key": "username",
-							"value": "{{adminClientId}}",
-							"type": "string"
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"const uuid = require('uuid')",
+									"pm.environment.set(\"tracking_id\", uuid());"
+								],
+								"type": "text/javascript"
+							}
 						}
-					]
-				},
-				"method": "GET",
-				"header": [],
-				"url": {
-					"raw": "{{scheme}}://{{host}}:{{admin-port}}/group",
-					"protocol": "{{scheme}}",
-					"host": [
-						"{{host}}"
 					],
-					"port": "{{admin-port}}",
-					"path": [
-						"group"
-					]
-				}
-			},
-			"response": []
-		},
-		{
-			"name": "create system",
-			"event": [
-				{
-					"listen": "test",
-					"script": {
-						"id": "beacf958-838f-452f-9ac7-a7698305b501",
-						"exec": [
-							"var schema = {",
-							"    \"properties\": {",
-							"        \"client_id\": { \"type\": \"string\" },",
-							"        \"client_secret\": { \"type\": \"string\" },",
-							"        \"client_name\": { \"type\": \"string\" },",
-							"        \"system_id\": { \"type\": \"string\" },",
-							"        \"ips\": {",
-							"            \"type\": \"array\", \"items\": [",
-							"                { \"type\": \"string\" }",
-							"            ]",
-							"        },",
-							"        \"expires_at\": { \"type\": \"string\", \"format\": \"time\" }",
-							"    }",
-							"};",
-							"var Ajv = require('ajv');",
-							"var ajv = new Ajv({schemas: [schema]});",
-							"",
-							"pm.test(\"Response is 'created'\", function () {",
-							"    pm.response.to.have.status(201);",
-							"});",
-							"",
-							"pm.test(\"client_name has expected value\", function () {",
-							"    pm.response.to.have.jsonBody(\"client_name\", \"System 1 for group \" + pm.environment.get(\"group.group_id\"))",
-							"});",
-							"",
-							"pm.test('Schema is valid', function() {",
-							"    pm.expect(ajv.validate(schema, pm.response.text())).to.be.true;",
-							"});",
-							"",
-							"var respJson = pm.response.json();",
-							"pm.environment.set(\"client_id\", respJson.client_id);",
-							"pm.environment.set(\"client_secret\", respJson.client_secret);",
-							"pm.environment.set(\"system_id\", respJson.system_id);"
+					"request": {
+						"auth": {
+							"type": "basic",
+							"basic": [
+								{
+									"key": "password",
+									"value": "{{adminClientSecret}}",
+									"type": "string"
+								},
+								{
+									"key": "username",
+									"value": "{{adminClientId}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
 						],
-						"type": "text/javascript"
-					}
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"client_name\": \"System 2 for group {{group.group_id}}\",\n    \"group_id\": \"{{group.group_id}}\",\n    \"scope\": \"bcda-api\",\n    \"public_key\": \"-----BEGIN PUBLIC KEY-----\\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEArhxobShmNifzW3xznB+L\\nI8+hgaePpSGIFCtFz2IXGU6EMLdeufhADaGPLft9xjwdN1ts276iXQiaChKPA2CK\\n/CBpuKcnU3LhU8JEi7u/db7J4lJlh6evjdKVKlMuhPcljnIKAiGcWln3zwYrFCeL\\ncN0aTOt4xnQpm8OqHawJ18y0WhsWT+hf1DeBDWvdfRuAPlfuVtl3KkrNYn1yqCgQ\\nlT6v/WyzptJhSR1jxdR7XLOhDGTZUzlHXh2bM7sav2n1+sLsuCkzTJqWZ8K7k7cI\\nXK354CNpCdyRYUAUvr4rORIAUmcIFjaR3J4y/Dh2JIyDToOHg7vjpCtNnNoS+ON2\\nHwIDAQAB\\n-----END PUBLIC KEY-----\",\n    \"tracking_id\": \"{{tracking_id}}\"\n}"
+						},
+						"url": {
+							"raw": "{{scheme}}://{{host}}:{{admin-port}}/system",
+							"protocol": "{{scheme}}",
+							"host": [
+								"{{host}}"
+							],
+							"port": "{{admin-port}}",
+							"path": [
+								"system"
+							]
+						}
+					},
+					"response": []
 				},
 				{
-					"listen": "prerequest",
-					"script": {
-						"id": "478334a9-8a39-4849-afda-338bcf491259",
-						"exec": [
-							"const uuid = require('uuid')",
-							"pm.environment.set(\"tracking_id\", uuid());"
-						],
-						"type": "text/javascript"
-					}
-				}
-			],
-			"request": {
-				"auth": {
-					"type": "basic",
-					"basic": [
+					"name": "get system public key",
+					"event": [
 						{
-							"key": "password",
-							"value": "{{adminClientSecret}}",
-							"type": "string"
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var schema = {",
+									"    \"properties\": {",
+									"        \"client_id\": { \"type\": \"string\" },",
+									"        \"public_key\": { \"type\": \"string\" }",
+									"    }",
+									"};",
+									"var Ajv = require('ajv');",
+									"var ajv = new Ajv({schemas: [schema]});",
+									"",
+									"pm.test(\"Response is 'ok'\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Schema is valid', function() {",
+									"    pm.expect(ajv.validate(schema, pm.response.text())).to.be.true;",
+									"});",
+									"",
+									"pm.test(\"client_id has expected value\", function () {",
+									"    pm.response.to.have.jsonBody(\"client_id\", pm.environment.get(\"client_id\"))",
+									"});",
+									"",
+									"pm.test(\"public_key has expected value\", function () {",
+									"    pm.response.to.have.jsonBody(\"public_key\", \"-----BEGIN PUBLIC KEY-----\\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEArhxobShmNifzW3xznB+L\\nI8+hgaePpSGIFCtFz2IXGU6EMLdeufhADaGPLft9xjwdN1ts276iXQiaChKPA2CK\\n/CBpuKcnU3LhU8JEi7u/db7J4lJlh6evjdKVKlMuhPcljnIKAiGcWln3zwYrFCeL\\ncN0aTOt4xnQpm8OqHawJ18y0WhsWT+hf1DeBDWvdfRuAPlfuVtl3KkrNYn1yqCgQ\\nlT6v/WyzptJhSR1jxdR7XLOhDGTZUzlHXh2bM7sav2n1+sLsuCkzTJqWZ8K7k7cI\\nXK354CNpCdyRYUAUvr4rORIAUmcIFjaR3J4y/Dh2JIyDToOHg7vjpCtNnNoS+ON2\\nHwIDAQAB\\n-----END PUBLIC KEY-----\")",
+									"});",
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "basic",
+							"basic": [
+								{
+									"key": "password",
+									"value": "{{adminClientSecret}}",
+									"type": "string"
+								},
+								{
+									"key": "username",
+									"value": "{{adminClientId}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"type": "text",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{scheme}}://{{host}}:{{admin-port}}/system/{{system_id}}/key",
+							"protocol": "{{scheme}}",
+							"host": [
+								"{{host}}"
+							],
+							"port": "{{admin-port}}",
+							"path": [
+								"system",
+								"{{system_id}}",
+								"key"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "get system token",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var schema = {",
+									"    \"properties\": {",
+									"        \"access_token\": { \"type\": \"string\" },",
+									"        \"token_type\": { \"type\": \"string\" },",
+									"        \"expires_in\": { \"type\": \"string\", \"format\": \"time\" }",
+									"    }",
+									"};",
+									"var Ajv = require('ajv');",
+									"var ajv = new Ajv({schemas: [schema]});",
+									"",
+									"pm.test(\"Response is 'created'\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"token_type has expected value\", function () {",
+									"    pm.response.to.have.jsonBody(\"token_type\", \"bearer\")",
+									"});",
+									"",
+									"pm.test('Schema is valid', function() {",
+									"    pm.expect(ajv.validate(schema, pm.response.text())).to.be.true;",
+									"});",
+									"",
+									"var respJson = pm.response.json();",
+									"pm.environment.set(\"token\", respJson.access_token);",
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "basic",
+							"basic": [
+								{
+									"key": "password",
+									"value": "{{client_secret}}",
+									"type": "string"
+								},
+								{
+									"key": "username",
+									"value": "{{client_id}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{scheme}}://{{host}}:{{public-port}}/token",
+							"protocol": "{{scheme}}",
+							"host": [
+								"{{host}}"
+							],
+							"port": "{{public-port}}",
+							"path": [
+								"token"
+							]
+						},
+						"description": "Verify a username and password"
+					},
+					"response": []
+				},
+				{
+					"name": "token active",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var schema = {",
+									"    \"properties\": {",
+									"        \"active\": { \"type\": \"string\" }",
+									"    }",
+									"};",
+									"var Ajv = require('ajv');",
+									"var ajv = new Ajv({schemas: [schema]});",
+									"",
+									"pm.test(\"Response is 'ok'\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Schema is valid', function() {",
+									"    pm.expect(ajv.validate(schema, pm.response.text())).to.be.true;",
+									"});",
+									"",
+									"pm.test(\"Token is active\", function () {",
+									"    pm.response.to.have.jsonBody(\"active\", true)",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "basic",
+							"basic": [
+								{
+									"key": "username",
+									"value": "{{adminClientId}}",
+									"type": "string"
+								},
+								{
+									"key": "password",
+									"value": "{{adminClientSecret}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"token\":\"{{token}}\"}"
+						},
+						"url": {
+							"raw": "{{scheme}}://{{host}}:{{public-port}}/introspect",
+							"protocol": "{{scheme}}",
+							"host": [
+								"{{host}}"
+							],
+							"port": "{{public-port}}",
+							"path": [
+								"introspect"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "revoke token",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Response is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
 						},
 						{
-							"key": "username",
-							"value": "{{adminClientId}}",
-							"type": "string"
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"var parts = pm.environment.get(\"token\").split('.'); // header, payload, signature",
+									"var t = JSON.parse(atob(parts[1]));",
+									"",
+									"",
+									"pm.test(\"Can parse token ID\", function () {",
+									"    pm.expect(t.jti).to.not.eql(\"\");",
+									"});",
+									"",
+									"",
+									"pm.environment.set(\"token_id\", t.jti)"
+								],
+								"type": "text/javascript"
+							}
 						}
-					]
-				},
-				"method": "POST",
-				"header": [
-					{
-						"key": "Content-Type",
-						"name": "Content-Type",
-						"value": "application/json",
-						"type": "text"
-					}
-				],
-				"body": {
-					"mode": "raw",
-					"raw": "{\n    \"client_name\": \"System 1 for group {{group.group_id}}\",\n    \"group_id\": \"{{group.group_id}}\",\n    \"scope\": \"bcda-api\",\n    \"ips\": [\"8.8.8.8\", \"200:1:1:1::1\"],\n    \"tracking_id\": \"{{tracking_id}}\"\n}"
-				},
-				"url": {
-					"raw": "{{scheme}}://{{host}}:{{admin-port}}/system",
-					"protocol": "{{scheme}}",
-					"host": [
-						"{{host}}"
 					],
-					"port": "{{admin-port}}",
-					"path": [
-						"system"
-					]
+					"request": {
+						"auth": {
+							"type": "basic",
+							"basic": [
+								{
+									"key": "password",
+									"value": "{{adminClientSecret}}",
+									"type": "string"
+								},
+								{
+									"key": "username",
+									"value": "{{adminClientId}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{scheme}}://{{host}}:{{admin-port}}/token/{{token_id}}",
+							"protocol": "{{scheme}}",
+							"host": [
+								"{{host}}"
+							],
+							"port": "{{admin-port}}",
+							"path": [
+								"token",
+								"{{token_id}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "token inactive",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var schema = {",
+									"    \"properties\": {",
+									"        \"active\": { \"type\": \"string\" }",
+									"    }",
+									"};",
+									"var Ajv = require('ajv');",
+									"var ajv = new Ajv({schemas: [schema]});",
+									"",
+									"pm.test(\"Response is 'ok'\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Schema is valid', function() {",
+									"    pm.expect(ajv.validate(schema, pm.response.text())).to.be.true;",
+									"});",
+									"",
+									"pm.test(\"Token is not active\", function () {",
+									"    pm.response.to.have.jsonBody(\"active\", false)",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "basic",
+							"basic": [
+								{
+									"key": "username",
+									"value": "{{adminClientId}}",
+									"type": "string"
+								},
+								{
+									"key": "password",
+									"value": "{{adminClientSecret}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"type": "text",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"token\":\"{{token}}\"}"
+						},
+						"url": {
+							"raw": "{{scheme}}://{{host}}:{{public-port}}/introspect",
+							"protocol": "{{scheme}}",
+							"host": [
+								"{{host}}"
+							],
+							"port": "{{public-port}}",
+							"path": [
+								"introspect"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "reset system credentials",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var schema = {",
+									"    \"properties\": {",
+									"        \"client_id\": { \"type\": \"string\" },",
+									"        \"client_secret\": { \"type\": \"string\" },",
+									"        \"client_name\": { \"type\": \"string\" },",
+									"        \"system_id\": { \"type\": \"string\" },",
+									"        \"expires_at\": { \"type\": \"string\", \"format\": \"time\" }",
+									"    }",
+									"};",
+									"var Ajv = require('ajv');",
+									"var ajv = new Ajv({schemas: [schema]});",
+									"",
+									"pm.test(\"Response is 'created'\", function () {",
+									"    pm.response.to.have.status(201);",
+									"});",
+									"",
+									"pm.test('Schema is valid', function() {",
+									"    pm.expect(ajv.validate(schema, pm.response.text())).to.be.true;",
+									"});",
+									"",
+									"pm.test(\"client_id has expected value\", function () {",
+									"    pm.response.to.have.jsonBody(\"client_id\", pm.environment.get(\"client_id\"))",
+									"});",
+									"",
+									"var respJson = pm.response.json();",
+									"",
+									"pm.test(\"client_secret is not blank\", function () {",
+									"    pm.expect(respJson.client_secret).to.not.eql(\"\");",
+									"});",
+									"",
+									"pm.environment.set(\"client_id\", respJson.client_id);  ",
+									"pm.environment.set(\"client_secret\", respJson.client_secret);",
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "basic",
+							"basic": [
+								{
+									"key": "password",
+									"value": "{{adminClientSecret}}",
+									"type": "string"
+								},
+								{
+									"key": "username",
+									"value": "{{adminClientId}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"type": "text",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{scheme}}://{{host}}:{{admin-port}}/system/{{system_id}}/credentials",
+							"protocol": "{{scheme}}",
+							"host": [
+								"{{host}}"
+							],
+							"port": "{{admin-port}}",
+							"path": [
+								"system",
+								"{{system_id}}",
+								"credentials"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "get system token (new credentials)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var schema = {",
+									"    \"properties\": {",
+									"        \"access_token\": { \"type\": \"string\" },",
+									"        \"token_type\": { \"type\": \"string\" },",
+									"        \"expires_in\": { \"type\": \"string\", \"format\": \"time\" }",
+									"    }",
+									"};",
+									"var Ajv = require('ajv');",
+									"var ajv = new Ajv({schemas: [schema]});",
+									"",
+									"pm.test(\"Response is 'created'\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"token_type has expected value\", function () {",
+									"    pm.response.to.have.jsonBody(\"token_type\", \"bearer\")",
+									"});",
+									"",
+									"pm.test('Schema is valid', function() {",
+									"    pm.expect(ajv.validate(schema, pm.response.text())).to.be.true;",
+									"});",
+									"",
+									"var respJson = pm.response.json();",
+									"pm.environment.set(\"token\", respJson.access_token);"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "basic",
+							"basic": [
+								{
+									"key": "password",
+									"value": "{{client_secret}}",
+									"type": "string"
+								},
+								{
+									"key": "username",
+									"value": "{{client_id}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{scheme}}://{{host}}:{{public-port}}/token",
+							"protocol": "{{scheme}}",
+							"host": [
+								"{{host}}"
+							],
+							"port": "{{public-port}}",
+							"path": [
+								"token"
+							]
+						},
+						"description": "Verify a username and password"
+					},
+					"response": []
+				},
+				{
+					"name": "token active (prior to revoking system creds)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var schema = {",
+									"    \"properties\": {",
+									"        \"active\": { \"type\": \"string\" }",
+									"    }",
+									"};",
+									"var Ajv = require('ajv');",
+									"var ajv = new Ajv({schemas: [schema]});",
+									"",
+									"pm.test(\"Response is 'ok'\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Schema is valid', function() {",
+									"    pm.expect(ajv.validate(schema, pm.response.text())).to.be.true;",
+									"});",
+									"",
+									"pm.test(\"Token is active\", function () {",
+									"    pm.response.to.have.jsonBody(\"active\", true)",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "basic",
+							"basic": [
+								{
+									"key": "password",
+									"value": "{{client_secret}}",
+									"type": "string"
+								},
+								{
+									"key": "username",
+									"value": "{{client_id}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"token\":\"{{token}}\"}"
+						},
+						"url": {
+							"raw": "{{scheme}}://{{host}}:{{public-port}}/introspect",
+							"protocol": "{{scheme}}",
+							"host": [
+								"{{host}}"
+							],
+							"port": "{{public-port}}",
+							"path": [
+								"introspect"
+							]
+						},
+						"description": "Verify that we have a valid token prior to revoking the system credentials."
+					},
+					"response": []
+				},
+				{
+					"name": "revoke system credentials",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Response is 'ok'\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "basic",
+							"basic": [
+								{
+									"key": "password",
+									"value": "{{adminClientSecret}}",
+									"type": "string"
+								},
+								{
+									"key": "username",
+									"value": "{{adminClientId}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"type": "text",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{scheme}}://{{host}}:{{admin-port}}/system/{{system_id}}/credentials",
+							"protocol": "{{scheme}}",
+							"host": [
+								"{{host}}"
+							],
+							"port": "{{admin-port}}",
+							"path": [
+								"system",
+								"{{system_id}}",
+								"credentials"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "token inactive (post revoking system creds)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var schema = {",
+									"    \"properties\": {",
+									"        \"active\": { \"type\": \"string\" }",
+									"    }",
+									"};",
+									"var Ajv = require('ajv');",
+									"var ajv = new Ajv({schemas: [schema]});",
+									"",
+									"pm.test(\"Response is 'bad request'\", function () {",
+									"    pm.response.to.have.status(400);",
+									"});",
+									"",
+									"pm.test('Schema is valid', function() {",
+									"    pm.expect(ajv.validate(schema, pm.response.text())).to.be.true;",
+									"});",
+									"",
+									"pm.test(\"Unauthorized error\", function () {",
+									"    pm.response.to.have.jsonBody(\"error\", \"Unauthorized\")",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "basic",
+							"basic": [
+								{
+									"key": "password",
+									"value": "{{client_secret}}",
+									"type": "string"
+								},
+								{
+									"key": "username",
+									"value": "{{client_id}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"type": "text",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"token\":\"{{token}}\"}"
+						},
+						"url": {
+							"raw": "{{scheme}}://{{host}}:{{public-port}}/introspect",
+							"protocol": "{{scheme}}",
+							"host": [
+								"{{host}}"
+							],
+							"port": "{{public-port}}",
+							"path": [
+								"introspect"
+							]
+						},
+						"description": "Token should be inactive since we've revoked the credentials used to generate the token."
+					},
+					"response": []
+				},
+				{
+					"name": "get system token denied",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var schema = {",
+									"    \"properties\": {",
+									"        \"error\": { \"type\": \"string\" },",
+									"        \"error_description\": { \"type\": \"string\" }",
+									"    }",
+									"};",
+									"var Ajv = require('ajv');",
+									"var ajv = new Ajv({schemas: [schema]});",
+									"",
+									"pm.test(\"Response is 'unauthorized'\", function () {",
+									"    pm.response.to.have.status(401);",
+									"});",
+									"",
+									"pm.test('Schema is valid', function() {",
+									"    pm.expect(ajv.validate(schema, pm.response.text())).to.be.true;",
+									"});",
+									"",
+									"pm.test(\"Error has expected value\", function () {",
+									"    pm.response.to.have.jsonBody(\"error\", \"Unauthorized\")",
+									"});",
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "basic",
+							"basic": [
+								{
+									"key": "password",
+									"value": "{{client_secret}}",
+									"type": "string"
+								},
+								{
+									"key": "username",
+									"value": "{{client_id}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{scheme}}://{{host}}:{{public-port}}/token",
+							"protocol": "{{scheme}}",
+							"host": [
+								"{{host}}"
+							],
+							"port": "{{public-port}}",
+							"path": [
+								"token"
+							]
+						},
+						"description": "Verify a username and password"
+					},
+					"response": []
+				},
+				{
+					"name": "delete group and system",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Response is 'ok'\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "basic",
+							"basic": [
+								{
+									"key": "password",
+									"value": "{{adminClientSecret}}",
+									"type": "string"
+								},
+								{
+									"key": "username",
+									"value": "{{adminClientId}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{scheme}}://{{host}}:{{admin-port}}/group/{{group.id}}",
+							"protocol": "{{scheme}}",
+							"host": [
+								"{{host}}"
+							],
+							"port": "{{admin-port}}",
+							"path": [
+								"group",
+								"{{group.id}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "list group (not present)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Response is 'ok'\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Response does not include Group.group_id\", function() {",
+									"    pm.expect(pm.response.text()).to.not.include(pm.environment.get(\"group.group_id\"));",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "basic",
+							"basic": [
+								{
+									"key": "password",
+									"value": "{{adminClientSecret}}",
+									"type": "string"
+								},
+								{
+									"key": "username",
+									"value": "{{adminClientId}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{scheme}}://{{host}}:{{admin-port}}/group",
+							"protocol": "{{scheme}}",
+							"host": [
+								"{{host}}"
+							],
+							"port": "{{admin-port}}",
+							"path": [
+								"group"
+							]
+						}
+					},
+					"response": []
 				}
-			},
-			"response": []
+			]
 		},
 		{
-			"name": "create system with public key",
-			"event": [
+			"name": "v2",
+			"item": [
 				{
-					"listen": "test",
-					"script": {
-						"id": "7374f292-2b66-40ce-9cc4-6bb519dc3e53",
-						"exec": [
-							"var schema = {",
-							"    \"properties\": {",
-							"        \"client_id\": { \"type\": \"string\" },",
-							"        \"client_secret\": { \"type\": \"string\" },",
-							"        \"client_name\": { \"type\": \"string\" },",
-							"        \"system_id\": { \"type\": \"string\" },",
-							"        \"expires_at\": { \"type\": \"string\", \"format\": \"time\" }",
-							"    }",
-							"};",
-							"var Ajv = require('ajv');",
-							"var ajv = new Ajv({schemas: [schema]});",
-							"",
-							"pm.test(\"Response is 'created'\", function () {",
-							"    pm.response.to.have.status(201);",
-							"});",
-							"",
-							"pm.test(\"client_name has expected value\", function () {",
-							"    pm.response.to.have.jsonBody(\"client_name\", \"System 2 for group \" + pm.environment.get(\"group.group_id\"))",
-							"});",
-							"",
-							"pm.test('Schema is valid', function() {",
-							"    pm.expect(ajv.validate(schema, pm.response.text())).to.be.true;",
-							"});",
-							"",
-							"var respJson = pm.response.json();",
-							"pm.environment.set(\"client_id\", respJson.client_id);",
-							"pm.environment.set(\"client_secret\", respJson.client_secret);",
-							"pm.environment.set(\"system_id\", respJson.system_id);"
-						],
-						"type": "text/javascript"
-					}
-				},
-				{
-					"listen": "prerequest",
-					"script": {
-						"id": "d039309b-07c8-4bf2-8f45-67e15bdfd570",
-						"exec": [
-							"const uuid = require('uuid')",
-							"pm.environment.set(\"tracking_id\", uuid());"
-						],
-						"type": "text/javascript"
-					}
-				}
-			],
-			"request": {
-				"auth": {
-					"type": "basic",
-					"basic": [
+					"name": "create group",
+					"event": [
 						{
-							"key": "password",
-							"value": "{{adminClientSecret}}",
-							"type": "string"
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var schema = {",
+									"    \"properties\": {",
+									"        \"ID\": { \"type\": \"integer\" },",
+									"        \"group_id\": { \"type\": \"string\" },",
+									"        \"data\": { ",
+									"            \"properties\": {",
+									"                \"id\": { \"type\": \"string\" },",
+									"                \"name\": { \"type\": \"string\" },",
+									"                \"users\": { \"type\": \"array\", \"items\": { \"type\": \"string\" } },",
+									"                \"scopes\": { \"type\": \"array\", \"items\": { \"type\": \"string\" } },",
+									"                \"resources\": { ",
+									"                    \"type\": \"array\", \"items\": { ",
+									"                        \"properties\": {",
+									"                            \"id\": { \"type\": \"string\" },",
+									"                            \"name\": { \"type\": \"string\" },",
+									"                            \"scopes\": { \"type\": \"array\", \"items\": { \"type\": \"string\" } }",
+									"                        }",
+									"                    }",
+									"                },",
+									"                \"system\": {",
+									"                    \"type\": \"array\", \"items\": {",
+									"                        \"properties\": {",
+									"                            \"client_id\": { \"type\": \"string\" },",
+									"                            \"software_id\": { \"type\": \"string\" },",
+									"                            \"client_name\": { \"type\": \"string\" }",
+									"                        }",
+									"                    }",
+									"                }",
+									"            }",
+									"        }",
+									"    }",
+									"};",
+									"var Ajv = require('ajv');",
+									"var ajv = new Ajv({schemas: [schema]});",
+									"",
+									"pm.test(\"Response is 'created'\", function () {",
+									"    pm.response.to.have.status(201);",
+									"});",
+									"",
+									"pm.test(\"Group.group_id has expected value\", function () {",
+									"    pm.response.to.have.jsonBody(\"group_id\", pm.environment.get(\"group.group_id\"))",
+									"});",
+									"",
+									"pm.test(\"Group.data is JSON\", function () {",
+									"    pm.response.to.have.jsonBody(\"data\")",
+									"});",
+									"",
+									"pm.test('Schema is valid', function() {",
+									"    pm.expect(ajv.validate(schema, pm.response.text())).to.be.true;",
+									"});",
+									"",
+									"var respJson = pm.response.json();",
+									"pm.environment.set(\"group.id\", respJson.ID);"
+								],
+								"type": "text/javascript"
+							}
 						},
 						{
-							"key": "username",
-							"value": "{{adminClientId}}",
-							"type": "string"
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"const uuid = require('uuid')",
+									"pm.environment.set(\"group.group_id\", uuid());"
+								],
+								"type": "text/javascript"
+							}
 						}
-					]
-				},
-				"method": "POST",
-				"header": [
-					{
-						"key": "Content-Type",
-						"name": "Content-Type",
-						"value": "application/json",
-						"type": "text"
-					}
-				],
-				"body": {
-					"mode": "raw",
-					"raw": "{\n    \"client_name\": \"System 2 for group {{group.group_id}}\",\n    \"group_id\": \"{{group.group_id}}\",\n    \"scope\": \"bcda-api\",\n    \"public_key\": \"-----BEGIN PUBLIC KEY-----\\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEArhxobShmNifzW3xznB+L\\nI8+hgaePpSGIFCtFz2IXGU6EMLdeufhADaGPLft9xjwdN1ts276iXQiaChKPA2CK\\n/CBpuKcnU3LhU8JEi7u/db7J4lJlh6evjdKVKlMuhPcljnIKAiGcWln3zwYrFCeL\\ncN0aTOt4xnQpm8OqHawJ18y0WhsWT+hf1DeBDWvdfRuAPlfuVtl3KkrNYn1yqCgQ\\nlT6v/WyzptJhSR1jxdR7XLOhDGTZUzlHXh2bM7sav2n1+sLsuCkzTJqWZ8K7k7cI\\nXK354CNpCdyRYUAUvr4rORIAUmcIFjaR3J4y/Dh2JIyDToOHg7vjpCtNnNoS+ON2\\nHwIDAQAB\\n-----END PUBLIC KEY-----\",\n    \"tracking_id\": \"{{tracking_id}}\"\n}"
-				},
-				"url": {
-					"raw": "{{scheme}}://{{host}}:{{admin-port}}/system",
-					"protocol": "{{scheme}}",
-					"host": [
-						"{{host}}"
 					],
-					"port": "{{admin-port}}",
-					"path": [
-						"system"
-					]
-				}
-			},
-			"response": []
-		},
-		{
-			"name": "get system public key",
-			"event": [
-				{
-					"listen": "test",
-					"script": {
-						"id": "33c6b86d-674d-4e75-958d-087080e87624",
-						"exec": [
-							"var schema = {",
-							"    \"properties\": {",
-							"        \"client_id\": { \"type\": \"string\" },",
-							"        \"public_key\": { \"type\": \"string\" }",
-							"    }",
-							"};",
-							"var Ajv = require('ajv');",
-							"var ajv = new Ajv({schemas: [schema]});",
-							"",
-							"pm.test(\"Response is 'ok'\", function () {",
-							"    pm.response.to.have.status(200);",
-							"});",
-							"",
-							"pm.test('Schema is valid', function() {",
-							"    pm.expect(ajv.validate(schema, pm.response.text())).to.be.true;",
-							"});",
-							"",
-							"pm.test(\"client_id has expected value\", function () {",
-							"    pm.response.to.have.jsonBody(\"client_id\", pm.environment.get(\"client_id\"))",
-							"});",
-							"",
-							"pm.test(\"public_key has expected value\", function () {",
-							"    pm.response.to.have.jsonBody(\"public_key\", \"-----BEGIN PUBLIC KEY-----\\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEArhxobShmNifzW3xznB+L\\nI8+hgaePpSGIFCtFz2IXGU6EMLdeufhADaGPLft9xjwdN1ts276iXQiaChKPA2CK\\n/CBpuKcnU3LhU8JEi7u/db7J4lJlh6evjdKVKlMuhPcljnIKAiGcWln3zwYrFCeL\\ncN0aTOt4xnQpm8OqHawJ18y0WhsWT+hf1DeBDWvdfRuAPlfuVtl3KkrNYn1yqCgQ\\nlT6v/WyzptJhSR1jxdR7XLOhDGTZUzlHXh2bM7sav2n1+sLsuCkzTJqWZ8K7k7cI\\nXK354CNpCdyRYUAUvr4rORIAUmcIFjaR3J4y/Dh2JIyDToOHg7vjpCtNnNoS+ON2\\nHwIDAQAB\\n-----END PUBLIC KEY-----\")",
-							"});",
-							""
+					"request": {
+						"auth": {
+							"type": "basic",
+							"basic": [
+								{
+									"key": "password",
+									"value": "{{adminClientSecret}}",
+									"type": "string"
+								},
+								{
+									"key": "username",
+									"value": "{{adminClientId}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
 						],
-						"type": "text/javascript"
-					}
-				}
-			],
-			"request": {
-				"auth": {
-					"type": "basic",
-					"basic": [
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"group_id\": \"{{group.group_id}}\",\n  \"name\": \"Smoke Test Group\",\n  \"xdata\": \"{\\\"cms_ids\\\":[\\\"A9994\\\"]}\",\n  \"resources\": [\n    {\n      \"id\": \"dpc\",\n      \"name\": \"DPC API\",\n      \"scopes\": [\n        \"dpc-api\"\n      ]\n    }\n  ]\n}"
+						},
+						"url": {
+							"raw": "{{scheme}}://{{host}}:{{admin-port}}/v2/group",
+							"protocol": "{{scheme}}",
+							"host": [
+								"{{host}}"
+							],
+							"port": "{{admin-port}}",
+							"path": [
+								"v2",
+								"group"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "update group",
+					"event": [
 						{
-							"key": "password",
-							"value": "{{adminClientSecret}}",
-							"type": "string"
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var schema = {",
+									"    \"properties\": {",
+									"        \"ID\": { \"type\": \"integer\" },",
+									"        \"group_id\": { \"type\": \"string\" },",
+									"        \"data\": { ",
+									"            \"properties\": {",
+									"                \"id\": { \"type\": \"string\" },",
+									"                \"name\": { \"type\": \"string\" },",
+									"                \"users\": { \"type\": \"array\", \"items\": { \"type\": \"string\" } },",
+									"                \"scopes\": { \"type\": \"array\", \"items\": { \"type\": \"string\" } },",
+									"                \"resources\": { ",
+									"                    \"type\": \"array\", \"items\": { ",
+									"                        \"properties\": {",
+									"                            \"id\": { \"type\": \"string\" },",
+									"                            \"name\": { \"type\": \"string\" },",
+									"                            \"scopes\": { \"type\": \"array\", \"items\": { \"type\": \"string\" } }",
+									"                        }",
+									"                    }",
+									"                },",
+									"                \"system\": {",
+									"                    \"type\": \"array\", \"items\": {",
+									"                        \"properties\": {",
+									"                            \"client_id\": { \"type\": \"string\" },",
+									"                            \"software_id\": { \"type\": \"string\" },",
+									"                            \"client_name\": { \"type\": \"string\" }",
+									"                        }",
+									"                    }",
+									"                }",
+									"            }",
+									"        }",
+									"    }",
+									"};",
+									"var Ajv = require('ajv');",
+									"var ajv = new Ajv({schemas: [schema]});",
+									"",
+									"pm.test(\"Response is 'ok'\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Group.group_id has original value\", function () {",
+									"    pm.response.to.have.jsonBody(\"group_id\", pm.environment.get(\"group.group_id\"))",
+									"});",
+									"",
+									"pm.test(\"Group.data is JSON\", function () {",
+									"    pm.response.to.have.jsonBody(\"data\")",
+									"});",
+									"",
+									"pm.test('Schema is valid', function() {",
+									"    pm.expect(ajv.validate(schema, pm.response.text())).to.be.true;",
+									"});",
+									"",
+									"var respObj = JSON.parse(pm.response.text());",
+									"pm.test(\"Scope is changed\", function() {",
+									"    pm.expect(respObj.data.resources[0].scopes[0]).to.eql(\"new_scope\");",
+									"});",
+									"",
+									"pm.test(\"Group name has original value\", function() {",
+									"    pm.expect(respObj.data.name).to.eql(\"Smoke Test Group\");",
+									"});",
+									"",
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "basic",
+							"basic": [
+								{
+									"key": "password",
+									"value": "{{adminClientSecret}}",
+									"type": "string"
+								},
+								{
+									"key": "username",
+									"value": "{{adminClientId}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"type": "text",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"id\": \"this_id_is_ignored_and_should_be_omitted\",\n  \"name\": \"this_name_is_ignored_and_should_be_omitted\",\n  \"resources\": [\n    {\n      \"id\": \"bcda\",\n      \"name\": \"BCDA API\",\n      \"scopes\": [\n        \"new_scope\"\n      ]\n    }\n  ]\n}"
+						},
+						"url": {
+							"raw": "{{scheme}}://{{host}}:{{admin-port}}/v2/group/{{group.id}}",
+							"protocol": "{{scheme}}",
+							"host": [
+								"{{host}}"
+							],
+							"port": "{{admin-port}}",
+							"path": [
+								"v2",
+								"group",
+								"{{group.id}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "list group (present)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var schema = {",
+									"    \"properties\": {",
+									"        \"count\": { \"type\": \"integer\" },",
+									"        \"groups\": {",
+									"            \"type\": \"array\", \"items\": {",
+									"                \"properties\": {",
+									"                    \"id\": { \"type\": \"integer\" },                                ",
+									"                    \"group_id\": { \"type\": \"string\" },",
+									"                    \"xdata\": { \"type\": \"string\" },",
+									"                    \"systems\": {",
+									"                        \"type\": \"array\", \"items\": {",
+									"                            \"properties\": {",
+									"                                \"id\": { \"type\": \"integer\" },                                ",
+									"                                \"client_name\": { \"type\": \"string\" },",
+									"                                \"client_id\": { \"type\": \"string\" },",
+									"                                \"ips\": {",
+									"                                    \"type\": \"array\", \"items\": [",
+									"                                        { \"type\": \"string\" }",
+									"                                    ]",
+									"                                }",
+									"                            }",
+									"                        }",
+									"                    }",
+									"                }",
+									"            }",
+									"        }",
+									"    }",
+									"};",
+									"var Ajv = require('ajv');",
+									"var ajv = new Ajv({schemas: [schema]});",
+									"",
+									"pm.test(\"Response is 'ok'\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Schema is valid', function() {",
+									"    pm.expect(ajv.validate(schema, pm.response.text())).to.be.true;",
+									"});",
+									"",
+									"pm.test(\"Response includes Group.group_id\", function() {",
+									"    pm.expect(pm.response.text()).to.include(pm.environment.get(\"group.group_id\"));",
+									"});",
+									"",
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "basic",
+							"basic": [
+								{
+									"key": "password",
+									"value": "{{adminClientSecret}}",
+									"type": "string"
+								},
+								{
+									"key": "username",
+									"value": "{{adminClientId}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{scheme}}://{{host}}:{{admin-port}}/v2/group",
+							"protocol": "{{scheme}}",
+							"host": [
+								"{{host}}"
+							],
+							"port": "{{admin-port}}",
+							"path": [
+								"v2",
+								"group"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "create system",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var schema = {",
+									"    \"properties\": {",
+									"        \"client_id\": { \"type\": \"string\" },",
+									"        \"client_secret\": { \"type\": \"string\" },",
+									"        \"client_name\": { \"type\": \"string\" },",
+									"        \"system_id\": { \"type\": \"string\" },",
+									"        \"ips\": {",
+									"            \"type\": \"array\", \"items\": [",
+									"                { \"type\": \"string\" }",
+									"            ]",
+									"        },",
+									"        \"expires_at\": { \"type\": \"string\", \"format\": \"time\" }",
+									"    }",
+									"};",
+									"var Ajv = require('ajv');",
+									"var ajv = new Ajv({schemas: [schema]});",
+									"",
+									"pm.test(\"Response is 'created'\", function () {",
+									"    pm.response.to.have.status(201);",
+									"});",
+									"",
+									"pm.test(\"client_name has expected value\", function () {",
+									"    pm.response.to.have.jsonBody(\"client_name\", \"System 1 for group \" + pm.environment.get(\"group.group_id\"))",
+									"});",
+									"",
+									"pm.test('Schema is valid', function() {",
+									"    pm.expect(ajv.validate(schema, pm.response.text())).to.be.true;",
+									"});",
+									"",
+									"var respJson = pm.response.json();",
+									"pm.environment.set(\"client_id\", respJson.client_id);",
+									"pm.environment.set(\"client_secret\", respJson.client_secret);",
+									"pm.environment.set(\"system_id\", respJson.system_id);",
+									"pm.environment.set(\"client_token\", respJson.client_token);"
+								],
+								"type": "text/javascript"
+							}
 						},
 						{
-							"key": "username",
-							"value": "{{adminClientId}}",
-							"type": "string"
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"const uuid = require('uuid')",
+									"pm.environment.set(\"tracking_id\", uuid());",
+									"",
+									"// replace linebreaks with `\\n` inside the public key",
+									"var publicKey = pm.environment.get(\"public_key\");",
+									"var keyGuts = publicKey.trim().substring(27, publicKey.length-25)",
+									"var jsonPublicKey = \"-----BEGIN PUBLIC KEY-----\\n\" + keyGuts.replace(/(\\r\\n|\\n|\\r|\\s)/g, \"\\n\") + \"\\n-----END PUBLIC KEY-----\";",
+									"pm.environment.set(\"JSON_PUBLIC_KEY\", JSON.stringify(jsonPublicKey));",
+									""
+								],
+								"type": "text/javascript"
+							}
 						}
-					]
-				},
-				"method": "GET",
-				"header": [
-					{
-						"key": "Content-Type",
-						"name": "Content-Type",
-						"type": "text",
-						"value": "application/json"
-					}
-				],
-				"url": {
-					"raw": "{{scheme}}://{{host}}:{{admin-port}}/system/{{system_id}}/key",
-					"protocol": "{{scheme}}",
-					"host": [
-						"{{host}}"
 					],
-					"port": "{{admin-port}}",
-					"path": [
-						"system",
-						"{{system_id}}",
-						"key"
-					]
-				}
-			},
-			"response": []
-		},
-		{
-			"name": "get system token",
-			"event": [
-				{
-					"listen": "test",
-					"script": {
-						"id": "c7dc16c6-0db1-413e-b1b9-52902feefa27",
-						"exec": [
-							"var schema = {",
-							"    \"properties\": {",
-							"        \"access_token\": { \"type\": \"string\" },",
-							"        \"token_type\": { \"type\": \"string\" },",
-							"        \"expires_in\": { \"type\": \"string\", \"format\": \"time\" }",
-							"    }",
-							"};",
-							"var Ajv = require('ajv');",
-							"var ajv = new Ajv({schemas: [schema]});",
-							"",
-							"pm.test(\"Response is 'created'\", function () {",
-							"    pm.response.to.have.status(200);",
-							"});",
-							"",
-							"pm.test(\"token_type has expected value\", function () {",
-							"    pm.response.to.have.jsonBody(\"token_type\", \"bearer\")",
-							"});",
-							"",
-							"pm.test('Schema is valid', function() {",
-							"    pm.expect(ajv.validate(schema, pm.response.text())).to.be.true;",
-							"});",
-							"",
-							"var respJson = pm.response.json();",
-							"pm.environment.set(\"token\", respJson.access_token);",
-							""
+					"request": {
+						"auth": {
+							"type": "basic",
+							"basic": [
+								{
+									"key": "password",
+									"value": "{{adminClientSecret}}",
+									"type": "string"
+								},
+								{
+									"key": "username",
+									"value": "{{adminClientId}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
 						],
-						"type": "text/javascript"
-					}
-				}
-			],
-			"request": {
-				"auth": {
-					"type": "basic",
-					"basic": [
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"client_name\": \"System 1 for group {{group.group_id}}\",\n    \"group_id\": \"{{group.group_id}}\",\n    \"scope\": \"bcda-api\",\n    \"ips\": [\"8.8.8.8\", \"200:1:1:1::1\"],\n    \"tracking_id\": \"{{tracking_id}}\",\n    \"public_key\": {{JSON_PUBLIC_KEY}}\n}"
+						},
+						"url": {
+							"raw": "{{scheme}}://{{host}}:{{admin-port}}/v2/system",
+							"protocol": "{{scheme}}",
+							"host": [
+								"{{host}}"
+							],
+							"port": "{{admin-port}}",
+							"path": [
+								"v2",
+								"system"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "get system by id",
+					"event": [
 						{
-							"key": "password",
-							"value": "{{client_secret}}",
-							"type": "string"
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var schema = {",
+									"    \"properties\": {",
+									"        \"g_id\": {\"type\": \"integer\"},",
+									"        \"group_id\": { \"type\": \"string\" },",
+									"        \"client_id\": { \"type\": \"string\" },",
+									"        \"software_id\": { \"type\": \"string\" },",
+									"        \"client_name\": { \"type\": \"string\" },",
+									"        \"api_scope\": {\"type\": \"string\"},",
+									"        \"x_data\": {\"type\": \"string\"},",
+									"        \"last_token_at\": { \"type\": \"string\", \"format\": \"time\" },",
+									"        \"system_id\": { \"type\": \"string\" },",
+									"        \"public_keys\": {",
+									"            \"type\": \"array\", \"items\": {",
+									"                \"properties\": {",
+									"                    \"id\": { \"type\": \"integer\" },                                ",
+									"                    \"creation_date\": { \"type\": \"string\", \"format\": \"time\" },",
+									"                    \"key\": { \"type\": \"string\" }",
+									"                }",
+									"            }",
+									"        },",
+									"        \"ips\": {",
+									"            \"type\": \"array\", \"items\": {",
+									"                \"properties\": {",
+									"                    \"id\": { \"type\": \"string\" },",
+									"                    \"creation_date\": { \"type\": \"string\", \"format\": \"time\" },",
+									"                    \"ip\": { \"type\": \"string\" }",
+									"                }  ",
+									"            }",
+									"        },",
+									"        \"client_tokens\": {",
+									"            \"type\": \"array\", \"items\": {",
+									"                \"properties\": {",
+									"                    \"id\": { \"type\": \"string\" },",
+									"                    \"creation_date\": { \"type\": \"string\", \"format\": \"time\" },",
+									"                    \"label\": { \"type\": \"string\" },",
+									"                    \"uuid\": { \"type\": \"string\" },",
+									"                    \"expires_at\": { \"type\": \"string\", \"format\": \"time\" },",
+									"                }  ",
+									"            }",
+									"        },",
+									"        \"expires_at\": { \"type\": \"string\", \"format\": \"time\" }",
+									"    }",
+									"};",
+									"var Ajv = require('ajv');",
+									"var ajv = new Ajv({schemas: [schema]});",
+									"",
+									"pm.test(\"Response is 'OK'\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"client_name has expected value\", function () {",
+									"    pm.response.to.have.jsonBody(\"client_name\", \"System 1 for group \" + pm.environment.get(\"group.group_id\"))",
+									"});",
+									"",
+									"pm.test('Schema is valid', function() {",
+									"    pm.expect(ajv.validate(schema, pm.response.text())).to.be.true;",
+									"});",
+									"",
+									"pm.environment.set(\"key_id\", pm.response.json().public_keys[0].id)",
+									""
+								],
+								"type": "text/javascript"
+							}
 						},
 						{
-							"key": "username",
-							"value": "{{client_id}}",
-							"type": "string"
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									""
+								],
+								"type": "text/javascript"
+							}
 						}
-					]
-				},
-				"method": "POST",
-				"header": [],
-				"url": {
-					"raw": "{{scheme}}://{{host}}:{{public-port}}/token",
-					"protocol": "{{scheme}}",
-					"host": [
-						"{{host}}"
 					],
-					"port": "{{public-port}}",
-					"path": [
-						"token"
-					]
-				},
-				"description": "Verify a username and password"
-			},
-			"response": []
-		},
-		{
-			"name": "token active",
-			"event": [
-				{
-					"listen": "test",
-					"script": {
-						"id": "518dc44c-5f13-4d12-8239-037420892f5f",
-						"exec": [
-							"var schema = {",
-							"    \"properties\": {",
-							"        \"active\": { \"type\": \"string\" }",
-							"    }",
-							"};",
-							"var Ajv = require('ajv');",
-							"var ajv = new Ajv({schemas: [schema]});",
-							"",
-							"pm.test(\"Response is 'ok'\", function () {",
-							"    pm.response.to.have.status(200);",
-							"});",
-							"",
-							"pm.test('Schema is valid', function() {",
-							"    pm.expect(ajv.validate(schema, pm.response.text())).to.be.true;",
-							"});",
-							"",
-							"pm.test(\"Token is active\", function () {",
-							"    pm.response.to.have.jsonBody(\"active\", true)",
-							"});"
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"auth": {
+							"type": "basic",
+							"basic": [
+								{
+									"key": "password",
+									"value": "{{adminClientSecret}}",
+									"type": "string"
+								},
+								{
+									"key": "username",
+									"value": "{{adminClientId}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
 						],
-						"type": "text/javascript"
-					}
-				}
-			],
-			"request": {
-				"auth": {
-					"type": "basic",
-					"basic": [
+						"body": {
+							"mode": "raw",
+							"raw": ""
+						},
+						"url": {
+							"raw": "{{scheme}}://{{host}}:{{admin-port}}/v2/system/{{system_id}}",
+							"protocol": "{{scheme}}",
+							"host": [
+								"{{host}}"
+							],
+							"port": "{{admin-port}}",
+							"path": [
+								"v2",
+								"system",
+								"{{system_id}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "create system public key",
+					"event": [
 						{
-							"key": "username",
-							"value": "{{adminClientId}}",
-							"type": "string"
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var schema = {",
+									"    \"properties\": {",
+									"        \"client_id\": { \"type\": \"string\" },",
+									"        \"public_key\": { \"type\": \"string\" },",
+									"        \"id\": { \"type\": \"string\" }",
+									"    }",
+									"};",
+									"var Ajv = require('ajv');",
+									"var ajv = new Ajv({schemas: [schema]});",
+									"",
+									"pm.test(\"Response is 'ok'\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Schema is valid', function() {",
+									"    pm.expect(ajv.validate(schema, pm.response.text())).to.be.true;",
+									"});",
+									"",
+									"pm.test(\"client_id has expected value\", function () {",
+									"    pm.response.to.have.jsonBody(\"client_id\", pm.environment.get(\"client_id\"));",
+									"});",
+									"",
+									"pm.environment.set(\"key_id\", pm.response.json().id);",
+									"pm.environment.set(\"key_id_to_delete\", pm.response.json().id);"
+								],
+								"type": "text/javascript"
+							}
 						},
 						{
-							"key": "password",
-							"value": "{{adminClientSecret}}",
-							"type": "string"
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"",
+									"// replace linebreaks with `\\n` inside the public key",
+									"var publicKey = pm.environment.get(\"public_key\");",
+									"var keyGuts = publicKey.trim().substring(27, publicKey.length-25)",
+									"var jsonPublicKey = \"-----BEGIN PUBLIC KEY-----\\n\" + keyGuts.replace(/(\\r\\n|\\n|\\r|\\s)/g, \"\\n\") + \"\\n-----END PUBLIC KEY-----\";",
+									"pm.environment.set(\"JSON_PUBLIC_KEY\", JSON.stringify(jsonPublicKey));",
+									"",
+									"// replace linebreaks with `\\n` inside the public key signature",
+									"var publicSig = pm.environment.get(\"signature\");",
+									"var jsonPublicSig = publicSig.trim().replace(/(\\r\\n|\\n|\\r|\\s)/g, \"\\n\");",
+									"pm.environment.set(\"JSON_public-key-signature\", JSON.stringify(jsonPublicSig));"
+								],
+								"type": "text/javascript"
+							}
 						}
-					]
-				},
-				"method": "POST",
-				"header": [
-					{
-						"key": "Content-Type",
-						"name": "Content-Type",
-						"value": "application/json",
-						"type": "text"
-					}
-				],
-				"body": {
-					"mode": "raw",
-					"raw": "{\"token\":\"{{token}}\"}"
-				},
-				"url": {
-					"raw": "{{scheme}}://{{host}}:{{public-port}}/introspect",
-					"protocol": "{{scheme}}",
-					"host": [
-						"{{host}}"
 					],
-					"port": "{{public-port}}",
-					"path": [
-						"introspect"
-					]
-				}
-			},
-			"response": []
-		},
-		{
-			"name": "revoke token",
-			"event": [
-				{
-					"listen": "test",
-					"script": {
-						"id": "3d985616-6241-40cb-b1f2-f307cdf951ca",
-						"exec": [
-							"pm.test(\"Response is 200\", function () {",
-							"    pm.response.to.have.status(200);",
-							"});"
+					"protocolProfileBehavior": {
+						"disabledSystemHeaders": {
+							"content-type": true
+						}
+					},
+					"request": {
+						"auth": {
+							"type": "basic",
+							"basic": [
+								{
+									"key": "password",
+									"value": "{{adminClientSecret}}",
+									"type": "string"
+								},
+								{
+									"key": "username",
+									"value": "{{adminClientId}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"type": "text",
+								"value": "application/json"
+							}
 						],
-						"type": "text/javascript"
-					}
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"public_key\": {{JSON_PUBLIC_KEY}},\n    \"signature\": {{JSON_public-key-signature}}\n}"
+						},
+						"url": {
+							"raw": "{{scheme}}://{{host}}:{{admin-port}}/v2/system/{{system_id}}/key",
+							"protocol": "{{scheme}}",
+							"host": [
+								"{{host}}"
+							],
+							"port": "{{admin-port}}",
+							"path": [
+								"v2",
+								"system",
+								"{{system_id}}",
+								"key"
+							]
+						}
+					},
+					"response": []
 				},
 				{
-					"listen": "prerequest",
-					"script": {
-						"id": "6177505a-8506-42b4-b9ee-23d61ab30d8b",
-						"exec": [
-							"var parts = pm.environment.get(\"token\").split('.'); // header, payload, signature",
-							"var t = JSON.parse(atob(parts[1]));",
-							"",
-							"",
-							"pm.test(\"Can parse token ID\", function () {",
-							"    pm.expect(t.jti).to.not.eql(\"\");",
-							"});",
-							"",
-							"",
-							"pm.environment.set(\"token_id\", t.jti)"
-						],
-						"type": "text/javascript"
-					}
-				}
-			],
-			"request": {
-				"auth": {
-					"type": "basic",
-					"basic": [
+					"name": "create system token",
+					"event": [
 						{
-							"key": "password",
-							"value": "{{adminClientSecret}}",
-							"type": "string"
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var schema = {",
+									"    \"properties\": {",
+									"        \"id\": { \"type\": \"string\" },",
+									"        \"label\": { \"type\": \"string\" },",
+									"        \"uuid\": { \"type\": \"string\" },",
+									"        \"creation_date\": { \"type\": \"string\", \"format\": \"time\" },",
+									"        \"expires_at\": { \"type\": \"string\", \"format\": \"time\" },",
+									"        \"Token\": { \"type\": \"string\" }",
+									"    }",
+									"};",
+									"var Ajv = require('ajv');",
+									"var ajv = new Ajv({schemas: [schema]});",
+									"",
+									"pm.test(\"Response is 'ok'\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Schema is valid', function() {",
+									"    pm.expect(ajv.validate(schema, pm.response.text())).to.be.true;",
+									"});",
+									"",
+									"pm.environment.set(\"token_id_to_delete\", pm.response.json().uuid)"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"protocolProfileBehavior": {
+						"disabledSystemHeaders": {
+							"content-type": true
+						}
+					},
+					"request": {
+						"auth": {
+							"type": "basic",
+							"basic": [
+								{
+									"key": "password",
+									"value": "{{adminClientSecret}}",
+									"type": "string"
+								},
+								{
+									"key": "username",
+									"value": "{{adminClientId}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"type": "text",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"label\": \"Whatever\"\n}"
+						},
+						"url": {
+							"raw": "{{scheme}}://{{host}}:{{admin-port}}/v2/system/{{system_id}}/token",
+							"protocol": "{{scheme}}",
+							"host": [
+								"{{host}}"
+							],
+							"port": "{{admin-port}}",
+							"path": [
+								"v2",
+								"system",
+								"{{system_id}}",
+								"token"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "public Get Access Token",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var schema = {",
+									"    \"properties\": {",
+									"        \"access_token\": { \"type\": \"string\" },",
+									"        \"token_type\": { \"type\": \"string\" },",
+									"        \"expires_in\": { \"type\": \"string\", \"format\": \"time\" }",
+									"    }",
+									"};",
+									"var Ajv = require('ajv');",
+									"var ajv = new Ajv({schemas: [schema]});",
+									"",
+									"pm.test(\"Response is 'ok'\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"token_type has expected value\", function () {",
+									"    pm.response.to.have.jsonBody(\"token_type\", \"bearer\")",
+									"});",
+									"",
+									"pm.test('Schema is valid', function() {",
+									"    pm.expect(ajv.validate(schema, pm.response.text())).to.be.true;",
+									"});",
+									"",
+									"var respJson = pm.response.json();",
+									"pm.environment.set(\"token\", respJson.access_token);",
+									""
+								],
+								"type": "text/javascript"
+							}
 						},
 						{
-							"key": "username",
-							"value": "{{adminClientId}}",
-							"type": "string"
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"var navigator = {}; //fake a navigator object for the lib",
+									"var window = {}; //fake a window object for the lib);",
+									"eval(postman.getEnvironmentVariable(\"jsrsasign\")); //import jsrsasign lib",
+									"var dt = new Date().getTime();",
+									"var uuid = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {",
+									"    var r = (dt + Math.random() * 16) % 16 | 0;",
+									"    dt = Math.floor(dt / 16);",
+									"    return (c == 'x' ? r : (r & 0x3 | 0x8)).toString(16);",
+									"}); ",
+									"var audValue = pm.globals.get(\"ssas_client_assertion_aud\") == undefined || pm.globals.get(\"ssas_client_assertion_aud\") == \"\" ? pm.globals.get(\"ssas_client_assertion_aud\") : postman.getEnvironmentVariable(\"ssas_client_assertion_aud\")",
+									"var data = {",
+									"    \"iss\": postman.getEnvironmentVariable(\"client_token\"),",
+									"    \"sub\": postman.getEnvironmentVariable(\"client_token\"),",
+									"    \"aud\": audValue,",
+									"    \"exp\": Math.round(new Date().getTime() / 1000) + 250,",
+									"    \"iat\": Math.round(new Date().getTime() / 1000),",
+									"    \"jti\": uuid,",
+									"};",
+									"var secret = postman.getEnvironmentVariable(\"PRIVATE_KEY\");",
+									"const header = {",
+									"    'alg': 'RS384',",
+									"    'kid': \"7\",",
+									"}",
+									"var sPayload = JSON.stringify(data);",
+									"var sJWT = KJUR.jws.JWS.sign(\"RS384\", header, sPayload, secret);",
+									"postman.setEnvironmentVariable(\"jwt_token\", sJWT);"
+								],
+								"type": "text/javascript"
+							}
 						}
-					]
-				},
-				"method": "DELETE",
-				"header": [],
-				"url": {
-					"raw": "{{scheme}}://{{host}}:{{admin-port}}/token/{{token_id}}",
-					"protocol": "{{scheme}}",
-					"host": [
-						"{{host}}"
 					],
-					"port": "{{admin-port}}",
-					"path": [
-						"token",
-						"{{token_id}}"
-					]
-				}
-			},
-			"response": []
-		},
-		{
-			"name": "token inactive",
-			"event": [
-				{
-					"listen": "test",
-					"script": {
-						"id": "8bcb70d4-85eb-4da3-9034-4e328701e90d",
-						"exec": [
-							"var schema = {",
-							"    \"properties\": {",
-							"        \"active\": { \"type\": \"string\" }",
-							"    }",
-							"};",
-							"var Ajv = require('ajv');",
-							"var ajv = new Ajv({schemas: [schema]});",
-							"",
-							"pm.test(\"Response is 'ok'\", function () {",
-							"    pm.response.to.have.status(200);",
-							"});",
-							"",
-							"pm.test('Schema is valid', function() {",
-							"    pm.expect(ajv.validate(schema, pm.response.text())).to.be.true;",
-							"});",
-							"",
-							"pm.test(\"Token is not active\", function () {",
-							"    pm.response.to.have.jsonBody(\"active\", false)",
-							"});"
+					"protocolProfileBehavior": {
+						"disabledSystemHeaders": {
+							"accept": true,
+							"content-type": true,
+							"accept-encoding": true
+						}
+					},
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json",
+								"type": "text"
+							},
+							{
+								"warning": "This is a duplicate header and will be overridden by the Content-Type header generated by Postman.",
+								"key": "Content-Type",
+								"value": "application/x-www-form-urlencoded",
+								"type": "text"
+							}
 						],
-						"type": "text/javascript"
-					}
-				}
-			],
-			"request": {
-				"auth": {
-					"type": "basic",
-					"basic": [
+						"body": {
+							"mode": "urlencoded",
+							"urlencoded": [
+								{
+									"key": "client_assertion_type",
+									"value": "urn:ietf:params:oauth:client-assertion-type:jwt-bearer",
+									"type": "text"
+								},
+								{
+									"key": "grant_type",
+									"value": "client_credentials",
+									"type": "text"
+								},
+								{
+									"key": "scope",
+									"value": "system/*.*",
+									"type": "text"
+								},
+								{
+									"key": "client_assertion",
+									"value": "{{jwt_token}}",
+									"type": "text"
+								}
+							],
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{scheme}}://{{host}}:{{public-port}}/v2/token",
+							"protocol": "{{scheme}}",
+							"host": [
+								"{{host}}"
+							],
+							"port": "{{public-port}}",
+							"path": [
+								"v2",
+								"token"
+							]
+						},
+						"description": "Verify a username and password"
+					},
+					"response": []
+				},
+				{
+					"name": "public validate token",
+					"event": [
 						{
-							"key": "username",
-							"value": "{{adminClientId}}",
-							"type": "string"
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var schema = {",
+									"    \"properties\": {",
+									"        \"access_token\": { \"type\": \"string\" },",
+									"        \"token_type\": { \"type\": \"string\" },",
+									"        \"expires_in\": { \"type\": \"string\", \"format\": \"time\" }",
+									"    }",
+									"};",
+									"var Ajv = require('ajv');",
+									"var ajv = new Ajv({schemas: [schema]});",
+									"",
+									"pm.test(\"Response is 'ok'\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Schema is valid', function() {",
+									"    pm.expect(ajv.validate(schema, pm.response.text())).to.be.true;",
+									"});",
+									""
+								],
+								"type": "text/javascript"
+							}
 						},
 						{
-							"key": "password",
-							"value": "{{adminClientSecret}}",
-							"type": "string"
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									""
+								],
+								"type": "text/javascript"
+							}
 						}
-					]
-				},
-				"method": "POST",
-				"header": [
-					{
-						"key": "Content-Type",
-						"name": "Content-Type",
-						"type": "text",
-						"value": "application/json"
-					}
-				],
-				"body": {
-					"mode": "raw",
-					"raw": "{\"token\":\"{{token}}\"}"
-				},
-				"url": {
-					"raw": "{{scheme}}://{{host}}:{{public-port}}/introspect",
-					"protocol": "{{scheme}}",
-					"host": [
-						"{{host}}"
 					],
-					"port": "{{public-port}}",
-					"path": [
-						"introspect"
-					]
-				}
-			},
-			"response": []
-		},
-		{
-			"name": "reset system credentials",
-			"event": [
-				{
-					"listen": "test",
-					"script": {
-						"id": "189d132c-b5a3-4852-ac3e-950a691385dd",
-						"exec": [
-							"var schema = {",
-							"    \"properties\": {",
-							"        \"client_id\": { \"type\": \"string\" },",
-							"        \"client_secret\": { \"type\": \"string\" },",
-							"        \"client_name\": { \"type\": \"string\" },",
-							"        \"system_id\": { \"type\": \"string\" },",
-							"        \"expires_at\": { \"type\": \"string\", \"format\": \"time\" }",
-							"    }",
-							"};",
-							"var Ajv = require('ajv');",
-							"var ajv = new Ajv({schemas: [schema]});",
-							"",
-							"pm.test(\"Response is 'created'\", function () {",
-							"    pm.response.to.have.status(201);",
-							"});",
-							"",
-							"pm.test('Schema is valid', function() {",
-							"    pm.expect(ajv.validate(schema, pm.response.text())).to.be.true;",
-							"});",
-							"",
-							"pm.test(\"client_id has expected value\", function () {",
-							"    pm.response.to.have.jsonBody(\"client_id\", pm.environment.get(\"client_id\"))",
-							"});",
-							"",
-							"var respJson = pm.response.json();",
-							"",
-							"pm.test(\"client_secret is not blank\", function () {",
-							"    pm.expect(respJson.client_secret).to.not.eql(\"\");",
-							"});",
-							"",
-							"pm.environment.set(\"client_id\", respJson.client_id);  ",
-							"pm.environment.set(\"client_secret\", respJson.client_secret);",
-							""
+					"protocolProfileBehavior": {
+						"disabledSystemHeaders": {
+							"accept": true,
+							"content-type": true,
+							"accept-encoding": true
+						}
+					},
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Accept",
+								"value": "application/json",
+								"type": "text"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
 						],
-						"type": "text/javascript"
-					}
-				}
-			],
-			"request": {
-				"auth": {
-					"type": "basic",
-					"basic": [
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"token\": \"{{token}}\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{scheme}}://{{host}}:{{public-port}}/v2/token_info",
+							"protocol": "{{scheme}}",
+							"host": [
+								"{{host}}"
+							],
+							"port": "{{public-port}}",
+							"path": [
+								"v2",
+								"token_info"
+							]
+						},
+						"description": "Verify a username and password"
+					},
+					"response": []
+				},
+				{
+					"name": "register system ip address",
+					"event": [
 						{
-							"key": "password",
-							"value": "{{adminClientSecret}}",
-							"type": "string"
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var schema = {",
+									"    \"properties\": {",
+									"        \"address\": { \"type\": \"string\" },",
+									"        \"system_id\": { \"type\": \"string\" }",
+									"    }",
+									"};",
+									"var Ajv = require('ajv');",
+									"var ajv = new Ajv({schemas: [schema]});",
+									"",
+									"pm.test(\"Response is 'created'\", function () {",
+									"    pm.response.to.have.status(201);",
+									"});",
+									"",
+									"pm.test('Schema is valid', function() {",
+									"    pm.expect(ajv.validate(schema, pm.response.text())).to.be.true;",
+									"});",
+									"",
+									"pm.test(\"system_id has expected value\", function () {",
+									"    pm.response.to.have.jsonBody(\"SystemID\", parseInt(pm.environment.get(\"system_id\")));",
+									"});",
+									"",
+									"pm.test(\"ip address has expected value\", function () {",
+									"    pm.response.to.have.jsonBody(\"Address\", pm.environment.get(\"random_ip\"));",
+									"});",
+									""
+								],
+								"type": "text/javascript"
+							}
 						},
 						{
-							"key": "username",
-							"value": "{{adminClientId}}",
-							"type": "string"
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									""
+								],
+								"type": "text/javascript"
+							}
 						}
-					]
-				},
-				"method": "PUT",
-				"header": [
-					{
-						"key": "Content-Type",
-						"name": "Content-Type",
-						"type": "text",
-						"value": "application/json"
-					}
-				],
-				"url": {
-					"raw": "{{scheme}}://{{host}}:{{admin-port}}/system/{{system_id}}/credentials",
-					"protocol": "{{scheme}}",
-					"host": [
-						"{{host}}"
 					],
-					"port": "{{admin-port}}",
-					"path": [
-						"system",
-						"{{system_id}}",
-						"credentials"
-					]
-				}
-			},
-			"response": []
-		},
-		{
-			"name": "get system token (new credentials)",
-			"event": [
-				{
-					"listen": "test",
-					"script": {
-						"id": "1b45568f-e2b4-4d71-8b26-88a8dfc19227",
-						"exec": [
-							"var schema = {",
-							"    \"properties\": {",
-							"        \"access_token\": { \"type\": \"string\" },",
-							"        \"token_type\": { \"type\": \"string\" },",
-							"        \"expires_in\": { \"type\": \"string\", \"format\": \"time\" }",
-							"    }",
-							"};",
-							"var Ajv = require('ajv');",
-							"var ajv = new Ajv({schemas: [schema]});",
-							"",
-							"pm.test(\"Response is 'created'\", function () {",
-							"    pm.response.to.have.status(200);",
-							"});",
-							"",
-							"pm.test(\"token_type has expected value\", function () {",
-							"    pm.response.to.have.jsonBody(\"token_type\", \"bearer\")",
-							"});",
-							"",
-							"pm.test('Schema is valid', function() {",
-							"    pm.expect(ajv.validate(schema, pm.response.text())).to.be.true;",
-							"});",
-							"",
-							"var respJson = pm.response.json();",
-							"pm.environment.set(\"token\", respJson.access_token);"
+					"request": {
+						"auth": {
+							"type": "basic",
+							"basic": [
+								{
+									"key": "password",
+									"value": "{{adminClientSecret}}",
+									"type": "string"
+								},
+								{
+									"key": "username",
+									"value": "{{adminClientId}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"type": "text",
+								"value": "application/json"
+							}
 						],
-						"type": "text/javascript"
-					}
-				}
-			],
-			"request": {
-				"auth": {
-					"type": "basic",
-					"basic": [
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"address\": \"14.103.75.114\"\n}"
+						},
+						"url": {
+							"raw": "{{scheme}}://{{host}}:{{admin-port}}/v2/system/{{system_id}}/ip",
+							"protocol": "{{scheme}}",
+							"host": [
+								"{{host}}"
+							],
+							"port": "{{admin-port}}",
+							"path": [
+								"v2",
+								"system",
+								"{{system_id}}",
+								"ip"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "list system ip addresses",
+					"event": [
 						{
-							"key": "password",
-							"value": "{{client_secret}}",
-							"type": "string"
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var schema = {",
+									"    \"properties\": {",
+									"        \"address\": { \"type\": \"string\" },",
+									"        \"system_id\": { \"type\": \"string\" }",
+									"    }",
+									"};",
+									"var Ajv = require('ajv');",
+									"var ajv = new Ajv({schemas: [schema]});",
+									"",
+									"pm.test(\"Response is 'ok'\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Schema is valid', function() {",
+									"    pm.expect(ajv.validate(schema, pm.response.text())).to.be.true;",
+									"});",
+									"",
+									"var jsonBody = pm.response.json()",
+									"pm.environment.set(\"ip_to_delete\", jsonBody[0].ID)",
+									""
+								],
+								"type": "text/javascript"
+							}
 						},
 						{
-							"key": "username",
-							"value": "{{client_id}}",
-							"type": "string"
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									""
+								],
+								"type": "text/javascript"
+							}
 						}
-					]
-				},
-				"method": "POST",
-				"header": [],
-				"url": {
-					"raw": "{{scheme}}://{{host}}:{{public-port}}/token",
-					"protocol": "{{scheme}}",
-					"host": [
-						"{{host}}"
 					],
-					"port": "{{public-port}}",
-					"path": [
-						"token"
-					]
-				},
-				"description": "Verify a username and password"
-			},
-			"response": []
-		},
-		{
-			"name": "token active (prior to revoking system creds)",
-			"event": [
-				{
-					"listen": "test",
-					"script": {
-						"id": "23844248-b5a0-45fe-8749-10db76d5cb30",
-						"exec": [
-							"var schema = {",
-							"    \"properties\": {",
-							"        \"active\": { \"type\": \"string\" }",
-							"    }",
-							"};",
-							"var Ajv = require('ajv');",
-							"var ajv = new Ajv({schemas: [schema]});",
-							"",
-							"pm.test(\"Response is 'ok'\", function () {",
-							"    pm.response.to.have.status(200);",
-							"});",
-							"",
-							"pm.test('Schema is valid', function() {",
-							"    pm.expect(ajv.validate(schema, pm.response.text())).to.be.true;",
-							"});",
-							"",
-							"pm.test(\"Token is active\", function () {",
-							"    pm.response.to.have.jsonBody(\"active\", true)",
-							"});"
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"auth": {
+							"type": "basic",
+							"basic": [
+								{
+									"key": "password",
+									"value": "{{adminClientSecret}}",
+									"type": "string"
+								},
+								{
+									"key": "username",
+									"value": "{{adminClientId}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"type": "text",
+								"value": "application/json"
+							}
 						],
-						"type": "text/javascript"
-					}
-				}
-			],
-			"request": {
-				"auth": {
-					"type": "basic",
-					"basic": [
+						"body": {
+							"mode": "raw",
+							"raw": ""
+						},
+						"url": {
+							"raw": "{{scheme}}://{{host}}:{{admin-port}}/v2/system/{{system_id}}/ip",
+							"protocol": "{{scheme}}",
+							"host": [
+								"{{host}}"
+							],
+							"port": "{{admin-port}}",
+							"path": [
+								"v2",
+								"system",
+								"{{system_id}}",
+								"ip"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "delete system ip address",
+					"event": [
 						{
-							"key": "password",
-							"value": "{{client_secret}}",
-							"type": "string"
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Response is 'no content'\", function () {",
+									"    pm.response.to.have.status(204);",
+									"});",
+									""
+								],
+								"type": "text/javascript"
+							}
 						},
 						{
-							"key": "username",
-							"value": "{{client_id}}",
-							"type": "string"
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									""
+								],
+								"type": "text/javascript"
+							}
 						}
-					]
-				},
-				"method": "POST",
-				"header": [
-					{
-						"key": "Content-Type",
-						"name": "Content-Type",
-						"value": "application/json",
-						"type": "text"
-					}
-				],
-				"body": {
-					"mode": "raw",
-					"raw": "{\"token\":\"{{token}}\"}"
-				},
-				"url": {
-					"raw": "{{scheme}}://{{host}}:{{public-port}}/introspect",
-					"protocol": "{{scheme}}",
-					"host": [
-						"{{host}}"
 					],
-					"port": "{{public-port}}",
-					"path": [
-						"introspect"
-					]
-				},
-				"description": "Verify that we have a valid token prior to revoking the system credentials."
-			},
-			"response": []
-		},
-		{
-			"name": "revoke system credentials",
-			"event": [
-				{
-					"listen": "test",
-					"script": {
-						"id": "7951ead2-8728-4eb5-88dc-090c12334700",
-						"exec": [
-							"pm.test(\"Response is 'ok'\", function () {",
-							"    pm.response.to.have.status(200);",
-							"});"
+					"request": {
+						"auth": {
+							"type": "basic",
+							"basic": [
+								{
+									"key": "password",
+									"value": "{{adminClientSecret}}",
+									"type": "string"
+								},
+								{
+									"key": "username",
+									"value": "{{adminClientId}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"type": "text",
+								"value": "application/json"
+							}
 						],
-						"type": "text/javascript"
-					}
-				}
-			],
-			"request": {
-				"auth": {
-					"type": "basic",
-					"basic": [
+						"body": {
+							"mode": "raw",
+							"raw": ""
+						},
+						"url": {
+							"raw": "{{scheme}}://{{host}}:{{admin-port}}/v2/system/{{system_id}}/ip/{{ip_to_delete}}",
+							"protocol": "{{scheme}}",
+							"host": [
+								"{{host}}"
+							],
+							"port": "{{admin-port}}",
+							"path": [
+								"v2",
+								"system",
+								"{{system_id}}",
+								"ip",
+								"{{ip_to_delete}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "delete system public key",
+					"event": [
 						{
-							"key": "password",
-							"value": "{{adminClientSecret}}",
-							"type": "string"
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Response is 'accepted'\", function () {",
+									"    pm.response.to.have.status(202);",
+									"});",
+									""
+								],
+								"type": "text/javascript"
+							}
 						},
 						{
-							"key": "username",
-							"value": "{{adminClientId}}",
-							"type": "string"
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									""
+								],
+								"type": "text/javascript"
+							}
 						}
-					]
-				},
-				"method": "DELETE",
-				"header": [
-					{
-						"key": "Content-Type",
-						"name": "Content-Type",
-						"type": "text",
-						"value": "application/json"
-					}
-				],
-				"url": {
-					"raw": "{{scheme}}://{{host}}:{{admin-port}}/system/{{system_id}}/credentials",
-					"protocol": "{{scheme}}",
-					"host": [
-						"{{host}}"
 					],
-					"port": "{{admin-port}}",
-					"path": [
-						"system",
-						"{{system_id}}",
-						"credentials"
-					]
-				}
-			},
-			"response": []
-		},
-		{
-			"name": "token inactive (post revoking system creds)",
-			"event": [
-				{
-					"listen": "test",
-					"script": {
-						"id": "1100a7fe-6609-4b2a-bb5e-b957028c8874",
-						"exec": [
-							"var schema = {",
-							"    \"properties\": {",
-							"        \"active\": { \"type\": \"string\" }",
-							"    }",
-							"};",
-							"var Ajv = require('ajv');",
-							"var ajv = new Ajv({schemas: [schema]});",
-							"",
-							"pm.test(\"Response is 'bad request'\", function () {",
-							"    pm.response.to.have.status(400);",
-							"});",
-							"",
-							"pm.test('Schema is valid', function() {",
-							"    pm.expect(ajv.validate(schema, pm.response.text())).to.be.true;",
-							"});",
-							"",
-							"pm.test(\"Unauthorized error\", function () {",
-							"    pm.response.to.have.jsonBody(\"error\", \"Unauthorized\")",
-							"});"
+					"request": {
+						"auth": {
+							"type": "basic",
+							"basic": [
+								{
+									"key": "password",
+									"value": "{{adminClientSecret}}",
+									"type": "string"
+								},
+								{
+									"key": "username",
+									"value": "{{adminClientId}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"type": "text",
+								"value": "application/json"
+							}
 						],
-						"type": "text/javascript"
-					}
-				}
-			],
-			"request": {
-				"auth": {
-					"type": "basic",
-					"basic": [
+						"body": {
+							"mode": "raw",
+							"raw": ""
+						},
+						"url": {
+							"raw": "{{scheme}}://{{host}}:{{admin-port}}/v2/system/{{system_id}}/key/{{key_id_to_delete}}",
+							"protocol": "{{scheme}}",
+							"host": [
+								"{{host}}"
+							],
+							"port": "{{admin-port}}",
+							"path": [
+								"v2",
+								"system",
+								"{{system_id}}",
+								"key",
+								"{{key_id_to_delete}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "delete system token",
+					"event": [
 						{
-							"key": "password",
-							"value": "{{client_secret}}",
-							"type": "string"
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Response is 'accepted'\", function () {",
+									"    pm.response.to.have.status(202);",
+									"});",
+									""
+								],
+								"type": "text/javascript"
+							}
 						},
 						{
-							"key": "username",
-							"value": "{{client_id}}",
-							"type": "string"
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									""
+								],
+								"type": "text/javascript"
+							}
 						}
-					]
-				},
-				"method": "POST",
-				"header": [
-					{
-						"key": "Content-Type",
-						"name": "Content-Type",
-						"type": "text",
-						"value": "application/json"
-					}
-				],
-				"body": {
-					"mode": "raw",
-					"raw": "{\"token\":\"{{token}}\"}"
-				},
-				"url": {
-					"raw": "{{scheme}}://{{host}}:{{public-port}}/introspect",
-					"protocol": "{{scheme}}",
-					"host": [
-						"{{host}}"
 					],
-					"port": "{{public-port}}",
-					"path": [
-						"introspect"
-					]
-				},
-				"description": "Token should be inactive since we've revoked the credentials used to generate the token."
-			},
-			"response": []
-		},
-		{
-			"name": "get system token denied",
-			"event": [
-				{
-					"listen": "test",
-					"script": {
-						"id": "9eb5f88e-dedf-440c-9bc2-b3f9c09e7d9d",
-						"exec": [
-							"var schema = {",
-							"    \"properties\": {",
-							"        \"error\": { \"type\": \"string\" },",
-							"        \"error_description\": { \"type\": \"string\" }",
-							"    }",
-							"};",
-							"var Ajv = require('ajv');",
-							"var ajv = new Ajv({schemas: [schema]});",
-							"",
-							"pm.test(\"Response is 'unauthorized'\", function () {",
-							"    pm.response.to.have.status(401);",
-							"});",
-							"",
-							"pm.test('Schema is valid', function() {",
-							"    pm.expect(ajv.validate(schema, pm.response.text())).to.be.true;",
-							"});",
-							"",
-							"pm.test(\"Error has expected value\", function () {",
-							"    pm.response.to.have.jsonBody(\"error\", \"Unauthorized\")",
-							"});",
-							""
-						],
-						"type": "text/javascript"
-					}
-				}
-			],
-			"request": {
-				"auth": {
-					"type": "basic",
-					"basic": [
-						{
-							"key": "password",
-							"value": "{{client_secret}}",
-							"type": "string"
+					"request": {
+						"auth": {
+							"type": "basic",
+							"basic": [
+								{
+									"key": "password",
+									"value": "{{adminClientSecret}}",
+									"type": "string"
+								},
+								{
+									"key": "username",
+									"value": "{{adminClientId}}",
+									"type": "string"
+								}
+							]
 						},
-						{
-							"key": "username",
-							"value": "{{client_id}}",
-							"type": "string"
-						}
-					]
-				},
-				"method": "POST",
-				"header": [],
-				"url": {
-					"raw": "{{scheme}}://{{host}}:{{public-port}}/token",
-					"protocol": "{{scheme}}",
-					"host": [
-						"{{host}}"
-					],
-					"port": "{{public-port}}",
-					"path": [
-						"token"
-					]
-				},
-				"description": "Verify a username and password"
-			},
-			"response": []
-		},
-		{
-			"name": "delete group and system",
-			"event": [
-				{
-					"listen": "test",
-					"script": {
-						"id": "f1b6f0ca-ddab-408b-9a2c-828f57134d79",
-						"exec": [
-							"pm.test(\"Response is 'ok'\", function () {",
-							"    pm.response.to.have.status(200);",
-							"});"
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"type": "text",
+								"value": "application/json"
+							}
 						],
-						"type": "text/javascript"
-					}
-				}
-			],
-			"request": {
-				"auth": {
-					"type": "basic",
-					"basic": [
-						{
-							"key": "password",
-							"value": "{{adminClientSecret}}",
-							"type": "string"
+						"body": {
+							"mode": "raw",
+							"raw": ""
 						},
-						{
-							"key": "username",
-							"value": "{{adminClientId}}",
-							"type": "string"
+						"url": {
+							"raw": "{{scheme}}://{{host}}:{{admin-port}}/v2/system/{{system_id}}/token/{{token_id_to_delete}}",
+							"protocol": "{{scheme}}",
+							"host": [
+								"{{host}}"
+							],
+							"port": "{{admin-port}}",
+							"path": [
+								"v2",
+								"system",
+								"{{system_id}}",
+								"token",
+								"{{token_id_to_delete}}"
+							]
 						}
-					]
+					},
+					"response": []
 				},
-				"method": "DELETE",
-				"header": [],
-				"url": {
-					"raw": "{{scheme}}://{{host}}:{{admin-port}}/group/{{group.id}}",
-					"protocol": "{{scheme}}",
-					"host": [
-						"{{host}}"
-					],
-					"port": "{{admin-port}}",
-					"path": [
-						"group",
-						"{{group.id}}"
-					]
-				}
-			},
-			"response": []
-		},
-		{
-			"name": "list group (not present)",
-			"event": [
 				{
-					"listen": "test",
-					"script": {
-						"id": "edb2aebd-eebd-4e73-b5b8-c76935ada363",
-						"exec": [
-							"pm.test(\"Response is 'ok'\", function () {",
-							"    pm.response.to.have.status(200);",
-							"});",
-							"",
-							"pm.test(\"Response does not include Group.group_id\", function() {",
-							"    pm.expect(pm.response.text()).to.not.include(pm.environment.get(\"group.group_id\"));",
-							"});"
-						],
-						"type": "text/javascript"
-					}
-				}
-			],
-			"request": {
-				"auth": {
-					"type": "basic",
-					"basic": [
+					"name": "update system",
+					"event": [
 						{
-							"key": "password",
-							"value": "{{adminClientSecret}}",
-							"type": "string"
-						},
-						{
-							"key": "username",
-							"value": "{{adminClientId}}",
-							"type": "string"
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Response is 'No Content'\", function () {",
+									"    pm.response.to.have.status(204);",
+									"});",
+									"",
+									"pm.test(\"Content-Type is 'application/json'\", function() {",
+									"    pm.response.to.be.header(\"Content-Type\", \"application/json\");",
+									"})"
+								],
+								"type": "text/javascript"
+							}
 						}
-					]
-				},
-				"method": "GET",
-				"header": [],
-				"url": {
-					"raw": "{{scheme}}://{{host}}:{{admin-port}}/group",
-					"protocol": "{{scheme}}",
-					"host": [
-						"{{host}}"
 					],
-					"port": "{{admin-port}}",
-					"path": [
-						"group"
-					]
+					"request": {
+						"auth": {
+							"type": "basic",
+							"basic": [
+								{
+									"key": "password",
+									"value": "{{adminClientSecret}}",
+									"type": "string"
+								},
+								{
+									"key": "username",
+									"value": "{{adminClientId}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"type": "text",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"client_name\": \"UPDATED System 1 for group {{group.group_id}}\"\n}"
+						},
+						"url": {
+							"raw": "{{scheme}}://{{host}}:{{admin-port}}/v2/system/{{system_id}}",
+							"protocol": "{{scheme}}",
+							"host": [
+								"{{host}}"
+							],
+							"port": "{{admin-port}}",
+							"path": [
+								"v2",
+								"system",
+								"{{system_id}}"
+							]
+						}
+					},
+					"response": []
 				}
-			},
-			"response": []
+			]
 		}
 	],
 	"event": [
 		{
 			"listen": "prerequest",
 			"script": {
-				"id": "4a4f706c-513a-4fdd-8ba8-9f90b27ff50d",
 				"type": "text/javascript",
 				"exec": [
 					""
@@ -1750,13 +3172,11 @@
 		{
 			"listen": "test",
 			"script": {
-				"id": "48a0b153-831f-4d4b-a427-39f0e638d63b",
 				"type": "text/javascript",
 				"exec": [
 					""
 				]
 			}
 		}
-	],
-	"protocolProfileBehavior": {}
+	]
 }
