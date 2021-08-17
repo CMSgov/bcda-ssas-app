@@ -139,13 +139,64 @@ func (s *SystemsTestSuite) TestGenerateSystemKeyPairAlreadyExists() {
 }
 
 func (s *SystemsTestSuite) TestGetEncryptionKey() {
-	group := Group{GroupID: "test-get-encryption-key-group"}
+	sys, group, pubKey, _ := s.createSystemWithPubKey()
+
+	key, err := sys.GetEncryptionKey("")
+	assert.Nil(s.T(), err)
+	assert.Equal(s.T(), pubKey, key.Body)
+
+	_ = CleanDatabase(group)
+}
+
+func (s *SystemsTestSuite) TestFindEncryptionKey() {
+	assert := s.Assert()
+	sys, group, pubKey, pubKeyId := s.createSystemWithPubKey()
+
+	key, err := sys.FindEncryptionKey("", pubKeyId)
+	assert.Nil(err)
+	assert.Equal(pubKey, key.Body)
+	err = CleanDatabase(group)
+	assert.Nil(err)
+}
+
+func (s *SystemsTestSuite) TestFindEncryptionKeyNotFound() {
+	assert := s.Assert()
+	sys, group, _, _ := s.createSystemWithPubKey()
+
+	_, err := sys.FindEncryptionKey("", uuid.NewRandom().String())
+	assert.NotNil(err)
+	assert.Contains(err.Error(), "cannot find key for systemId")
+
+	err = CleanDatabase(group)
+	assert.Nil(err)
+}
+
+func (s *SystemsTestSuite) TestFindEncryptionKeyForAnotherSystem() {
+	assert := s.Assert()
+	sys1, group1, _, _ := s.createSystemWithPubKey()
+	_, group2, _, kid2 := s.createSystemWithPubKey()
+
+	_, err := sys1.FindEncryptionKey("", kid2)
+	assert.NotNil(err)
+	assert.Contains(err.Error(), "cannot find key for systemId")
+
+	err = CleanDatabase(group1)
+	assert.Nil(err)
+	err = CleanDatabase(group2)
+	assert.Nil(err)
+}
+
+func (s *SystemsTestSuite) createSystemWithPubKey() (System, Group, string, string) {
+	group := Group{GroupID: uuid.New()}
 	err := s.db.Create(&group).Error
 	if err != nil {
 		s.FailNow(err.Error())
 	}
 
-	system := System{GID: group.ID}
+	system := System{
+		GID:      group.ID,
+		ClientID: uuid.New(),
+	}
 	err = s.db.Create(&system).Error
 	if err != nil {
 		s.FailNow(err.Error())
@@ -164,17 +215,15 @@ OwIDAQAB
 	origKey := EncryptionKey{
 		SystemID: system.ID,
 		Body:     pubKey,
+		UUID:     uuid.NewRandom().String(),
 	}
 	err = s.db.Create(&origKey).Error
 	if err != nil {
 		s.FailNow(err.Error())
 	}
 
-	key, err := system.GetEncryptionKey("")
-	assert.Nil(s.T(), err)
-	assert.Equal(s.T(), pubKey, key.Body)
+	return system, group, pubKey, origKey.UUID
 
-	_ = CleanDatabase(group)
 }
 
 func (s *SystemsTestSuite) TestSystemSavePublicKey() {

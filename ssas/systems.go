@@ -317,7 +317,7 @@ func (system *System) FindEncryptionKey(trackingID string, keyId string) (Encryp
 	err := db.First(&encryptionKey, "system_id = ? AND uuid=?", system.ID, keyId).Error
 	if err != nil {
 		OperationFailed(findKeyEvent)
-		return encryptionKey, fmt.Errorf("cannot find key for systemId %d: %s and keyId: %s", system.ID, keyId, err.Error())
+		return encryptionKey, fmt.Errorf("cannot find key for systemId %d: and keyId: %s error: %s", system.ID, keyId, err.Error())
 	}
 
 	OperationSucceeded(findKeyEvent)
