@@ -2529,7 +2529,10 @@
 									"}",
 									"var sPayload = JSON.stringify(data);",
 									"var sJWT = KJUR.jws.JWS.sign(\"RS384\", header, sPayload, secret);",
-									"postman.setEnvironmentVariable(\"jwt_token\", sJWT);"
+									"postman.setEnvironmentVariable(\"jwt_token\", sJWT);",
+									"",
+									"// slow down this request to ensure token is not \"used before issued\"",
+									"setTimeout(function(){}, 300);"
 								],
 								"type": "text/javascript"
 							}
@@ -2583,12 +2586,7 @@
 									"value": "{{jwt_token}}",
 									"type": "text"
 								}
-							],
-							"options": {
-								"raw": {
-									"language": "json"
-								}
-							}
+							]
 						},
 						"url": {
 							"raw": "{{scheme}}://{{host}}:{{public-port}}/v2/token",
@@ -2877,6 +2875,70 @@
 					"response": []
 				},
 				{
+					"name": "update system",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Response is 'No Content'\", function () {",
+									"    pm.response.to.have.status(204);",
+									"});",
+									"",
+									"pm.test(\"Content-Type is 'application/json'\", function() {",
+									"    pm.response.to.be.header(\"Content-Type\", \"application/json\");",
+									"})"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "basic",
+							"basic": [
+								{
+									"key": "password",
+									"value": "{{adminClientSecret}}",
+									"type": "string"
+								},
+								{
+									"key": "username",
+									"value": "{{adminClientId}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "PATCH",
+						"header": [
+							{
+								"key": "Content-Type",
+								"name": "Content-Type",
+								"type": "text",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"client_name\": \"UPDATED System 1 for group {{group.group_id}}\"\n}"
+						},
+						"url": {
+							"raw": "{{scheme}}://{{host}}:{{admin-port}}/v2/system/{{system_id}}",
+							"protocol": "{{scheme}}",
+							"host": [
+								"{{host}}"
+							],
+							"port": "{{admin-port}}",
+							"path": [
+								"v2",
+								"system",
+								"{{system_id}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
 					"name": "delete system ip address",
 					"event": [
 						{
@@ -3093,19 +3155,25 @@
 					"response": []
 				},
 				{
-					"name": "update system",
+					"name": "delete group and system",
 					"event": [
 						{
 							"listen": "test",
 							"script": {
 								"exec": [
-									"pm.test(\"Response is 'No Content'\", function () {",
-									"    pm.response.to.have.status(204);",
+									"pm.test(\"Response is 'ok'\", function () {",
+									"    pm.response.to.have.status(200);",
 									"});",
-									"",
-									"pm.test(\"Content-Type is 'application/json'\", function() {",
-									"    pm.response.to.be.header(\"Content-Type\", \"application/json\");",
-									"})"
+									""
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									""
 								],
 								"type": "text/javascript"
 							}
@@ -3127,7 +3195,7 @@
 								}
 							]
 						},
-						"method": "PATCH",
+						"method": "DELETE",
 						"header": [
 							{
 								"key": "Content-Type",
@@ -3138,10 +3206,63 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n    \"client_name\": \"UPDATED System 1 for group {{group.group_id}}\"\n}"
+							"raw": ""
 						},
 						"url": {
-							"raw": "{{scheme}}://{{host}}:{{admin-port}}/v2/system/{{system_id}}",
+							"raw": "{{scheme}}://{{host}}:{{admin-port}}/group/{{group.id}}",
+							"protocol": "{{scheme}}",
+							"host": [
+								"{{host}}"
+							],
+							"port": "{{admin-port}}",
+							"path": [
+								"group",
+								"{{group.id}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "list group (not present)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Response is 'ok'\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Response does not include group.id\", function() {",
+									"    var deletedGroupId = pm.response.json().groups.find(i => i.id == pm.environment.get(\"group.id\"));",
+									"    pm.expect(deletedGroupId).to.eql(undefined);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "basic",
+							"basic": [
+								{
+									"key": "password",
+									"value": "{{adminClientSecret}}",
+									"type": "string"
+								},
+								{
+									"key": "username",
+									"value": "{{adminClientId}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{scheme}}://{{host}}:{{admin-port}}/v2/group",
 							"protocol": "{{scheme}}",
 							"host": [
 								"{{host}}"
@@ -3149,8 +3270,7 @@
 							"port": "{{admin-port}}",
 							"path": [
 								"v2",
-								"system",
-								"{{system_id}}"
+								"group"
 							]
 						}
 					},
