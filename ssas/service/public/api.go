@@ -764,3 +764,38 @@ func validateAndParseToken(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	render.JSON(w, r, response)
 }
+
+func introspectV2(w http.ResponseWriter, r *http.Request) {
+	trackingID := uuid.NewRandom().String()
+	event := ssas.Event{Op: "V2-Token-Info", TrackingID: trackingID, Help: "calling from admin.validateToken()"}
+	ssas.OperationCalled(event)
+
+	defer r.Body.Close()
+
+	var reqV map[string]string
+	if err := json.NewDecoder(r.Body).Decode(&reqV); err != nil {
+		jsonError(w, http.StatusText(http.StatusBadRequest), "invalid request body")
+		return
+	}
+	tokenS := reqV["token"]
+	if tokenS == "" {
+		jsonError(w, http.StatusText(http.StatusBadRequest), `missing "token" field in body`)
+		return
+	}
+	var response = make(map[string]interface{})
+
+	if err := tokenValidity(tokenS, "AccessToken"); err != nil {
+		ssas.Logger.Infof("token failed tokenValidity")
+		response["valid"] = false
+	} else {
+		claims := jwt.MapClaims{}
+		if _, _, err := new(jwt.Parser).ParseUnverified(tokenS, claims); err != nil {
+			ssas.Logger.Infof("could not unmarshal access token")
+			jsonError(w, http.StatusText(http.StatusInternalServerError), "internal server error")
+			return
+		}
+		response["valid"] = true
+	}
+	w.Header().Set("Content-Type", "application/json")
+	render.JSON(w, r, response)
+}
