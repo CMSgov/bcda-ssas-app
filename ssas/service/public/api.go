@@ -760,6 +760,13 @@ func validateAndParseToken(w http.ResponseWriter, r *http.Request) {
 		response["valid"] = true
 		response["data"] = claims["dat"]
 		response["system_data"] = claims["system_data"]
+		sys, err := ssas.GetSystemByID(claims["sys"].(string))
+		if err != nil {
+			ssas.Logger.Infof("could not get system id")
+			jsonError(w, http.StatusText(http.StatusInternalServerError), "internal server error")
+			return
+		}
+		response["scope"] = sys.APIScope
 	}
 	w.Header().Set("Content-Type", "application/json")
 	render.JSON(w, r, response)
