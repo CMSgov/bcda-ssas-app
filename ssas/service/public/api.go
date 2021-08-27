@@ -774,7 +774,7 @@ func validateJWT(w http.ResponseWriter, r *http.Request) {
 
 	var reqV map[string]string
 	if err := json.NewDecoder(r.Body).Decode(&reqV); err != nil {
-		jsonError(w, http.StatusText(http.StatusBadRequest), "invalid request body")
+		jsonError(w, http.StatusText(http.StatusBadRequest), fmt.Sprintf("invalid request body: %s", err))
 		return
 	}
 	tokenS := reqV["token"]
@@ -790,8 +790,8 @@ func validateJWT(w http.ResponseWriter, r *http.Request) {
 	} else {
 		claims := jwt.MapClaims{}
 		if _, _, err := new(jwt.Parser).ParseUnverified(tokenS, claims); err != nil {
-			ssas.Logger.Infof("could not unmarshal access token")
-			jsonError(w, http.StatusText(http.StatusInternalServerError), "internal server error")
+			ssas.Logger.Infof(fmt.Sprintf("could not unmarshal access token: %s", err))
+			jsonError(w, http.StatusText(http.StatusBadRequest), "Unable to parse token")
 			return
 		}
 		response["valid"] = true
