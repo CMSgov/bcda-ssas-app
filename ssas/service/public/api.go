@@ -765,7 +765,7 @@ func validateAndParseToken(w http.ResponseWriter, r *http.Request) {
 	render.JSON(w, r, response)
 }
 
-func introspectV2(w http.ResponseWriter, r *http.Request) {
+func validateJWT(w http.ResponseWriter, r *http.Request) {
 	trackingID := uuid.NewRandom().String()
 	event := ssas.Event{Op: "V2-Token-Info", TrackingID: trackingID, Help: "calling from admin.validateToken()"}
 	ssas.OperationCalled(event)

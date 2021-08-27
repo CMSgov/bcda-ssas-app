@@ -59,7 +59,7 @@ func routes() *chi.Mux {
 	router.With(parseToken, requireRegTokenAuth, readGroupID).Post("/reset", ResetSecret)
 
 	//v2 Routes
-	router.Post("/v2/introspect", introspectV2)
+	router.Post("/v2/introspect", validateJWT)
 	router.Post("/v2/token", tokenV2)
 	router.Post("/v2/token_info", validateAndParseToken)
 
