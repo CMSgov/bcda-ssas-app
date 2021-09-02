@@ -269,7 +269,7 @@ func newAdminSystem(name string) {
 		c   ssas.Credentials
 		u   uint64
 	)
-	if pk, _, err = ssas.GeneratePublicKey(2048); err != nil {
+	if pk, _, _, err = ssas.GeneratePublicKey(2048); err != nil {
 		ssas.Logger.Errorf("no public key; %s", err)
 		return
 	}
