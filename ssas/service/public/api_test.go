@@ -960,6 +960,7 @@ func (s *APITestSuite) TestGetTokenInfo() {
 	assert.NotEmpty(s.T(), result["data"])
 	assert.NotEmpty(s.T(), result["system_data"])
 	assert.Equal(s.T(), `{"impl": "2"}`, result["system_data"])
+	assert.NotEmpty(s.T(), result["scope"])
 }
 
 func (s *APITestSuite) TestGetTokenInfoWithMissingToken() {
