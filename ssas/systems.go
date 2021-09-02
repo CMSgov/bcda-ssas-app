@@ -304,6 +304,27 @@ func (system *System) GetEncryptionKey(trackingID string) (EncryptionKey, error)
 }
 
 /*
+	FindEncryptionKey retrieves the key by id associated with the current system.
+*/
+func (system *System) FindEncryptionKey(trackingID string, keyId string) (EncryptionKey, error) {
+	db := GetGORMDbConnection()
+	defer Close(db)
+
+	findKeyEvent := Event{Op: "FindEncryptionKey", TrackingID: trackingID, ClientID: system.ClientID}
+	OperationStarted(findKeyEvent)
+
+	var encryptionKey EncryptionKey
+	err := db.First(&encryptionKey, "system_id = ? AND uuid=?", system.ID, keyId).Error
+	if err != nil {
+		OperationFailed(findKeyEvent)
+		return encryptionKey, fmt.Errorf("cannot find key for systemId %d: and keyId: %s error: %s", system.ID, keyId, err.Error())
+	}
+
+	OperationSucceeded(findKeyEvent)
+	return encryptionKey, nil
+}
+
+/*
 	GetEncryptionKeys retrieves the keys associated with the current system.
 */
 func (system *System) GetEncryptionKeys(trackingID string) ([]EncryptionKey, error) {
@@ -486,6 +507,7 @@ type Credentials struct {
 	IPs          []string  `json:"ips,omitempty"`
 	ExpiresAt    time.Time `json:"expires_at"`
 	XData        string    `json:"xdata,omitempty"`
+	PublicKeyID  string    `json:"public_key_id"`
 }
 
 /*
@@ -541,8 +563,8 @@ func registerSystem(input SystemInput, isV2 bool) (Credentials, error) {
 		return creds, errors.New(regEvent.Help)
 	}
 
-	scope := ""
-	if input.Scope == "" {
+	scope := input.Scope
+	if scope == "" {
 		scope = DefaultScope
 	} else if input.Scope != DefaultScope {
 		regEvent.Help = "scope must be: " + DefaultScope
@@ -598,12 +620,14 @@ func registerSystem(input SystemInput, isV2 bool) (Credentials, error) {
 	}
 
 	if input.PublicKey != "" {
-		if _, err := system.SavePublicKeyDB(strings.NewReader(input.PublicKey), input.Signature, !isV2, tx); err != nil {
+		key, err := system.SavePublicKeyDB(strings.NewReader(input.PublicKey), input.Signature, !isV2, tx)
+		if err != nil {
 			regEvent.Help = "error in saving public key: " + err.Error()
 			OperationFailed(regEvent)
 			tx.Rollback()
 			return creds, errors.New("error in public key")
 		}
+		creds.PublicKeyID = key.UUID
 	}
 
 	if isV2 {

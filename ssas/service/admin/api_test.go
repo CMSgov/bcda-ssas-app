@@ -496,13 +496,13 @@ func (s *APITestSuite) TestGetPublicKeyRotation() {
 		s.FailNow(err.Error())
 	}
 
-	key1, _, _ := ssas.GeneratePublicKey(2048)
+	key1, _, _, _ := ssas.GeneratePublicKey(2048)
 	rk1, err := system.SavePublicKey(strings.NewReader(key1), "")
 	if err != nil {
 		s.FailNow(err.Error())
 	}
 
-	key2, _, _ := ssas.GeneratePublicKey(2048)
+	key2, _, _, _ := ssas.GeneratePublicKey(2048)
 	rk2, err := system.SavePublicKey(strings.NewReader(key2), "")
 	if err != nil {
 		s.FailNow(err.Error())
@@ -1166,7 +1166,7 @@ func (s *APITestSuite) TestCreateAndDeleteAdditionalV2SystemToken() {
 func (s *APITestSuite) TestCreateAndDeletePublicKey() {
 	creds, _ := ssas.CreateTestXDataV2(s.T(), s.db)
 
-	key, sig, _ := ssas.GeneratePublicKey(2048)
+	key, sig, _, _ := ssas.GeneratePublicKey(2048)
 	keyStr := strings.Replace(key, "\n", "\\n", -1)
 	req := httptest.NewRequest("POST", fmt.Sprintf("/v2/system/%s/key", creds.SystemID), strings.NewReader(fmt.Sprintf(`{"public_key":"%s", "signature":"%s"}`, keyStr, sig)))
 	rctx := chi.NewRouteContext()
