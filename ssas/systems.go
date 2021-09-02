@@ -563,8 +563,8 @@ func registerSystem(input SystemInput, isV2 bool) (Credentials, error) {
 		return creds, errors.New(regEvent.Help)
 	}
 
-	scope := ""
-	if input.Scope == "" {
+	scope := input.Scope
+	if scope == "" {
 		scope = DefaultScope
 	} else if input.Scope != DefaultScope {
 		regEvent.Help = "scope must be: " + DefaultScope
