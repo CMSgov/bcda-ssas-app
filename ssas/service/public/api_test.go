@@ -536,15 +536,8 @@ func (s *APITestSuite) TestAuthenticatingWithJWTUsingSecondPublicKey() {
 	_, clientAssertion, errors := mintClientAssertion(creds.ClientToken, creds.ClientToken, s.assertAud, time.Now().Unix(), time.Now().Add(time.Minute*5).Unix(), newPrivateKey, secondKey.UUID)
 	assert.Nil(s.T(), errors)
 
-	form := url.Values{}
-	form.Add("scope", "system/*.*")
-	form.Add("grant_type", "client_credentials")
-	form.Add("client_assertion_type", "urn:ietf:params:oauth:client-assertion-type:jwt-bearer")
-	form.Add("client_assertion", clientAssertion)
-
-	req := httptest.NewRequest("POST", "/v2/token", strings.NewReader(form.Encode()))
-	req.Header.Add("Accept", "application/json")
-	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+	form := buildClientAssertionForm(clientAssertion)
+	req := buildClientAssertionRequest(form)
 
 	handler := http.HandlerFunc(tokenV2)
 	handler.ServeHTTP(s.rr, req)
@@ -569,15 +562,8 @@ func (s *APITestSuite) TestAuthenticatingWithJWTUsingWrongPrivateKey() {
 	_, clientAssertion, errors := mintClientAssertion(creds.ClientToken, creds.ClientToken, s.assertAud, time.Now().Unix(), time.Now().Add(time.Minute*5).Unix(), firstPrivateKey, secondKey.UUID)
 	assert.Nil(s.T(), errors)
 
-	form := url.Values{}
-	form.Add("scope", "system/*.*")
-	form.Add("grant_type", "client_credentials")
-	form.Add("client_assertion_type", "urn:ietf:params:oauth:client-assertion-type:jwt-bearer")
-	form.Add("client_assertion", clientAssertion)
-
-	req := httptest.NewRequest("POST", "/v2/token", strings.NewReader(form.Encode()))
-	req.Header.Add("Accept", "application/json")
-	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+	form := buildClientAssertionForm(clientAssertion)
+	req := buildClientAssertionRequest(form)
 
 	handler := http.HandlerFunc(tokenV2)
 	handler.ServeHTTP(s.rr, req)
@@ -858,15 +844,8 @@ func (s *APITestSuite) TestAuthenticatingWithJWTWithMissingJTI() {
 	var signedString, err = token.SignedString(privateKey)
 	assert.Nil(s.T(), err)
 
-	form := url.Values{}
-	form.Add("scope", "system/*.*")
-	form.Add("grant_type", "client_credentials")
-	form.Add("client_assertion_type", "urn:ietf:params:oauth:client-assertion-type:jwt-bearer")
-	form.Add("client_assertion", signedString)
-
-	req := httptest.NewRequest("POST", "/v2/token", strings.NewReader(form.Encode()))
-	req.Header.Add("Accept", "application/json")
-	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+	form := buildClientAssertionForm(signedString)
+	req := buildClientAssertionRequest(form)
 
 	handler := http.HandlerFunc(tokenV2)
 	handler.ServeHTTP(s.rr, req)
@@ -881,15 +860,8 @@ func (s *APITestSuite) TestAuthenticatingWithJWTWithMissingSubjectClaim() {
 	_, clientAssertion, errors := mintClientAssertion(creds.ClientToken, "", s.assertAud, time.Now().Unix(), time.Now().Add(time.Minute*5).Unix(), privateKey, creds.PublicKeyID)
 	assert.Nil(s.T(), errors)
 
-	form := url.Values{}
-	form.Add("scope", "system/*.*")
-	form.Add("grant_type", "client_credentials")
-	form.Add("client_assertion_type", "urn:ietf:params:oauth:client-assertion-type:jwt-bearer")
-	form.Add("client_assertion", clientAssertion)
-
-	req := httptest.NewRequest("POST", "/v2/token", strings.NewReader(form.Encode()))
-	req.Header.Add("Accept", "application/json")
-	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+	form := buildClientAssertionForm(clientAssertion)
+	req := buildClientAssertionRequest(form)
 
 	handler := http.HandlerFunc(tokenV2)
 	handler.ServeHTTP(s.rr, req)
@@ -897,6 +869,22 @@ func (s *APITestSuite) TestAuthenticatingWithJWTWithMissingSubjectClaim() {
 	s.verifyErrorResponse(http.StatusBadRequest, "subject (sub) and issuer (iss) claims do not match")
 	err := ssas.CleanDatabase(group)
 	assert.Nil(s.T(), err)
+}
+
+func buildClientAssertionRequest(form url.Values) *http.Request {
+	req := httptest.NewRequest("POST", "/v2/token", strings.NewReader(form.Encode()))
+	req.Header.Add("Accept", "application/json")
+	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+	return req
+}
+
+func buildClientAssertionForm(assertion string)url.Values{
+	form := url.Values{}
+	form.Add("scope", "system/*.*")
+	form.Add("grant_type", "client_credentials")
+	form.Add("client_assertion_type", "urn:ietf:params:oauth:client-assertion-type:jwt-bearer")
+	form.Add("client_assertion", assertion)
+	return form
 }
 
 func (s *APITestSuite) TestClientAssertionAuthWithBadScopeParam() {
@@ -918,11 +906,7 @@ func (s *APITestSuite) TestClientAssertionAuthWithBadScopeParam() {
 
 func (s *APITestSuite) TestClientAssertionAuthWithBadAcceptHeader() {
 	//System does not need to be created for this test since header and param checks are done before assertion is parsed/looked up.
-	form := url.Values{}
-	form.Add("scope", "system/*.*")
-	form.Add("grant_type", "client_credentials")
-	form.Add("client_assertion_type", "urn:ietf:params:oauth:client-assertion-type:jwt-bearer")
-	form.Add("client_assertion", "value_does_not_matter_for_this_test")
+	form := buildClientAssertionForm("value_does_not_matter_for_this_test")
 	handler := http.HandlerFunc(tokenV2)
 
 	//Invalid accept header value
@@ -935,11 +919,7 @@ func (s *APITestSuite) TestClientAssertionAuthWithBadAcceptHeader() {
 
 func (s *APITestSuite) TestClientAssertionAuthWithBadContentTypeHeader() {
 	//System does not need to be created for this test since header and param checks are done before assertion is parsed/looked up.
-	form := url.Values{}
-	form.Set("scope", "system/*.*")
-	form.Set("grant_type", "client_credentials")
-	form.Set("client_assertion_type", "urn:ietf:params:oauth:client-assertion-type:jwt-bearer")
-	form.Set("client_assertion", "value_does_not_matter_for_this_test")
+	form := buildClientAssertionForm("value_does_not_matter_for_this_test")
 	handler := http.HandlerFunc(tokenV2)
 
 	//Missing Content-Type header
@@ -958,14 +938,11 @@ func (s *APITestSuite) TestClientAssertionAuthWithBadContentTypeHeader() {
 
 func (s *APITestSuite) TestClientAssertionAuthWithBadGrantTypeParam() {
 	//System does not need to be created for this test since header and param checks are done before assertion is parsed/looked up.
-	form := url.Values{}
-	form.Set("scope", "system/*.*")
-	form.Set("client_assertion_type", "urn:ietf:params:oauth:client-assertion-type:jwt-bearer")
-	form.Set("client_assertion", "value_does_not_matter_for_this_test")
+	form := buildClientAssertionForm("value_does_not_matter_for_this_test")
+	form.Set("grant_type", "invalid_grant_type")
 	handler := http.HandlerFunc(tokenV2)
 
 	//Invalid grant_type param
-	form.Set("grant_type", "invalid_grant_type")
 	req := httptest.NewRequest("POST", "/v2/token", strings.NewReader(form.Encode()))
 	req.Header.Add("Accept", "application/json")
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
@@ -975,10 +952,7 @@ func (s *APITestSuite) TestClientAssertionAuthWithBadGrantTypeParam() {
 
 func (s *APITestSuite) TestClientAssertionAuthWithBadClientAssertionTypeParam() {
 	//System does not need to be created for this test since header and param checks are done before assertion is parsed/looked up.
-	form := url.Values{}
-	form.Set("scope", "system/*.*")
-	form.Set("grant_type", "client_credentials")
-	form.Set("client_assertion", "value_does_not_matter_for_this_test")
+	form := buildClientAssertionForm("value_does_not_matter_for_this_test")
 	handler := http.HandlerFunc(tokenV2)
 
 	//Invalid client_assertion_type param
@@ -992,10 +966,8 @@ func (s *APITestSuite) TestClientAssertionAuthWithBadClientAssertionTypeParam() 
 
 func (s *APITestSuite) TestClientAssertionAuthWithMissingClientAssertionParam() {
 	//Create system and valid client assertion token
-	form := url.Values{}
-	form.Set("scope", "system/*.*")
-	form.Set("grant_type", "client_credentials")
-	form.Set("client_assertion_type", "urn:ietf:params:oauth:client-assertion-type:jwt-bearer")
+	form := buildClientAssertionForm("value_does_not_matter_for_this_test")
+	form.Del("client_assertion")
 	handler := http.HandlerFunc(tokenV2)
 
 	//Missing client_assertion param
