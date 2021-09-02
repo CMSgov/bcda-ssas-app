@@ -139,13 +139,64 @@ func (s *SystemsTestSuite) TestGenerateSystemKeyPairAlreadyExists() {
 }
 
 func (s *SystemsTestSuite) TestGetEncryptionKey() {
-	group := Group{GroupID: "test-get-encryption-key-group"}
+	sys, group, pubKey, _ := s.createSystemWithPubKey()
+
+	key, err := sys.GetEncryptionKey("")
+	assert.Nil(s.T(), err)
+	assert.Equal(s.T(), pubKey, key.Body)
+
+	_ = CleanDatabase(group)
+}
+
+func (s *SystemsTestSuite) TestFindEncryptionKey() {
+	assert := s.Assert()
+	sys, group, pubKey, pubKeyId := s.createSystemWithPubKey()
+
+	key, err := sys.FindEncryptionKey("", pubKeyId)
+	assert.Nil(err)
+	assert.Equal(pubKey, key.Body)
+	err = CleanDatabase(group)
+	assert.Nil(err)
+}
+
+func (s *SystemsTestSuite) TestFindEncryptionKeyNotFound() {
+	assert := s.Assert()
+	sys, group, _, _ := s.createSystemWithPubKey()
+
+	_, err := sys.FindEncryptionKey("", uuid.NewRandom().String())
+	assert.NotNil(err)
+	assert.Contains(err.Error(), "cannot find key for systemId")
+
+	err = CleanDatabase(group)
+	assert.Nil(err)
+}
+
+func (s *SystemsTestSuite) TestFindEncryptionKeyForAnotherSystem() {
+	assert := s.Assert()
+	sys1, group1, _, _ := s.createSystemWithPubKey()
+	_, group2, _, kid2 := s.createSystemWithPubKey()
+
+	_, err := sys1.FindEncryptionKey("", kid2)
+	assert.NotNil(err)
+	assert.Contains(err.Error(), "cannot find key for systemId")
+
+	err = CleanDatabase(group1)
+	assert.Nil(err)
+	err = CleanDatabase(group2)
+	assert.Nil(err)
+}
+
+func (s *SystemsTestSuite) createSystemWithPubKey() (System, Group, string, string) {
+	group := Group{GroupID: uuid.New()}
 	err := s.db.Create(&group).Error
 	if err != nil {
 		s.FailNow(err.Error())
 	}
 
-	system := System{GID: group.ID}
+	system := System{
+		GID:      group.ID,
+		ClientID: uuid.New(),
+	}
 	err = s.db.Create(&system).Error
 	if err != nil {
 		s.FailNow(err.Error())
@@ -164,17 +215,15 @@ OwIDAQAB
 	origKey := EncryptionKey{
 		SystemID: system.ID,
 		Body:     pubKey,
+		UUID:     uuid.NewRandom().String(),
 	}
 	err = s.db.Create(&origKey).Error
 	if err != nil {
 		s.FailNow(err.Error())
 	}
 
-	key, err := system.GetEncryptionKey("")
-	assert.Nil(s.T(), err)
-	assert.Equal(s.T(), pubKey, key.Body)
+	return system, group, pubKey, origKey.UUID
 
-	_ = CleanDatabase(group)
 }
 
 func (s *SystemsTestSuite) TestSystemSavePublicKey() {
@@ -293,7 +342,7 @@ func (s *SystemsTestSuite) TestSystemPublicKeyEmpty() {
 	assert.Nil(err)
 
 	emptyPEM := "-----BEGIN RSA PUBLIC KEY-----    -----END RSA PUBLIC KEY-----"
-	validPEM, _, err := generatePublicKey(2048)
+	validPEM, _, _, err := generatePublicKey(2048)
 	assert.Nil(err)
 
 	_, err = system.SavePublicKey(strings.NewReader(""), "")
@@ -410,7 +459,7 @@ func (s *SystemsTestSuite) TestRegisterSystemSuccess() {
 		s.FailNow(err.Error())
 	}
 
-	pubKey, _, err := generatePublicKey(2048)
+	pubKey, _, _, err := generatePublicKey(2048)
 	assert.Nil(err)
 
 	creds, err := RegisterSystem("Create System Test", groupID, DefaultScope, pubKey, []string{}, trackingID)
@@ -433,7 +482,7 @@ func (s *SystemsTestSuite) TestUpdateSystemSuccess() {
 		s.FailNow(err.Error())
 	}
 
-	pubKey, _, err := generatePublicKey(2048)
+	pubKey, _, _, err := generatePublicKey(2048)
 	assert.Nil(err)
 
 	creds, err := RegisterSystem("Create System Test", groupID, DefaultScope, pubKey, []string{}, trackingID)
@@ -486,7 +535,7 @@ func (s *SystemsTestSuite) TestRegisterSystemMissingData() {
 		s.FailNow(err.Error())
 	}
 
-	pubKey, _, err := generatePublicKey(2048)
+	pubKey, _, _, err := generatePublicKey(2048)
 	assert.Nil(err)
 
 	// No clientName
@@ -533,7 +582,7 @@ func (s *SystemsTestSuite) TestRegisterSystemIps() {
 		s.FailNow(err.Error())
 	}
 
-	pubKey, _, err := generatePublicKey(2048)
+	pubKey, _, _, err := generatePublicKey(2048)
 	assert.Nil(err)
 
 	for _, address := range goodIps {
@@ -580,7 +629,7 @@ func (s *SystemsTestSuite) TestRegisterSystemBadKey() {
 		s.FailNow(err.Error())
 	}
 
-	pubKey, _, err := generatePublicKey(1024)
+	pubKey, _, _, err := generatePublicKey(1024)
 	assert.Nil(err)
 
 	// Blank key ok
@@ -601,7 +650,7 @@ func (s *SystemsTestSuite) TestRegisterSystemBadKey() {
 	assert.Nil(CleanDatabase(group))
 }
 
-func generatePublicKey(bits int) (string, string, error) {
+func generatePublicKey(bits int) (string, string, *rsa.PrivateKey, error) {
 	return GeneratePublicKey(bits)
 }
 
