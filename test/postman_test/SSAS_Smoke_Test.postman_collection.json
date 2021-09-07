@@ -1,6 +1,6 @@
 {
 	"info": {
-		"_postman_id": "c8cafc54-5b2b-48d4-8966-be3e34ddba3d",
+		"_postman_id": "7384bf7c-2027-44c8-925c-146f1ba03f2a",
 		"name": "SSAS Smoke Test",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
 	},
@@ -2525,7 +2525,7 @@
 									"var secret = postman.getEnvironmentVariable(\"PRIVATE_KEY\");",
 									"const header = {",
 									"    'alg': 'RS384',",
-									"    'kid': \"7\",",
+									"    'kid': postman.getEnvironmentVariable(\"key_id\"),",
 									"}",
 									"var sPayload = JSON.stringify(data);",
 									"var sJWT = KJUR.jws.JWS.sign(\"RS384\", header, sPayload, secret);",
