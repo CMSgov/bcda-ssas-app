@@ -774,35 +774,52 @@ func validateAndParseToken(w http.ResponseWriter, r *http.Request) {
 
 func validateJWT(w http.ResponseWriter, r *http.Request) {
 	trackingID := uuid.NewRandom().String()
-	event := ssas.Event{Op: "V2-Token-Info", TrackingID: trackingID, Help: "calling from admin.validateToken()"}
+	event := ssas.Event{Op: "V2-Introspect", TrackingID: trackingID, Help: "Calling from admin.validateJWT()"}
 	ssas.OperationCalled(event)
 
 	defer r.Body.Close()
 
-	var reqV map[string]string
-	if err := json.NewDecoder(r.Body).Decode(&reqV); err != nil {
-		jsonError(w, http.StatusText(http.StatusBadRequest), fmt.Sprintf("invalid request body: %s", err))
+	var reqBody map[string]string
+	if err := json.NewDecoder(r.Body).Decode(&reqBody); err != nil {
+		jsonError(w, http.StatusText(http.StatusBadRequest), fmt.Sprintf("Invalid request body: %s", err))
 		return
 	}
-	tokenS := reqV["token"]
+
+	// Get the token string
+	tokenS := reqBody["token"]
 	if tokenS == "" {
-		jsonError(w, http.StatusText(http.StatusBadRequest), `missing "token" field in body`)
+		jsonError(w, http.StatusText(http.StatusBadRequest), `Missing "token" field in body`)
 		return
 	}
+
+	// parse jwt claims
+	claims := jwt.MapClaims{}
+
+	if _, _, err := new(jwt.Parser).ParseUnverified(tokenS, claims); err != nil {
+		ssas.Logger.Infof(fmt.Sprintf("Unable to parse token: %s", err))
+		jsonError(w, http.StatusText(http.StatusBadRequest), fmt.Sprintf("Unable to parse token: %s", err))
+		return
+	}
+
+	// Ensure the token includes claims: expiration, system_id, group_data
+	expectedClaims := []string{"expiration", "system_id", "group_data"}
+	errorDetails := ""
+
+	for _, claim := range expectedClaims {
+		if _, exists := claims[claim]; !exists {
+			errorDetails += fmt.Sprintf("Missing field: %s\n", claim)
+		}
+	}
+
 	var response = make(map[string]interface{})
 
-	if err := tokenValidity(tokenS, "AccessToken"); err != nil {
-		ssas.Logger.Infof("token failed tokenValidity")
-		response["valid"] = false
-	} else {
-		claims := jwt.MapClaims{}
-		if _, _, err := new(jwt.Parser).ParseUnverified(tokenS, claims); err != nil {
-			ssas.Logger.Infof(fmt.Sprintf("could not unmarshal access token: %s", err))
-			jsonError(w, http.StatusText(http.StatusBadRequest), "Unable to parse token")
-			return
-		}
+	if len(errorDetails) == 0 {
 		response["valid"] = true
+	} else {
+		response["errors"] = errorDetails
+		response["valid"] = false
 	}
+
 	w.Header().Set("Content-Type", "application/json")
 	render.JSON(w, r, response)
 }
