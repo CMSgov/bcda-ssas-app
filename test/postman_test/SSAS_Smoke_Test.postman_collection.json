@@ -2513,7 +2513,7 @@
 									"    dt = Math.floor(dt / 16);",
 									"    return (c == 'x' ? r : (r & 0x3 | 0x8)).toString(16);",
 									"}); ",
-									"var audValue = pm.globals.get(\"ssas_client_assertion_aud\") == undefined || pm.globals.get(\"ssas_client_assertion_aud\") == \"\" ? pm.globals.get(\"ssas_client_assertion_aud\") : postman.getEnvironmentVariable(\"ssas_client_assertion_aud\")",
+									"var audValue = pm.globals.get(\"ssas_client_assertion_aud\") == undefined || pm.globals.get(\"ssas_client_assertion_aud\") == \"\" ? postman.getEnvironmentVariable(\"ssas_client_assertion_aud\") : pm.globals.get(\"ssas_client_assertion_aud\")",
 									"var data = {",
 									"    \"iss\": postman.getEnvironmentVariable(\"client_token\"),",
 									"    \"sub\": postman.getEnvironmentVariable(\"client_token\"),",
