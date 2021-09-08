@@ -1092,6 +1092,17 @@ func (s *APITestSuite) TestGetTokenInfoWithExpiredToken() {
 	assert.Contains(s.T(), rr.Body.String(), `{"valid":false}`)
 }
 
+func (s *APITestSuite) TestValidJWT() {
+	validToken := "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHBpcmF0aW9uIjoidmFsdWUiLCJzeXN0ZW1faWQiOiJ2YWx1ZSIsImdyb3VwX2RhdGEiOiJ2YWx1ZSJ9.t_PDBaCUlhOcpVpGtacku0Hrn7Isr_damdSM61SIYJY"
+	body := fmt.Sprintf("{\"token\":\"%s\"}", validToken)
+	req := httptest.NewRequest("POST", "/v2/introspect", strings.NewReader(body))
+	handler := http.HandlerFunc(validateJWT)
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+	assert.Equal(s.T(), http.StatusOK, rr.Result().StatusCode)
+	assert.Contains(s.T(), rr.Body.String(), `{"valid":true}`)
+}
+
 func (s *APITestSuite) MintTestAccessTokenWithDuration(duration time.Duration) (*jwt.Token, string, error) {
 	creds, _ := ssas.CreateTestXDataV2(s.T(), s.db)
 	system, err := ssas.GetSystemByClientID(creds.ClientID)
