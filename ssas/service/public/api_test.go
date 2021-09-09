@@ -1103,6 +1103,18 @@ func (s *APITestSuite) TestValidJWT() {
 	assert.Contains(s.T(), rr.Body.String(), `{"valid":true}`)
 }
 
+func (s *APITestSuite) TestInvalidJWT() {
+	invalidToken := "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzeXN0ZW1faWQiOiJ2YWx1ZSIsImdyb3VwX2RhdGEiOiJ2YWx1ZSJ9.MyUEBZRRIopVKM_rGH6loHluXaeJ2PH8Syrr1yJj6dw"
+	body := fmt.Sprintf("{\"token\":\"%s\"}", invalidToken)
+	req := httptest.NewRequest("POST", "/v2/introspect", strings.NewReader(body))
+	handler := http.HandlerFunc(validateJWT)
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+	assert.Equal(s.T(), http.StatusOK, rr.Result().StatusCode)
+	assert.Contains(s.T(), rr.Body.String(), `"valid":false`)
+	assert.Contains(s.T(), rr.Body.String(), `"errors":"Missing field: expiration\n",`)
+}
+
 func (s *APITestSuite) MintTestAccessTokenWithDuration(duration time.Duration) (*jwt.Token, string, error) {
 	creds, _ := ssas.CreateTestXDataV2(s.T(), s.db)
 	system, err := ssas.GetSystemByClientID(creds.ClientID)
