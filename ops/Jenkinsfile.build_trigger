@@ -36,7 +36,7 @@ pipeline {
             relativeTargetDir: 'bcda-ssas-app'
           ]],
           userRemoteConfigs: [[
-            url: 'git@github.com:CMSgov/bcda-ssas-app.git',
+            url: 'https://github.com/CMSgov/bcda-ssas-app.git',
             credentialsId: 'GITHUB_CREDS'
           ]]
         ])
