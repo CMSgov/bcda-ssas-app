@@ -8,8 +8,8 @@ import (
 	"fmt"
 	"github.com/CMSgov/bcda-ssas-app/ssas"
 	"github.com/CMSgov/bcda-ssas-app/ssas/service"
-	"github.com/dgrijalva/jwt-go"
 	"github.com/go-chi/chi"
+	"github.com/golang-jwt/jwt/v4"
 	"github.com/pborman/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -878,7 +878,7 @@ func buildClientAssertionRequest(form url.Values) *http.Request {
 	return req
 }
 
-func buildClientAssertionForm(assertion string)url.Values{
+func buildClientAssertionForm(assertion string) url.Values {
 	form := url.Values{}
 	form.Add("scope", "system/*.*")
 	form.Add("grant_type", "client_credentials")
