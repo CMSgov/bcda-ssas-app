@@ -8,8 +8,8 @@ import (
 	"fmt"
 	"github.com/CMSgov/bcda-ssas-app/ssas"
 	"github.com/CMSgov/bcda-ssas-app/ssas/service"
-	"github.com/dgrijalva/jwt-go"
 	"github.com/go-chi/chi"
+	"github.com/golang-jwt/jwt/v4"
 	"github.com/pborman/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -21,6 +21,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"os"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -371,16 +372,16 @@ func (s *APITestSuite) testIntrospectFlaw(flaw service.TokenFlaw, errorText stri
 	assert.NoError(s.T(), json.NewDecoder(s.rr.Body).Decode(&v))
 	assert.NotEmpty(s.T(), v)
 	assert.False(s.T(), v["active"], fmt.Sprintf("Unexpected success using bad token with flaw %v", flaw))
-	assert.Contains(s.T(), buf.String(), errorText, fmt.Sprintf("Unable to find evidence of flaw %v in logs", flaw))
+	assert.Regexpf(s.T(), regexp.MustCompile(errorText), buf.String(), fmt.Sprintf("Unable to find evidence of flaw %v in logs", flaw))
 	assert.NoError(s.T(), ssas.CleanDatabase(group))
 }
 
 func (s *APITestSuite) TestIntrospectFailure() {
 	flaws := map[service.TokenFlaw]string{
 		service.Postdated:        "token used before issued",
-		service.ExtremelyExpired: "Token is expired",
+		service.ExtremelyExpired: "token is expired",
 		service.BadSigner:        "crypto/rsa: verification error",
-		service.Expired:          "Token is expired",
+		service.Expired:          "token is expired",
 		service.BadIssuer:        "missing one or more claims",
 		service.MissingID:        "missing one or more claims",
 	}
@@ -670,7 +671,7 @@ func (s *APITestSuite) TestAuthenticatingWithJWTWithExpiredToken() {
 	handler := http.HandlerFunc(tokenV2)
 	handler.ServeHTTP(s.rr, req)
 
-	s.verifyErrorResponse(http.StatusBadRequest, "Token is expired")
+	s.verifyErrorResponse(http.StatusBadRequest, "token is expired")
 	err := ssas.CleanDatabase(group)
 	assert.Nil(s.T(), err)
 }
@@ -878,7 +879,7 @@ func buildClientAssertionRequest(form url.Values) *http.Request {
 	return req
 }
 
-func buildClientAssertionForm(assertion string)url.Values{
+func buildClientAssertionForm(assertion string) url.Values {
 	form := url.Values{}
 	form.Add("scope", "system/*.*")
 	form.Add("grant_type", "client_credentials")
@@ -984,7 +985,7 @@ func (s *APITestSuite) verifyErrorResponse(expectedStatus interface{}, expectedM
 	t := ssas.ErrorResponse{}
 	assert.NoError(s.T(), json.NewDecoder(s.rr.Body).Decode(&t))
 	assert.NotEmpty(s.T(), t)
-	assert.Equal(s.T(), expectedMsg, t.Error)
+	assert.Regexp(s.T(), regexp.MustCompile(regexp.QuoteMeta(expectedMsg)), t.Error)
 }
 
 func mintClientAssertion(issuer, subject, aud string, issuedAt, expiresAt int64, privateKey *rsa.PrivateKey, kid string) (*jwt.Token, string, error) {
