@@ -3,7 +3,10 @@ FROM golang:1.15-buster
 RUN curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin
 
 RUN GO111MODULE=on go get github.com/xo/usql@v0.8.2
-RUN GO111MODULE=on go get -u github.com/securego/gosec/cmd/gosec@v2-v2.9.1
+RUN go get -u -d github.com/securego/gosec/cmd/gosec; \
+    cd $GOPATH/src/github.com/securego/gosec/cmd/gosec; \
+    git checkout v2.9.1; \
+    go build -tags 'gosec' -ldflags="-X main.Version=$(git describe --tags)" -o $GOPATH/bin/gosec github.com/securego/gosec/cmd/gosec
 RUN go get -u gotest.tools/gotestsum
 RUN go get -u -d github.com/golang-migrate/migrate/cmd/migrate; \
     cd $GOPATH/src/github.com/golang-migrate/migrate/cmd/migrate; \
