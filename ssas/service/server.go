@@ -1,7 +1,10 @@
 package service
 
 import (
+	b64 "encoding/base64"
 	"crypto/rsa"
+	"crypto/tls"
+	"crypto/x509"
 	"database/sql"
 	"encoding/base64"
 	"fmt"
@@ -32,7 +35,9 @@ type Server struct {
 	// router associates handlers to server endpoints
 	router chi.Router
 	// notSecure flag; when true, not running in https mode   // TODO set this from HTTP_ONLY envv
-	notSecure       bool
+	notSecure bool
+	//useMTLS flag; when true mtls will be used if notSecure is set to false, else it is ignored.
+	useMTLS         bool
 	tokenSigningKey *rsa.PrivateKey
 	tokenTTL        time.Duration
 	server          http.Server
@@ -75,7 +80,7 @@ func ChooseSigningKey(signingKeyPath, signingKey string) (*rsa.PrivateKey, error
 }
 
 // NewServer correctly initializes an instance of the Server type.
-func NewServer(name, port, version string, info interface{}, routes *chi.Mux, notSecure bool, signingKey *rsa.PrivateKey, ttl time.Duration, clientAssertAud string) *Server {
+func NewServer(name, port, version string, info interface{}, routes *chi.Mux, notSecure bool, useMTLS bool, signingKey *rsa.PrivateKey, ttl time.Duration, clientAssertAud string) *Server {
 	if signingKey == nil {
 		ssas.Logger.Error("Private Key is nil")
 		return nil
@@ -97,6 +102,7 @@ func NewServer(name, port, version string, info interface{}, routes *chi.Mux, no
 		s.router.Mount("/", routes)
 	}
 	s.notSecure = notSecure
+	s.useMTLS = useMTLS
 	s.tokenSigningKey = signingKey
 	s.tokenTTL = ttl
 	s.clientAssertAud = clientAssertAud
@@ -109,6 +115,24 @@ func NewServer(name, port, version string, info interface{}, routes *chi.Mux, no
 	}
 
 	return &s
+}
+
+func buildMTLSConfig() *tls.Config {
+	caPool, cert := getServerCertificates()
+
+	return &tls.Config{
+		Certificates: []tls.Certificate{cert},
+		MinVersion:   tls.VersionTLS12,
+		GetConfigForClient: func(hi *tls.ClientHelloInfo) (*tls.Config, error) {
+			serverConf := &tls.Config{
+				Certificates: []tls.Certificate{cert},
+				MinVersion:   tls.VersionTLS12,
+				ClientAuth:   tls.RequireAndVerifyClientCert,
+				ClientCAs:    caPool,
+			}
+			return serverConf, nil
+		},
+	}
 }
 
 func (s *Server) ListRoutes() ([]string, error) {
@@ -138,10 +162,50 @@ func (s *Server) Serve() {
 		ssas.Logger.Infof("starting %s server running UNSAFE http only mode; do not do this in production environments", s.name)
 		go func() { log.Fatal(s.server.ListenAndServe()) }()
 	} else {
-		tlsCertPath := os.Getenv("BCDA_TLS_CERT") // borrowing for now; we need to get our own (for both servers?)
-		tlsKeyPath := os.Getenv("BCDA_TLS_KEY")
-		go func() { log.Fatal(s.server.ListenAndServeTLS(tlsCertPath, tlsKeyPath)) }()
+		if s.useMTLS {
+			s.server.TLSConfig = buildMTLSConfig()
+			//If cert and key file paths are not passed the certs in TLS configs are used.
+			ssas.Logger.Infof("starting %s server in MTLS mode", s.name)
+			go func() { log.Fatal(s.server.ListenAndServeTLS("", "")) }()
+		} else {
+			tlsCertPath := os.Getenv("BCDA_TLS_CERT") // borrowing for now; we need to get our own (for both servers?)
+			tlsKeyPath := os.Getenv("BCDA_TLS_KEY")
+			ssas.Logger.Infof("starting %s server in TLS mode", s.name)
+			go func() { log.Fatal(s.server.ListenAndServeTLS(tlsCertPath, tlsKeyPath)) }()
+		}
 	}
+}
+
+
+func getServerCertificates() (*x509.CertPool, tls.Certificate) {
+	crtB, err := b64.StdEncoding.DecodeString(os.Getenv("BCDA_TLS_CERT_B64"))
+	if err != nil {
+		log.Fatal("Could not base64 decode BCDA_TLS_CERT_B64", err)
+	}
+	keyB, err := b64.StdEncoding.DecodeString(os.Getenv("BCDA_TLS_KEY_B64"))
+	if err != nil {
+		log.Fatal("Could not base64 decode BCDA_TLS_KEY_B64", err)
+	}
+
+	crtStr := string(crtB)
+	keyStr := string(keyB)
+
+	if crtStr == "" || keyStr == "" {
+		log.Fatal("One of the following required environment variables is missing or not base64 encoded: BCDA_TLS_CERT_B64, BCDA_TLS_KEY_B64")
+	}
+
+	// We are using the server cert as the CA cert.
+	certPool := x509.NewCertPool()
+	ok := certPool.AppendCertsFromPEM([]byte(crtStr))
+	if !ok {
+		log.Fatal("Failed to parse server cert")
+	}
+
+	crt, err := tls.X509KeyPair([]byte(crtStr), []byte(keyStr))
+	if err != nil {
+		log.Fatal("Failed to parse server cert/key par", err)
+	}
+	return certPool, crt
 }
 
 // Stops the server listening for and responding to requests.

@@ -94,7 +94,7 @@ func (s *ServerTestSuite) SetupSuite() {
 }
 
 func (s *ServerTestSuite) SetupTest() {
-	s.server = NewServer("test-server", ":9999", "9.99.999", s.info, nil, true, s.privateKey, 37*time.Minute, "")
+	s.server = NewServer("test-server", ":9999", "9.99.999", s.info, nil, true, false,  s.privateKey, 37*time.Minute, "")
 }
 
 func (s *ServerTestSuite) TestNewServer() {
@@ -113,7 +113,7 @@ func (s *ServerTestSuite) TestNewServer() {
 	r.Get("/test", func(w http.ResponseWriter, r *http.Request) {
 		_, _ = w.Write([]byte("test"))
 	})
-	ts := NewServer("test-server", ":9999", "9.99.999", s.info, r, true, s.privateKey, 37*time.Minute, "")
+	ts := NewServer("test-server", ":9999", "9.99.999", s.info, r, true, false, s.privateKey, 37*time.Minute, "")
 	assert.NotEmpty(s.T(), ts.router)
 	routes, err := ts.ListRoutes()
 	assert.Nil(s.T(), err)
@@ -138,7 +138,7 @@ func (s *ServerTestSuite) TestNewServerNilPrivateKey() {
 	r.Get("/test", func(w http.ResponseWriter, r *http.Request) {
 		_, _ = w.Write([]byte("test"))
 	})
-	ts := NewServer("test-server", ":9999", "9.99.999", s.info, r, true, nil, 37*time.Minute, "")
+	ts := NewServer("test-server", ":9999", "9.99.999", s.info, r, true, false,nil, 37*time.Minute, "")
 	assert.Nil(s.T(), ts)
 }
 
@@ -164,7 +164,7 @@ func (s *ServerTestSuite) TestNewServerInvalidPrivateKey() {
 	// mess with the key to invalidate it
 	invalidPrivateKey.D = big.NewInt(2)
 
-	ts := NewServer("test-server", ":9999", "9.99.999", s.info, r, true, invalidPrivateKey, 37*time.Minute, "")
+	ts := NewServer("test-server", ":9999", "9.99.999", s.info, r, true, false, invalidPrivateKey, 37*time.Minute, "")
 	assert.Nil(s.T(), ts)
 }
 
@@ -255,7 +255,7 @@ func (s *ServerTestSuite) TestChooseInvalidSigningKeyUsingFile() {
 // MintToken(), MintTokenWithDuration()
 
 func (s *ServerTestSuite) TestNewServerWithBadSigningKey() {
-	ts := NewServer("test-server", ":9999", "9.99.999", s.info, nil, true, nil, 37*time.Minute, "")
+	ts := NewServer("test-server", ":9999", "9.99.999", s.info, nil, true, false, nil, 37*time.Minute, "")
 	assert.Nil(s.T(), ts)
 }
 
