@@ -1,12 +1,13 @@
 package service
 
 import (
-	b64 "encoding/base64"
 	"crypto/rsa"
 	"crypto/tls"
 	"crypto/x509"
 	"database/sql"
 	"encoding/base64"
+	b64 "encoding/base64"
+	"errors"
 	"fmt"
 	"gopkg.in/macaroon.v2"
 	"log"
@@ -117,8 +118,12 @@ func NewServer(name, port, version string, info interface{}, routes *chi.Mux, no
 	return &s
 }
 
-func buildMTLSConfig() *tls.Config {
-	caPool, cert := getServerCertificates()
+func BuildMTLSConfig() (*tls.Config, error) {
+	caPool, cert, err := getServerCertificates()
+
+	if err != nil {
+		return nil, err
+	}
 
 	return &tls.Config{
 		Certificates: []tls.Certificate{cert},
@@ -132,7 +137,7 @@ func buildMTLSConfig() *tls.Config {
 			}
 			return serverConf, nil
 		},
-	}
+	}, nil
 }
 
 func (s *Server) ListRoutes() ([]string, error) {
@@ -163,7 +168,12 @@ func (s *Server) Serve() {
 		go func() { log.Fatal(s.server.ListenAndServe()) }()
 	} else {
 		if s.useMTLS {
-			s.server.TLSConfig = buildMTLSConfig()
+			conf, err := BuildMTLSConfig()
+			if err != nil {
+				log.Fatal(err)
+			}
+			s.server.TLSConfig = conf
+
 			//If cert and key file paths are not passed the certs in TLS configs are used.
 			ssas.Logger.Infof("starting %s server in MTLS mode", s.name)
 			go func() { log.Fatal(s.server.ListenAndServeTLS("", "")) }()
@@ -176,36 +186,41 @@ func (s *Server) Serve() {
 	}
 }
 
-
-func getServerCertificates() (*x509.CertPool, tls.Certificate) {
+func getServerCertificates() (*x509.CertPool, tls.Certificate, error) {
 	crtB, err := b64.StdEncoding.DecodeString(os.Getenv("BCDA_TLS_CERT_B64"))
 	if err != nil {
-		log.Fatal("Could not base64 decode BCDA_TLS_CERT_B64", err)
+		ssas.Logger.Error(err)
+		return nil, tls.Certificate{}, errors.New("could not base64 decode BCDA_TLS_CERT_B64")
 	}
 	keyB, err := b64.StdEncoding.DecodeString(os.Getenv("BCDA_TLS_KEY_B64"))
 	if err != nil {
-		log.Fatal("Could not base64 decode BCDA_TLS_KEY_B64", err)
+		ssas.Logger.Error(err)
+		return nil, tls.Certificate{}, errors.New("could not base64 decode BCDA_TLS_KEY_B64")
 	}
 
 	crtStr := string(crtB)
 	keyStr := string(keyB)
 
 	if crtStr == "" || keyStr == "" {
-		log.Fatal("One of the following required environment variables is missing or not base64 encoded: BCDA_TLS_CERT_B64, BCDA_TLS_KEY_B64")
+		ssas.Logger.Error(err)
+		return nil, tls.Certificate{}, errors.New("one of the following required environment variables is missing or not base64 encoded: BCDA_TLS_CERT_B64, BCDA_TLS_KEY_B64")
+
 	}
 
 	// We are using the server cert as the CA cert.
 	certPool := x509.NewCertPool()
 	ok := certPool.AppendCertsFromPEM([]byte(crtStr))
 	if !ok {
-		log.Fatal("Failed to parse server cert")
+		ssas.Logger.Error(err)
+		return nil, tls.Certificate{}, errors.New("failed to parse server cert")
 	}
 
 	crt, err := tls.X509KeyPair([]byte(crtStr), []byte(keyStr))
 	if err != nil {
-		log.Fatal("Failed to parse server cert/key par", err)
+		ssas.Logger.Error(err)
+		return nil, tls.Certificate{}, errors.New("failed to parse server cert/key pair")
 	}
-	return certPool, crt
+	return certPool, crt, nil
 }
 
 // Stops the server listening for and responding to requests.
