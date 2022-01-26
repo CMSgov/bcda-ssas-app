@@ -3,7 +3,12 @@ RUN apk update upgrade
 RUN apk add git build-base gcc
 WORKDIR /go/src/github.com/CMSgov/bcda-ssas-app
 COPY . .
-RUN go get -u github.com/go-swagger/go-swagger/cmd/swagger
+
+RUN dir=$(mktemp -d) && \
+    git clone -b v0.28.0 https://github.com/go-swagger/go-swagger "$dir" && \
+    cd "$dir" && \
+    go install ./cmd/swagger
+
 WORKDIR /go/src/github.com/CMSgov/bcda-ssas-app/ssas/service/main
 RUN swagger generate spec -i ../../swaggerui/tags.yml -o ../../swaggerui/swagger.json -m
 
