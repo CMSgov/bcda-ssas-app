@@ -3,21 +3,32 @@ package service
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/CMSgov/bcda-ssas-app/ssas"
 	"net/http"
+
+	"github.com/CMSgov/bcda-ssas-app/ssas"
 )
 
-func JsonError(w http.ResponseWriter, errorStatus int, errorText string, description string) {
+func WriteHTTPSError(w http.ResponseWriter, e ssas.ErrorResponse, errorStatus int) {
 	fallbackMessage := fmt.Sprintf(`{"error": "%s", "error_description": "%s"}`, http.StatusText(http.StatusInternalServerError), http.StatusText(http.StatusInternalServerError))
-	e := ssas.ErrorResponse{Error: errorText, ErrorDescription: description}
 	body, err := json.Marshal(e)
+
 	if err != nil {
 		http.Error(w, fallbackMessage, http.StatusInternalServerError)
 	}
-	ssas.Logger.Printf("%s; %s", description, errorText) // TODO: log information about the request
+
 	w.WriteHeader(errorStatus)
 	_, err = w.Write(body)
+
 	if err != nil {
 		http.Error(w, fallbackMessage, http.StatusInternalServerError)
 	}
+}
+
+// Follow RFC 7591 format for input errors
+func JSONError(w http.ResponseWriter, errorStatus int, statusText string, statusDescription string) {
+	e := ssas.ErrorResponse{Error: statusText, ErrorDescription: statusDescription}
+
+	WriteHTTPSError(w, e, errorStatus)
+
+	ssas.Logger.Printf("%s; %s", statusText, statusDescription) // TODO: log information about the request
 }

@@ -570,14 +570,16 @@ func (s *APITestSuite) TestDeactivateSystemCredentials() {
 	_ = ssas.CleanDatabase(group)
 }
 
-func (s *APITestSuite) TestJsonError() {
-	w := httptest.NewRecorder()
-	jsonError(w, http.StatusUnauthorized, "unauthorized")
-	resp := w.Result()
-	body, err := ioutil.ReadAll(resp.Body)
-	assert.NoError(s.T(), err)
-	assert.True(s.T(), json.Valid(body))
-	assert.Equal(s.T(), `{"error":"Unauthorized","error_description":"unauthorized"}`, string(body))
+func (s *APITestSuite) TestJSONError() {
+	rr := httptest.NewRecorder()
+	service.JSONError(rr, http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized), "unauthorized")
+
+	b, _ := ioutil.ReadAll(rr.Body)
+	var error ssas.ErrorResponse
+	_ = json.Unmarshal(b, &error)
+
+	assert.Equal(s.T(), "Unauthorized", error.Error)
+	assert.Equal(s.T(), "unauthorized", error.ErrorDescription)
 }
 
 func (s *APITestSuite) TestGetSystemIPs() {
@@ -958,8 +960,12 @@ func (s *APITestSuite) TestCreateV2SystemWithMissingPublicKey() {
 	req := httptest.NewRequest("POST", "/v2/system", strings.NewReader(`{"client_name": "Test Client", "group_id": "test-group-id", "scope": "bcda-api", "tracking_id": "T00000"}`))
 	handler := http.HandlerFunc(createV2System)
 	rr := httptest.NewRecorder()
+
 	handler.ServeHTTP(rr, req)
+
+	assert.NoError(s.T(), err)
 	assert.Equal(s.T(), http.StatusBadRequest, rr.Result().StatusCode)
+
 	var result map[string]interface{}
 	_ = json.Unmarshal(rr.Body.Bytes(), &result)
 	assert.Empty(s.T(), result["client_token"])
@@ -1031,10 +1037,13 @@ func (s *APITestSuite) TestCreateV2SystemEmptyKey() {
 	req := httptest.NewRequest("POST", "/v2/system", strings.NewReader(`{"client_name": "Test Client", "group_id": "test-group-id", "scope": "bcda-api", "public_key": "", "tracking_id": "T00000"}`))
 	handler := http.HandlerFunc(createV2System)
 	rr := httptest.NewRecorder()
+
 	handler.ServeHTTP(rr, req)
 	assert.Equal(s.T(), http.StatusBadRequest, rr.Result().StatusCode)
+
 	var result map[string]interface{}
 	_ = json.Unmarshal(rr.Body.Bytes(), &result)
+
 	assert.Empty(s.T(), result["client_token"])
 	assert.Equal(s.T(), "could not create v2 system; public key is required", result["error_description"])
 
