@@ -57,7 +57,7 @@ func (s *AdminMiddlewareTestSuite) TestRequireBasicAuthFailure() {
 	}
 	var result map[string]interface{}
 	_ = json.Unmarshal(b, &result)
-	assert.Equal(s.T(), "invalid client secret", result["error_description"], string(b))
+	assert.Equal(s.T(), "invalid client secret", result["error_description"])
 }
 
 func (s *AdminMiddlewareTestSuite) TestRequireBasicAuthExpired() {
@@ -70,7 +70,7 @@ func (s *AdminMiddlewareTestSuite) TestRequireBasicAuthExpired() {
 	}
 	var result map[string]interface{}
 	_ = json.Unmarshal(b, &result)
-	assert.Equal(s.T(), "credentials expired", result["error_description"], string(b))
+	assert.Equal(s.T(), "credentials expired", result["error_description"])
 }
 
 func testAuth(base64Creds string, statusCode int, s *AdminMiddlewareTestSuite) *http.Response {

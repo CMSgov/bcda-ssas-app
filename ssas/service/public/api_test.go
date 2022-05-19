@@ -454,14 +454,16 @@ func (s *APITestSuite) TestSaveTokenTime() {
 	assert.Nil(s.T(), err)
 }
 
-func (s *APITestSuite) TestJsonError() {
-	w := httptest.NewRecorder()
-	jsonError(w, http.StatusText(http.StatusUnauthorized), "unauthorized")
-	resp := w.Result()
-	body, err := ioutil.ReadAll(resp.Body)
-	assert.NoError(s.T(), err)
-	assert.True(s.T(), json.Valid(body))
-	assert.Equal(s.T(), `{"error":"Unauthorized","error_description":"unauthorized"}`, string(body))
+func (s *APITestSuite) TestJSONError() {
+	rr := httptest.NewRecorder()
+	service.JSONError(rr, http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized), "unauthorized")
+
+	b, _ := ioutil.ReadAll(rr.Body)
+	var error ssas.ErrorResponse
+	_ = json.Unmarshal(b, &error)
+
+	assert.Equal(s.T(), "Unauthorized", error.Error)
+	assert.Equal(s.T(), "unauthorized", error.ErrorDescription)
 }
 
 func TestAPITestSuite(t *testing.T) {
@@ -1039,8 +1041,9 @@ func (s *APITestSuite) TestGetTokenInfoWithMissingToken() {
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rCtx))
 	handler := http.HandlerFunc(validateAndParseToken)
 	rr := httptest.NewRecorder()
+
 	handler.ServeHTTP(rr, req)
-	assert.Equal(s.T(), http.StatusBadRequest, rr.Result().StatusCode)
+	assert.Equal(s.T(), http.StatusUnauthorized, rr.Result().StatusCode)
 
 	var resMap map[string]string
 	err := json.NewDecoder(rr.Body).Decode(&resMap)
@@ -1056,7 +1059,7 @@ func (s *APITestSuite) TestGetTokenInfoWithEmptyToken() {
 	handler := http.HandlerFunc(validateAndParseToken)
 	rr := httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
-	assert.Equal(s.T(), http.StatusBadRequest, rr.Result().StatusCode)
+	assert.Equal(s.T(), http.StatusUnauthorized, rr.Result().StatusCode)
 
 	var resMap map[string]string
 	err := json.NewDecoder(rr.Body).Decode(&resMap)
