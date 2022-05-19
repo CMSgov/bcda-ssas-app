@@ -1482,7 +1482,7 @@
 									"var ajv = new Ajv({schemas: [schema]});",
 									"",
 									"pm.test(\"Response is 'bad request'\", function () {",
-									"    pm.response.to.have.status(400);",
+									"    pm.response.to.have.status(401);",
 									"});",
 									"",
 									"pm.test('Schema is valid', function() {",
