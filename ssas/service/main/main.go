@@ -46,6 +46,7 @@ import (
 	"github.com/CMSgov/bcda-ssas-app/ssas/service/admin"
 	"github.com/CMSgov/bcda-ssas-app/ssas/service/public"
 	"github.com/go-chi/chi"
+	gcmw "github.com/go-chi/chi/middleware"
 	"github.com/newrelic/go-agent/v3/newrelic"
 	"gorm.io/gorm"
 )
@@ -177,7 +178,7 @@ func start() {
 
 func newForwardingRouter() http.Handler {
 	r := chi.NewRouter()
-	r.Use(service.NewAPILogger(), service.ConnectionClose)
+	r.Use(gcmw.RequestID, service.NewAPILogger(), service.ConnectionClose)
 	r.Get("/*", http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		// TODO only forward requests for paths in our own host or resource server
 		url := "https://" + req.Host + req.URL.String()

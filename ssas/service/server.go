@@ -9,16 +9,18 @@ import (
 	b64 "encoding/base64"
 	"errors"
 	"fmt"
-	"gopkg.in/macaroon.v2"
 	"log"
 	"net/http"
 	"os"
 	"strings"
 	"time"
 
+	"gopkg.in/macaroon.v2"
+
 	"github.com/CMSgov/bcda-ssas-app/ssas"
 	"github.com/CMSgov/bcda-ssas-app/ssas/cfg"
 	"github.com/go-chi/chi"
+	gcmw "github.com/go-chi/chi/middleware"
 	"github.com/go-chi/render"
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/pborman/uuid"
@@ -231,6 +233,7 @@ func (s *Server) Stop() {
 func (s *Server) newBaseRouter() *chi.Mux {
 	r := chi.NewRouter()
 	r.Use(
+		gcmw.RequestID,
 		NewAPILogger(),
 		render.SetContentType(render.ContentTypeJSON),
 		ConnectionClose,

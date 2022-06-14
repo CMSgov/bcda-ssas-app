@@ -10,6 +10,7 @@ import (
 	"github.com/CMSgov/bcda-ssas-app/ssas"
 
 	"github.com/go-chi/chi"
+	gcmw "github.com/go-chi/chi/middleware"
 
 	"github.com/CMSgov/bcda-ssas-app/ssas/constants"
 	"github.com/CMSgov/bcda-ssas-app/ssas/service"
@@ -49,7 +50,7 @@ func Server() *service.Server {
 
 func routes() *chi.Mux {
 	r := chi.NewRouter()
-	r.Use(service.NewAPILogger(), service.ConnectionClose)
+	r.Use(gcmw.RequestID, service.NewAPILogger(), service.ConnectionClose)
 	r.With(requireBasicAuth).Post("/group", createGroup)
 	r.With(requireBasicAuth).Get("/group", listGroups)
 	r.With(requireBasicAuth).Put("/group/{id}", updateGroup)
