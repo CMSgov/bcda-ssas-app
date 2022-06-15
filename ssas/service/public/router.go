@@ -9,6 +9,7 @@ import (
 	"github.com/CMSgov/bcda-ssas-app/ssas/constants"
 	"github.com/CMSgov/bcda-ssas-app/ssas/service"
 	"github.com/go-chi/chi"
+	gcmw "github.com/go-chi/chi/middleware"
 )
 
 var infoMap map[string][]string
@@ -50,7 +51,7 @@ func Server() *service.Server {
 func routes() *chi.Mux {
 	router := chi.NewRouter()
 	//v1 Routes
-	router.Use(service.NewAPILogger(), service.ConnectionClose)
+	router.Use(gcmw.RequestID, service.NewAPILogger(), service.ConnectionClose)
 	router.Post("/token", token)
 	router.Post("/introspect", introspect)
 	router.Post("/authn", VerifyPassword)
