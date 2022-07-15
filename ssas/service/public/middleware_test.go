@@ -13,7 +13,15 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
-type middlewareTestContextKeyType string
+type middlewareTestContextKey string
+
+func (c middlewareTestContextKey) String() string {
+	return string(c)
+}
+
+var (
+	middlewareTestContextKeyRegToken = middlewareTestContextKey("ts")
+)
 
 var mockHandler http.HandlerFunc = func(w http.ResponseWriter, r *http.Request) {}
 
@@ -150,9 +158,7 @@ func (s *PublicMiddlewareTestSuite) TestRequireRegTokenAuthValidToken() {
 	assert.NotNil(s.T(), ts)
 
 	ctx := req.Context()
-
-	const middlewareTestContextKey = middlewareTestContextKeyType("ts")
-	ctx = context.WithValue(ctx, middlewareTestContextKey, ts)
+	ctx = context.WithValue(ctx, middlewareTestContextKeyRegToken, ts)
 	req = req.WithContext(ctx)
 
 	handler.ServeHTTP(s.rr, req)
@@ -185,9 +191,7 @@ func (s *PublicMiddlewareTestSuite) TestRequireRegTokenAuthRevoked() {
 	assert.NotNil(s.T(), token)
 
 	ctx := req.Context()
-
-	const middlewareTestContextKey = middlewareTestContextKeyType("ts")
-	ctx = context.WithValue(ctx, middlewareTestContextKey, ts)
+	ctx = context.WithValue(ctx, middlewareTestContextKeyRegToken, ts)
 	req = req.WithContext(ctx)
 
 	handler.ServeHTTP(s.rr, req)
@@ -207,8 +211,7 @@ func (s *PublicMiddlewareTestSuite) TestRequireRegTokenAuthEmptyToken() {
 		assert.FailNow(s.T(), err.Error())
 	}
 
-	const middlewareTestContextKey = middlewareTestContextKeyType("ts")
-	ctx := context.WithValue(context.Background(), middlewareTestContextKey, nil)
+	ctx := context.WithValue(context.Background(), middlewareTestContextKeyRegToken, nil)
 
 	resp, err := client.Do(req.WithContext(ctx))
 	if err != nil {
@@ -233,9 +236,7 @@ func (s *PublicMiddlewareTestSuite) TestRequireMFATokenAuthValidToken() {
 	assert.NotNil(s.T(), ts)
 
 	ctx := req.Context()
-
-	const middlewareTestContextKey = middlewareTestContextKeyType("ts")
-	ctx = context.WithValue(ctx, middlewareTestContextKey, ts)
+	ctx = context.WithValue(ctx, middlewareTestContextKeyRegToken, ts)
 	req = req.WithContext(ctx)
 
 	handler.ServeHTTP(s.rr, req)
@@ -255,8 +256,7 @@ func (s *PublicMiddlewareTestSuite) TestRequireMFATokenAuthEmptyToken() {
 		assert.FailNow(s.T(), err.Error())
 	}
 
-	const middlewareTestContextKey = middlewareTestContextKeyType("ts")
-	ctx := context.WithValue(context.Background(), middlewareTestContextKey, nil)
+	ctx := context.WithValue(context.Background(), middlewareTestContextKeyRegToken, nil)
 
 	resp, err := client.Do(req.WithContext(ctx))
 	if err != nil {

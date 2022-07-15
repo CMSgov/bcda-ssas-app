@@ -27,7 +27,15 @@ import (
 	"time"
 )
 
-type apiTestContextKeyType string
+type apiTestContextKey string
+
+func (c apiTestContextKey) String() string {
+	return string(c)
+}
+
+var (
+	apiTestContextKeyRegData = apiTestContextKey("rd")
+)
 
 type APITestSuite struct {
 	suite.Suite
@@ -288,9 +296,7 @@ func addRegDataContext(req *http.Request, groupID string, groupIDs []string) *ht
 	rctx := chi.NewRouteContext()
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
 	rd := ssas.AuthRegData{GroupID: groupID, AllowedGroupIDs: groupIDs}
-
-	const apiTestContextKey = apiTestContextKeyType("rd")
-	req = req.WithContext(context.WithValue(req.Context(), apiTestContextKey, rd))
+	req = req.WithContext(context.WithValue(req.Context(), apiTestContextKeyRegData, rd))
 	return req
 }
 
