@@ -13,16 +13,6 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
-type middlewareTestContextKey string
-
-func (c middlewareTestContextKey) String() string {
-	return string(c)
-}
-
-var (
-	middlewareTestContextKeyRegToken = middlewareTestContextKey("ts")
-)
-
 var mockHandler http.HandlerFunc = func(w http.ResponseWriter, r *http.Request) {}
 
 type PublicMiddlewareTestSuite struct {
@@ -158,7 +148,7 @@ func (s *PublicMiddlewareTestSuite) TestRequireRegTokenAuthValidToken() {
 	assert.NotNil(s.T(), ts)
 
 	ctx := req.Context()
-	ctx = context.WithValue(ctx, middlewareTestContextKeyRegToken, ts)
+	ctx = context.WithValue(ctx, "ts", ts) //nolint
 	req = req.WithContext(ctx)
 
 	handler.ServeHTTP(s.rr, req)
@@ -191,7 +181,7 @@ func (s *PublicMiddlewareTestSuite) TestRequireRegTokenAuthRevoked() {
 	assert.NotNil(s.T(), token)
 
 	ctx := req.Context()
-	ctx = context.WithValue(ctx, middlewareTestContextKeyRegToken, ts)
+	ctx = context.WithValue(ctx, "ts", ts) //nolint
 	req = req.WithContext(ctx)
 
 	handler.ServeHTTP(s.rr, req)
@@ -211,7 +201,7 @@ func (s *PublicMiddlewareTestSuite) TestRequireRegTokenAuthEmptyToken() {
 		assert.FailNow(s.T(), err.Error())
 	}
 
-	ctx := context.WithValue(context.Background(), middlewareTestContextKeyRegToken, nil)
+	ctx := context.WithValue(context.Background(), "ts", nil) //nolint
 
 	resp, err := client.Do(req.WithContext(ctx))
 	if err != nil {
@@ -236,7 +226,7 @@ func (s *PublicMiddlewareTestSuite) TestRequireMFATokenAuthValidToken() {
 	assert.NotNil(s.T(), ts)
 
 	ctx := req.Context()
-	ctx = context.WithValue(ctx, middlewareTestContextKeyRegToken, ts)
+	ctx = context.WithValue(ctx, "ts", ts) //nolint
 	req = req.WithContext(ctx)
 
 	handler.ServeHTTP(s.rr, req)
@@ -256,7 +246,7 @@ func (s *PublicMiddlewareTestSuite) TestRequireMFATokenAuthEmptyToken() {
 		assert.FailNow(s.T(), err.Error())
 	}
 
-	ctx := context.WithValue(context.Background(), middlewareTestContextKeyRegToken, nil)
+	ctx := context.WithValue(context.Background(), "ts", nil) //nolint
 
 	resp, err := client.Do(req.WithContext(ctx))
 	if err != nil {
