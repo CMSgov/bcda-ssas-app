@@ -3,11 +3,14 @@ package public
 import (
 	"context"
 	"fmt"
-	"github.com/CMSgov/bcda-ssas-app/ssas"
-	"github.com/CMSgov/bcda-ssas-app/ssas/service"
 	"net/http"
 	"regexp"
+
+	"github.com/CMSgov/bcda-ssas-app/ssas"
+	"github.com/CMSgov/bcda-ssas-app/ssas/service"
 )
+
+type middlewareContextKeyType string
 
 func readGroupID(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -33,7 +36,8 @@ func readGroupID(next http.Handler) http.Handler {
 			return
 		}
 
-		ctx := context.WithValue(r.Context(), "rd", rd)
+		var middlewareContextKey = middlewareContextKeyType("rd")
+		ctx := context.WithValue(r.Context(), middlewareContextKey, rd)
 		service.LogEntrySetField(r, "rd", rd)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
@@ -80,9 +84,14 @@ func parseToken(next http.Handler) http.Handler {
 			rd.AllowedGroupIDs = claims.GroupIDs
 			rd.OktaID = claims.OktaID
 		}
-		ctx := context.WithValue(r.Context(), "ts", tokenString)
-		ctx = context.WithValue(ctx, "rd", rd)
-		service.LogEntrySetField(r, "rd", rd)
+
+		var middlewareContextKeyOne = middlewareContextKeyType("ts")
+		var middlewareContextKeyTwo = middlewareContextKeyType("rd")
+
+		ctx := context.WithValue(r.Context(), middlewareContextKeyOne, tokenString)
+		ctx = context.WithValue(ctx, middlewareContextKeyTwo, rd)
+
+		service.LogEntrySetField(r, "ts", rd)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }

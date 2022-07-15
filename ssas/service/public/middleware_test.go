@@ -13,6 +13,8 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
+type middlewareTestContextKeyType string
+
 var mockHandler http.HandlerFunc = func(w http.ResponseWriter, r *http.Request) {}
 
 type PublicMiddlewareTestSuite struct {
@@ -148,7 +150,9 @@ func (s *PublicMiddlewareTestSuite) TestRequireRegTokenAuthValidToken() {
 	assert.NotNil(s.T(), ts)
 
 	ctx := req.Context()
-	ctx = context.WithValue(ctx, "ts", ts)
+
+	const middlewareTestContextKey = middlewareTestContextKeyType("ts")
+	ctx = context.WithValue(ctx, middlewareTestContextKey, ts)
 	req = req.WithContext(ctx)
 
 	handler.ServeHTTP(s.rr, req)
@@ -181,7 +185,9 @@ func (s *PublicMiddlewareTestSuite) TestRequireRegTokenAuthRevoked() {
 	assert.NotNil(s.T(), token)
 
 	ctx := req.Context()
-	ctx = context.WithValue(ctx, "ts", ts)
+
+	const middlewareTestContextKey = middlewareTestContextKeyType("ts")
+	ctx = context.WithValue(ctx, middlewareTestContextKey, ts)
 	req = req.WithContext(ctx)
 
 	handler.ServeHTTP(s.rr, req)
@@ -201,7 +207,8 @@ func (s *PublicMiddlewareTestSuite) TestRequireRegTokenAuthEmptyToken() {
 		assert.FailNow(s.T(), err.Error())
 	}
 
-	ctx := context.WithValue(context.Background(), "ts", nil)
+	const middlewareTestContextKey = middlewareTestContextKeyType("ts")
+	ctx := context.WithValue(context.Background(), middlewareTestContextKey, nil)
 
 	resp, err := client.Do(req.WithContext(ctx))
 	if err != nil {
@@ -226,7 +233,9 @@ func (s *PublicMiddlewareTestSuite) TestRequireMFATokenAuthValidToken() {
 	assert.NotNil(s.T(), ts)
 
 	ctx := req.Context()
-	ctx = context.WithValue(ctx, "ts", ts)
+
+	const middlewareTestContextKey = middlewareTestContextKeyType("ts")
+	ctx = context.WithValue(ctx, middlewareTestContextKey, ts)
 	req = req.WithContext(ctx)
 
 	handler.ServeHTTP(s.rr, req)
@@ -246,7 +255,8 @@ func (s *PublicMiddlewareTestSuite) TestRequireMFATokenAuthEmptyToken() {
 		assert.FailNow(s.T(), err.Error())
 	}
 
-	ctx := context.WithValue(context.Background(), "ts", nil)
+	const middlewareTestContextKey = middlewareTestContextKeyType("ts")
+	ctx := context.WithValue(context.Background(), middlewareTestContextKey, nil)
 
 	resp, err := client.Do(req.WithContext(ctx))
 	if err != nil {

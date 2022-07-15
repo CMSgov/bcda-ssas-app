@@ -13,6 +13,11 @@ DB_HOST_URL=${DB}?sslmode=disable
 TEST_DB_URL=${DB}/ssas_test?sslmode=disable
 echo "DB_HOST_URL is $DB_HOST_URL"
 echo "TEST_DB_URL is $TEST_DB_URL"
+
+go install github.com/xo/usql@v0.11.0
+go install -tags 'postgres' github.com/golang-migrate/migrate/v4/cmd/migrate@v4.15.2
+go install gotest.tools/gotestsum@v1.8.1
+
 usql $DB_HOST_URL -c 'drop database if exists ssas_test;'
 usql $DB_HOST_URL -c 'create database ssas_test;'
 
