@@ -168,10 +168,11 @@ func start() {
 
 	// Accepts and redirects HTTP requests to HTTPS. Not sure we should do this.
 	forwarder := &http.Server{
-		Handler:      newForwardingRouter(),
-		Addr:         ":3005",
-		ReadTimeout:  5 * time.Second,
-		WriteTimeout: 5 * time.Second,
+		Handler:           newForwardingRouter(),
+		Addr:              ":3005",
+		ReadHeaderTimeout: 2 * time.Second,
+		ReadTimeout:       5 * time.Second,
+		WriteTimeout:      5 * time.Second,
 	}
 	ssas.Logger.Fatal(forwarder.ListenAndServe())
 }

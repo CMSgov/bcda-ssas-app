@@ -110,11 +110,12 @@ func NewServer(name, port, version string, info interface{}, routes *chi.Mux, no
 	s.tokenTTL = ttl
 	s.clientAssertAud = clientAssertAud
 	s.server = http.Server{
-		Handler:      s.router,
-		Addr:         s.port,
-		ReadTimeout:  time.Duration(cfg.GetEnvInt("SSAS_READ_TIMEOUT", 10)) * time.Second,
-		WriteTimeout: time.Duration(cfg.GetEnvInt("SSAS_WRITE_TIMEOUT", 20)) * time.Second,
-		IdleTimeout:  time.Duration(cfg.GetEnvInt("SSAS_IDLE_TIMEOUT", 120)) * time.Second,
+		Handler:           s.router,
+		Addr:              s.port,
+		ReadHeaderTimeout: 2 * time.Second,
+		ReadTimeout:       time.Duration(cfg.GetEnvInt("SSAS_READ_TIMEOUT", 10)) * time.Second,
+		WriteTimeout:      time.Duration(cfg.GetEnvInt("SSAS_WRITE_TIMEOUT", 20)) * time.Second,
+		IdleTimeout:       time.Duration(cfg.GetEnvInt("SSAS_IDLE_TIMEOUT", 120)) * time.Second,
 	}
 
 	return &s
