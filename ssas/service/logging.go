@@ -62,7 +62,7 @@ type APILoggerEntry struct {
 	Logger logrus.FieldLogger
 }
 
-func (l *APILoggerEntry) Write(status, bytes int, elapsed time.Duration) {
+func (l *APILoggerEntry) Write(status, bytes int, header http.Header, elapsed time.Duration, extra interface{}) {
 	l.Logger = l.Logger.WithFields(logrus.Fields{
 		"resp_status": status, "resp_bytes_length": bytes,
 		"resp_elapsed_ms": float64(elapsed.Nanoseconds()) / 1000000.0,
