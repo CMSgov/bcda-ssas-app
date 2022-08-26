@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"github.com/CMSgov/bcda-ssas-app/ssas"
 	"github.com/CMSgov/bcda-ssas-app/ssas/service"
-	"github.com/go-chi/chi"
+	"github.com/go-chi/chi/v5"
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/pborman/uuid"
 	"github.com/stretchr/testify/assert"

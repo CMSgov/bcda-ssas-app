@@ -9,8 +9,8 @@ import (
 
 	"github.com/CMSgov/bcda-ssas-app/ssas"
 
-	"github.com/go-chi/chi"
-	gcmw "github.com/go-chi/chi/middleware"
+	"github.com/go-chi/chi/v5"
+	gcmw "github.com/go-chi/chi/v5/middleware"
 
 	"github.com/CMSgov/bcda-ssas-app/ssas/constants"
 	"github.com/CMSgov/bcda-ssas-app/ssas/service"

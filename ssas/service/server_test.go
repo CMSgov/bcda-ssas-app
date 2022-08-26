@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/go-chi/chi"
+	"github.com/go-chi/chi/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 )
@@ -125,7 +125,7 @@ func (s *ServerTestSuite) TestNewServer() {
 	routes, err := ts.ListRoutes()
 	assert.Nil(s.T(), err)
 	assert.NotNil(s.T(), routes)
-	expected := []string{"GET /_health", "GET /_info", "GET /_version", "GET /*/test"}
+	expected := []string{"GET /_health", "GET /_info", "GET /_version", "GET /test"}
 	assert.Equal(s.T(), expected, routes)
 }
 
