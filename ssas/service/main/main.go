@@ -45,8 +45,8 @@ import (
 	"github.com/CMSgov/bcda-ssas-app/ssas/service"
 	"github.com/CMSgov/bcda-ssas-app/ssas/service/admin"
 	"github.com/CMSgov/bcda-ssas-app/ssas/service/public"
-	"github.com/go-chi/chi"
-	gcmw "github.com/go-chi/chi/middleware"
+	"github.com/go-chi/chi/v5"
+	gcmw "github.com/go-chi/chi/v5/middleware"
 	"github.com/newrelic/go-agent/v3/newrelic"
 	"gorm.io/gorm"
 )
@@ -168,10 +168,11 @@ func start() {
 
 	// Accepts and redirects HTTP requests to HTTPS. Not sure we should do this.
 	forwarder := &http.Server{
-		Handler:      newForwardingRouter(),
-		Addr:         ":3005",
-		ReadTimeout:  5 * time.Second,
-		WriteTimeout: 5 * time.Second,
+		Handler:           newForwardingRouter(),
+		Addr:              ":3005",
+		ReadHeaderTimeout: 2 * time.Second,
+		ReadTimeout:       5 * time.Second,
+		WriteTimeout:      5 * time.Second,
 	}
 	ssas.Logger.Fatal(forwarder.ListenAndServe())
 }
