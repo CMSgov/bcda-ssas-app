@@ -3,13 +3,10 @@ module github.com/CMSgov/bcda-ssas-app
 go 1.18
 
 require (
-	github.com/BurntSushi/toml v0.4.1
 	github.com/go-chi/chi/v5 v5.0.7
 	github.com/go-chi/render v1.0.2
 	github.com/golang-jwt/jwt/v4 v4.4.2
-	github.com/howeyc/fsnotify v0.9.0
 	github.com/lib/pq v1.10.6
-	github.com/mattn/go-colorable v0.1.12
 	github.com/newrelic/go-agent/v3 v3.18.1
 	github.com/patrickmn/go-cache v2.1.1-0.20180815053127-5633e0862627+incompatible
 	github.com/pborman/uuid v1.2.1
@@ -28,7 +25,6 @@ require (
 	github.com/google/uuid v1.3.0 // indirect
 	github.com/jinzhu/inflection v1.0.0 // indirect
 	github.com/jinzhu/now v1.1.5 // indirect
-	github.com/konsorten/go-windows-terminal-sequences v1.0.3 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	golang.org/x/net v0.0.0-20220826154423-83b083e8dc8b // indirect
 	golang.org/x/sys v0.0.0-20220825204002-c680a09ffe64 // indirect
