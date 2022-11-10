@@ -488,11 +488,9 @@ func token(w http.ResponseWriter, r *http.Request) {
 		service.JSONError(w, http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized), "invalid client id")
 		return
 	}
-	savedSecret, err := system.GetSecret()
-
-	ValidateClientIdAndSecret(clientID, savedSecret, secret)
+	err = ValidateClientIdAndSecret(system, secret, w, r)
 	if err != nil {
-		ssas.Logger.Errorf("The client id and secret cannot be validated", err.Error())
+		ssas.Logger.Error("The client id and secret cannot be validated: ", err.Error())
 		service.JSONError(w, http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized), "Client ID and Secret cannot be validated")
 		return
 	}
@@ -531,19 +529,24 @@ func token(w http.ResponseWriter, r *http.Request) {
 	render.JSON(w, r, m)
 }
 
-func ValidateClientIdAndSecret(savedSecret ssas.Secret, secret string, w http.ResponseWriter, r *http.Request, err error) {
-
-	if err != nil || !ssas.Hash(savedSecret.Hash).IsHashOf(secret) {
-		ssas.Logger.Errorf("hashComparisonFail : %s ", strconv.FormatBool(!ssas.Hash(savedSecret.Hash).IsHashOf(secret)))
-		ssas.Logger.Errorf("The client secret %s is invalid", err.Error())
+func ValidateClientIdAndSecret(system ssas.System, secret string, w http.ResponseWriter, r *http.Request) (err error) {
+	savedSecret, err := system.GetSecret()
+	if err != nil {
+		ssas.Logger.Errorf("Error getting secret: %s", err.Error())
+		service.JSONError(w, http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized), "Error getting secret")
+		return err
+	} else if !ssas.Hash(savedSecret.Hash).IsHashOf(secret) {
+		ssas.Logger.Errorf("The incoming client secret is invalid")
 		service.JSONError(w, http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized), "invalid client secret")
-		return
+		return err
 	}
 
 	if savedSecret.IsExpired() {
+		ssas.Logger.Error("Credentials were expired")
 		service.JSONError(w, http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized), "credentials expired")
-		return
+		return errors.New("The saved client secret is expired")
 	}
+	return nil
 }
 func tokenV2(w http.ResponseWriter, r *http.Request) {
 	trackingID := uuid.NewRandom().String()
