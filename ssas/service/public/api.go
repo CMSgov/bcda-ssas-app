@@ -484,18 +484,14 @@ func token(w http.ResponseWriter, r *http.Request) {
 
 	system, err := ssas.GetSystemByClientID(clientID)
 	if err != nil {
+		ssas.Logger.Errorf("The client id %s is invalid", err.Error())
 		service.JSONError(w, http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized), "invalid client id")
 		return
 	}
-
-	savedSecret, err := system.GetSecret()
-	if err != nil || !ssas.Hash(savedSecret.Hash).IsHashOf(secret) {
-		service.JSONError(w, http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized), "invalid client secret")
-		return
-	}
-
-	if savedSecret.IsExpired() {
-		service.JSONError(w, http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized), "credentials expired")
+	err = ValidateClientIdAndSecret(system, secret, w, r)
+	if err != nil {
+		ssas.Logger.Error("The client id and secret cannot be validated: ", err.Error())
+		service.JSONError(w, http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized), "Client ID and Secret cannot be validated")
 		return
 	}
 
@@ -514,7 +510,7 @@ func token(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		event.Help = "failure minting token: " + err.Error()
 		ssas.OperationFailed(event)
-		service.JSONError(w, http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized), "")
+		service.JSONError(w, http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized), "failure minting token")
 		return
 	}
 
@@ -533,6 +529,25 @@ func token(w http.ResponseWriter, r *http.Request) {
 	render.JSON(w, r, m)
 }
 
+func ValidateClientIdAndSecret(system ssas.System, secret string, w http.ResponseWriter, r *http.Request) (err error) {
+	savedSecret, err := system.GetSecret()
+	if err != nil {
+		ssas.Logger.Errorf("Error getting secret: %s", err.Error())
+		service.JSONError(w, http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized), "Error getting secret")
+		return err
+	} else if !ssas.Hash(savedSecret.Hash).IsHashOf(secret) {
+		ssas.Logger.Errorf("The incoming client secret is invalid")
+		service.JSONError(w, http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized), "invalid client secret")
+		return err
+	}
+
+	if savedSecret.IsExpired() {
+		ssas.Logger.Error("Credentials were expired")
+		service.JSONError(w, http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized), "credentials expired")
+		return errors.New("The saved client secret is expired")
+	}
+	return nil
+}
 func tokenV2(w http.ResponseWriter, r *http.Request) {
 	trackingID := uuid.NewRandom().String()
 	event := ssas.Event{Op: "V2-Token", TrackingID: trackingID, Help: "calling from public.tokenV2()"}
