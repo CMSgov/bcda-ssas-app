@@ -386,7 +386,8 @@ func (s *APITestSuite) TestTokenEmptyClientIdProduces() {
 	assert.Nil(s.T(), err)
 }
 
-// func (s *APITestSuite) TestTokenSecretNil() {
+// Test is error is  not retrieved
+//func (s *APITestSuite) TestTokenSecretNil() {
 // 	groupID := ssas.RandomHexID()[0:4]
 // 	group := ssas.Group{GroupID: groupID, XData: "x_data"}
 // 	err := s.db.Create(&group).Error
