@@ -2,12 +2,13 @@ package public
 
 import (
 	"encoding/json"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-	"github.com/stretchr/testify/suite"
 	"os"
 	"strconv"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/suite"
 
 	"github.com/CMSgov/bcda-ssas-app/ssas/service"
 )
@@ -61,7 +62,10 @@ func (s *PublicTokenTestSuite) TestMintRegistrationTokenMissingID() {
 
 func (s *PublicTokenTestSuite) TestMintAccessToken() {
 	data := `"{\"cms_ids\":[\"T67890\",\"T54321\"]}"`
-	t, ts, err := MintAccessToken("2", "0c527d2e-2e8a-4808-b11d-0fa06baf8254", data, "")
+	commonClaims := CreateCommonClaims("AccessToken", "", "2", "0c527d2e-2e8a-4808-b11d-0fa06baf8254", data, "", nil)
+
+	accessTokenGenerator := AccessTokenCreator{}
+	t, ts, err := accessTokenGenerator.GenerateToken(commonClaims)
 
 	require.Nil(s.T(), err)
 	assert.NotEmpty(s.T(), ts, "missing token string value")

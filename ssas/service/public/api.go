@@ -488,7 +488,7 @@ func token(w http.ResponseWriter, r *http.Request) {
 		service.JSONError(w, http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized), "invalid client id")
 		return
 	}
-	err = ValidateClientIdAndSecret(system, secret, w, r)
+	err = ValidateSecret(system, secret, w, r)
 	if err != nil {
 		ssas.Logger.Error("The client id and secret cannot be validated: ", err.Error())
 		service.JSONError(w, http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized), "Client ID and Secret cannot be validated")
@@ -506,7 +506,10 @@ func token(w http.ResponseWriter, r *http.Request) {
 
 	event := ssas.Event{Op: "Token", TrackingID: trackingID, Help: "calling from public.token()"}
 	ssas.OperationCalled(event)
-	token, ts, err := MintAccessToken(fmt.Sprintf("%d", system.ID), system.ClientID, data, "")
+
+	claims := CreateCommonClaims("AccessToken", "", fmt.Sprintf("%d", system.ID), system.ClientID, data, "", nil)
+
+	token, ts, err := GetAccessTokenCreator().GenerateToken(claims)
 	if err != nil {
 		event.Help = "failure minting token: " + err.Error()
 		ssas.OperationFailed(event)
@@ -529,7 +532,7 @@ func token(w http.ResponseWriter, r *http.Request) {
 	render.JSON(w, r, m)
 }
 
-func ValidateClientIdAndSecret(system ssas.System, secret string, w http.ResponseWriter, r *http.Request) (err error) {
+func ValidateSecret(system ssas.System, secret string, w http.ResponseWriter, r *http.Request) (err error) {
 	savedSecret, err := system.GetSecret()
 	if err != nil {
 		ssas.Logger.Errorf("Error getting secret: %s", err.Error())
@@ -620,7 +623,9 @@ func tokenV2(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	accessToken, ts, err := MintAccessToken(fmt.Sprintf("%d", system.ID), system.ClientID, data, system.XData)
+	commonClaims := CreateCommonClaims("AccessToken", "", fmt.Sprintf("%d", system.ID), system.ClientID, data, system.XData, nil)
+
+	accessToken, ts, err := GetAccessTokenCreator().GenerateToken(commonClaims)
 	if err != nil {
 		event.Help = "failure minting token: " + err.Error()
 		ssas.OperationFailed(event)

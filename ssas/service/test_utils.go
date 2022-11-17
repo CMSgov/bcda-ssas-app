@@ -1,10 +1,7 @@
 package service
 
 import (
-	"bytes"
 	"errors"
-	"io/ioutil"
-	"net/http"
 	"time"
 
 	"github.com/CMSgov/bcda-ssas-app/ssas"
@@ -65,17 +62,4 @@ func BadToken(claims *CommonClaims, flaw TokenFlaw, keyPath string) (token *jwt.
 		ssas.TokenMintingFailure(ssas.Event{TokenID: tokenID, Help: "token signing error " + err.Error()})
 	}
 	return
-}
-
-//ReadResponseBody will read http.Response and return the body contents as a string.
-func ReadResponseBody(r *http.Response) string {
-	defer r.Body.Close()
-	body, err := ioutil.ReadAll(r.Body)
-	if err != nil {
-		bodyString, _ := "Error reading the body: %v\n", err
-		return bodyString
-	}
-
-	bodyString := bytes.NewBuffer(body).String()
-	return bodyString
 }
