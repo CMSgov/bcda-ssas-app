@@ -399,7 +399,7 @@ func (s *APITestSuite) TestTokenEmptySecretProduces401() {
 	assert.Nil(s.T(), err)
 }
 
-func (s *APITestSuite) TestTokenEmptyClientIdProduces() {
+func (s *APITestSuite) TestTokenEmptyClientIdProduces401() {
 	groupID := ssas.RandomHexID()[0:4]
 	group := ssas.Group{GroupID: groupID, XData: "x_data"}
 	err := s.db.Create(&group).Error
@@ -458,9 +458,9 @@ func (s *APITestSuite) TestTokenEmptyClientIdProduces() {
 // 	assert.Equal(s.T(), http.StatusUnauthorized, s.rr.Code)
 // 	assert.Contains(s.T(), "Error getting secret", "Error getting secret")
 
-// 	err = ssas.CleanDatabase(group)
-// 	assert.Nil(s.T(), err)
-// }
+//		err = ssas.CleanDatabase(group)
+//		assert.Nil(s.T(), err)
+//	}
 func (s *APITestSuite) testIntrospectFlaw(flaw service.TokenFlaw, errorText string) {
 	var (
 		signingKeyPath string
@@ -637,7 +637,7 @@ func (s *APITestSuite) SetupClientAssertionTest() (ssas.Credentials, ssas.Group,
 	return creds, group, privateKey
 }
 
-//Authenticate and generate access token using JWT (v2/token/)
+// Authenticate and generate access token using JWT (v2/token/)
 func (s *APITestSuite) TestAuthenticatingWithJWT() {
 	creds, group, privateKey := s.SetupClientAssertionTest()
 	_, clientAssertion, errors := mintClientAssertion(creds.ClientToken, creds.ClientToken, s.assertAud, time.Now().Unix(), time.Now().Add(time.Minute*5).Unix(), privateKey, creds.PublicKeyID)
@@ -667,7 +667,7 @@ func (s *APITestSuite) TestAuthenticatingWithJWT() {
 	assert.Nil(s.T(), err)
 }
 
-//Authenticate and generate access token using JWT (v2/token/)
+// Authenticate and generate access token using JWT (v2/token/)
 func (s *APITestSuite) TestAuthenticatingWithJWTUsingSecondPublicKey() {
 	creds, group, _ := s.SetupClientAssertionTest()
 	system, _ := ssas.GetSystemByID(creds.SystemID)

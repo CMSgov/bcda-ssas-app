@@ -1,7 +1,7 @@
 /*
-	Package public (ssas/service/api/public) contains API functions, middleware, and a router designed to:
-		1. Be accessible to the public
-		2. Offer system self-registration and self-management
+Package public (ssas/service/api/public) contains API functions, middleware, and a router designed to:
+ 1. Be accessible to the public
+ 2. Offer system self-registration and self-management
 */
 package public
 
@@ -69,8 +69,8 @@ type VerifyMFAResponse struct {
 }
 
 /*
-	VerifyPassword is mounted at POST /authn and responds with the account status for a verified username/password
- 	combination.
+		VerifyPassword is mounted at POST /authn and responds with the account status for a verified username/password
+	 	combination.
 */
 func VerifyPassword(w http.ResponseWriter, r *http.Request) {
 	var (
@@ -131,19 +131,21 @@ func VerifyPassword(w http.ResponseWriter, r *http.Request) {
 }
 
 /*
-	RequestMultifactorChallenge is mounted at POST /authn/challenge and sends a multi-factor authentication request
-	using the specified factor.
+RequestMultifactorChallenge is mounted at POST /authn/challenge and sends a multi-factor authentication request
+using the specified factor.
 
-	Valid factor types include:
-		"Google TOTP" (Google Authenticator)
-		"Okta TOTP"   (Okta Verify app time-based token)
-		"Push"        (Okta Verify app push)
-		"SMS"
-		"Call"
-		"Email"
+Valid factor types include:
 
-	In the case of the Push factor, a transaction ID is returned to use with the polling endpoint:
-	    POST /authn/verify/transactions/{transaction_id}
+	"Google TOTP" (Google Authenticator)
+	"Okta TOTP"   (Okta Verify app time-based token)
+	"Push"        (Okta Verify app push)
+	"SMS"
+	"Call"
+	"Email"
+
+In the case of the Push factor, a transaction ID is returned to use with the polling endpoint:
+
+	POST /authn/verify/transactions/{transaction_id}
 */
 func RequestMultifactorChallenge(w http.ResponseWriter, r *http.Request) {
 	var (
@@ -194,8 +196,8 @@ func RequestMultifactorChallenge(w http.ResponseWriter, r *http.Request) {
 }
 
 /*
-	VerifyMultifactorResponse is mounted at POST /authn/verify and tests a multi-factor authentication passcode
-	for the specified factor, and should be used for all factor types except Push.
+VerifyMultifactorResponse is mounted at POST /authn/verify and tests a multi-factor authentication passcode
+for the specified factor, and should be used for all factor types except Push.
 */
 func VerifyMultifactorResponse(w http.ResponseWriter, r *http.Request) {
 	var (
@@ -292,7 +294,7 @@ func VerifyMultifactorResponse(w http.ResponseWriter, r *http.Request) {
 }
 
 /*
-	ResetSecret is mounted at POST /reset and allows the authenticated manager of a system to rotate their secret.
+ResetSecret is mounted at POST /reset and allows the authenticated manager of a system to rotate their secret.
 */
 func ResetSecret(w http.ResponseWriter, r *http.Request) {
 	var (
@@ -363,9 +365,9 @@ func ResetSecret(w http.ResponseWriter, r *http.Request) {
 }
 
 /*
-	RegisterSystem is mounted at POST /auth/register and allows for self-registration.  It requires that a
-	registration token containing one or more group ids be presented and parsed by middleware, with the
-    GroupID[s] placed in the context key "rd".
+		RegisterSystem is mounted at POST /auth/register and allows for self-registration.  It requires that a
+		registration token containing one or more group ids be presented and parsed by middleware, with the
+	    GroupID[s] placed in the context key "rd".
 */
 func RegisterSystem(w http.ResponseWriter, r *http.Request) {
 	var (
@@ -491,7 +493,6 @@ func token(w http.ResponseWriter, r *http.Request) {
 	err = ValidateSecret(system, secret, w, r)
 	if err != nil {
 		ssas.Logger.Error("The client id and secret cannot be validated: ", err.Error())
-		service.JSONError(w, http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized), "Client ID and Secret cannot be validated")
 		return
 	}
 
