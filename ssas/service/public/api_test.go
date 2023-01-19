@@ -430,37 +430,6 @@ func (s *APITestSuite) TestTokenEmptyClientIdProduces401() {
 	assert.Nil(s.T(), err)
 }
 
-// Test is error is  not retrieved
-//func (s *APITestSuite) TestTokenSecretNil() {
-// 	groupID := ssas.RandomHexID()[0:4]
-// 	group := ssas.Group{GroupID: groupID, XData: "x_data"}
-// 	err := s.db.Create(&group).Error
-// 	require.Nil(s.T(), err)
-
-// 	_, pubKey, err := ssas.GenerateTestKeys(2048)
-// 	require.Nil(s.T(), err)
-
-// 	pemString, err := ssas.ConvertPublicKeyToPEMString(&pubKey)
-// 	require.Nil(s.T(), err)
-
-// 	creds, err := ssas.RegisterSystem("Token Test", groupID, ssas.DefaultScope, pemString, []string{}, uuid.NewRandom().String())
-// 	assert.Nil(s.T(), err)
-// 	assert.Equal(s.T(), "Token Test", creds.ClientName)
-// 	assert.Nil(s.T(), nil)
-
-// 	req := httptest.NewRequest("POST", "/token", nil)
-// 	req.SetBasicAuth(creds.ClientID, "Error getting secret")
-// 	req.Header.Add("Accept", "application/json")
-// 	handler := http.HandlerFunc(token)
-
-// 	handler.ServeHTTP(s.rr, req)
-
-// 	assert.Equal(s.T(), http.StatusUnauthorized, s.rr.Code)
-// 	assert.Contains(s.T(), "Error getting secret", "Error getting secret")
-
-//		err = ssas.CleanDatabase(group)
-//		assert.Nil(s.T(), err)
-//	}
 func (s *APITestSuite) testIntrospectFlaw(flaw service.TokenFlaw, errorText string) {
 	var (
 		signingKeyPath string
