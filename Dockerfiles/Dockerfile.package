@@ -6,8 +6,8 @@ ARG GPG_RPM_USER
 ARG GPG_RPM_EMAIL
 ARG BCDA_GPG_RPM_PASSPHRASE
 
-RUN apt-get update
-RUN apt-get install -y build-essential ruby ruby-dev rpm git
+RUN apk update upgrade
+RUN apk add build-base ruby ruby-dev rpm git
 RUN gem install --no-document public_suffix:4.0.7 fpm etc
 
 WORKDIR /go/src/github.com/CMSgov/bcda-ssas-app
