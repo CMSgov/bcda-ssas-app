@@ -9,12 +9,13 @@ import (
 	"encoding/base64"
 	"encoding/pem"
 	"fmt"
+	"net"
+	"testing"
+
 	"github.com/pborman/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
-	"net"
-	"testing"
 )
 
 func ResetAdminCreds() (encSecret string, err error) {
