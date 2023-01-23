@@ -552,6 +552,7 @@ func ValidateSecret(system ssas.System, secret string, w http.ResponseWriter, r 
 	}
 	return nil
 }
+
 func tokenV2(w http.ResponseWriter, r *http.Request) {
 	trackingID := uuid.NewRandom().String()
 	event := ssas.Event{Op: "V2-Token", TrackingID: trackingID, Help: "calling from public.tokenV2()"}
