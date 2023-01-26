@@ -2,19 +2,44 @@ package public
 
 import (
 	"fmt"
+	"time"
+
 	"github.com/CMSgov/bcda-ssas-app/ssas"
 	"github.com/CMSgov/bcda-ssas-app/ssas/cfg"
 	"github.com/CMSgov/bcda-ssas-app/ssas/service"
 	"github.com/golang-jwt/jwt/v4"
-	"time"
 )
+
+var accessTokenCreator TokenCreator
 
 var selfRegistrationTokenDuration time.Duration
 
 func init() {
 	minutes := cfg.GetEnvInt("SSAS_MFA_TOKEN_TIMEOUT_MINUTES", 60)
 	selfRegistrationTokenDuration = time.Duration(int64(time.Minute) * int64(minutes))
+
+	accessTokenCreator = AccessTokenCreator{}
 }
+
+func GetAccessTokenCreator() TokenCreator {
+	return accessTokenCreator
+}
+
+//TokenCreator provides methods for the creation of tokens.
+//Currently only AccessTokenCreator implements this interface.
+//TO DO:
+//Define a MFATokenCreator & a RegistrationTokenCreator that will implement TokenCreator interface,
+//then add CreateCommonClaims to this interface that all 3 can share.
+type TokenCreator interface {
+	GenerateToken(claims service.CommonClaims) (*jwt.Token, string, error)
+}
+
+// AccessTokenCreator is an implementation of TokenCreator that creates access tokens.
+type AccessTokenCreator struct {
+}
+
+// validates that AccessTokenCreator implements the TokenCreator interface
+var _ TokenCreator = AccessTokenCreator{}
 
 // MintMFAToken generates a tokenstring for MFA endpoints
 func MintMFAToken(oktaID string) (*jwt.Token, string, error) {
@@ -45,21 +70,26 @@ func MintRegistrationToken(oktaID string, groupIDs []string) (*jwt.Token, string
 	return server.MintTokenWithDuration(&claims, selfRegistrationTokenDuration)
 }
 
-// MintAccessToken generates a tokenstring that expires in server.tokenTTL time
-func MintAccessToken(systemID, clientID string, data string, systemXData string) (*jwt.Token, string, error) {
-	claims := service.CommonClaims{
-		TokenType:   "AccessToken",
-		SystemID:    systemID,
-		ClientID:    clientID,
-		Data:        data,
-		SystemXData: systemXData,
-	}
-
+// GenerateToken generates a tokenstring that expires in server.tokenTTL time
+func (accessTokenCreator AccessTokenCreator) GenerateToken(claims service.CommonClaims) (*jwt.Token, string, error) {
 	if err := checkTokenClaims(&claims); err != nil {
 		return nil, "", err
 	}
 
 	return server.MintToken(&claims)
+}
+
+func CreateCommonClaims(tokenType, oktaID, systemID, clientID, data, systemXData string, groupIDs []string) (claims service.CommonClaims) {
+	claims = service.CommonClaims{
+		TokenType:   tokenType,
+		OktaID:      oktaID,
+		GroupIDs:    groupIDs,
+		SystemID:    systemID,
+		ClientID:    clientID,
+		Data:        data,
+		SystemXData: systemXData,
+	}
+	return claims
 }
 
 func empty(arr []string) bool {

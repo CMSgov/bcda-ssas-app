@@ -1,7 +1,7 @@
 /*
-	Package public (ssas/service/api/public) contains API functions, middleware, and a router designed to:
-		1. Be accessible to the public
-		2. Offer system self-registration and self-management
+Package public (ssas/service/api/public) contains API functions, middleware, and a router designed to:
+ 1. Be accessible to the public
+ 2. Offer system self-registration and self-management
 */
 package public
 
@@ -69,8 +69,8 @@ type VerifyMFAResponse struct {
 }
 
 /*
-	VerifyPassword is mounted at POST /authn and responds with the account status for a verified username/password
- 	combination.
+		VerifyPassword is mounted at POST /authn and responds with the account status for a verified username/password
+	 	combination.
 */
 func VerifyPassword(w http.ResponseWriter, r *http.Request) {
 	var (
@@ -131,19 +131,21 @@ func VerifyPassword(w http.ResponseWriter, r *http.Request) {
 }
 
 /*
-	RequestMultifactorChallenge is mounted at POST /authn/challenge and sends a multi-factor authentication request
-	using the specified factor.
+RequestMultifactorChallenge is mounted at POST /authn/challenge and sends a multi-factor authentication request
+using the specified factor.
 
-	Valid factor types include:
-		"Google TOTP" (Google Authenticator)
-		"Okta TOTP"   (Okta Verify app time-based token)
-		"Push"        (Okta Verify app push)
-		"SMS"
-		"Call"
-		"Email"
+Valid factor types include:
 
-	In the case of the Push factor, a transaction ID is returned to use with the polling endpoint:
-	    POST /authn/verify/transactions/{transaction_id}
+	"Google TOTP" (Google Authenticator)
+	"Okta TOTP"   (Okta Verify app time-based token)
+	"Push"        (Okta Verify app push)
+	"SMS"
+	"Call"
+	"Email"
+
+In the case of the Push factor, a transaction ID is returned to use with the polling endpoint:
+
+	POST /authn/verify/transactions/{transaction_id}
 */
 func RequestMultifactorChallenge(w http.ResponseWriter, r *http.Request) {
 	var (
@@ -194,8 +196,8 @@ func RequestMultifactorChallenge(w http.ResponseWriter, r *http.Request) {
 }
 
 /*
-	VerifyMultifactorResponse is mounted at POST /authn/verify and tests a multi-factor authentication passcode
-	for the specified factor, and should be used for all factor types except Push.
+VerifyMultifactorResponse is mounted at POST /authn/verify and tests a multi-factor authentication passcode
+for the specified factor, and should be used for all factor types except Push.
 */
 func VerifyMultifactorResponse(w http.ResponseWriter, r *http.Request) {
 	var (
@@ -292,7 +294,7 @@ func VerifyMultifactorResponse(w http.ResponseWriter, r *http.Request) {
 }
 
 /*
-	ResetSecret is mounted at POST /reset and allows the authenticated manager of a system to rotate their secret.
+ResetSecret is mounted at POST /reset and allows the authenticated manager of a system to rotate their secret.
 */
 func ResetSecret(w http.ResponseWriter, r *http.Request) {
 	var (
@@ -363,9 +365,9 @@ func ResetSecret(w http.ResponseWriter, r *http.Request) {
 }
 
 /*
-	RegisterSystem is mounted at POST /auth/register and allows for self-registration.  It requires that a
-	registration token containing one or more group ids be presented and parsed by middleware, with the
-    GroupID[s] placed in the context key "rd".
+		RegisterSystem is mounted at POST /auth/register and allows for self-registration.  It requires that a
+		registration token containing one or more group ids be presented and parsed by middleware, with the
+	    GroupID[s] placed in the context key "rd".
 */
 func RegisterSystem(w http.ResponseWriter, r *http.Request) {
 	var (
@@ -484,18 +486,13 @@ func token(w http.ResponseWriter, r *http.Request) {
 
 	system, err := ssas.GetSystemByClientID(clientID)
 	if err != nil {
+		ssas.Logger.Errorf("The client id %s is invalid", err.Error())
 		service.JSONError(w, http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized), "invalid client id")
 		return
 	}
-
-	savedSecret, err := system.GetSecret()
-	if err != nil || !ssas.Hash(savedSecret.Hash).IsHashOf(secret) {
-		service.JSONError(w, http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized), "invalid client secret")
-		return
-	}
-
-	if savedSecret.IsExpired() {
-		service.JSONError(w, http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized), "credentials expired")
+	err = ValidateSecret(system, secret, w, r)
+	if err != nil {
+		ssas.Logger.Error("The client id and secret cannot be validated: ", err.Error())
 		return
 	}
 
@@ -510,11 +507,14 @@ func token(w http.ResponseWriter, r *http.Request) {
 
 	event := ssas.Event{Op: "Token", TrackingID: trackingID, Help: "calling from public.token()"}
 	ssas.OperationCalled(event)
-	token, ts, err := MintAccessToken(fmt.Sprintf("%d", system.ID), system.ClientID, data, "")
+
+	claims := CreateCommonClaims("AccessToken", "", fmt.Sprintf("%d", system.ID), system.ClientID, data, "", nil)
+
+	token, ts, err := GetAccessTokenCreator().GenerateToken(claims)
 	if err != nil {
 		event.Help = "failure minting token: " + err.Error()
 		ssas.OperationFailed(event)
-		service.JSONError(w, http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized), "")
+		service.JSONError(w, http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized), "failure minting token")
 		return
 	}
 
@@ -531,6 +531,26 @@ func token(w http.ResponseWriter, r *http.Request) {
 	ssas.AccessTokenIssued(event)
 	ssas.OperationSucceeded(event)
 	render.JSON(w, r, m)
+}
+
+func ValidateSecret(system ssas.System, secret string, w http.ResponseWriter, r *http.Request) (err error) {
+	savedSecret, err := system.GetSecret()
+	if err != nil {
+		ssas.Logger.Errorf("Error getting secret: %s", err.Error())
+		service.JSONError(w, http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized), "Error getting secret")
+		return err
+	} else if !ssas.Hash(savedSecret.Hash).IsHashOf(secret) {
+		ssas.Logger.Errorf("The incoming client secret is invalid")
+		service.JSONError(w, http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized), "invalid client secret")
+		return err
+	}
+
+	if savedSecret.IsExpired() {
+		ssas.Logger.Error("Credentials were expired")
+		service.JSONError(w, http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized), "credentials expired")
+		return errors.New("The saved client secret is expired")
+	}
+	return nil
 }
 
 func tokenV2(w http.ResponseWriter, r *http.Request) {
@@ -605,7 +625,9 @@ func tokenV2(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	accessToken, ts, err := MintAccessToken(fmt.Sprintf("%d", system.ID), system.ClientID, data, system.XData)
+	commonClaims := CreateCommonClaims("AccessToken", "", fmt.Sprintf("%d", system.ID), system.ClientID, data, system.XData, nil)
+
+	accessToken, ts, err := GetAccessTokenCreator().GenerateToken(commonClaims)
 	if err != nil {
 		event.Help = "failure minting token: " + err.Error()
 		ssas.OperationFailed(event)

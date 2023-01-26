@@ -5,16 +5,8 @@ import (
 	"context"
 	"crypto/rsa"
 	"encoding/json"
+	"errors"
 	"fmt"
-	"github.com/CMSgov/bcda-ssas-app/ssas"
-	"github.com/CMSgov/bcda-ssas-app/ssas/service"
-	"github.com/go-chi/chi/v5"
-	"github.com/golang-jwt/jwt/v4"
-	"github.com/pborman/uuid"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-	"github.com/stretchr/testify/suite"
-	"gorm.io/gorm"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -25,6 +17,17 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/CMSgov/bcda-ssas-app/ssas"
+	"github.com/CMSgov/bcda-ssas-app/ssas/service"
+	"github.com/go-chi/chi/v5"
+	"github.com/golang-jwt/jwt/v4"
+	"github.com/pborman/uuid"
+	"github.com/stretchr/testify/assert"
+	m "github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/suite"
+	"gorm.io/gorm"
 )
 
 type APITestSuite struct {
@@ -323,6 +326,110 @@ func (s *APITestSuite) TestTokenSuccess() {
 	assert.Nil(s.T(), err)
 }
 
+func (s *APITestSuite) TestTokenErrAtGenerateTokenReturn401() {
+	groupID := ssas.RandomHexID()[0:4]
+	group := ssas.Group{GroupID: groupID, XData: "x_data"}
+	err := s.db.Create(&group).Error
+	require.Nil(s.T(), err)
+
+	_, pubKey, err := ssas.GenerateTestKeys(2048)
+	require.Nil(s.T(), err)
+
+	pemString, err := ssas.ConvertPublicKeyToPEMString(&pubKey)
+	require.Nil(s.T(), err)
+
+	creds, err := ssas.RegisterSystem("Token Test", groupID, ssas.DefaultScope, pemString, []string{}, uuid.NewRandom().String())
+	assert.Nil(s.T(), err)
+	assert.Equal(s.T(), "Token Test", creds.ClientName)
+	assert.NotNil(s.T(), creds.ClientSecret)
+
+	//setup mocks
+	mock := &MockTokenCreator{}
+	mock.On("GenerateToken", m.MatchedBy(func(req service.CommonClaims) bool { return true })).Return(&jwt.Token{Raw: ""}, "", errors.New("ERROR!"))
+	SetMockAccessTokenCreator(s.T(), mock)
+
+	//setup API request
+	req := httptest.NewRequest("POST", "/token", nil)
+	req.SetBasicAuth(creds.ClientID, creds.ClientSecret)
+	req.Header.Add("Accept", "application/json")
+
+	handler := http.HandlerFunc(token)
+
+	//call
+	handler.ServeHTTP(s.rr, req)
+
+	//assert
+	assert.Equal(s.T(), http.StatusUnauthorized, s.rr.Code)
+	assert.Contains(s.T(), s.rr.Body.String(), "failure minting token")
+	mock.AssertExpectations(s.T())
+
+	//cleanup
+	err = ssas.CleanDatabase(group)
+	assert.Nil(s.T(), err)
+}
+
+func (s *APITestSuite) TestTokenEmptySecretProduces401() {
+	groupID := ssas.RandomHexID()[0:4]
+	group := ssas.Group{GroupID: groupID, XData: "x_data"}
+	err := s.db.Create(&group).Error
+	require.Nil(s.T(), err)
+
+	_, pubKey, err := ssas.GenerateTestKeys(2048)
+	require.Nil(s.T(), err)
+
+	pemString, err := ssas.ConvertPublicKeyToPEMString(&pubKey)
+	require.Nil(s.T(), err)
+
+	creds, err := ssas.RegisterSystem("Token Test", groupID, ssas.DefaultScope, pemString, []string{}, uuid.NewRandom().String())
+	assert.Nil(s.T(), err)
+	assert.Equal(s.T(), "Token Test", creds.ClientName)
+	assert.NotNil(s.T(), creds.ClientSecret)
+
+	req := httptest.NewRequest("POST", "/token", nil)
+	req.SetBasicAuth(creds.ClientID, "")
+	req.Header.Add("Accept", "application/json")
+	handler := http.HandlerFunc(token)
+
+	handler.ServeHTTP(s.rr, req)
+
+	assert.Equal(s.T(), http.StatusUnauthorized, s.rr.Code)
+	assert.Contains(s.T(), s.rr.Body.String(), "invalid client secret")
+
+	err = ssas.CleanDatabase(group)
+	assert.Nil(s.T(), err)
+}
+
+func (s *APITestSuite) TestTokenEmptyClientIdProduces401() {
+	groupID := ssas.RandomHexID()[0:4]
+	group := ssas.Group{GroupID: groupID, XData: "x_data"}
+	err := s.db.Create(&group).Error
+	require.Nil(s.T(), err)
+
+	_, pubKey, err := ssas.GenerateTestKeys(2048)
+	require.Nil(s.T(), err)
+
+	pemString, err := ssas.ConvertPublicKeyToPEMString(&pubKey)
+	require.Nil(s.T(), err)
+
+	creds, err := ssas.RegisterSystem("Token Test", groupID, ssas.DefaultScope, pemString, []string{}, uuid.NewRandom().String())
+	assert.Nil(s.T(), err)
+	assert.Equal(s.T(), "Token Test", creds.ClientName)
+	assert.NotNil(s.T(), creds.ClientSecret)
+
+	req := httptest.NewRequest("POST", "/token", nil)
+	req.SetBasicAuth("", creds.ClientSecret)
+	req.Header.Add("Accept", "application/json")
+	handler := http.HandlerFunc(token)
+
+	handler.ServeHTTP(s.rr, req)
+
+	assert.Equal(s.T(), http.StatusUnauthorized, s.rr.Code)
+	assert.Contains(s.T(), s.rr.Body.String(), "invalid client id")
+
+	err = ssas.CleanDatabase(group)
+	assert.Nil(s.T(), err)
+}
+
 func (s *APITestSuite) testIntrospectFlaw(flaw service.TokenFlaw, errorText string) {
 	var (
 		signingKeyPath string
@@ -499,7 +606,7 @@ func (s *APITestSuite) SetupClientAssertionTest() (ssas.Credentials, ssas.Group,
 	return creds, group, privateKey
 }
 
-//Authenticate and generate access token using JWT (v2/token/)
+// Authenticate and generate access token using JWT (v2/token/)
 func (s *APITestSuite) TestAuthenticatingWithJWT() {
 	creds, group, privateKey := s.SetupClientAssertionTest()
 	_, clientAssertion, errors := mintClientAssertion(creds.ClientToken, creds.ClientToken, s.assertAud, time.Now().Unix(), time.Now().Add(time.Minute*5).Unix(), privateKey, creds.PublicKeyID)
@@ -529,7 +636,7 @@ func (s *APITestSuite) TestAuthenticatingWithJWT() {
 	assert.Nil(s.T(), err)
 }
 
-//Authenticate and generate access token using JWT (v2/token/)
+// Authenticate and generate access token using JWT (v2/token/)
 func (s *APITestSuite) TestAuthenticatingWithJWTUsingSecondPublicKey() {
 	creds, group, _ := s.SetupClientAssertionTest()
 	system, _ := ssas.GetSystemByID(creds.SystemID)
