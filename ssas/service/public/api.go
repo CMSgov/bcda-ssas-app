@@ -542,7 +542,7 @@ func ValidateSecret(system ssas.System, secret string, w http.ResponseWriter, r 
 	} else if !ssas.Hash(savedSecret.Hash).IsHashOf(secret) {
 		ssas.Logger.Errorf("The incoming client secret is invalid")
 		service.JSONError(w, http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized), "invalid client secret")
-		return err
+		return errors.New("invalid client secret")
 	}
 
 	if savedSecret.IsExpired() {

@@ -394,6 +394,39 @@ func (s *APITestSuite) TestTokenEmptySecretProduces401() {
 
 	assert.Equal(s.T(), http.StatusUnauthorized, s.rr.Code)
 	assert.Contains(s.T(), s.rr.Body.String(), "invalid client secret")
+	assert.NotContains(s.T(), s.rr.Body.String(), "access_token")
+
+	err = ssas.CleanDatabase(group)
+	assert.Nil(s.T(), err)
+}
+
+func (s *APITestSuite) TestTokenWrongSecretProduces401() {
+	groupID := ssas.RandomHexID()[0:4]
+	group := ssas.Group{GroupID: groupID, XData: "x_data"}
+	err := s.db.Create(&group).Error
+	require.Nil(s.T(), err)
+
+	_, pubKey, err := ssas.GenerateTestKeys(2048)
+	require.Nil(s.T(), err)
+
+	pemString, err := ssas.ConvertPublicKeyToPEMString(&pubKey)
+	require.Nil(s.T(), err)
+
+	creds, err := ssas.RegisterSystem("Token Test", groupID, ssas.DefaultScope, pemString, []string{}, uuid.NewRandom().String())
+	assert.Nil(s.T(), err)
+	assert.Equal(s.T(), "Token Test", creds.ClientName)
+	assert.NotNil(s.T(), creds.ClientSecret)
+
+	req := httptest.NewRequest("POST", "/token", nil)
+	req.SetBasicAuth(creds.ClientID, "eogihfogihegoihego")
+	req.Header.Add("Accept", "application/json")
+	handler := http.HandlerFunc(token)
+
+	handler.ServeHTTP(s.rr, req)
+
+	assert.Equal(s.T(), http.StatusUnauthorized, s.rr.Code)
+	assert.Contains(s.T(), s.rr.Body.String(), "invalid client secret")
+	assert.NotContains(s.T(), s.rr.Body.String(), "access_token")
 
 	err = ssas.CleanDatabase(group)
 	assert.Nil(s.T(), err)
