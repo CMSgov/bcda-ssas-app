@@ -14,6 +14,7 @@ import (
 	"strconv"
 
 	"github.com/CMSgov/bcda-ssas-app/ssas"
+	"github.com/CMSgov/bcda-ssas-app/ssas/constants"
 	"github.com/CMSgov/bcda-ssas-app/ssas/service"
 	"github.com/go-chi/render"
 	"github.com/golang-jwt/jwt/v4"
@@ -541,8 +542,8 @@ func ValidateSecret(system ssas.System, secret string, w http.ResponseWriter, r 
 		return err
 	} else if !ssas.Hash(savedSecret.Hash).IsHashOf(secret) {
 		ssas.Logger.Errorf("The incoming client secret is invalid")
-		service.JSONError(w, http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized), "invalid client secret")
-		return errors.New("invalid client secret")
+		service.JSONError(w, http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized), constants.InvalidClientSecret)
+		return errors.New(constants.InvalidClientSecret)
 	}
 
 	if savedSecret.IsExpired() {
