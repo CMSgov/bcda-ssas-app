@@ -77,11 +77,35 @@ Some variables below have a note indicating their name should be changed. These 
 
 # Development Setup
 
+## Install and Use Pre-commit
+
+Anyone committing to this repo must use the pre-commit hook to lower the likelihood that secrets will be exposed.
+
+### Step 1: Install pre-commit
+
+You can install pre-commit using the MacOS package manager Homebrew:
+
+```sh
+brew install pre-commit
+```
+
+Other installation options can be found in the [pre-commit documentation](https://pre-commit.com/#install).
+
 To avoid committing and pushing unencrypted secret files, use the included `scripts/pre-commit` git pre-commit hook by running the following script from the repository root directory:
 
 ```
 cp ops/pre-commit .git/hooks
 ```
+
+### Step 2: Install the hooks
+
+Run the following command to install the gitleaks hook:
+
+```sh
+pre-commit install
+```
+
+This will download and install the pre-commit hooks specified in `.pre-commit-config.yaml`.
 
 ## Go Modules
 
@@ -176,28 +200,3 @@ The admin server has Swagger documentation. To access:
 
 1. Access Swagger in your browser:
    http://localhost:3104/swagger
-   
-
-## Installing and Using Pre-commit
-
-Anyone committing to this repo must use the pre-commit hook to lower the likelihood that secrets will be exposed.
-
-### Step 1: Install pre-commit
-
-You can install pre-commit using the MacOS package manager Homebrew:
-
-```sh
-brew install pre-commit
-```
-
-Other installation options can be found in the [pre-commit documentation](https://pre-commit.com/#install).
-
-### Step 2: Install the hooks
-
-Run the following command to install the gitleaks hook:
-
-```sh
-pre-commit install
-```
-
-This will download and install the pre-commit hooks specified in `.pre-commit-config.yaml`.
