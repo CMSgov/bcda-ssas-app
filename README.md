@@ -91,12 +91,6 @@ brew install pre-commit
 
 Other installation options can be found in the [pre-commit documentation](https://pre-commit.com/#install).
 
-To avoid committing and pushing unencrypted secret files, use the included `scripts/pre-commit` git pre-commit hook by running the following script from the repository root directory:
-
-```
-cp ops/pre-commit .git/hooks
-```
-
 ### Step 2: Install the hooks
 
 Run the following command to install the gitleaks hook:
