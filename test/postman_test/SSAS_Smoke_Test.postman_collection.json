@@ -2532,7 +2532,7 @@
 									"postman.setEnvironmentVariable(\"jwt_token\", sJWT);",
 									"",
 									"// slow down this request to ensure token is not \"used before issued\"",
-									"setTimeout(function(){}, 300);"
+									"setTimeout(function(){}, 3000);"
 								],
 								"type": "text/javascript"
 							}
