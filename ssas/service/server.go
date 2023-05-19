@@ -233,7 +233,6 @@ func (s *Server) Stop() {
 
 func (s *Server) newBaseRouter() *chi.Mux {
 	r := chi.NewRouter()
-	r.Mount("/debug", gcmw.Profiler())
 
 	r.Use(
 		gcmw.RequestID,
@@ -241,6 +240,8 @@ func (s *Server) newBaseRouter() *chi.Mux {
 		render.SetContentType(render.ContentTypeJSON),
 		ConnectionClose,
 	)
+
+	r.Mount("/debug", gcmw.Profiler())
 	r.Get("/_version", s.getVersion)
 	r.Get("/_health", s.getHealthCheck)
 	r.Get("/_info", s.getInfo)
