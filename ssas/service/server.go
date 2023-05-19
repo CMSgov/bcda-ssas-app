@@ -233,6 +233,8 @@ func (s *Server) Stop() {
 
 func (s *Server) newBaseRouter() *chi.Mux {
 	r := chi.NewRouter()
+	r.Mount("/debug", gcmw.Profiler())
+
 	r.Use(
 		gcmw.RequestID,
 		NewAPILogger(),
