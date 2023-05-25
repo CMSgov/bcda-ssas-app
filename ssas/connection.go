@@ -51,7 +51,7 @@ func createDB() (*gorm.DB, error) {
 		return nil, err
 	}
 
-	if err := db.Ping(); err != nil {
+	if err := sqlDB.Ping(); err != nil {
 		return nil, err
 	}
 
