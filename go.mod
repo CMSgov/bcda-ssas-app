@@ -14,7 +14,7 @@ require (
 	github.com/stretchr/testify v1.8.0
 	golang.org/x/crypto v0.0.0-20220826181053-bd7e27e6170d
 	gopkg.in/macaroon.v2 v2.1.0
-	gorm.io/driver/postgres v1.3.9
+	gorm.io/driver/postgres v1.5.2
 	gorm.io/gorm v1.23.8
 )
 
