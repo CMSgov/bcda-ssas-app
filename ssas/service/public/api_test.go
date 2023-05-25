@@ -54,7 +54,7 @@ func (s *APITestSuite) SetupTest() {
 }
 
 func (s *APITestSuite) TearDownSuite() {
-	ssas.Close(s.db)
+	//ssas.Close(s.db)
 }
 
 func (s *APITestSuite) TestAuthRegisterEmpty() {

@@ -57,7 +57,7 @@ func (s *GroupsTestSuite) SetupSuite() {
 }
 
 func (s *GroupsTestSuite) TearDownSuite() {
-	Close(s.db)
+	//Close(s.db)
 }
 
 func (s *GroupsTestSuite) AfterTest() {

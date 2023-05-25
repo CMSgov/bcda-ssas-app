@@ -32,7 +32,7 @@ func (s *SystemsTestSuite) SetupSuite() {
 }
 
 func (s *SystemsTestSuite) TearDownSuite() {
-	Close(s.db)
+	//Close(s.db)
 }
 
 func (s *SystemsTestSuite) AfterTest() {

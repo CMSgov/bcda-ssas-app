@@ -4,7 +4,6 @@ import (
 	"crypto/rsa"
 	"crypto/tls"
 	"crypto/x509"
-	"database/sql"
 	"encoding/base64"
 	b64 "encoding/base64"
 	"errors"
@@ -273,18 +272,12 @@ func (s *Server) getHealthCheck(w http.ResponseWriter, r *http.Request) {
 // could less than 3 servers be running?
 // since this ping will be run against all servers, isn't this excessive?
 func doHealthCheck() bool {
-	db, err := sql.Open("postgres", os.Getenv("DATABASE_URL"))
+	db, err := ssas.Connection.DB()
 	if err != nil {
 		// TODO health check failed event
 		ssas.Logger.Error("health check: database connection error: ", err.Error())
 		return false
 	}
-
-	defer func() {
-		if err = db.Close(); err != nil {
-			ssas.Logger.Infof("failed to close db connection in ssas/service/server.go#doHealthCheck() because %s", err)
-		}
-	}()
 
 	if err = db.Ping(); err != nil {
 		ssas.Logger.Error("health check: database ping error: ", err.Error())

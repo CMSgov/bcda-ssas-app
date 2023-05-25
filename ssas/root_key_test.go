@@ -21,7 +21,7 @@ func (s *RootKeyTestSuite) SetupSuite() {
 }
 
 func (s *RootKeyTestSuite) TearDownSuite() {
-	Close(s.db)
+	//Close(s.db)
 }
 
 func TestRootKeyTestSuite(t *testing.T) {

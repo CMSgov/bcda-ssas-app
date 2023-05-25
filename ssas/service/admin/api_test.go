@@ -68,7 +68,7 @@ func (s *APITestSuite) SetupSuite() {
 }
 
 func (s *APITestSuite) TearDownSuite() {
-	ssas.Close(s.db)
+	//ssas.Close(s.db)
 }
 
 func TestAPITestSuite(t *testing.T) {

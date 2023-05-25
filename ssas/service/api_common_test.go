@@ -23,7 +23,7 @@ func (s *APICommonTestSuite) SetupSuite() {
 }
 
 func (s *APICommonTestSuite) TearDownSuite() {
-	ssas.Close(s.db)
+	//ssas.Close(s.db)
 }
 
 func (s *APICommonTestSuite) TestJSONError() {

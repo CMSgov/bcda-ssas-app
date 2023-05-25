@@ -20,7 +20,7 @@ func (s *CacheEntriesTestSuite) SetupSuite() {
 }
 
 func (s *CacheEntriesTestSuite) TearDownSuite() {
-	Close(s.db)
+	//Close(s.db)
 }
 
 func (s *CacheEntriesTestSuite) TestGetUnexpiredCacheEntries() {

@@ -32,7 +32,7 @@ func (s *TokenCacheTestSuite) SetupSuite() {
 }
 
 func (s *TokenCacheTestSuite) TearDownSuite() {
-	ssas.Close(s.db)
+	//ssas.Close(s.db)
 }
 
 func (s *TokenCacheTestSuite) TearDownTest() {
