@@ -434,7 +434,7 @@ func (s *SystemsTestSuite) TestSystemClientGroupDuplicate() {
 
 	system = System{GID: group2.ID, ClientID: "498765uzyxwv", ClientName: "Duplicate Client"}
 	err = s.db.Create(&system).Error
-	assert.EqualError(err, "pq: duplicate key value violates unique constraint \"idx_client\"")
+	assert.EqualError(err, "ERROR: duplicate key value violates unique constraint \"idx_client\" (SQLSTATE 23505)")
 
 	sys, err := GetSystemByClientID(system.ClientID)
 	assert.Nil(err)

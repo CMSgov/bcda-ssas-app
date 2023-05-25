@@ -689,7 +689,7 @@ func (system *System) RegisterIP(address string, trackingID string) (IP, error) 
 	}
 
 	count = int64(0)
-	Connection.Model(&IP{}).Where("ips.system_id = ? AND ips.deleted_at IS NULL", system.ID, address).Count(&count)
+	Connection.Model(&IP{}).Where("ips.system_id = ? AND ips.deleted_at IS NULL", system.ID).Count(&count)
 	if count >= int64(MaxIPs) {
 		regEvent.Help = fmt.Sprintf("could not add ip, max number of ips reached. Max %d", count)
 		OperationFailed(regEvent)

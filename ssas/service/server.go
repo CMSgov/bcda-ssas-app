@@ -457,7 +457,7 @@ func (s *Server) GetSystemIDFromMacaroon(issuer string) (string, error) {
 	}
 
 	var rootKey ssas.RootKey
-	db.First(&rootKey, "uuid = ?", um.Id(), "system_id = ? AND deleted_at IS NULL", systemId)
+	db.First(&rootKey, "uuid = ? AND system_id = ? AND deleted_at IS NULL", um.Id(), systemId)
 
 	if rootKey.IsExpired() {
 		return "", fmt.Errorf("macaroon expired or deleted")
