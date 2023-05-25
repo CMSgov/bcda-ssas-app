@@ -447,8 +447,7 @@ func (s *Server) VerifyClientSignedToken(tokenString string, trackingId string) 
 
 // GetSystemIDFromMacaroon returns the system id from macaroon and verify macaroon
 func (s *Server) GetSystemIDFromMacaroon(issuer string) (string, error) {
-	db := ssas.GetGORMDbConnection()
-	defer ssas.Close(db)
+	db := ssas.Connection
 
 	var um macaroon.Macaroon
 	b, _ := base64.StdEncoding.DecodeString(issuer)

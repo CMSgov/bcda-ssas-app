@@ -2,12 +2,13 @@ package ssas
 
 import (
 	"encoding/base64"
+	"testing"
+	"time"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 	"gopkg.in/macaroon.v2"
 	"gorm.io/gorm"
-	"testing"
-	"time"
 )
 
 type RootKeyTestSuite struct {
@@ -16,7 +17,7 @@ type RootKeyTestSuite struct {
 }
 
 func (s *RootKeyTestSuite) SetupSuite() {
-	s.db = GetGORMDbConnection()
+	s.db = Connection
 }
 
 func (s *RootKeyTestSuite) TearDownSuite() {

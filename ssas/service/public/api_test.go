@@ -41,7 +41,7 @@ type APITestSuite struct {
 }
 
 func (s *APITestSuite) SetupSuite() {
-	s.db = ssas.GetGORMDbConnection()
+	s.db = ssas.Connection
 	s.server = Server()
 	s.badSigningKeyPath = "../../../shared_files/ssas/admin_test_signing_key.pem"
 	s.assertAud = "http://local.testing.cms.gov/api/v2/Token/auth"
@@ -49,7 +49,7 @@ func (s *APITestSuite) SetupSuite() {
 }
 
 func (s *APITestSuite) SetupTest() {
-	s.db = ssas.GetGORMDbConnection()
+	s.db = ssas.Connection
 	s.rr = httptest.NewRecorder()
 }
 
@@ -872,8 +872,7 @@ func (s *APITestSuite) TestAuthenticatingWithJWTWithSoftDeletedPublicKey() {
 	assert.Nil(s.T(), err)
 
 	//Soft delete public key
-	db := ssas.GetGORMDbConnection()
-	defer ssas.Close(db)
+	db := ssas.Connection
 	assert.Nil(s.T(), s.db.Delete(&key).Error)
 
 	//Ensure record was soft deleted, and not permanently deleted.

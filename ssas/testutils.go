@@ -42,10 +42,7 @@ func ResetAdminCreds() (encSecret string, err error) {
 }
 
 func ExpireAdminCreds() {
-	db := GetGORMDbConnection()
-	defer Close(db)
-
-	db.Exec("UPDATE secrets SET created_at = '2000-01-01', updated_at = '2000-01-01' WHERE system_id IN (SELECT id FROM systems WHERE client_id = '31e029ef-0e97-47f8-873c-0e8b7e7f99bf')")
+	Connection.Exec("UPDATE secrets SET created_at = '2000-01-01', updated_at = '2000-01-01' WHERE system_id IN (SELECT id FROM systems WHERE client_id = '31e029ef-0e97-47f8-873c-0e8b7e7f99bf')")
 }
 
 func GeneratePublicKey(bits int) (string, string, *rsa.PrivateKey, error) {

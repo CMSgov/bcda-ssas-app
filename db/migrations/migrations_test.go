@@ -1,3 +1,4 @@
+//go:build migrations
 // +build migrations
 
 // To run this test suite, run "make migrations-test"
@@ -57,7 +58,7 @@ func (groupv1) TableName() string {
 }
 
 func TestAllMigrations(t *testing.T) {
-	db = ssas.GetGORMDbConnection()
+	db = ssas.Connection
 	dbURL = os.Getenv("DATABASE_URL")
 
 	require.True(t, t.Run("up1", up1))
@@ -77,7 +78,7 @@ func TestAllMigrations(t *testing.T) {
 	require.True(t, t.Run("down3", down3))
 	require.True(t, t.Run("down2", down2))
 	require.True(t, t.Run("down1", down1))
-	ssas.Close(db)
+	//ssas.Close(db)
 }
 
 func up1(t *testing.T) {

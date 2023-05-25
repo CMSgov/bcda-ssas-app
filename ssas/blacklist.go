@@ -2,8 +2,9 @@ package ssas
 
 import (
 	"fmt"
-	"github.com/pborman/uuid"
 	"time"
+
+	"github.com/pborman/uuid"
 
 	"gorm.io/gorm"
 )
@@ -32,9 +33,7 @@ func CreateBlacklistEntry(key string, entryDate time.Time, cacheExpiration time.
 		CacheExpiration: cacheExpiration.UnixNano(),
 	}
 
-	db := GetGORMDbConnection()
-	defer Close(db)
-	err = db.Save(&be).Error
+	err = Connection.Save(&be).Error
 	if err != nil {
 		event.Help = err.Error()
 		OperationFailed(event)
@@ -51,9 +50,7 @@ func GetUnexpiredBlacklistEntries() (entries []BlacklistEntry, err error) {
 	event := Event{Op: "GetBlacklistEntries", TrackingID: trackingID}
 	OperationStarted(event)
 
-	db := GetGORMDbConnection()
-	defer Close(db)
-	err = db.Order("entry_date, cache_expiration").Where("cache_expiration > ?", time.Now().UnixNano()).Find(&entries).Error
+	err = Connection.Order("entry_date, cache_expiration").Where("cache_expiration > ?", time.Now().UnixNano()).Find(&entries).Error
 	if err != nil {
 		event.Help = err.Error()
 		OperationFailed(event)

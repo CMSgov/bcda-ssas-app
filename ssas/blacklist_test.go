@@ -1,12 +1,13 @@
 package ssas
 
 import (
-	"gorm.io/gorm"
+	"testing"
+	"time"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-	"testing"
-	"time"
+	"gorm.io/gorm"
 )
 
 type CacheEntriesTestSuite struct {
@@ -15,7 +16,7 @@ type CacheEntriesTestSuite struct {
 }
 
 func (s *CacheEntriesTestSuite) SetupSuite() {
-	s.db = GetGORMDbConnection()
+	s.db = Connection
 }
 
 func (s *CacheEntriesTestSuite) TearDownSuite() {

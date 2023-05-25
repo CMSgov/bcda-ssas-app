@@ -28,7 +28,7 @@ type SystemsTestSuite struct {
 }
 
 func (s *SystemsTestSuite) SetupSuite() {
-	s.db = GetGORMDbConnection()
+	s.db = Connection
 }
 
 func (s *SystemsTestSuite) TearDownSuite() {

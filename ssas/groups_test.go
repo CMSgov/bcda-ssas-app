@@ -53,7 +53,7 @@ type GroupsTestSuite struct {
 }
 
 func (s *GroupsTestSuite) SetupSuite() {
-	s.db = GetGORMDbConnection()
+	s.db = Connection
 }
 
 func (s *GroupsTestSuite) TearDownSuite() {
@@ -81,9 +81,7 @@ func (s *GroupsTestSuite) TestCreateGroup() {
 	assert.Equal(s.T(), g.Data.XData, g.XData)
 
 	dbGroup := Group{}
-	db := GetGORMDbConnection()
-	defer Close(db)
-	if err := db.First(&dbGroup, g.ID).Error; errors.Is(err, gorm.ErrRecordNotFound) {
+	if err := Connection.First(&dbGroup, g.ID).Error; errors.Is(err, gorm.ErrRecordNotFound) {
 		assert.FailNow(s.T(), fmt.Sprintf("record not found for id=%d", g.ID))
 	}
 	assert.Equal(s.T(), gid, dbGroup.GroupID)
@@ -101,7 +99,7 @@ func (s *GroupsTestSuite) TestCreateGroup() {
 
 func (s *GroupsTestSuite) TestListGroups() {
 	var startingCount int64
-	GetGORMDbConnection().Table("groups").Count(&startingCount)
+	Connection.Table("groups").Count(&startingCount)
 	groupBytes := []byte(fmt.Sprintf(SampleGroup, RandomHexID(), SampleXdata))
 	gd := GroupData{}
 	err := json.Unmarshal(groupBytes, &gd)

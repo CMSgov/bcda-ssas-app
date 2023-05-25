@@ -27,7 +27,7 @@ type TokenCacheTestSuite struct {
 }
 
 func (s *TokenCacheTestSuite) SetupSuite() {
-	s.db = ssas.GetGORMDbConnection()
+	s.db = ssas.Connection
 	s.t = NewBlacklist(defaultCacheTimeout, cacheCleanupInterval)
 }
 

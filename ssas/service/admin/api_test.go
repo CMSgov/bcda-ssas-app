@@ -6,13 +6,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/CMSgov/bcda-ssas-app/ssas/service"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
 	"strings"
 	"testing"
+
+	"github.com/CMSgov/bcda-ssas-app/ssas/service"
 
 	"github.com/CMSgov/bcda-ssas-app/ssas"
 	"github.com/go-chi/chi/v5"
@@ -61,7 +62,7 @@ type APITestSuite struct {
 }
 
 func (s *APITestSuite) SetupSuite() {
-	s.db = ssas.GetGORMDbConnection()
+	s.db = ssas.Connection
 	service.StartBlacklist()
 	ssas.MaxIPs = 3
 }
@@ -924,7 +925,7 @@ func contains(list []string, target string) bool {
 	return false
 }
 
-//V2 Tests Below
+// V2 Tests Below
 func (s *APITestSuite) TestCreateV2System() {
 	group := ssas.Group{GroupID: "test-group-id"}
 	err := s.db.Save(&group).Error

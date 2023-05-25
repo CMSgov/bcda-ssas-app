@@ -33,7 +33,7 @@ func (suite *ConnectionTestSuite) TestDbConnections() {
 	os.Setenv("DATABASE_URL", "fake_db_url")
 
 	// attempt to open DB connection with the bogus DB string
-	suite.gormdb = GetGORMDbConnection()
+	suite.gormdb = Connection
 
 	// assert that Ping returns an error
 	db, err := suite.gormdb.DB()
@@ -41,13 +41,13 @@ func (suite *ConnectionTestSuite) TestDbConnections() {
 	assert.Error(suite.T(), db.Ping(), "Gorm database should fail to connect (negative scenario)")
 
 	// close DBs to reset the test
-	Close(suite.gormdb)
+	//Close(suite.gormdb)
 
 	// set the database URL back to the real value to test the positive scenarios
 	os.Setenv("DATABASE_URL", actualDatabaseURL)
 
-	suite.gormdb = GetGORMDbConnection()
-	defer Close(suite.gormdb)
+	suite.gormdb = Connection
+	// defer Close(suite.gormdb)
 
 	// assert that Ping() does not return an error
 	db, err = suite.gormdb.DB()
