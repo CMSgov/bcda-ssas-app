@@ -94,9 +94,6 @@ type ClientToken struct {
 	be saved to the client tokens table and associated with the current system.
 */
 func (system *System) SaveClientToken(label string, groupXData string, expiration time.Time) (*ClientToken, string, error) {
-	db := GetGORMDbConnection()
-	defer Close(db)
-
 	rk, err := NewRootKey(system.ID, expiration)
 	if err != nil {
 		return nil, "", fmt.Errorf("could not create a root key for macaroon generation for clientID %s: %s", system.ClientID, err.Error())
@@ -179,9 +176,6 @@ type AuthRegData struct {
 	be saved to the secrets table and associated with the current system.
 */
 func (system *System) SaveSecret(hashedSecret string) error {
-	db := GetGORMDbConnection()
-	defer Close(db)
-
 	secret := Secret{
 		Hash:     hashedSecret,
 		SystemID: system.ID,
@@ -203,12 +197,9 @@ func (system *System) SaveSecret(hashedSecret string) error {
 	GetSecret will retrieve the hashed secret associated with the current system.
 */
 func (system *System) GetSecret() (Secret, error) {
-	db := GetGORMDbConnection()
-	defer Close(db)
-
 	secret := Secret{}
 
-	err := db.Where("system_id = ?", system.ID).First(&secret).Error
+	err := Connection.Where("system_id = ?", system.ID).First(&secret).Error
 	if err != nil {
 		return secret, fmt.Errorf("unable to get hashed secret for clientID %s: %s", system.ClientID, err.Error())
 	}
@@ -264,10 +255,7 @@ func (system *System) RevokeSecret(trackingID string) error {
 	DeactivateSecrets soft deletes secrets associated with the system.
 */
 func (system *System) deactivateSecrets() error {
-	db := GetGORMDbConnection()
-	defer Close(db)
-
-	err := db.Where("system_id = ?", system.ID).Delete(&Secret{}).Error
+	err := Connection.Where("system_id = ?", system.ID).Delete(&Secret{}).Error
 	if err != nil {
 		return fmt.Errorf("unable to soft delete previous secrets for clientID %s: %s", system.ClientID, err.Error())
 	}
@@ -278,14 +266,11 @@ func (system *System) deactivateSecrets() error {
 	GetEncryptionKey retrieves the key associated with the current system.
 */
 func (system *System) GetEncryptionKey(trackingID string) (EncryptionKey, error) {
-	db := GetGORMDbConnection()
-	defer Close(db)
-
 	getKeyEvent := Event{Op: "GetEncryptionKey", TrackingID: trackingID, ClientID: system.ClientID}
 	OperationStarted(getKeyEvent)
 
 	var encryptionKey EncryptionKey
-	err := db.First(&encryptionKey, "system_id = ?", system.ID).Error
+	err := Connection.First(&encryptionKey, "system_id = ?", system.ID).Error
 	if err != nil {
 		OperationFailed(getKeyEvent)
 		return encryptionKey, fmt.Errorf("cannot find key for clientID %s: %s", system.ClientID, err.Error())
@@ -299,14 +284,11 @@ func (system *System) GetEncryptionKey(trackingID string) (EncryptionKey, error)
 	FindEncryptionKey retrieves the key by id associated with the current system.
 */
 func (system *System) FindEncryptionKey(trackingID string, keyId string) (EncryptionKey, error) {
-	db := GetGORMDbConnection()
-	defer Close(db)
-
 	findKeyEvent := Event{Op: "FindEncryptionKey", TrackingID: trackingID, ClientID: system.ClientID}
 	OperationStarted(findKeyEvent)
 
 	var encryptionKey EncryptionKey
-	err := db.First(&encryptionKey, "system_id = ? AND uuid=?", system.ID, keyId).Error
+	err := Connection.First(&encryptionKey, "system_id = ? AND uuid=?", system.ID, keyId).Error
 	if err != nil {
 		OperationFailed(findKeyEvent)
 		return encryptionKey, fmt.Errorf("cannot find key for systemId %d: and keyId: %s error: %s", system.ID, keyId, err.Error())
@@ -320,14 +302,11 @@ func (system *System) FindEncryptionKey(trackingID string, keyId string) (Encryp
 	GetEncryptionKeys retrieves the keys associated with the current system.
 */
 func (system *System) GetEncryptionKeys(trackingID string) ([]EncryptionKey, error) {
-	db := GetGORMDbConnection()
-	defer Close(db)
-
 	getKeyEvent := Event{Op: "GetEncryptionKey", TrackingID: trackingID, ClientID: system.ClientID}
 	OperationStarted(getKeyEvent)
 
 	var encryptionKeys []EncryptionKey
-	err := db.Where("system_id = ?", system.ID).Find(&encryptionKeys).Error
+	err := Connection.Where("system_id = ?", system.ID).Find(&encryptionKeys).Error
 	if err != nil {
 		OperationFailed(getKeyEvent)
 		return encryptionKeys, fmt.Errorf("cannot find key for clientID %s: %s", system.ClientID, err.Error())
@@ -341,9 +320,6 @@ func (system *System) GetEncryptionKeys(trackingID string) ([]EncryptionKey, err
 	DeleteEncryptionKey deletes the key associated with the current system.
 */
 func (system *System) DeleteEncryptionKey(trackingID string, keyID string) error {
-	db := GetGORMDbConnection()
-	defer Close(db)
-
 	deleteKeyEvent := Event{Op: "DeleteEncryptionKey", TrackingID: trackingID, ClientID: system.ClientID}
 	OperationStarted(deleteKeyEvent)
 
@@ -368,9 +344,7 @@ func (system *System) DeleteEncryptionKey(trackingID string, keyID string) error
 	to the encryption_keys table and associated with the current system.
 */
 func (system *System) SavePublicKey(publicKey io.Reader, signature string) (*EncryptionKey, error) {
-	db := GetGORMDbConnection()
-	defer Close(db)
-	return system.SavePublicKeyDB(publicKey, signature, true, db)
+	return system.SavePublicKeyDB(publicKey, signature, true, Connection)
 }
 
 func (system *System) SavePublicKeyDB(publicKey io.Reader, signature string, onlyOne bool, db *gorm.DB) (*EncryptionKey, error) {
@@ -416,9 +390,7 @@ func (system *System) SavePublicKeyDB(publicKey io.Reader, signature string, onl
 }
 
 func (system *System) AddAdditionalPublicKey(publicKey io.Reader, signature string) (*EncryptionKey, error) {
-	db := GetGORMDbConnection()
-	defer Close(db)
-	return system.SavePublicKeyDB(publicKey, signature, false, db)
+	return system.SavePublicKeyDB(publicKey, signature, false, Connection)
 }
 
 /*
@@ -426,17 +398,14 @@ func (system *System) AddAdditionalPublicKey(publicKey io.Reader, signature stri
 	for the specified system so that it can no longer be used
 */
 func (system *System) RevokeSystemKeyPair() error {
-	db := GetGORMDbConnection()
-	defer Close(db)
-
 	var encryptionKey EncryptionKey
 
-	err := db.Where("system_id = ?", system.ID).Find(&encryptionKey).Error
+	err := Connection.Where("system_id = ?", system.ID).Find(&encryptionKey).Error
 	if err != nil {
 		return err
 	}
 
-	err = db.Delete(&encryptionKey).Error
+	err = Connection.Delete(&encryptionKey).Error
 	if err != nil {
 		return err
 	}
@@ -448,10 +417,7 @@ func (system *System) RevokeSystemKeyPair() error {
 	GenerateSystemKeyPair creates a keypair for a system. The public key is saved to the database and the private key is returned.
 */
 func (system *System) GenerateSystemKeyPair() (string, error) {
-	db := GetGORMDbConnection()
-	defer Close(db)
-
-	if err := db.First(&EncryptionKey{}, "system_id = ?", system.ID).Error; !errors.Is(err, gorm.ErrRecordNotFound) {
+	if err := Connection.First(&EncryptionKey{}, "system_id = ?", system.ID).Error; !errors.Is(err, gorm.ErrRecordNotFound) {
 		return "", fmt.Errorf("encryption keypair already exists for system ID %d", system.ID)
 	}
 
@@ -828,13 +794,11 @@ func XDataFor(system System) (string, error) {
 //	GetSystemsByGroupID returns the systems associated with the provided groups.id
 func GetSystemsByGroupID(groupId uint) ([]System, error) {
 	var (
-		db      = GetGORMDbConnection()
 		systems []System
 		err     error
 	)
-	defer Close(db)
 
-	if err = db.Where("g_id = ?", groupId).Find(&systems).Error; err != nil {
+	if err = Connection.Where("g_id = ?", groupId).Find(&systems).Error; err != nil {
 		err = fmt.Errorf("no Systems found with g_id %d", groupId)
 	}
 	return systems, err
@@ -843,13 +807,11 @@ func GetSystemsByGroupID(groupId uint) ([]System, error) {
 //	GetSystemsByGroupIDString returns the systems associated with the provided groups.group_id
 func GetSystemsByGroupIDString(groupId string) ([]System, error) {
 	var (
-		db      = GetGORMDbConnection()
 		systems []System
 		err     error
 	)
-	defer Close(db)
 
-	if err = db.Where("group_id = ? AND deleted_at IS NULL", groupId).Find(&systems).Error; err != nil {
+	if err = Connection.Where("group_id = ? AND deleted_at IS NULL", groupId).Find(&systems).Error; err != nil {
 		err = fmt.Errorf("no Systems found with group_id %s", groupId)
 	}
 	return systems, err
