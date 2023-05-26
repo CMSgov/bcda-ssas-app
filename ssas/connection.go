@@ -7,14 +7,9 @@ import (
 	"time"
 
 	_ "github.com/lib/pq"
-	"github.com/sirupsen/logrus"
-	log "github.com/sirupsen/logrus"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
-
-// Variable substitution to support testing.
-var LogFatal = log.Fatal
 
 var Connection *gorm.DB
 
@@ -23,7 +18,7 @@ func init() {
 	Connection, err = createDB()
 
 	if err != nil {
-		logrus.Fatalf("Failed to create db %s", err.Error())
+		Logger.Fatalf("Failed to create db %s", err.Error())
 	}
 }
 
@@ -61,7 +56,7 @@ func createDB() (*gorm.DB, error) {
 func Close(db *gorm.DB) {
 	d, err := db.DB()
 	if err != nil {
-		log.Warnf("failed to retrieve db connection %v", err)
+		Logger.Warnf("failed to retrieve db connection %v", err)
 		return
 	}
 	if err := d.Close(); err != nil {
