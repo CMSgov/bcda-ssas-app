@@ -77,7 +77,6 @@ func TestAllMigrations(t *testing.T) {
 	require.True(t, t.Run("down3", down3))
 	require.True(t, t.Run("down2", down2))
 	require.True(t, t.Run("down1", down1))
-	//ssas.Close(db)
 }
 
 func up1(t *testing.T) {
