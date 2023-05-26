@@ -1,5 +1,4 @@
 //go:build migrations
-// +build migrations
 
 // To run this test suite, run "make migrations-test"
 // Make sure to call this suite with an empty test database
