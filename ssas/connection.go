@@ -3,7 +3,6 @@ package ssas
 import (
 	"database/sql"
 	"os"
-	"runtime"
 	"time"
 
 	_ "github.com/lib/pq"
@@ -51,16 +50,4 @@ func createDB() (*gorm.DB, error) {
 	}
 
 	return db, nil
-}
-
-func Close(db *gorm.DB) {
-	d, err := db.DB()
-	if err != nil {
-		Logger.Warnf("failed to retrieve db connection %v", err)
-		return
-	}
-	if err := d.Close(); err != nil {
-		_, file, line, _ := runtime.Caller(1)
-		Logger.Infof("failed to close db connection at %s#%d because %s", file, line, err)
-	}
 }
