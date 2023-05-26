@@ -20,10 +20,6 @@ func (s *RootKeyTestSuite) SetupSuite() {
 	s.db = Connection
 }
 
-func (s *RootKeyTestSuite) TearDownSuite() {
-	//Close(s.db)
-}
-
 func TestRootKeyTestSuite(t *testing.T) {
 	suite.Run(t, new(RootKeyTestSuite))
 }

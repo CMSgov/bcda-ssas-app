@@ -31,10 +31,6 @@ func (s *TokenCacheTestSuite) SetupSuite() {
 	s.t = NewBlacklist(defaultCacheTimeout, cacheCleanupInterval)
 }
 
-func (s *TokenCacheTestSuite) TearDownSuite() {
-	//ssas.Close(s.db)
-}
-
 func (s *TokenCacheTestSuite) TearDownTest() {
 	s.t.c.Flush()
 	err := s.db.Exec("DELETE FROM blacklist_entries;").Error

@@ -49,7 +49,6 @@ func (s *PublicRouterTestSuite) SetupSuite() {
 func (s *PublicRouterTestSuite) TearDownSuite() {
 	err := ssas.CleanDatabase(s.group)
 	assert.Nil(s.T(), err)
-	//ssas.Close(s.db)
 }
 
 func (s *PublicRouterTestSuite) reqPublicRoute(verb string, route string, body io.Reader, token string) *http.Response {

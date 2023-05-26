@@ -22,10 +22,6 @@ func (s *APICommonTestSuite) SetupSuite() {
 	s.db = ssas.Connection
 }
 
-func (s *APICommonTestSuite) TearDownSuite() {
-	//ssas.Close(s.db)
-}
-
 func (s *APICommonTestSuite) TestJSONError() {
 	// JSON output is valid for simple strings
 	w := httptest.NewRecorder()

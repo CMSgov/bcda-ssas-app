@@ -19,10 +19,6 @@ func (s *CacheEntriesTestSuite) SetupSuite() {
 	s.db = Connection
 }
 
-func (s *CacheEntriesTestSuite) TearDownSuite() {
-	//Close(s.db)
-}
-
 func (s *CacheEntriesTestSuite) TestGetUnexpiredCacheEntries() {
 	entries, err := GetUnexpiredBlacklistEntries()
 	require.Nil(s.T(), err)

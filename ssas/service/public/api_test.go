@@ -53,10 +53,6 @@ func (s *APITestSuite) SetupTest() {
 	s.rr = httptest.NewRecorder()
 }
 
-func (s *APITestSuite) TearDownSuite() {
-	//ssas.Close(s.db)
-}
-
 func (s *APITestSuite) TestAuthRegisterEmpty() {
 	regBody := strings.NewReader("")
 

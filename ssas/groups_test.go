@@ -56,10 +56,6 @@ func (s *GroupsTestSuite) SetupSuite() {
 	s.db = Connection
 }
 
-func (s *GroupsTestSuite) TearDownSuite() {
-	//Close(s.db)
-}
-
 func (s *GroupsTestSuite) AfterTest() {
 }
 
