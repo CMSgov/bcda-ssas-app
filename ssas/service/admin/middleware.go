@@ -15,13 +15,13 @@ func requireBasicAuth(next http.Handler) http.Handler {
 			return
 		}
 
-		system, err := ssas.GetSystemByClientID(clientID)
+		system, err := ssas.GetSystemByClientID(r.Context(), clientID)
 		if err != nil {
 			service.JSONError(w, http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized), "invalid client id")
 			return
 		}
 
-		savedSecret, err := system.GetSecret()
+		savedSecret, err := system.GetSecret(r.Context())
 		if err != nil || !ssas.Hash(savedSecret.Hash).IsHashOf(secret) {
 			service.JSONError(w, http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized), "invalid client secret")
 			return

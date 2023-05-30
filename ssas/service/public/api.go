@@ -327,7 +327,7 @@ func ResetSecret(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if sys, err = ssas.GetSystemByClientID(req.ClientID); err != nil {
+	if sys, err = ssas.GetSystemByClientID(r.Context(), req.ClientID); err != nil {
 		service.JSONError(w, http.StatusBadRequest, "invalid_client_metadata", "Client not found")
 		return
 	}
@@ -479,13 +479,25 @@ type TokenResponse struct {
 }
 
 func token(w http.ResponseWriter, r *http.Request) {
+	ssas.Logger.Info("Checking Basic Auth")
 	clientID, secret, ok := r.BasicAuth()
 	if !ok {
 		service.JSONError(w, http.StatusBadRequest, http.StatusText(http.StatusBadRequest), "")
 		return
 	}
 
-	system, err := ssas.GetSystemByClientID(clientID)
+	ssas.Logger.Info("Looking for system by client ID")
+	conn, erra := ssas.Connection.DB()
+
+	if erra != nil {
+		ssas.Logger.Errorf("failed db: ", erra.Error())
+	}
+
+	ssas.Logger.Info(conn.Stats().InUse)
+	ssas.Logger.Info(conn.Stats().Idle)
+
+	system, err := ssas.GetSystemByClientID(r.Context(), clientID)
+	ssas.Logger.Info("Done for system by client ID")
 	if err != nil {
 		ssas.Logger.Errorf("The client id %s is invalid", err.Error())
 		service.JSONError(w, http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized), "invalid client id")
@@ -535,7 +547,7 @@ func token(w http.ResponseWriter, r *http.Request) {
 }
 
 func ValidateSecret(system ssas.System, secret string, w http.ResponseWriter, r *http.Request) (err error) {
-	savedSecret, err := system.GetSecret()
+	savedSecret, err := system.GetSecret(r.Context())
 	if err != nil {
 		ssas.Logger.Errorf("Error getting secret: %s", err.Error())
 		service.JSONError(w, http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized), "Error getting secret")
@@ -704,13 +716,13 @@ func introspect(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	system, err := ssas.GetSystemByClientID(clientID)
+	system, err := ssas.GetSystemByClientID(r.Context(), clientID)
 	if err != nil {
 		service.JSONError(w, http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized), fmt.Sprintf("invalid client id; %s", err))
 		return
 	}
 
-	savedSecret, err := system.GetSecret()
+	savedSecret, err := system.GetSecret(r.Context())
 	if err != nil {
 		service.JSONError(w, http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized), fmt.Sprintf("can't get secret; %s", err))
 		return

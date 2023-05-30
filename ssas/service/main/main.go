@@ -27,6 +27,7 @@ Until you click logout your token will be presented with every request made.  To
 package main
 
 import (
+	"context"
 	"database/sql"
 	"encoding/base64"
 	"encoding/json"
@@ -252,7 +253,7 @@ func resetSecret(clientID string) {
 		s   ssas.System
 		c   ssas.Credentials
 	)
-	if s, err = ssas.GetSystemByClientID(clientID); err != nil {
+	if s, err = ssas.GetSystemByClientID(context.Background(), clientID); err != nil {
 		ssas.Logger.Warn(err)
 	}
 	ssas.OperationCalled(ssas.Event{Op: "ResetSecret", TrackingID: cliTrackingID(), Help: "calling from main.resetSecret()"})
@@ -387,7 +388,7 @@ func showXData(clientID, auth string) error {
 		clientID = cs[:s]
 	}
 
-	system, err := ssas.GetSystemByClientID(clientID)
+	system, err := ssas.GetSystemByClientID(context.Background(), clientID)
 	if err != nil {
 		return fmt.Errorf("invalid client id: %w", err)
 	}

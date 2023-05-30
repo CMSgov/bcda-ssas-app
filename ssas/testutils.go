@@ -1,6 +1,7 @@
 package ssas
 
 import (
+	"context"
 	"crypto"
 	"crypto/rand"
 	"crypto/rsa"
@@ -25,7 +26,7 @@ func ResetAdminCreds() (encSecret string, err error) {
 	}
 
 	id := "31e029ef-0e97-47f8-873c-0e8b7e7f99bf"
-	system, err := GetSystemByClientID(id)
+	system, err := GetSystemByClientID(context.Background(), id)
 	if err != nil {
 		return
 	}

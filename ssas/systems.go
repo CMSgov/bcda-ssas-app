@@ -1,6 +1,7 @@
 package ssas
 
 import (
+	"context"
 	"crypto"
 	"crypto/rand"
 	"crypto/rsa"
@@ -90,8 +91,8 @@ type ClientToken struct {
 }
 
 /*
-	SaveClientToken should be provided with a token label and token uuid, which will
-	be saved to the client tokens table and associated with the current system.
+SaveClientToken should be provided with a token label and token uuid, which will
+be saved to the client tokens table and associated with the current system.
 */
 func (system *System) SaveClientToken(label string, groupXData string, expiration time.Time) (*ClientToken, string, error) {
 	rk, err := NewRootKey(system.ID, expiration)
@@ -172,8 +173,8 @@ type AuthRegData struct {
 }
 
 /*
-	SaveSecret should be provided with a secret hashed with ssas.NewHash(), which will
-	be saved to the secrets table and associated with the current system.
+SaveSecret should be provided with a secret hashed with ssas.NewHash(), which will
+be saved to the secrets table and associated with the current system.
 */
 func (system *System) SaveSecret(hashedSecret string) error {
 	secret := Secret{
@@ -194,12 +195,11 @@ func (system *System) SaveSecret(hashedSecret string) error {
 }
 
 /*
-	GetSecret will retrieve the hashed secret associated with the current system.
+GetSecret will retrieve the hashed secret associated with the current system.
 */
-func (system *System) GetSecret() (Secret, error) {
+func (system *System) GetSecret(ctx context.Context) (Secret, error) {
 	secret := Secret{}
-
-	err := Connection.Where("system_id = ?", system.ID).First(&secret).Error
+	err := Connection.WithContext(ctx).Where("system_id = ?", system.ID).First(&secret).Error
 	if err != nil {
 		return secret, fmt.Errorf("unable to get hashed secret for clientID %s: %s", system.ClientID, err.Error())
 	}
@@ -226,7 +226,7 @@ func (system *System) SaveTokenTime() {
 }
 
 /*
-	RevokeSecret revokes a system's secret
+RevokeSecret revokes a system's secret
 */
 func (system *System) RevokeSecret(trackingID string) error {
 	revokeCredentialsEvent := Event{Op: "RevokeCredentials", TrackingID: trackingID, ClientID: system.ClientID}
@@ -252,7 +252,7 @@ func (system *System) RevokeSecret(trackingID string) error {
 }
 
 /*
-	DeactivateSecrets soft deletes secrets associated with the system.
+DeactivateSecrets soft deletes secrets associated with the system.
 */
 func (system *System) deactivateSecrets() error {
 	err := Connection.Where("system_id = ?", system.ID).Delete(&Secret{}).Error
@@ -263,7 +263,7 @@ func (system *System) deactivateSecrets() error {
 }
 
 /*
-	GetEncryptionKey retrieves the key associated with the current system.
+GetEncryptionKey retrieves the key associated with the current system.
 */
 func (system *System) GetEncryptionKey(trackingID string) (EncryptionKey, error) {
 	getKeyEvent := Event{Op: "GetEncryptionKey", TrackingID: trackingID, ClientID: system.ClientID}
@@ -281,7 +281,7 @@ func (system *System) GetEncryptionKey(trackingID string) (EncryptionKey, error)
 }
 
 /*
-	FindEncryptionKey retrieves the key by id associated with the current system.
+FindEncryptionKey retrieves the key by id associated with the current system.
 */
 func (system *System) FindEncryptionKey(trackingID string, keyId string) (EncryptionKey, error) {
 	findKeyEvent := Event{Op: "FindEncryptionKey", TrackingID: trackingID, ClientID: system.ClientID}
@@ -299,7 +299,7 @@ func (system *System) FindEncryptionKey(trackingID string, keyId string) (Encryp
 }
 
 /*
-	GetEncryptionKeys retrieves the keys associated with the current system.
+GetEncryptionKeys retrieves the keys associated with the current system.
 */
 func (system *System) GetEncryptionKeys(trackingID string) ([]EncryptionKey, error) {
 	getKeyEvent := Event{Op: "GetEncryptionKey", TrackingID: trackingID, ClientID: system.ClientID}
@@ -317,7 +317,7 @@ func (system *System) GetEncryptionKeys(trackingID string) ([]EncryptionKey, err
 }
 
 /*
-	DeleteEncryptionKey deletes the key associated with the current system.
+DeleteEncryptionKey deletes the key associated with the current system.
 */
 func (system *System) DeleteEncryptionKey(trackingID string, keyID string) error {
 	deleteKeyEvent := Event{Op: "DeleteEncryptionKey", TrackingID: trackingID, ClientID: system.ClientID}
@@ -340,8 +340,8 @@ func (system *System) DeleteEncryptionKey(trackingID string, keyID string) error
 }
 
 /*
-	SavePublicKey should be provided with a public key in PEM format, which will be saved
-	to the encryption_keys table and associated with the current system.
+SavePublicKey should be provided with a public key in PEM format, which will be saved
+to the encryption_keys table and associated with the current system.
 */
 func (system *System) SavePublicKey(publicKey io.Reader, signature string) (*EncryptionKey, error) {
 	return system.SavePublicKeyDB(publicKey, signature, true, Connection)
@@ -394,8 +394,8 @@ func (system *System) AddAdditionalPublicKey(publicKey io.Reader, signature stri
 }
 
 /*
-	RevokeSystemKeyPair soft deletes the active encryption key
-	for the specified system so that it can no longer be used
+RevokeSystemKeyPair soft deletes the active encryption key
+for the specified system so that it can no longer be used
 */
 func (system *System) RevokeSystemKeyPair() error {
 	var encryptionKey EncryptionKey
@@ -414,7 +414,7 @@ func (system *System) RevokeSystemKeyPair() error {
 }
 
 /*
-	GenerateSystemKeyPair creates a keypair for a system. The public key is saved to the database and the private key is returned.
+GenerateSystemKeyPair creates a keypair for a system. The public key is saved to the database and the private key is returned.
 */
 func (system *System) GenerateSystemKeyPair() (string, error) {
 	if err := Connection.First(&EncryptionKey{}, "system_id = ?", system.ID).Error; !errors.Is(err, gorm.ErrRecordNotFound) {
@@ -469,8 +469,8 @@ type Credentials struct {
 }
 
 /*
-	RegisterSystem will save a new system and public key after verifying provided details for validity.  It returns
-	a ssas.Credentials struct including the generated clientID and secret.
+RegisterSystem will save a new system and public key after verifying provided details for validity.  It returns
+a ssas.Credentials struct including the generated clientID and secret.
 */
 func RegisterSystem(clientName string, groupID string, scope string, publicKeyPEM string, ips []string, trackingID string) (Credentials, error) {
 	systemInput := SystemInput{
@@ -791,7 +791,7 @@ func XDataFor(system System) (string, error) {
 	return group.XData, nil
 }
 
-//	GetSystemsByGroupID returns the systems associated with the provided groups.id
+// GetSystemsByGroupID returns the systems associated with the provided groups.id
 func GetSystemsByGroupID(groupId uint) ([]System, error) {
 	var (
 		systems []System
@@ -804,7 +804,7 @@ func GetSystemsByGroupID(groupId uint) ([]System, error) {
 	return systems, err
 }
 
-//	GetSystemsByGroupIDString returns the systems associated with the provided groups.group_id
+// GetSystemsByGroupIDString returns the systems associated with the provided groups.group_id
 func GetSystemsByGroupIDString(groupId string) ([]System, error) {
 	var (
 		systems []System
@@ -818,13 +818,13 @@ func GetSystemsByGroupIDString(groupId string) ([]System, error) {
 }
 
 // GetSystemByClientID returns the system associated with the provided clientID
-func GetSystemByClientID(clientID string) (System, error) {
+func GetSystemByClientID(ctx context.Context, clientID string) (System, error) {
 	var (
 		system System
 		err    error
 	)
 
-	if err = Connection.First(&system, "client_id = ?", clientID).Error; errors.Is(err, gorm.ErrRecordNotFound) {
+	if err = Connection.WithContext(ctx).First(&system, "client_id = ?", clientID).Error; errors.Is(err, gorm.ErrRecordNotFound) {
 		err = fmt.Errorf("no System record found for client %s", clientID)
 	}
 	return system, err
