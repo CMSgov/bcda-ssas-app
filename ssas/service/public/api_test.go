@@ -302,7 +302,7 @@ func (s *APITestSuite) TestTokenSuccess() {
 	pemString, err := ssas.ConvertPublicKeyToPEMString(&pubKey)
 	require.Nil(s.T(), err)
 
-	creds, err := ssas.RegisterSystem(constants.TestSystemName, groupID, ssas.DefaultScope, pemString, []string{}, uuid.NewRandom().String())
+	creds, err := ssas.RegisterSystem(context.Background(), constants.TestSystemName, groupID, ssas.DefaultScope, pemString, []string{}, uuid.NewRandom().String())
 	assert.Nil(s.T(), err)
 	assert.Equal(s.T(), constants.TestSystemName, creds.ClientName)
 	assert.NotNil(s.T(), creds.ClientSecret)
@@ -335,7 +335,7 @@ func (s *APITestSuite) TestTokenErrAtGenerateTokenReturn401() {
 	pemString, err := ssas.ConvertPublicKeyToPEMString(&pubKey)
 	require.Nil(s.T(), err)
 
-	creds, err := ssas.RegisterSystem(constants.TestSystemName, groupID, ssas.DefaultScope, pemString, []string{}, uuid.NewRandom().String())
+	creds, err := ssas.RegisterSystem(context.Background(), constants.TestSystemName, groupID, ssas.DefaultScope, pemString, []string{}, uuid.NewRandom().String())
 	assert.Nil(s.T(), err)
 	assert.Equal(s.T(), constants.TestSystemName, creds.ClientName)
 	assert.NotNil(s.T(), creds.ClientSecret)
@@ -377,7 +377,7 @@ func (s *APITestSuite) TestTokenEmptySecretProduces401() {
 	pemString, err := ssas.ConvertPublicKeyToPEMString(&pubKey)
 	require.Nil(s.T(), err)
 
-	creds, err := ssas.RegisterSystem(constants.TestSystemName, groupID, ssas.DefaultScope, pemString, []string{}, uuid.NewRandom().String())
+	creds, err := ssas.RegisterSystem(context.Background(), constants.TestSystemName, groupID, ssas.DefaultScope, pemString, []string{}, uuid.NewRandom().String())
 	assert.Nil(s.T(), err)
 	assert.Equal(s.T(), constants.TestSystemName, creds.ClientName)
 	assert.NotNil(s.T(), creds.ClientSecret)
@@ -409,7 +409,7 @@ func (s *APITestSuite) TestTokenWrongSecretProduces401() {
 	pemString, err := ssas.ConvertPublicKeyToPEMString(&pubKey)
 	require.Nil(s.T(), err)
 
-	creds, err := ssas.RegisterSystem(constants.TestSystemName, groupID, ssas.DefaultScope, pemString, []string{}, uuid.NewRandom().String())
+	creds, err := ssas.RegisterSystem(context.Background(), constants.TestSystemName, groupID, ssas.DefaultScope, pemString, []string{}, uuid.NewRandom().String())
 	assert.Nil(s.T(), err)
 	assert.Equal(s.T(), constants.TestSystemName, creds.ClientName)
 	assert.NotNil(s.T(), creds.ClientSecret)
@@ -441,7 +441,7 @@ func (s *APITestSuite) TestTokenEmptyClientIdProduces401() {
 	pemString, err := ssas.ConvertPublicKeyToPEMString(&pubKey)
 	require.Nil(s.T(), err)
 
-	creds, err := ssas.RegisterSystem(constants.TestSystemName, groupID, ssas.DefaultScope, pemString, []string{}, uuid.NewRandom().String())
+	creds, err := ssas.RegisterSystem(context.Background(), constants.TestSystemName, groupID, ssas.DefaultScope, pemString, []string{}, uuid.NewRandom().String())
 	assert.Nil(s.T(), err)
 	assert.Equal(s.T(), constants.TestSystemName, creds.ClientName)
 	assert.NotNil(s.T(), creds.ClientSecret)
@@ -567,7 +567,7 @@ func (s *APITestSuite) TestSaveTokenTime() {
 	err := s.db.Create(&group).Error
 	require.Nil(s.T(), err)
 
-	creds, err := ssas.RegisterSystem("Introspect Test", groupID, ssas.DefaultScope, "", []string{}, uuid.NewRandom().String())
+	creds, err := ssas.RegisterSystem(context.Background(), "Introspect Test", groupID, ssas.DefaultScope, "", []string{}, uuid.NewRandom().String())
 	assert.Nil(s.T(), err)
 	assert.Equal(s.T(), "Introspect Test", creds.ClientName)
 	assert.NotNil(s.T(), creds.ClientSecret)
@@ -628,7 +628,7 @@ func (s *APITestSuite) SetupClientAssertionTest() (ssas.Credentials, ssas.Group,
 		TrackingID: uuid.NewRandom().String(),
 		XData:      `{"impl": "blah"}`,
 	}
-	creds, err := ssas.RegisterV2System(si)
+	creds, err := ssas.RegisterV2System(context.Background(), si)
 	assert.Nil(s.T(), err)
 	assert.Equal(s.T(), constants.TestSystemName, creds.ClientName)
 	assert.NotNil(s.T(), creds.ClientSecret)

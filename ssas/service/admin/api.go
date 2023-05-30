@@ -342,7 +342,7 @@ func createSystem(w http.ResponseWriter, r *http.Request) {
 	}
 
 	ssas.OperationCalled(ssas.Event{Op: "RegisterClient", TrackingID: sys.TrackingID, Help: "calling from admin.createSystem()"})
-	creds, err := ssas.RegisterSystem(sys.ClientName, sys.GroupID, sys.Scope, sys.PublicKey, sys.IPs, sys.TrackingID)
+	creds, err := ssas.RegisterSystem(r.Context(), sys.ClientName, sys.GroupID, sys.Scope, sys.PublicKey, sys.IPs, sys.TrackingID)
 	if err != nil {
 		service.JSONError(w, http.StatusBadRequest, fmt.Sprintf("could not create system; %s", err), "")
 		return
@@ -370,7 +370,7 @@ func createV2System(w http.ResponseWriter, r *http.Request) {
 	}
 
 	ssas.OperationCalled(ssas.Event{Op: "RegisterClient", TrackingID: sys.TrackingID, Help: "calling from admin.createSystem()"})
-	creds, err := ssas.RegisterV2System(sys)
+	creds, err := ssas.RegisterV2System(r.Context(), sys)
 	if err != nil {
 		service.JSONError(w, http.StatusBadRequest, http.StatusText(http.StatusBadRequest), fmt.Sprintf("could not create v2 system; %s", err))
 		return
@@ -693,7 +693,7 @@ func createToken(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	group, err := ssas.GetGroupByGroupID(system.GroupID)
+	group, err := ssas.GetGroupByGroupID(r.Context(), system.GroupID)
 	if err != nil {
 		ssas.OperationFailed(tokenEvent)
 		service.JSONError(w, http.StatusInternalServerError, "Internal Error", "")
@@ -723,7 +723,7 @@ func createToken(w http.ResponseWriter, r *http.Request) {
 	}
 
 	expiration := time.Now().Add(ssas.MacaroonExpiration)
-	ct, m, err := system.SaveClientToken(body["label"], group.XData, expiration)
+	ct, m, err := system.SaveClientToken(r.Context(), body["label"], group.XData, expiration)
 	if err != nil {
 		tokenEvent.Help = fmt.Sprintf("could not save client token for clientID %s, groupID %s: %s", system.ClientID, system.GroupID, err.Error())
 		ssas.OperationFailed(tokenEvent)

@@ -426,7 +426,7 @@ func RegisterSystem(w http.ResponseWriter, r *http.Request) {
 	trackingID = uuid.NewRandom().String()
 	event := ssas.Event{Op: "RegisterClient", TrackingID: trackingID, Help: "calling from public.RegisterSystem()"}
 	ssas.OperationCalled(event)
-	credentials, err := ssas.RegisterSystem(reg.ClientName, rd.GroupID, reg.Scope, publicKeyPEM, reg.IPs, trackingID)
+	credentials, err := ssas.RegisterSystem(r.Context(), reg.ClientName, rd.GroupID, reg.Scope, publicKeyPEM, reg.IPs, trackingID)
 	if err != nil {
 		service.JSONError(w, http.StatusBadRequest, "invalid_client_metadata", err.Error())
 		return

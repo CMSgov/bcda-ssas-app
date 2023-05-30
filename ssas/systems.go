@@ -94,8 +94,8 @@ type ClientToken struct {
 SaveClientToken should be provided with a token label and token uuid, which will
 be saved to the client tokens table and associated with the current system.
 */
-func (system *System) SaveClientToken(label string, groupXData string, expiration time.Time) (*ClientToken, string, error) {
-	rk, err := NewRootKey(system.ID, expiration)
+func (system *System) SaveClientToken(ctx context.Context, label string, groupXData string, expiration time.Time) (*ClientToken, string, error) {
+	rk, err := NewRootKey(ctx, system.ID, expiration)
 	if err != nil {
 		return nil, "", fmt.Errorf("could not create a root key for macaroon generation for clientID %s: %s", system.ClientID, err.Error())
 	}
@@ -116,7 +116,7 @@ func (system *System) SaveClientToken(label string, groupXData string, expiratio
 		ExpiresAt: rk.ExpiresAt,
 	}
 
-	if err := Connection.Create(&ct).Error; err != nil {
+	if err := Connection.WithContext(ctx).Create(&ct).Error; err != nil {
 		return nil, "", fmt.Errorf("could not save client token for clientID %s: %s", system.ClientID, err.Error())
 	}
 	ClientTokenCreated(Event{Op: "SaveClientToken", TrackingID: uuid.NewRandom().String(), ClientID: system.ClientID})
@@ -472,7 +472,7 @@ type Credentials struct {
 RegisterSystem will save a new system and public key after verifying provided details for validity.  It returns
 a ssas.Credentials struct including the generated clientID and secret.
 */
-func RegisterSystem(clientName string, groupID string, scope string, publicKeyPEM string, ips []string, trackingID string) (Credentials, error) {
+func RegisterSystem(ctx context.Context, clientName string, groupID string, scope string, publicKeyPEM string, ips []string, trackingID string) (Credentials, error) {
 	systemInput := SystemInput{
 		ClientName: clientName,
 		GroupID:    groupID,
@@ -482,17 +482,17 @@ func RegisterSystem(clientName string, groupID string, scope string, publicKeyPE
 		XData:      "",
 		TrackingID: trackingID,
 	}
-	return registerSystem(systemInput, false)
+	return registerSystem(ctx, systemInput, false)
 }
 
-func RegisterV2System(input SystemInput) (Credentials, error) {
-	return registerSystem(input, true)
+func RegisterV2System(ctx context.Context, input SystemInput) (Credentials, error) {
+	return registerSystem(ctx, input, true)
 }
 
-func registerSystem(input SystemInput, isV2 bool) (Credentials, error) {
+func registerSystem(ctx context.Context, input SystemInput, isV2 bool) (Credentials, error) {
 	// The public key and hashed secret are stored separately in the encryption_keys and secrets tables, requiring
 	// multiple INSERT statements.  To ensure we do not get into an invalid state, wrap the two INSERT statements in a transaction.
-	tx := Connection.Begin()
+	tx := Connection.WithContext(ctx).Begin()
 	defer func() {
 		if r := recover(); r != nil {
 			tx.Rollback()
@@ -527,7 +527,7 @@ func registerSystem(input SystemInput, isV2 bool) (Credentials, error) {
 		return creds, errors.New(regEvent.Help)
 	}
 
-	group, err := GetGroupByGroupID(input.GroupID)
+	group, err := GetGroupByGroupID(ctx, input.GroupID)
 	if err != nil {
 		regEvent.Help = "unable to find group with id " + input.GroupID
 		OperationFailed(regEvent)
@@ -587,7 +587,7 @@ func registerSystem(input SystemInput, isV2 bool) (Credentials, error) {
 
 	if isV2 {
 		expiration := time.Now().Add(MacaroonExpiration)
-		_, ct, err := system.SaveClientToken("Initial Token", group.XData, expiration)
+		_, ct, err := system.SaveClientToken(ctx, "Initial Token", group.XData, expiration)
 		if err != nil {
 			regEvent.Help = fmt.Sprintf("could not save client token for clientID %s, groupID %s: %s", clientID, input.GroupID, err.Error())
 			OperationFailed(regEvent)

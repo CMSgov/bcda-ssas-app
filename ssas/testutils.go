@@ -134,7 +134,7 @@ func CreateTestXData(t *testing.T, db *gorm.DB) (creds Credentials, group Group)
 	pemString, err := ConvertPublicKeyToPEMString(&pubKey)
 	require.Nil(t, err)
 
-	creds, err = RegisterSystem("Test Client Name", groupID, DefaultScope, pemString, []string{}, uuid.NewRandom().String())
+	creds, err = RegisterSystem(context.Background(), "Test Client Name", groupID, DefaultScope, pemString, []string{}, uuid.NewRandom().String())
 	assert.Nil(t, err)
 	assert.Equal(t, "Test Client Name", creds.ClientName)
 	assert.NotNil(t, creds.ClientSecret)
@@ -163,7 +163,7 @@ func CreateTestXDataV2(t *testing.T, db *gorm.DB) (creds Credentials, group Grou
 		TrackingID: uuid.NewRandom().String(),
 		XData:      `{"impl": "2"}`,
 	}
-	creds, err = RegisterV2System(s)
+	creds, err = RegisterV2System(context.Background(), s)
 	assert.Nil(t, err)
 	assert.Equal(t, "Test Client Name", creds.ClientName)
 	assert.NotNil(t, creds.ClientSecret)

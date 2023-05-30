@@ -2,6 +2,7 @@ package ssas
 
 import (
 	"bytes"
+	"context"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
@@ -458,7 +459,7 @@ func (s *SystemsTestSuite) TestRegisterSystemSuccess() {
 	pubKey, _, _, err := generatePublicKey(2048)
 	assert.Nil(err)
 
-	creds, err := RegisterSystem("Create System Test", groupID, DefaultScope, pubKey, []string{}, trackingID)
+	creds, err := RegisterSystem(context.Background(), "Create System Test", groupID, DefaultScope, pubKey, []string{}, trackingID)
 	assert.Nil(err)
 	assert.Equal("Create System Test", creds.ClientName)
 	assert.NotEqual("", creds.ClientSecret)
@@ -481,7 +482,7 @@ func (s *SystemsTestSuite) TestUpdateSystemSuccess() {
 	pubKey, _, _, err := generatePublicKey(2048)
 	assert.Nil(err)
 
-	creds, err := RegisterSystem("Create System Test", groupID, DefaultScope, pubKey, []string{}, trackingID)
+	creds, err := RegisterSystem(context.Background(), "Create System Test", groupID, DefaultScope, pubKey, []string{}, trackingID)
 	assert.Nil(err)
 	assert.Equal("Create System Test", creds.ClientName)
 	assert.NotEqual("", creds.ClientSecret)
@@ -535,17 +536,17 @@ func (s *SystemsTestSuite) TestRegisterSystemMissingData() {
 	assert.Nil(err)
 
 	// No clientName
-	creds, err := RegisterSystem("", groupID, DefaultScope, pubKey, []string{}, trackingID)
+	creds, err := RegisterSystem(context.Background(), "", groupID, DefaultScope, pubKey, []string{}, trackingID)
 	assert.EqualError(err, "clientName is required")
 	assert.Empty(creds)
 
 	// No scope = success
-	creds, err = RegisterSystem("Register System Success2", groupID, "", pubKey, []string{}, trackingID)
+	creds, err = RegisterSystem(context.Background(), "Register System Success2", groupID, "", pubKey, []string{}, trackingID)
 	assert.Nil(err)
 	assert.NotEmpty(creds)
 
 	// No scope = success
-	creds, err = RegisterSystem("Register System Failure", groupID, "badScope", pubKey, []string{}, trackingID)
+	creds, err = RegisterSystem(context.Background(), "Register System Failure", groupID, "badScope", pubKey, []string{}, trackingID)
 	assert.NotNil(err)
 	assert.Empty(creds)
 
@@ -582,7 +583,7 @@ func (s *SystemsTestSuite) TestRegisterSystemIps() {
 	assert.Nil(err)
 
 	for _, address := range goodIps {
-		creds, err := RegisterSystem("Test system with "+address, groupID, DefaultScope, pubKey, []string{address}, trackingID)
+		creds, err := RegisterSystem(context.Background(), "Test system with "+address, groupID, DefaultScope, pubKey, []string{address}, trackingID)
 		assert.Nil(err, fmt.Sprintf("%s should be a good IP, but was not allowed", address))
 		assert.NotEmpty(creds, address+"should have been a valid IP")
 		system, err := GetSystemByID(creds.SystemID)
@@ -596,12 +597,12 @@ func (s *SystemsTestSuite) TestRegisterSystemIps() {
 	}
 
 	// We have no limit on the number of IP addresses that can be registered with a system
-	creds, err := RegisterSystem("Test system with all good IPs", groupID, DefaultScope, pubKey, goodIps, trackingID)
+	creds, err := RegisterSystem(context.Background(), "Test system with all good IPs", groupID, DefaultScope, pubKey, goodIps, trackingID)
 	assert.Nil(err, "An array of good IP's should be a allowed, but was not")
 	assert.NotEmpty(creds)
 
 	for _, address := range badIps {
-		creds, err = RegisterSystem("Test system with "+address, groupID, DefaultScope, pubKey, []string{address}, trackingID)
+		creds, err = RegisterSystem(context.Background(), "Test system with "+address, groupID, DefaultScope, pubKey, []string{address}, trackingID)
 		if err == nil {
 			assert.Fail(fmt.Sprintf("%s should be a bad IP, but was allowed; creds: %v", address, creds))
 		} else {
@@ -629,17 +630,17 @@ func (s *SystemsTestSuite) TestRegisterSystemBadKey() {
 	assert.Nil(err)
 
 	// Blank key ok
-	creds, err := RegisterSystem("Register System Failure", groupID, DefaultScope, "", []string{}, trackingID)
+	creds, err := RegisterSystem(context.Background(), "Register System Failure", groupID, DefaultScope, "", []string{}, trackingID)
 	assert.Nil(err, "error in public key")
 	assert.NotEmpty(creds)
 
 	// Invalid key not ok
-	creds, err = RegisterSystem("Register System Failure", groupID, DefaultScope, "NotAKey", []string{}, trackingID)
+	creds, err = RegisterSystem(context.Background(), "Register System Failure", groupID, DefaultScope, "NotAKey", []string{}, trackingID)
 	assert.EqualError(err, "error in public key")
 	assert.Empty(creds)
 
 	// Low key length not ok
-	creds, err = RegisterSystem("Register System Failure", groupID, DefaultScope, pubKey, []string{}, trackingID)
+	creds, err = RegisterSystem(context.Background(), "Register System Failure", groupID, DefaultScope, pubKey, []string{}, trackingID)
 	assert.EqualError(err, "error in public key")
 	assert.Empty(creds)
 
