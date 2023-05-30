@@ -138,7 +138,7 @@ func (s *SystemsTestSuite) TestGenerateSystemKeyPairAlreadyExists() {
 func (s *SystemsTestSuite) TestGetEncryptionKey() {
 	sys, group, pubKey, _ := s.createSystemWithPubKey()
 
-	key, err := sys.GetEncryptionKey("")
+	key, err := sys.GetEncryptionKey(context.Background(), "")
 	assert.Nil(s.T(), err)
 	assert.Equal(s.T(), pubKey, key.Body)
 
@@ -149,7 +149,7 @@ func (s *SystemsTestSuite) TestFindEncryptionKey() {
 	assert := s.Assert()
 	sys, group, pubKey, pubKeyId := s.createSystemWithPubKey()
 
-	key, err := sys.FindEncryptionKey("", pubKeyId)
+	key, err := sys.FindEncryptionKey(context.Background(), "", pubKeyId)
 	assert.Nil(err)
 	assert.Equal(pubKey, key.Body)
 	err = CleanDatabase(group)
@@ -160,7 +160,7 @@ func (s *SystemsTestSuite) TestFindEncryptionKeyNotFound() {
 	assert := s.Assert()
 	sys, group, _, _ := s.createSystemWithPubKey()
 
-	_, err := sys.FindEncryptionKey("", uuid.NewRandom().String())
+	_, err := sys.FindEncryptionKey(context.Background(), "", uuid.NewRandom().String())
 	assert.NotNil(err)
 	assert.Contains(err.Error(), "cannot find key for systemId")
 
@@ -173,7 +173,7 @@ func (s *SystemsTestSuite) TestFindEncryptionKeyForAnotherSystem() {
 	sys1, group1, _, _ := s.createSystemWithPubKey()
 	_, group2, _, kid2 := s.createSystemWithPubKey()
 
-	_, err := sys1.FindEncryptionKey("", kid2)
+	_, err := sys1.FindEncryptionKey(context.Background(), "", kid2)
 	assert.NotNil(err)
 	assert.Contains(err.Error(), "cannot find key for systemId")
 
@@ -266,7 +266,7 @@ func (s *SystemsTestSuite) TestSystemSavePublicKey() {
 		Bytes: publicKeyPKIX,
 	})
 	_, _ = system.SavePublicKey(bytes.NewReader(publicKeyBytes), "")
-	keys, _ := system.GetEncryptionKeys("")
+	keys, _ := system.GetEncryptionKeys(context.Background(), "")
 	assert.Len(keys, 1)
 
 	err = CleanDatabase(group)
@@ -344,17 +344,17 @@ func (s *SystemsTestSuite) TestSystemPublicKeyEmpty() {
 
 	_, err = system.SavePublicKey(strings.NewReader(""), "")
 	assert.EqualError(err, fmt.Sprintf("invalid public key for clientID %s: not able to decode PEM-formatted public key", clientID))
-	k, err := system.GetEncryptionKey("")
+	k, err := system.GetEncryptionKey(context.Background(), "")
 	assert.EqualError(err, fmt.Sprintf("cannot find key for clientID %s: record not found", clientID))
 	assert.Empty(k, "Empty string does not yield empty encryption key!")
 	_, err = system.SavePublicKey(strings.NewReader(emptyPEM), "")
 	assert.EqualError(err, fmt.Sprintf("invalid public key for clientID %s: not able to decode PEM-formatted public key", clientID))
-	k, err = system.GetEncryptionKey("")
+	k, err = system.GetEncryptionKey(context.Background(), "")
 	assert.EqualError(err, fmt.Sprintf("cannot find key for clientID %s: record not found", clientID))
 	assert.Empty(k, "Empty PEM key does not yield empty encryption key!")
 	_, err = system.SavePublicKey(strings.NewReader(validPEM), "")
 	assert.Nil(err)
-	k, err = system.GetEncryptionKey("")
+	k, err = system.GetEncryptionKey(context.Background(), "")
 	assert.Nil(err)
 	assert.NotEmpty(k, "Valid PEM key yields empty public key!")
 
@@ -488,23 +488,23 @@ func (s *SystemsTestSuite) TestUpdateSystemSuccess() {
 	assert.NotEqual("", creds.ClientSecret)
 
 	var input = map[string]string{"client_name": "updated client name"}
-	_, err = UpdateSystem(creds.SystemID, input)
+	_, err = UpdateSystem(context.Background(), creds.SystemID, input)
 	assert.Nil(err)
-	sys, err := GetSystemByID(creds.SystemID)
+	sys, err := GetSystemByID(context.Background(), creds.SystemID)
 	assert.Nil(err)
 	assert.Equal("updated client name", sys.ClientName)
 
 	input = map[string]string{"api_scope": "modified-scope"}
-	_, err = UpdateSystem(creds.SystemID, input)
+	_, err = UpdateSystem(context.Background(), creds.SystemID, input)
 	assert.Nil(err)
-	sys, err = GetSystemByID(creds.SystemID)
+	sys, err = GetSystemByID(context.Background(), creds.SystemID)
 	assert.Nil(err)
 	assert.Equal("modified-scope", sys.APIScope)
 
 	input = map[string]string{"software_id": "modified-software-id"}
-	_, err = UpdateSystem(creds.SystemID, input)
+	_, err = UpdateSystem(context.Background(), creds.SystemID, input)
 	assert.Nil(err)
-	sys, err = GetSystemByID(creds.SystemID)
+	sys, err = GetSystemByID(context.Background(), creds.SystemID)
 	assert.Nil(err)
 	assert.Equal("modified-software-id", sys.SoftwareID)
 
@@ -516,7 +516,7 @@ func (s *SystemsTestSuite) TestUpdateNonExistingSystem() {
 	assert := s.Assert()
 
 	var input = map[string]string{"client_name": "updated client name"}
-	_, err := UpdateSystem("non-existing-system-id", input)
+	_, err := UpdateSystem(context.Background(), "non-existing-system-id", input)
 	assert.NotNil(err)
 	assert.Equal("record not found for id=non-existing-system-id", err.Error())
 }
@@ -586,7 +586,7 @@ func (s *SystemsTestSuite) TestRegisterSystemIps() {
 		creds, err := RegisterSystem(context.Background(), "Test system with "+address, groupID, DefaultScope, pubKey, []string{address}, trackingID)
 		assert.Nil(err, fmt.Sprintf("%s should be a good IP, but was not allowed", address))
 		assert.NotEmpty(creds, address+"should have been a valid IP")
-		system, err := GetSystemByID(creds.SystemID)
+		system, err := GetSystemByID(context.Background(), creds.SystemID)
 		assert.Nil(err)
 		ips, err := system.GetIPs()
 		assert.Nil(err)
@@ -676,7 +676,7 @@ func (s *SystemsTestSuite) TestSaveSecret() {
 	if err != nil {
 		s.FailNow("cannot hash random secret")
 	}
-	err = system.SaveSecret(hashedSecret1.String())
+	err = system.SaveSecret(context.Background(), hashedSecret1.String())
 	if err != nil {
 		s.FailNow(err.Error())
 	}
@@ -691,7 +691,7 @@ func (s *SystemsTestSuite) TestSaveSecret() {
 	if err != nil {
 		s.FailNow("cannot hash random secret")
 	}
-	err = system.SaveSecret(hashedSecret2.String())
+	err = system.SaveSecret(context.Background(), hashedSecret2.String())
 	if err != nil {
 		s.FailNow(err.Error())
 	}
@@ -720,7 +720,7 @@ func (s *SystemsTestSuite) TestRevokeSecrets() {
 	s.db.Find(&systemSecrets, "system_id = ?", system.ID)
 	assert.NotEmpty(s.T(), systemSecrets)
 
-	err := system.RevokeSecret(fmt.Sprint(system.ID))
+	err := system.RevokeSecret(context.Background(), fmt.Sprint(system.ID))
 	assert.Nil(s.T(), err)
 	s.db.Find(&systemSecrets, "system_id = ?", system.ID)
 	assert.Empty(s.T(), systemSecrets)
@@ -740,7 +740,7 @@ func (s *SystemsTestSuite) TestResetSecret() {
 	s.db.Where("system_id = ?", system.ID).First(&secret1)
 	assert.Equal(s.T(), secret1.Hash, secret.Hash)
 
-	credentials, err := system.ResetSecret("tracking-id")
+	credentials, err := system.ResetSecret(context.Background(), "tracking-id")
 	if err != nil {
 		s.FailNow("Error from ResetSecret()", err.Error())
 		return
@@ -795,7 +795,7 @@ func (s *SystemsTestSuite) TestGetSystemByIDWithKnownSystem() {
 	g, system, err := makeTestSystem(s.db)
 	assert.Nil(s.T(), err, "unexpected error")
 	require.Nil(s.T(), err, "unexpected error ", err)
-	systemFromID, err := GetSystemByID(fmt.Sprint(system.ID))
+	systemFromID, err := GetSystemByID(context.Background(), fmt.Sprint(system.ID))
 	assert.Nil(s.T(), err, "unexpected error ", err)
 	assert.Equal(s.T(), system.ID, systemFromID.ID)
 	assert.Equal(s.T(), system.GID, systemFromID.GID)
@@ -810,18 +810,18 @@ func (s *SystemsTestSuite) TestGetSystemByIDWithNonExistentID() {
 	row := s.db.Table("systems").Select("MAX(id)").Row()
 	err = row.Scan(&max)
 	assert.Nil(s.T(), err, "no max id?")
-	_, err = GetSystemByID(fmt.Sprint(max + 1))
+	_, err = GetSystemByID(context.Background(), fmt.Sprint(max+1))
 	require.NotEmpty(s.T(), err, "should not have found system for ID: ", max+1)
 	_ = CleanDatabase(g)
 }
 
 func (s *SystemsTestSuite) TestGetSystemByIDWithEmptyID() {
-	_, err := GetSystemByID("")
+	_, err := GetSystemByID(context.Background(), "")
 	require.NotNil(s.T(), err, "found system for empty id")
 }
 
 func (s *SystemsTestSuite) TestGetSystemBySystemIDWithNonNumberID() {
-	_, err := GetSystemByID("i am not a number")
+	_, err := GetSystemByID(context.Background(), "i am not a number")
 	require.NotNil(s.T(), err, "found system for non-number id")
 }
 

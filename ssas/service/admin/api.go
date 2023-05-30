@@ -190,7 +190,7 @@ func getSystem(w http.ResponseWriter, r *http.Request) {
 	trackingID := ssas.RandomHexID()
 	systemEvent := ssas.Event{Op: "UpdateSystem", TrackingID: trackingID}
 
-	s, err := ssas.GetSystemByID(id)
+	s, err := ssas.GetSystemByID(r.Context(), id)
 	if err != nil {
 		systemEvent.Help = fmt.Sprintf("; could not find system %s", id)
 		ssas.OperationFailed(systemEvent)
@@ -198,9 +198,9 @@ func getSystem(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ips, _ := s.GetIPsData()
-	cts, _ := s.GetClientTokens(trackingID)
-	eks, _ := s.GetEncryptionKeys(trackingID)
+	ips, _ := s.GetIPsData(r.Context())
+	cts, _ := s.GetClientTokens(r.Context(), trackingID)
+	eks, _ := s.GetEncryptionKeys(r.Context(), trackingID)
 
 	o := ssas.SystemOutput{
 		GID:          fmt.Sprintf("%d", s.GID),
@@ -268,7 +268,7 @@ func updateSystem(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	_, err = ssas.UpdateSystem(id, v)
+	_, err = ssas.UpdateSystem(r.Context(), id, v)
 	if err != nil {
 		service.JSONError(w, http.StatusBadRequest, fmt.Sprintf("failed to update system; %s", err), "")
 		return
@@ -414,7 +414,7 @@ Responses:
 func resetCredentials(w http.ResponseWriter, r *http.Request) {
 	systemID := chi.URLParam(r, "systemID")
 
-	system, err := ssas.GetSystemByID(systemID)
+	system, err := ssas.GetSystemByID(r.Context(), systemID)
 	if err != nil {
 		service.JSONError(w, http.StatusNotFound, "Invalid system ID", "")
 		return
@@ -422,7 +422,7 @@ func resetCredentials(w http.ResponseWriter, r *http.Request) {
 
 	trackingID := ssas.RandomHexID()
 	ssas.OperationCalled(ssas.Event{Op: "ResetSecret", TrackingID: trackingID, Help: "calling from admin.resetCredentials()"})
-	creds, err := system.ResetSecret(trackingID)
+	creds, err := system.ResetSecret(r.Context(), trackingID)
 	if err != nil {
 		service.JSONError(w, http.StatusInternalServerError, "internal error", "")
 		return
@@ -465,7 +465,7 @@ Responses:
 func getPublicKey(w http.ResponseWriter, r *http.Request) {
 	systemID := chi.URLParam(r, "systemID")
 
-	system, err := ssas.GetSystemByID(systemID)
+	system, err := ssas.GetSystemByID(r.Context(), systemID)
 	if err != nil {
 		service.JSONError(w, http.StatusNotFound, "invalid system ID", "")
 		return
@@ -473,7 +473,7 @@ func getPublicKey(w http.ResponseWriter, r *http.Request) {
 
 	trackingID := ssas.RandomHexID()
 	ssas.OperationCalled(ssas.Event{Op: "GetEncryptionKey", TrackingID: trackingID, Help: "calling from admin.getPublicKey()"})
-	key, _ := system.GetEncryptionKey(trackingID)
+	key, _ := system.GetEncryptionKey(r.Context(), trackingID)
 
 	w.Header().Set("Content-Type", "application/json")
 	keyStr := strings.Replace(key.Body, "\n", "\\n", -1)
@@ -504,12 +504,12 @@ Responses:
 func deactivateSystemCredentials(w http.ResponseWriter, r *http.Request) {
 	systemID := chi.URLParam(r, "systemID")
 
-	system, err := ssas.GetSystemByID(systemID)
+	system, err := ssas.GetSystemByID(r.Context(), systemID)
 	if err != nil {
 		service.JSONError(w, http.StatusNotFound, "invalid system ID", "")
 		return
 	}
-	err = system.RevokeSecret(systemID)
+	err = system.RevokeSecret(r.Context(), systemID)
 
 	if err != nil {
 		service.JSONError(w, http.StatusInternalServerError, "invalid system ID", "")
@@ -560,7 +560,7 @@ func registerIP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	system, err := ssas.GetSystemByID(systemID)
+	system, err := ssas.GetSystemByID(r.Context(), systemID)
 	if err != nil {
 		service.JSONError(w, http.StatusNotFound, "Invalid system ID", "")
 		return
@@ -574,7 +574,7 @@ func registerIP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	ssas.OperationCalled(ssas.Event{Op: "RegisterIP", TrackingID: trackingID, Help: "calling from admin.resetCredentials()"})
-	ip, err := system.RegisterIP(input.Address, trackingID)
+	ip, err := system.RegisterIP(r.Context(), input.Address, trackingID)
 	if err != nil {
 		if err.Error() == "duplicate ip address" {
 			service.JSONError(w, http.StatusConflict, "duplicate ip address", "")
@@ -605,7 +605,7 @@ func registerIP(w http.ResponseWriter, r *http.Request) {
 func getSystemIPs(w http.ResponseWriter, r *http.Request) {
 	systemID := chi.URLParam(r, "systemID")
 
-	system, err := ssas.GetSystemByID(systemID)
+	system, err := ssas.GetSystemByID(r.Context(), systemID)
 	if err != nil {
 		service.JSONError(w, http.StatusNotFound, "Invalid system ID", "")
 		return
@@ -613,7 +613,7 @@ func getSystemIPs(w http.ResponseWriter, r *http.Request) {
 
 	trackingID := ssas.RandomHexID()
 	ssas.OperationCalled(ssas.Event{Op: "GetSystemIPs", TrackingID: trackingID, Help: "calling from admin.getSystemIPs()"})
-	ips, err := system.GetIps(trackingID)
+	ips, err := system.GetIps(r.Context(), trackingID)
 	if err != nil {
 		ssas.Logger.Error("Could not retrieve system ips", err)
 		service.JSONError(w, http.StatusInternalServerError, "internal error", "")
@@ -662,7 +662,7 @@ func deleteSystemIP(w http.ResponseWriter, r *http.Request) {
 	trackingID := ssas.RandomHexID()
 	ipEvent := ssas.Event{Op: "UpdateGroup", TrackingID: trackingID, Help: "calling from admin.deleteSystemIP()"}
 
-	system, err := ssas.GetSystemByID(systemID)
+	system, err := ssas.GetSystemByID(r.Context(), systemID)
 	if err != nil {
 		ssas.OperationFailed(ipEvent)
 		service.JSONError(w, http.StatusNotFound, "Invalid system ID", "")
@@ -671,7 +671,7 @@ func deleteSystemIP(w http.ResponseWriter, r *http.Request) {
 
 	ssas.OperationCalled(ipEvent)
 
-	err = system.DeleteIP(ipID, trackingID)
+	err = system.DeleteIP(r.Context(), ipID, trackingID)
 	if err != nil {
 		ssas.OperationFailed(ipEvent)
 		service.JSONError(w, http.StatusBadRequest, fmt.Sprintf("Failed to delete IP: %s", err), "")
@@ -686,7 +686,7 @@ func createToken(w http.ResponseWriter, r *http.Request) {
 	trackingID := ssas.RandomHexID()
 	tokenEvent := ssas.Event{Op: "CreateToken", TrackingID: trackingID, Help: "calling from admin.createToken()"}
 
-	system, err := ssas.GetSystemByID(systemID)
+	system, err := ssas.GetSystemByID(r.Context(), systemID)
 	if err != nil {
 		ssas.OperationFailed(tokenEvent)
 		service.JSONError(w, http.StatusNotFound, "Invalid system ID", "")
@@ -754,7 +754,7 @@ func deleteToken(w http.ResponseWriter, r *http.Request) {
 	trackingID := ssas.RandomHexID()
 	tokenEvent := ssas.Event{Op: "DeleteToken", TrackingID: trackingID, Help: "calling from admin.deleteToken()"}
 
-	system, err := ssas.GetSystemByID(systemID)
+	system, err := ssas.GetSystemByID(r.Context(), systemID)
 	if err != nil {
 		ssas.OperationFailed(tokenEvent)
 		service.JSONError(w, http.StatusNotFound, "Invalid system ID", "")
@@ -762,7 +762,7 @@ func deleteToken(w http.ResponseWriter, r *http.Request) {
 	}
 
 	ssas.OperationCalled(tokenEvent)
-	err = system.DeleteClientToken(tokenID)
+	err = system.DeleteClientToken(r.Context(), tokenID)
 	if err != nil {
 		ssas.OperationFailed(tokenEvent)
 		service.JSONError(w, http.StatusInternalServerError, "Failed to delete client token", "")
@@ -777,7 +777,7 @@ func createKey(w http.ResponseWriter, r *http.Request) {
 	trackingID := ssas.RandomHexID()
 	keyEvent := ssas.Event{Op: "CreateKey", TrackingID: trackingID, Help: "calling from admin.createKey()"}
 
-	system, err := ssas.GetSystemByID(systemID)
+	system, err := ssas.GetSystemByID(r.Context(), systemID)
 	if err != nil {
 		ssas.OperationFailed(keyEvent)
 		service.JSONError(w, http.StatusNotFound, "Invalid system ID", "")
@@ -810,14 +810,14 @@ func deleteKey(w http.ResponseWriter, r *http.Request) {
 	trackingID := ssas.RandomHexID()
 	keyEvent := ssas.Event{Op: "DeleteKey", TrackingID: trackingID, Help: "calling from admin.deleteKey()"}
 
-	system, err := ssas.GetSystemByID(systemID)
+	system, err := ssas.GetSystemByID(r.Context(), systemID)
 	if err != nil {
 		ssas.OperationFailed(keyEvent)
 		service.JSONError(w, http.StatusNotFound, "Invalid system ID", "")
 		return
 	}
 
-	if err := system.DeleteEncryptionKey(trackingID, keyID); err != nil {
+	if err := system.DeleteEncryptionKey(r.Context(), trackingID, keyID); err != nil {
 		ssas.OperationFailed(keyEvent)
 		service.JSONError(w, http.StatusInternalServerError, "Failed to delete key", "")
 		return

@@ -6,6 +6,7 @@ Package public (ssas/service/api/public) contains API functions, middleware, and
 package public
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -339,7 +340,7 @@ func ResetSecret(w http.ResponseWriter, r *http.Request) {
 
 	event = ssas.Event{Op: "ResetSecret", TrackingID: uuid.NewRandom().String(), Help: "calling from public.ResetSecret()"}
 	ssas.OperationCalled(event)
-	if credentials, err = sys.ResetSecret(trackingID); err != nil {
+	if credentials, err = sys.ResetSecret(r.Context(), trackingID); err != nil {
 		service.JSONError(w, http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError), "")
 		return
 	}
@@ -519,7 +520,7 @@ func token(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	system.SaveTokenTime()
+	system.SaveTokenTime(r.Context())
 	event.Help = fmt.Sprintf("token created in group %s with XData: %s", system.GroupID, data)
 
 	// https://tools.ietf.org/html/rfc6749#section-5.1
@@ -567,7 +568,7 @@ func tokenV2(w http.ResponseWriter, r *http.Request) {
 	}
 
 	tokenString := r.Form.Get("client_assertion")
-	token, err := parseClientSignedToken(tokenString, trackingID)
+	token, err := parseClientSignedToken(r.Context(), tokenString, trackingID)
 	if err != nil {
 		event.Help = err.Error()
 		ssas.AuthorizationFailure(event)
@@ -613,7 +614,7 @@ func tokenV2(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	system, err := ssas.GetSystemByID(systemID)
+	system, err := ssas.GetSystemByID(r.Context(), systemID)
 	if err != nil {
 		service.JSONError(w, http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized), "invalid issuer (iss) claim. system not found")
 		return
@@ -636,7 +637,7 @@ func tokenV2(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	system.SaveTokenTime()
+	system.SaveTokenTime(r.Context())
 	event.Help = fmt.Sprintf("token created in group %s with XData: %s", system.GroupID, data)
 
 	// https://tools.ietf.org/html/rfc6749#section-5.1
@@ -686,8 +687,8 @@ func validateClientAssertionParams(r *http.Request) string {
 	return ""
 }
 
-func parseClientSignedToken(jwt string, trackingID string) (*jwt.Token, error) {
-	return server.VerifyClientSignedToken(jwt, trackingID)
+func parseClientSignedToken(ctx context.Context, jwt string, trackingID string) (*jwt.Token, error) {
+	return server.VerifyClientSignedToken(ctx, jwt, trackingID)
 }
 
 func introspect(w http.ResponseWriter, r *http.Request) {
@@ -774,7 +775,7 @@ func validateAndParseToken(w http.ResponseWriter, r *http.Request) {
 		response["valid"] = true
 		response["data"] = claims["dat"]
 		response["system_data"] = claims["system_data"]
-		sys, err := ssas.GetSystemByID(claims["sys"].(string))
+		sys, err := ssas.GetSystemByID(r.Context(), claims["sys"].(string))
 		if err != nil {
 			ssas.Logger.Infof("could not get system id")
 			service.JSONError(w, http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError), "internal server error")

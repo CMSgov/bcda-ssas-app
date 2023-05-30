@@ -572,12 +572,12 @@ func (s *APITestSuite) TestSaveTokenTime() {
 	assert.Equal(s.T(), "Introspect Test", creds.ClientName)
 	assert.NotNil(s.T(), creds.ClientSecret)
 
-	system, err := ssas.GetSystemByClientID(creds.ClientID)
+	system, err := ssas.GetSystemByClientID(context.Background(), creds.ClientID)
 	assert.Nil(s.T(), err)
 	assert.True(s.T(), system.LastTokenAt.IsZero())
 
 	system.SaveTokenTime()
-	system, err = ssas.GetSystemByClientID(creds.ClientID)
+	system, err = ssas.GetSystemByClientID(context.Background(), creds.ClientID)
 	assert.Nil(s.T(), err)
 	assert.False(s.T(), system.LastTokenAt.IsZero())
 
@@ -669,7 +669,7 @@ func (s *APITestSuite) TestAuthenticatingWithJWT() {
 // Authenticate and generate access token using JWT (v2/token/)
 func (s *APITestSuite) TestAuthenticatingWithJWTUsingSecondPublicKey() {
 	creds, group, _ := s.SetupClientAssertionTest()
-	system, _ := ssas.GetSystemByID(creds.SystemID)
+	system, _ := ssas.GetSystemByID(context.Background(), creds.SystemID)
 	pubK, sig, newPrivateKey, _ := ssas.GeneratePublicKey(2048)
 	secondKey, _ := system.AddAdditionalPublicKey(strings.NewReader(pubK), sig)
 
@@ -695,7 +695,7 @@ func (s *APITestSuite) TestAuthenticatingWithJWTUsingSecondPublicKey() {
 
 func (s *APITestSuite) TestAuthenticatingWithJWTUsingWrongPrivateKey() {
 	creds, group, firstPrivateKey := s.SetupClientAssertionTest()
-	system, _ := ssas.GetSystemByID(creds.SystemID)
+	system, _ := ssas.GetSystemByID(context.Background(), creds.SystemID)
 	pubK, sig, _, _ := ssas.GeneratePublicKey(2048)
 	secondKey, _ := system.AddAdditionalPublicKey(strings.NewReader(pubK), sig)
 
@@ -862,9 +862,9 @@ func (s *APITestSuite) TestAuthenticatingWithJWTWithSoftDeletedPublicKey() {
 	req.Header.Add("Accept", constants.HeaderApplicationJSON)
 	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 
-	system, err := ssas.GetSystemByID(creds.SystemID)
+	system, err := ssas.GetSystemByID(context.Background(), creds.SystemID)
 	assert.Nil(s.T(), err)
-	key, err := system.GetEncryptionKey(uuid.NewRandom().String())
+	key, err := system.GetEncryptionKey(req.Context(), uuid.NewRandom().String())
 	assert.Nil(s.T(), err)
 
 	//Soft delete public key
@@ -872,7 +872,7 @@ func (s *APITestSuite) TestAuthenticatingWithJWTWithSoftDeletedPublicKey() {
 	assert.Nil(s.T(), s.db.Delete(&key).Error)
 
 	//Ensure record was soft deleted, and not permanently deleted.
-	key, err = system.GetEncryptionKey(uuid.NewRandom().String())
+	key, err = system.GetEncryptionKey(req.Context(), uuid.NewRandom().String())
 	assert.NotNil(s.T(), err)
 	assert.Empty(s.T(), key)
 	var encryptionKey ssas.EncryptionKey

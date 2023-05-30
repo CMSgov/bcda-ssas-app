@@ -31,7 +31,7 @@ func ResetAdminCreds() (encSecret string, err error) {
 		return
 	}
 
-	creds, err := system.ResetSecret(id)
+	creds, err := system.ResetSecret(context.Background(), id)
 	if err != nil {
 		return
 	}

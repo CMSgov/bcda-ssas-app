@@ -257,7 +257,7 @@ func resetSecret(clientID string) {
 		ssas.Logger.Warn(err)
 	}
 	ssas.OperationCalled(ssas.Event{Op: "ResetSecret", TrackingID: cliTrackingID(), Help: "calling from main.resetSecret()"})
-	if c, err = s.ResetSecret(clientID); err != nil {
+	if c, err = s.ResetSecret(context.Background(), clientID); err != nil {
 		ssas.Logger.Warn(err)
 	} else {
 		_, _ = fmt.Fprintf(output, "%s\n", c.ClientSecret)

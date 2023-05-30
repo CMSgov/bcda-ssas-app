@@ -397,7 +397,7 @@ func (s *Server) VerifyToken(tokenString string) (*jwt.Token, error) {
 	return jwt.ParseWithClaims(tokenString, &CommonClaims{}, keyFunc)
 }
 
-func (s *Server) VerifyClientSignedToken(tokenString string, trackingId string) (*jwt.Token, error) {
+func (s *Server) VerifyClientSignedToken(ctx context.Context, tokenString string, trackingId string) (*jwt.Token, error) {
 	keyFunc := func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodRSA); !ok {
 			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
@@ -412,7 +412,7 @@ func (s *Server) VerifyClientSignedToken(tokenString string, trackingId string) 
 			return nil, fmt.Errorf("failed to retrieve systemID from macaroon")
 		}
 
-		system, err := ssas.GetSystemByID(systemID)
+		system, err := ssas.GetSystemByID(ctx, systemID)
 		if err != nil {
 			ssas.Logger.Error(err)
 			return nil, fmt.Errorf("failed to retrieve system information")
@@ -423,7 +423,7 @@ func (s *Server) VerifyClientSignedToken(tokenString string, trackingId string) 
 			return nil, fmt.Errorf("missing public key id (kid) in jwt header")
 		}
 
-		key, err := system.FindEncryptionKey(trackingId, kid.(string))
+		key, err := system.FindEncryptionKey(ctx, trackingId, kid.(string))
 		if err != nil {
 			ssas.Logger.Error(err)
 			return nil, fmt.Errorf("key not found for system: %v", claims.Issuer)
