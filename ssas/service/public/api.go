@@ -234,7 +234,7 @@ func VerifyMultifactorResponse(w http.ResponseWriter, r *http.Request) {
 	trackingID = uuid.NewRandom().String()
 	event := ssas.Event{Op: "VerifyOktaFactorResponse", TrackingID: trackingID, Help: "calling from public.VerifyMultifactorResponse()"}
 	ssas.OperationCalled(event)
-	success, oktaID, groupIDs := GetProvider().VerifyFactorChallenge(mfaReq.LoginID, mfaReq.FactorType, *mfaReq.Passcode, trackingID)
+	success, oktaID, groupIDs := GetProvider().VerifyFactorChallenge(r.Context(), mfaReq.LoginID, mfaReq.FactorType, *mfaReq.Passcode, trackingID)
 
 	if !success {
 		event.Help = "passcode rejected"

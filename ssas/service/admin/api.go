@@ -52,7 +52,7 @@ func createGroup(w http.ResponseWriter, r *http.Request) {
 
 	groupEvent.Help = fmt.Sprintf("calling from admin.createGroup(), raw request: %v", string(body))
 	ssas.OperationCalled(groupEvent)
-	g, err := ssas.CreateGroup(gd, trackingID)
+	g, err := ssas.CreateGroup(r.Context(), gd, trackingID)
 	if err != nil {
 		service.JSONError(w, http.StatusBadRequest, fmt.Sprintf("failed to create group; %s", err), "")
 		return
@@ -100,7 +100,7 @@ func listGroups(w http.ResponseWriter, r *http.Request) {
 	trackingID := ssas.RandomHexID()
 
 	ssas.OperationCalled(ssas.Event{Op: "ListGroups", TrackingID: trackingID, Help: "calling from admin.listGroups()"})
-	groups, err := ssas.ListGroups(trackingID)
+	groups, err := ssas.ListGroups(r.Context(), trackingID)
 	if err != nil {
 		ssas.OperationFailed(ssas.Event{Op: "admin.listGroups", TrackingID: trackingID, Help: err.Error()})
 		service.JSONError(w, http.StatusInternalServerError, "internal error", "")
@@ -162,7 +162,7 @@ func updateGroup(w http.ResponseWriter, r *http.Request) {
 
 	groupEvent.Help = fmt.Sprintf("calling from admin.updateGroup(), raw request: %v", string(body))
 	ssas.OperationCalled(groupEvent)
-	g, err := ssas.UpdateGroup(id, gd)
+	g, err := ssas.UpdateGroup(r.Context(), id, gd)
 	if err != nil {
 		service.JSONError(w, http.StatusBadRequest, http.StatusText(http.StatusBadRequest), fmt.Sprintf("failed to update group; %s", err))
 		return
@@ -302,7 +302,7 @@ func deleteGroup(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 
 	ssas.OperationCalled(ssas.Event{Op: "DeleteGroup", TrackingID: id, Help: "calling from admin.deleteGroup()"})
-	err := ssas.DeleteGroup(id)
+	err := ssas.DeleteGroup(r.Context(), id)
 	if err != nil {
 		ssas.OperationFailed(ssas.Event{Op: "admin.deleteGroup", TrackingID: id, Help: err.Error()})
 		service.JSONError(w, http.StatusBadRequest, http.StatusText(http.StatusBadRequest), fmt.Sprintf("failed to delete group; %s", err))
