@@ -29,10 +29,8 @@ func createDB() (*gorm.DB, error) {
 		return nil, err
 	}
 
-	// db.SetMaxOpenConns(cfg.MaxOpenConns)
-	// db.SetMaxIdleConns(cfg.MaxIdleConns)
-	// db.SetConnMaxLifetime(time.Duration(cfg.ConnMaxLifetimeMin) * time.Minute)
-
+	// TODO: Allow connection settings to be configured by env vars
+	// https://jira.cms.gov/browse/BCDA-7109
 	sqlDB.SetMaxOpenConns(40)
 	sqlDB.SetMaxIdleConns(40)
 	sqlDB.SetConnMaxLifetime(time.Duration(5) * time.Minute)
