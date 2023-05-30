@@ -479,25 +479,13 @@ type TokenResponse struct {
 }
 
 func token(w http.ResponseWriter, r *http.Request) {
-	ssas.Logger.Info("Checking Basic Auth")
 	clientID, secret, ok := r.BasicAuth()
 	if !ok {
 		service.JSONError(w, http.StatusBadRequest, http.StatusText(http.StatusBadRequest), "")
 		return
 	}
 
-	ssas.Logger.Info("Looking for system by client ID")
-	conn, erra := ssas.Connection.DB()
-
-	if erra != nil {
-		ssas.Logger.Errorf("failed db: ", erra.Error())
-	}
-
-	ssas.Logger.Info(conn.Stats().InUse)
-	ssas.Logger.Info(conn.Stats().Idle)
-
 	system, err := ssas.GetSystemByClientID(r.Context(), clientID)
-	ssas.Logger.Info("Done for system by client ID")
 	if err != nil {
 		ssas.Logger.Errorf("The client id %s is invalid", err.Error())
 		service.JSONError(w, http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized), "invalid client id")

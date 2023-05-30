@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"crypto/rsa"
 	"crypto/tls"
 	"crypto/x509"
@@ -256,7 +257,7 @@ func (s *Server) getVersion(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) getHealthCheck(w http.ResponseWriter, r *http.Request) {
 	m := make(map[string]string)
-	if doHealthCheck() {
+	if doHealthCheck(r.Context()) {
 		m["database"] = "ok"
 		w.WriteHeader(http.StatusOK)
 	} else {
@@ -271,8 +272,8 @@ func (s *Server) getHealthCheck(w http.ResponseWriter, r *http.Request) {
 // is there any circumstance where the server could be partially disabled? (e.g., unable to sign tokens but still running)
 // could less than 3 servers be running?
 // since this ping will be run against all servers, isn't this excessive?
-func doHealthCheck() bool {
-	db, err := ssas.Connection.DB()
+func doHealthCheck(ctx context.Context) bool {
+	db, err := ssas.Connection.WithContext(ctx).DB()
 	if err != nil {
 		// TODO health check failed event
 		ssas.Logger.Error("health check: database connection error: ", err.Error())
