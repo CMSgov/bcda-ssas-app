@@ -182,7 +182,7 @@ func (system *System) SaveSecret(ctx context.Context, hashedSecret string) error
 		SystemID: system.ID,
 	}
 
-	if err := system.deactivateSecrets(); err != nil {
+	if err := system.deactivateSecrets(ctx); err != nil {
 		return err
 	}
 
@@ -226,13 +226,13 @@ func (system *System) SaveTokenTime(ctx context.Context) {
 }
 
 /*
-	RevokeSecret revokes a system's secret
+RevokeSecret revokes a system's secret
 */
 func (system *System) RevokeSecret(ctx context.Context, trackingID string) error {
 	revokeCredentialsEvent := Event{Op: "RevokeCredentials", TrackingID: trackingID, ClientID: system.ClientID}
 	OperationStarted(revokeCredentialsEvent)
 
-	xdata, err := XDataFor(*system)
+	xdata, err := XDataFor(ctx, *system)
 	if err != nil {
 		revokeCredentialsEvent.Help = fmt.Sprintf("could not get group XData for clientID %s: %s", system.ClientID, err.Error())
 		OperationFailed(revokeCredentialsEvent)
@@ -783,8 +783,8 @@ func (system *System) DeleteIP(ctx context.Context, ipID string, trackingID stri
 }
 
 // DataForSystem returns the group extra data associated with this system
-func XDataFor(system System) (string, error) {
-	group, err := GetGroupByID(strconv.Itoa(int(system.GID)))
+func XDataFor(ctx context.Context, system System) (string, error) {
+	group, err := GetGroupByID(ctx, strconv.Itoa(int(system.GID)))
 	if err != nil {
 		return "", fmt.Errorf("no group for system %d; %s", system.ID, err)
 	}
@@ -907,7 +907,7 @@ func (system *System) ResetSecret(ctx context.Context, trackingID string) (Crede
 	newSecretEvent := Event{Op: "ResetSecret", TrackingID: trackingID, ClientID: system.ClientID}
 	OperationStarted(newSecretEvent)
 
-	xdata, err := XDataFor(*system)
+	xdata, err := XDataFor(ctx, *system)
 	if err != nil {
 		newSecretEvent.Help = fmt.Sprintf("could not get group XData for clientID %s: %s", system.ClientID, err.Error())
 		OperationFailed(newSecretEvent)

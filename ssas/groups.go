@@ -228,7 +228,11 @@ type GroupData struct {
 
 // Value implements the driver.Value interface for GroupData.
 func (gd GroupData) Value() (driver.Value, error) {
-	systems, _ := GetSystemsByGroupIDString(gd.GroupID)
+	// TODO: pull from configurable setting for db timeout
+	timeoutCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	systems, _ := GetSystemsByGroupIDString(timeoutCtx, gd.GroupID)
 
 	gd.Systems = systems
 
@@ -245,8 +249,11 @@ func (gd *GroupData) Scan(value interface{}) error {
 	if err := json.Unmarshal(b, &gd); err != nil {
 		return err
 	}
-	systems, _ := GetSystemsByGroupIDString(gd.GroupID)
 
+	timeoutCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	systems, _ := GetSystemsByGroupIDString(timeoutCtx, gd.GroupID)
 	gd.Systems = systems
 
 	return nil

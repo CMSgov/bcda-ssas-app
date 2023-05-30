@@ -500,7 +500,7 @@ func token(w http.ResponseWriter, r *http.Request) {
 
 	trackingID := uuid.NewRandom().String()
 
-	data, err := ssas.XDataFor(system)
+	data, err := ssas.XDataFor(r.Context(), system)
 	ssas.Logger.Infof("public.api.token: XDataFor(%d) returned '%s'", system.ID, data)
 	if err != nil {
 		service.JSONError(w, http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized), "no group for system")
@@ -620,7 +620,7 @@ func tokenV2(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	data, err := ssas.XDataFor(system)
+	data, err := ssas.XDataFor(r.Context(), system)
 	ssas.Logger.Infof("public.api.token: XDataFor(%d) returned '%s'", system.ID, data)
 	if err != nil {
 		service.JSONError(w, http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized), "no group for system")

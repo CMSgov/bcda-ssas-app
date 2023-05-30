@@ -481,9 +481,9 @@ func (s *APITestSuite) testIntrospectFlaw(flaw service.TokenFlaw, errorText stri
 
 	creds, group := ssas.CreateTestXData(s.T(), s.db)
 
-	system, err := ssas.GetSystemByClientID(creds.ClientID)
+	system, err := ssas.GetSystemByClientID(context.Background(), creds.ClientID)
 	assert.Nil(s.T(), err)
-	data, err := ssas.XDataFor(system)
+	data, err := ssas.XDataFor(context.Background(), system)
 	assert.Nil(s.T(), err)
 
 	claims := service.CommonClaims{
@@ -1234,9 +1234,9 @@ func (s *APITestSuite) TestGetTokenInfoWithExpiredToken() {
 
 func (s *APITestSuite) MintTestAccessTokenWithDuration(duration time.Duration) (*jwt.Token, string, error) {
 	creds, _ := ssas.CreateTestXDataV2(s.T(), s.db)
-	system, err := ssas.GetSystemByClientID(creds.ClientID)
+	system, err := ssas.GetSystemByClientID(context.Background(), creds.ClientID)
 	assert.Nil(s.T(), err)
-	data, err := ssas.XDataFor(system)
+	data, err := ssas.XDataFor(context.Background(), system)
 	assert.Nil(s.T(), err)
 
 	claims := service.CommonClaims{
