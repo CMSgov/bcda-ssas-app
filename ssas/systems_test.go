@@ -42,14 +42,14 @@ func (s *SystemsTestSuite) TestRevokeSystemKeyPair() {
 	s.db.Save(&group)
 	system := System{GID: group.ID, ClientID: "test-revoke-system-key-pair-client"}
 
-	err := system.RevokeSystemKeyPair()
+	err := system.RevokeSystemKeyPair(context.Background())
 	assert.NotNil(err)
 
 	s.db.Save(&system)
 	encryptionKey := EncryptionKey{SystemID: system.ID}
 	s.db.Save(&encryptionKey)
 
-	err = system.RevokeSystemKeyPair()
+	err = system.RevokeSystemKeyPair(context.Background())
 	assert.Nil(err)
 	assert.Empty(system.EncryptionKeys)
 	s.db.Unscoped().Find(&encryptionKey)
@@ -399,7 +399,7 @@ func (s *SystemsTestSuite) TestGetSystemByClientIDSuccess() {
 		s.FailNow(err.Error())
 	}
 
-	sys, err := GetSystemByClientID(system.ClientID)
+	sys, err := GetSystemByClientID(context.Background(), system.ClientID)
 	assert.Nil(err)
 	assert.NotEmpty(sys)
 	assert.Equal("Client with System", sys.ClientName)
@@ -433,7 +433,7 @@ func (s *SystemsTestSuite) TestSystemClientGroupDuplicate() {
 	err = s.db.Create(&system).Error
 	assert.EqualError(err, "ERROR: duplicate key value violates unique constraint \"idx_client\" (SQLSTATE 23505)")
 
-	sys, err := GetSystemByClientID(system.ClientID)
+	sys, err := GetSystemByClientID(context.Background(), system.ClientID)
 	assert.Nil(err)
 	assert.NotEmpty(sys)
 	assert.Equal("First Client", sys.ClientName)
@@ -698,7 +698,7 @@ func (s *SystemsTestSuite) TestSaveSecret() {
 
 	// Verify we now retrieve second secret
 	// Note that this also tests GetSecret()
-	savedSecret, err := system.GetSecret()
+	savedSecret, err := system.GetSecret(context.Background())
 	if err != nil {
 		s.FailNow(err.Error())
 	}
@@ -826,12 +826,12 @@ func (s *SystemsTestSuite) TestGetSystemBySystemIDWithNonNumberID() {
 }
 
 func (s *SystemsTestSuite) TestGetSystemByClientIDWithEmptyID() {
-	_, err := GetSystemByClientID("")
+	_, err := GetSystemByClientID(context.Background(), "")
 	require.NotNil(s.T(), err, "found system for empty id")
 }
 
 func (s *SystemsTestSuite) TestGetSystemByClientIDWithNonNumberID() {
-	_, err := GetSystemByClientID("i am not a number")
+	_, err := GetSystemByClientID(context.Background(), "i am not a number")
 	require.NotNil(s.T(), err, "found system for non-number id")
 }
 
