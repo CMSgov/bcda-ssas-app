@@ -84,7 +84,7 @@ func NewOktaMFA(client *http.Client) *OktaMFAPlugin {
 	return &OktaMFAPlugin{Client: client}
 }
 
-// VerifyPassword tests a username/password for validity.  This function should be used before calling MFA functions.
+//	VerifyPassword tests a username/password for validity.  This function should be used before calling MFA functions.
 func (o *OktaMFAPlugin) VerifyPassword(userIdentifier string, password string, trackingId string) (passwordReturn *PasswordReturn, oktaId string, err error) {
 	passwordEvent := ssas.Event{Op: "VerifyOktaPassword", TrackingID: trackingId}
 	ssas.OperationStarted(passwordEvent)
@@ -140,8 +140,8 @@ func (o *OktaMFAPlugin) VerifyPassword(userIdentifier string, password string, t
 	return
 }
 
-// VerifyFactorChallenge tests an MFA passcode for validity.  This function should be used for all factor types
-// except Push.
+//	VerifyFactorChallenge tests an MFA passcode for validity.  This function should be used for all factor types
+//	except Push.
 func (o *OktaMFAPlugin) VerifyFactorChallenge(ctx context.Context, userIdentifier string, factorType string, passcode string, trackingId string) (success bool, oktaID string, groupIDs []string) {
 	startTime := time.Now()
 	success = false
@@ -203,23 +203,22 @@ func (o *OktaMFAPlugin) VerifyFactorChallenge(ctx context.Context, userIdentifie
 	return
 }
 
-// VerifyFactorTransaction reports the status of a Push factor's transaction.  Possible non-error states include success,
-// rejection, waiting, and timeout.
+//	VerifyFactorTransaction reports the status of a Push factor's transaction.  Possible non-error states include success,
+//	rejection, waiting, and timeout.
 func (o *OktaMFAPlugin) VerifyFactorTransaction(userIdentifier string, factorType string, transactionId string, trackingId string) (string, error) {
 	return "", errors.New("function VerifyFactorTransaction() not yet implemented in OktaMFAPlugin")
 }
 
-// RequestFactorChallenge is to be called from the /authn/request endpoint.  It looks up the Okta user ID and factor ID, calls okta.postFactorChallenge(),
-// and filters the information returned to minimize information leakage.
+//	RequestFactorChallenge is to be called from the /authn/request endpoint.  It looks up the Okta user ID and factor ID, calls okta.postFactorChallenge(),
+//	and filters the information returned to minimize information leakage.
 //
-// Valid factor types include:
-//
-//	"Google TOTP" (Google Authenticator)
-//	"Okta TOTP"   (Okta Verify app time-based token)
-//	"Push"        (Okta Verify app push)
-//	"SMS"
-//	"Call"
-//	"Email"
+//	Valid factor types include:
+//		"Google TOTP" (Google Authenticator)
+//		"Okta TOTP"   (Okta Verify app time-based token)
+//		"Push"        (Okta Verify app push)
+//		"SMS"
+//		"Call"
+//		"Email"
 func (o *OktaMFAPlugin) RequestFactorChallenge(userIdentifier string, factorType string, trackingId string) (factorReturn *FactorReturn, err error) {
 	startTime := time.Now()
 	requestEvent := ssas.Event{Op: "RequestOktaFactorChallenge", TrackingID: trackingId}
@@ -275,7 +274,7 @@ func (o *OktaMFAPlugin) RequestFactorChallenge(userIdentifier string, factorType
 	return
 }
 
-// formatFactorReturn generates dummy return values if needed
+//	formatFactorReturn generates dummy return values if needed
 func formatFactorReturn(factorType string, factorReturn *FactorReturn) *FactorReturn {
 	if factorReturn == nil || factorReturn.Action == "" {
 		factorReturn = &FactorReturn{Action: "request_sent"}
@@ -300,7 +299,7 @@ func formatFactorReturn(factorType string, factorReturn *FactorReturn) *FactorRe
 	return factorReturn
 }
 
-// wait() provides fixed-time execution for functions that could leak information based on how quickly they return
+//	wait() provides fixed-time execution for functions that could leak information based on how quickly they return
 func wait(startTime time.Time, targetDuration time.Duration) {
 	elapsed := time.Since(startTime)
 	time.Sleep(targetDuration - elapsed)
@@ -339,8 +338,8 @@ func (o *OktaMFAPlugin) postPassword(oktaUserId string, password string, trackin
 	return &p, nil
 }
 
-// getUser searches for Okta users using the provided search string.  Only return results if exactly one active user
-// of LOA=3 is found.
+//	getUser searches for Okta users using the provided search string.  Only return results if exactly one active user
+//	of LOA=3 is found.
 func (o *OktaMFAPlugin) getUser(searchString string, trackingId string) (oktaId string, err error) {
 	userEvent := ssas.Event{Op: "FindOktaUser", TrackingID: trackingId}
 	ssas.OperationStarted(userEvent)
@@ -391,16 +390,15 @@ func (o *OktaMFAPlugin) getUser(searchString string, trackingId string) (oktaId 
 	return user.Id, nil
 }
 
-// getUserFactor looks for the active Okta factor of the specified type enrolled for a given user.
+//	getUserFactor looks for the active Okta factor of the specified type enrolled for a given user.
 //
-// Valid factor types include:
-//
-//	"Google TOTP" (Google Authenticator)
-//	"Okta TOTP"   (Okta Verify app time-based token)
-//	"Push"        (Okta Verify app push)
-//	"SMS"
-//	"Call"
-//	"Email"
+//	Valid factor types include:
+//		"Google TOTP" (Google Authenticator)
+//		"Okta TOTP"   (Okta Verify app time-based token)
+//		"Push"        (Okta Verify app push)
+//		"SMS"
+//		"Call"
+//		"Email"
 func (o *OktaMFAPlugin) getUserFactor(oktaUserId string, factorType string, trackingId string) (factor *Factor, err error) {
 	factorEvent := ssas.Event{Op: "FindOktaUserFactors", UserID: oktaUserId, TrackingID: trackingId}
 	ssas.OperationStarted(factorEvent)
@@ -495,7 +493,7 @@ func (o *OktaMFAPlugin) postFactorResponse(oktaUserId string, oktaFactor Factor,
 	return &f, nil
 }
 
-// oktaRequest consolidates the common steps of requesting and parsing Okta queries
+//	oktaRequest consolidates the common steps of requesting and parsing Okta queries
 func (o *OktaMFAPlugin) oktaRequest(verb, url string, requestBody io.Reader) (resp *http.Response, body []byte, err error) {
 	req, err := http.NewRequest(verb, url, requestBody)
 	if err != nil {
@@ -533,7 +531,7 @@ func (o *OktaMFAPlugin) oktaRequest(verb, url string, requestBody io.Reader) (re
 	return
 }
 
-// parsePushTransaction returns the Okta transaction ID for a Push factor request
+//	parsePushTransaction returns the Okta transaction ID for a Push factor request
 func parsePushTransaction(url string) string {
 	re := regexp.MustCompile(`/transactions/(.*)$`)
 	matches := re.FindSubmatch([]byte(url))
