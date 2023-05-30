@@ -32,12 +32,12 @@ func init() {
 
 // This function should only be called by main
 func StartBlacklist() {
-	TokenBlacklist = NewBlacklist(defaultCacheTimeout, cacheCleanupInterval)
+	TokenBlacklist = NewBlacklist(context.Background(), defaultCacheTimeout, cacheCleanupInterval)
 }
 
 // NewBlacklist allows for easy Blacklist{} creation and manipulation during testing, and, outside a test suite,
 // should not be called
-func NewBlacklist(cacheTimeout time.Duration, cleanupInterval time.Duration) *Blacklist {
+func NewBlacklist(ctx context.Context, cacheTimeout time.Duration, cleanupInterval time.Duration) *Blacklist {
 	// In case a Blacklist timer has already been started:
 	stopCacheRefreshTicker()
 
@@ -107,7 +107,11 @@ func (t *Blacklist) LoadFromDatabase() error {
 		err     error
 	)
 
-	if entries, err = ssas.GetUnexpiredBlacklistEntries(); err != nil {
+	// TODO: pull from configurable setting for db timeout
+	timeoutCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	if entries, err = ssas.GetUnexpiredBlacklistEntries(timeoutCtx); err != nil {
 		ssas.CacheSyncFailure(ssas.Event{Op: "BlacklistLoadFromDatabase", TrackingID: t.ID, Help: err.Error()})
 		return err
 	}

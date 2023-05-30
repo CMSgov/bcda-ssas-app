@@ -46,12 +46,12 @@ func CreateBlacklistEntry(ctx context.Context, key string, entryDate time.Time, 
 	return
 }
 
-func GetUnexpiredBlacklistEntries() (entries []BlacklistEntry, err error) {
+func GetUnexpiredBlacklistEntries(ctx context.Context) (entries []BlacklistEntry, err error) {
 	trackingID := uuid.NewRandom().String()
 	event := Event{Op: "GetBlacklistEntries", TrackingID: trackingID}
 	OperationStarted(event)
 
-	err = Connection.Order("entry_date, cache_expiration").Where("cache_expiration > ?", time.Now().UnixNano()).Find(&entries).Error
+	err = Connection.WithContext(ctx).Order("entry_date, cache_expiration").Where("cache_expiration > ?", time.Now().UnixNano()).Find(&entries).Error
 	if err != nil {
 		event.Help = err.Error()
 		OperationFailed(event)

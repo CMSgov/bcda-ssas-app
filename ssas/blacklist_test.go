@@ -21,7 +21,7 @@ func (s *CacheEntriesTestSuite) SetupSuite() {
 }
 
 func (s *CacheEntriesTestSuite) TestGetUnexpiredCacheEntries() {
-	entries, err := GetUnexpiredBlacklistEntries()
+	entries, err := GetUnexpiredBlacklistEntries(context.Background())
 	require.Nil(s.T(), err)
 	origEntries := len(entries)
 
@@ -37,7 +37,7 @@ func (s *CacheEntriesTestSuite) TestGetUnexpiredCacheEntries() {
 		assert.FailNow(s.T(), err.Error())
 	}
 
-	entries, err = GetUnexpiredBlacklistEntries()
+	entries, err = GetUnexpiredBlacklistEntries(context.Background())
 	assert.Nil(s.T(), err)
 	assert.True(s.T(), len(entries) == origEntries+2)
 
