@@ -1,6 +1,7 @@
 package ssas
 
 import (
+	"context"
 	"fmt"
 	"time"
 
@@ -16,7 +17,7 @@ type BlacklistEntry struct {
 	CacheExpiration int64  `gorm:"not null" json:"cache_expiration"`
 }
 
-func CreateBlacklistEntry(key string, entryDate time.Time, cacheExpiration time.Time) (entry BlacklistEntry, err error) {
+func CreateBlacklistEntry(ctx context.Context, key string, entryDate time.Time, cacheExpiration time.Time) (entry BlacklistEntry, err error) {
 	event := Event{Op: "CreateBlacklistEntry", TrackingID: key, TokenID: key}
 	OperationStarted(event)
 
@@ -33,7 +34,7 @@ func CreateBlacklistEntry(key string, entryDate time.Time, cacheExpiration time.
 		CacheExpiration: cacheExpiration.UnixNano(),
 	}
 
-	err = Connection.Save(&be).Error
+	err = Connection.WithContext(ctx).Save(&be).Error
 	if err != nil {
 		event.Help = err.Error()
 		OperationFailed(event)

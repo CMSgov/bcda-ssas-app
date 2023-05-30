@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"math/rand"
 	"strconv"
 	"testing"
@@ -48,7 +49,7 @@ func (s *TokenCacheTestSuite) TestLoadFromDatabaseEmpty() {
 	}
 	assert.Len(s.T(), s.t.c.Items(), 0)
 
-	if err := s.t.BlacklistToken(key, expiration); err != nil {
+	if err := s.t.BlacklistToken(context.Background(), key, expiration); err != nil {
 		assert.FailNow(s.T(), err.Error())
 	}
 
@@ -165,7 +166,7 @@ func (s *TokenCacheTestSuite) TestIsTokenBlacklistedFalse() {
 
 func (s *TokenCacheTestSuite) TestBlacklistToken() {
 	key := strconv.Itoa(rand.Int())
-	if err := s.t.BlacklistToken(key, expiration); err != nil {
+	if err := s.t.BlacklistToken(context.Background(), key, expiration); err != nil {
 		assert.FailNow(s.T(), err.Error())
 	}
 
@@ -219,7 +220,7 @@ func (s *TokenCacheTestSuite) TestBlacklistTokenKeyExists() {
 	key := strconv.Itoa(rand.Int())
 
 	// Place key in blacklist
-	if err := s.t.BlacklistToken(key, expiration); err != nil {
+	if err := s.t.BlacklistToken(context.Background(), key, expiration); err != nil {
 		assert.FailNow(s.T(), err.Error())
 	}
 	// Verify key exists in cache
@@ -238,7 +239,7 @@ func (s *TokenCacheTestSuite) TestBlacklistTokenKeyExists() {
 	time.Sleep(2 * time.Second)
 
 	// Place key in cache a second time; the expiration will be different
-	if err := s.t.BlacklistToken(key, expiration); err != nil {
+	if err := s.t.BlacklistToken(context.Background(), key, expiration); err != nil {
 		assert.FailNow(s.T(), err.Error())
 	}
 

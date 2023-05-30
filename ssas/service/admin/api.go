@@ -14,24 +14,26 @@ import (
 )
 
 /*
-	swagger:route POST /group group createGroup
+swagger:route POST /group group createGroup
 
-	Create group
+# Create group
 
-	Creates a security group (which roughly corresponds to an entity such as an ACO).  Systems (which have credentials)
-	can be associated with this group in order to specify their scopes (rights).
+Creates a security group (which roughly corresponds to an entity such as an ACO).  Systems (which have credentials)
+can be associated with this group in order to specify their scopes (rights).
 
-	Produces:
-	- application/json
+Produces:
+- application/json
 
-	Security:
-		basic_auth:
+Security:
 
-	Responses:
-		201: groupResponse
-		400: badRequestResponse
-		401: invalidCredentials
-		500: serverError
+	basic_auth:
+
+Responses:
+
+	201: groupResponse
+	400: badRequestResponse
+	401: invalidCredentials
+	500: serverError
 */
 func createGroup(w http.ResponseWriter, r *http.Request) {
 	trackingID := ssas.RandomHexID()
@@ -75,22 +77,24 @@ func createGroup(w http.ResponseWriter, r *http.Request) {
 }
 
 /*
-	swagger:route GET /group group listGroups
+swagger:route GET /group group listGroups
 
-	List groups
+# List groups
 
-	Returns the complete list of registered security groups and their systems.
+Returns the complete list of registered security groups and their systems.
 
-	Produces:
-	- application/json
+Produces:
+- application/json
 
-	Security:
-		basic_auth:
+Security:
 
-	Responses:
-		200: groupsResponse
-		401: invalidCredentials
-		500: serverError
+	basic_auth:
+
+Responses:
+
+	200: groupsResponse
+	401: invalidCredentials
+	500: serverError
 */
 func listGroups(w http.ResponseWriter, r *http.Request) {
 	trackingID := ssas.RandomHexID()
@@ -120,23 +124,25 @@ func listGroups(w http.ResponseWriter, r *http.Request) {
 }
 
 /*
-	swagger:route PUT /group/{group_id} group updateGroup
+swagger:route PUT /group/{group_id} group updateGroup
 
-	Update group
+# Update group
 
-	Updates the attributes of an existing group.
+Updates the attributes of an existing group.
 
-	Produces:
-	- application/json
+Produces:
+- application/json
 
-	Security:
-		basic_auth:
+Security:
 
-	Responses:
-		200: groupResponse
-		400: badRequestResponse
-		401: invalidCredentials
-		500: serverError
+	basic_auth:
+
+Responses:
+
+	200: groupResponse
+	400: badRequestResponse
+	401: invalidCredentials
+	500: serverError
 */
 func updateGroup(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
@@ -273,22 +279,24 @@ func updateSystem(w http.ResponseWriter, r *http.Request) {
 }
 
 /*
-	swagger:route DELETE /group/{group_id} group deleteGroup
+swagger:route DELETE /group/{group_id} group deleteGroup
 
-	Delete group
+# Delete group
 
-	Soft-deletes a group, invalidating any associated systems and their credentials.
+Soft-deletes a group, invalidating any associated systems and their credentials.
 
-	Produces:
-	- application/json
+Produces:
+- application/json
 
-	Security:
-		basic_auth:
+Security:
 
-	Responses:
-		200: okResponse
-		400: badRequestResponse
-		401: invalidCredentials
+	basic_auth:
+
+Responses:
+
+	200: okResponse
+	400: badRequestResponse
+	401: invalidCredentials
 */
 func deleteGroup(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
@@ -305,24 +313,26 @@ func deleteGroup(w http.ResponseWriter, r *http.Request) {
 }
 
 /*
-	swagger:route POST /system system createSystem
+swagger:route POST /system system createSystem
 
-	Create system
+# Create system
 
-	Creates a system, which will have credentials that can be used by an automated software system.  The system will be
-	associated with a security group (which roughly corresponds to an entity such as an ACO).
+Creates a system, which will have credentials that can be used by an automated software system.  The system will be
+associated with a security group (which roughly corresponds to an entity such as an ACO).
 
-	Produces:
-	- application/json
+Produces:
+- application/json
 
-	Security:
-		basic_auth:
+Security:
 
-	Responses:
-		201: systemResponse
-		400: badRequestResponse
-		401: invalidCredentials
-		500: serverError
+	basic_auth:
+
+Responses:
+
+	201: systemResponse
+	400: badRequestResponse
+	401: invalidCredentials
+	500: serverError
 */
 func createSystem(w http.ResponseWriter, r *http.Request) {
 	sys := ssas.SystemInput{}
@@ -381,23 +391,25 @@ func createV2System(w http.ResponseWriter, r *http.Request) {
 }
 
 /*
-	swagger:route PUT /system/{system_id}/credentials system resetCredentials
+swagger:route PUT /system/{system_id}/credentials system resetCredentials
 
-	Reset credentials
+# Reset credentials
 
-	Rotates the credentials for the specified system.
+Rotates the credentials for the specified system.
 
-	Produces:
-	- application/json
+Produces:
+- application/json
 
-	Security:
-		basic_auth:
+Security:
 
-	Responses:
-		201: systemResponse
-		401: invalidCredentials
-		404: notFoundResponse
-		500: serverError
+	basic_auth:
+
+Responses:
+
+	201: systemResponse
+	401: invalidCredentials
+	404: notFoundResponse
+	500: serverError
 */
 func resetCredentials(w http.ResponseWriter, r *http.Request) {
 	systemID := chi.URLParam(r, "systemID")
@@ -431,22 +443,24 @@ func resetCredentials(w http.ResponseWriter, r *http.Request) {
 }
 
 /*
-	swagger:route GET /system/{system_id}/key system getPublicKey
+swagger:route GET /system/{system_id}/key system getPublicKey
 
-	Get Public Key
+# Get Public Key
 
-	Returns the specified system's public key, if present.
+Returns the specified system's public key, if present.
 
-	Produces:
-	- application/json
+Produces:
+- application/json
 
-	Security:
-		basic_auth:
+Security:
 
-	Responses:
-		200: publicKeyResponse
-		401: invalidCredentials
-		404: notFoundResponse
+	basic_auth:
+
+Responses:
+
+	200: publicKeyResponse
+	401: invalidCredentials
+	404: notFoundResponse
 */
 func getPublicKey(w http.ResponseWriter, r *http.Request) {
 	systemID := chi.URLParam(r, "systemID")
@@ -467,23 +481,25 @@ func getPublicKey(w http.ResponseWriter, r *http.Request) {
 }
 
 /*
-	swagger:route DELETE /system/{system_id}/credentials system deleteCredentials
+swagger:route DELETE /system/{system_id}/credentials system deleteCredentials
 
-	Delete credentials
+# Delete credentials
 
-	Revokes the credentials for the specified system.
+Revokes the credentials for the specified system.
 
-	Produces:
-	- application/json
+Produces:
+- application/json
 
-	Security:
-		basic_auth:
+Security:
 
-	Responses:
-		200: okResponse
-		401: invalidCredentials
-		404: notFoundResponse
-		500: serverError
+	basic_auth:
+
+Responses:
+
+	200: okResponse
+	401: invalidCredentials
+	404: notFoundResponse
+	500: serverError
 */
 func deactivateSystemCredentials(w http.ResponseWriter, r *http.Request) {
 	systemID := chi.URLParam(r, "systemID")
@@ -504,22 +520,22 @@ func deactivateSystemCredentials(w http.ResponseWriter, r *http.Request) {
 }
 
 /*
-  	swagger:route DELETE /token/{token_id} token revokeToken
+	  	swagger:route DELETE /token/{token_id} token revokeToken
 
-	Revoke token
+		Revoke token
 
-	Revokes the specified tokenID by placing it on a blacklist.  Will return an HTTP 200 status whether or not the tokenID has been issued.
+		Revokes the specified tokenID by placing it on a blacklist.  Will return an HTTP 200 status whether or not the tokenID has been issued.
 
-	Produces:
-	- application/json
+		Produces:
+		- application/json
 
-	Security:
-		basic_auth:
+		Security:
+			basic_auth:
 
-	Responses:
-		200: okResponse
-		401: invalidCredentials
-		500: serverError
+		Responses:
+			200: okResponse
+			401: invalidCredentials
+			500: serverError
 */
 func revokeToken(w http.ResponseWriter, r *http.Request) {
 	tokenID := chi.URLParam(r, "tokenID")
@@ -527,7 +543,7 @@ func revokeToken(w http.ResponseWriter, r *http.Request) {
 	event := ssas.Event{Op: "TokenBlacklist", TokenID: tokenID}
 	ssas.OperationCalled(event)
 
-	if err := service.TokenBlacklist.BlacklistToken(tokenID, service.TokenCacheLifetime); err != nil {
+	if err := service.TokenBlacklist.BlacklistToken(r.Context(), tokenID, service.TokenCacheLifetime); err != nil {
 		event.Help = err.Error()
 		ssas.OperationFailed(event)
 		service.JSONError(w, http.StatusInternalServerError, "internal server error", "")
@@ -620,23 +636,25 @@ func getSystemIPs(w http.ResponseWriter, r *http.Request) {
 }
 
 /*
-	swagger:route DELETE /system/{system_id}/ip/{ip_id} system deleteSystemIP
+swagger:route DELETE /system/{system_id}/ip/{ip_id} system deleteSystemIP
 
-	Delete IP
+# Delete IP
 
-	Soft-deletes the IP of the associated system. Returns the deleted IP.
+Soft-deletes the IP of the associated system. Returns the deleted IP.
 
-	Produces:
-	- application/json
+Produces:
+- application/json
 
-	Security:
-		basic_auth:
+Security:
 
-	Responses:
-		200: okResponse
-		400: badRequestResponse
-		500: serverErrorResponse
-		404: notFoundResponse
+	basic_auth:
+
+Responses:
+
+	200: okResponse
+	400: badRequestResponse
+	500: serverErrorResponse
+	404: notFoundResponse
 */
 func deleteSystemIP(w http.ResponseWriter, r *http.Request) {
 	systemID := chi.URLParam(r, "systemID")
