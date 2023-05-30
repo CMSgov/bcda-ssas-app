@@ -35,8 +35,8 @@ func StartBlacklist() {
 	TokenBlacklist = NewBlacklist(context.Background(), defaultCacheTimeout, cacheCleanupInterval)
 }
 
-// NewBlacklist allows for easy Blacklist{} creation and manipulation during testing, and, outside a test suite,
-// should not be called
+//	NewBlacklist allows for easy Blacklist{} creation and manipulation during testing, and, outside a test suite,
+//	should not be called
 func NewBlacklist(ctx context.Context, cacheTimeout time.Duration, cleanupInterval time.Duration) *Blacklist {
 	// In case a Blacklist timer has already been started:
 	stopCacheRefreshTicker()
@@ -68,7 +68,7 @@ type Blacklist struct {
 	ID string
 }
 
-// BlacklistToken invalidates the specified tokenID
+//	BlacklistToken invalidates the specified tokenID
 func (t *Blacklist) BlacklistToken(ctx context.Context, tokenID string, blacklistExpiration time.Duration) error {
 	entryDate := time.Now()
 	expirationDate := entryDate.Add(blacklistExpiration)
@@ -83,10 +83,10 @@ func (t *Blacklist) BlacklistToken(ctx context.Context, tokenID string, blacklis
 	return nil
 }
 
-// IsTokenBlacklisted tests whether this tokenID is in the blacklist cache.
-//   - Tokens should expire before blacklist entries, so a tokenID for a recently expired token may return "true."
-//   - This queries the cache only, so if a tokenID has been blacklisted on a different instance, it will return "false"
-//     until the cached blacklist is refreshed from the database.
+//	IsTokenBlacklisted tests whether this tokenID is in the blacklist cache.
+//	- Tokens should expire before blacklist entries, so a tokenID for a recently expired token may return "true."
+//	- This queries the cache only, so if a tokenID has been blacklisted on a different instance, it will return "false"
+//		until the cached blacklist is refreshed from the database.
 func (t *Blacklist) IsTokenBlacklisted(tokenID string) bool {
 	// Ensure that we do not attempt to read when the cache is being rebuilt
 	t.RLock()
@@ -100,7 +100,7 @@ func (t *Blacklist) IsTokenBlacklisted(tokenID string) bool {
 	return false
 }
 
-// LoadFromDatabase refreshes unexpired blacklist entries from the database
+//	LoadFromDatabase refreshes unexpired blacklist entries from the database
 func (t *Blacklist) LoadFromDatabase() error {
 	var (
 		entries []ssas.BlacklistEntry
