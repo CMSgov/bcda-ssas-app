@@ -226,7 +226,7 @@ func (system *System) SaveTokenTime(ctx context.Context) {
 }
 
 /*
-RevokeSecret revokes a system's secret
+	RevokeSecret revokes a system's secret
 */
 func (system *System) RevokeSecret(ctx context.Context, trackingID string) error {
 	revokeCredentialsEvent := Event{Op: "RevokeCredentials", TrackingID: trackingID, ClientID: system.ClientID}
