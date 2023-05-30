@@ -837,7 +837,7 @@ func (s *APITestSuite) TestUpdateSystem() {
 	assert.Equal(s.T(), http.StatusNoContent, rr.Result().StatusCode)
 
 	//Verify patch
-	sys, err := ssas.GetSystemByID(r.Context(), sysId)
+	sys, err := ssas.GetSystemByID(context.Background(), sysId)
 	assert.NoError(s.T(), err)
 	assert.Equal(s.T(), "Updated Client Name", sys.ClientName)
 
@@ -850,7 +850,7 @@ func (s *APITestSuite) TestUpdateSystem() {
 	assert.Equal(s.T(), http.StatusNoContent, rr.Result().StatusCode)
 
 	//Verify API Scope patch
-	sys, err = ssas.GetSystemByID(r.Context(), sysId)
+	sys, err = ssas.GetSystemByID(context.Background(), sysId)
 	assert.NoError(s.T(), err)
 	assert.Equal(s.T(), "updated_scope", sys.APIScope)
 
@@ -863,7 +863,7 @@ func (s *APITestSuite) TestUpdateSystem() {
 	assert.Equal(s.T(), http.StatusNoContent, rr.Result().StatusCode)
 
 	//Verify Software Id patch
-	sys, err = ssas.GetSystemByID(r.Context(), sysId)
+	sys, err = ssas.GetSystemByID(context.Background(), sysId)
 	assert.NoError(s.T(), err)
 	assert.Equal(s.T(), "42", sys.SoftwareID)
 
@@ -1000,7 +1000,7 @@ func (s *APITestSuite) TestCreateV2SystemMultipleIps() {
 	assert.NotEqual(s.T(), "", creds.ClientID)
 	assert.Equal(s.T(), "Test Client", creds.ClientName)
 
-	system, err := ssas.GetSystemByClientID(creds.ClientID)
+	system, err := ssas.GetSystemByClientID(req.Context(), creds.ClientID)
 	assert.Nil(s.T(), err)
 	ips, err := system.GetIPs()
 	assert.Nil(s.T(), err)

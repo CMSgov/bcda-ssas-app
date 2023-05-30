@@ -29,7 +29,7 @@ type TokenCacheTestSuite struct {
 
 func (s *TokenCacheTestSuite) SetupSuite() {
 	s.db = ssas.Connection
-	s.t = NewBlacklist(defaultCacheTimeout, cacheCleanupInterval)
+	s.t = NewBlacklist(context.Background(), defaultCacheTimeout, cacheCleanupInterval)
 }
 
 func (s *TokenCacheTestSuite) TearDownTest() {
@@ -173,7 +173,7 @@ func (s *TokenCacheTestSuite) TestBlacklistToken() {
 	_, found := s.t.c.Get(key)
 	assert.True(s.T(), found)
 
-	entries, err := ssas.GetUnexpiredBlacklistEntries()
+	entries, err := ssas.GetUnexpiredBlacklistEntries(context.Background())
 	assert.Nil(s.T(), err)
 	assert.Len(s.T(), entries, 1)
 	assert.Equal(s.T(), key, entries[0].Key)
@@ -228,7 +228,7 @@ func (s *TokenCacheTestSuite) TestBlacklistTokenKeyExists() {
 	assert.True(s.T(), found)
 
 	// Verify key exists in database
-	entries1, err := ssas.GetUnexpiredBlacklistEntries()
+	entries1, err := ssas.GetUnexpiredBlacklistEntries(context.Background())
 	assert.Nil(s.T(), err)
 	assert.Len(s.T(), entries1, 1)
 	assert.Equal(s.T(), key, entries1[0].Key)
@@ -249,7 +249,7 @@ func (s *TokenCacheTestSuite) TestBlacklistTokenKeyExists() {
 	assert.NotEqual(s.T(), obj1, obj2)
 
 	// Verify both keys are in the database, and that they are in time order
-	entries2, err := ssas.GetUnexpiredBlacklistEntries()
+	entries2, err := ssas.GetUnexpiredBlacklistEntries(context.Background())
 	assert.Nil(s.T(), err)
 	// 2 entries were added in this test; 1 was added in middleware_test
 	// depending on which order the tests are completed, sometimes there are 2 entries and sometimes there are 3
