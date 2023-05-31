@@ -2,7 +2,6 @@ package public
 
 import (
 	"fmt"
-	"net/http"
 	"os"
 	"time"
 
@@ -29,12 +28,6 @@ func init() {
 	ssas.Logger.Info("aud value required in client assertion tokens:", clientAssertAud)
 }
 
-func TimeoutHandler(timeout time.Duration) func(next http.Handler) http.Handler {
-	return func(next http.Handler) http.Handler {
-		return http.TimeoutHandler(next, timeout, "Timeout.")
-	}
-}
-
 func Server() *service.Server {
 	unsafeMode := os.Getenv("HTTP_ONLY") == "true"
 	useMTLS := os.Getenv("PUBLIC_USE_MTLS") == "true"
@@ -57,9 +50,9 @@ func Server() *service.Server {
 
 func routes() *chi.Mux {
 	router := chi.NewRouter()
-	timeout := 5 * time.Second
+
 	//v1 Routes
-	router.Use(TimeoutHandler(timeout), gcmw.RequestID, service.NewAPILogger(), service.ConnectionClose)
+	router.Use(gcmw.RequestID, service.NewAPILogger(), service.ConnectionClose)
 	router.Post("/token", token)
 	router.Post("/introspect", introspect)
 	router.Post("/authn", VerifyPassword)

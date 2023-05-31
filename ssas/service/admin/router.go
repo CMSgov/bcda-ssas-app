@@ -48,17 +48,10 @@ func Server() *service.Server {
 	return server
 }
 
-func TimeoutHandler(timeout time.Duration) func(next http.Handler) http.Handler {
-	return func(next http.Handler) http.Handler {
-		return http.TimeoutHandler(next, timeout, "Timeout.")
-	}
-}
-
 func routes() *chi.Mux {
 	r := chi.NewRouter()
-	timeout := 5 * time.Second
 
-	r.Use(TimeoutHandler(timeout), gcmw.RequestID, service.NewAPILogger(), service.ConnectionClose)
+	r.Use(gcmw.RequestID, service.NewAPILogger(), service.ConnectionClose)
 	r.With(requireBasicAuth).Post("/group", createGroup)
 	r.With(requireBasicAuth).Get("/group", listGroups)
 	r.With(requireBasicAuth).Put("/group/{id}", updateGroup)
