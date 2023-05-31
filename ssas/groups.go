@@ -187,28 +187,20 @@ func cascadeDeleteGroup(ctx context.Context, group Group) error {
 		systemIds     []int
 	)
 
-	// TODO: Run in transaction
-	err := Connection.WithContext(ctx).Table("systems").Where("group_id = ?", group.GroupID).Pluck("id", &systemIds).Error
-	if err != nil {
-		return fmt.Errorf("unable to find associated systems: %s", err.Error())
-	}
+	tx := Connection.WithContext(ctx).Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
 
-	err = Connection.WithContext(ctx).Where("system_id IN (?)", systemIds).Delete(&encryptionKey).Error
-	if err != nil {
-		return fmt.Errorf("unable to delete encryption keys: %s", err.Error())
-	}
+	tx.Table("systems").Where("group_id = ?", group.GroupID).Pluck("id", &systemIds)
+	tx.Where("system_id IN (?)", systemIds).Delete(&encryptionKey)
+	tx.Where("system_id IN (?)", systemIds).Delete(&secret)
+	tx.Where("id IN (?)", systemIds).Delete(&system)
+	tx.Delete(&group)
 
-	err = Connection.WithContext(ctx).Where("system_id IN (?)", systemIds).Delete(&secret).Error
-	if err != nil {
-		return fmt.Errorf("unable to delete secrets: %s", err.Error())
-	}
-
-	err = Connection.WithContext(ctx).Where("id IN (?)", systemIds).Delete(&system).Error
-	if err != nil {
-		return fmt.Errorf("unable to delete systems: %s", err.Error())
-	}
-
-	err = Connection.WithContext(ctx).Delete(&group).Error
+	err := tx.Commit().Error
 	if err != nil {
 		return fmt.Errorf("unable to delete group: %s", err.Error())
 	}
