@@ -1,6 +1,7 @@
 package ssas
 
 import (
+	"database/sql"
 	"os"
 	"time"
 
