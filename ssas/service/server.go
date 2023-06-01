@@ -4,7 +4,6 @@ import (
 	"crypto/rsa"
 	"crypto/tls"
 	"crypto/x509"
-	"database/sql"
 	"encoding/base64"
 	b64 "encoding/base64"
 	"errors"
@@ -273,18 +272,12 @@ func (s *Server) getHealthCheck(w http.ResponseWriter, r *http.Request) {
 // could less than 3 servers be running?
 // since this ping will be run against all servers, isn't this excessive?
 func doHealthCheck() bool {
-	db, err := sql.Open("postgres", os.Getenv("DATABASE_URL"))
+	db, err := ssas.Connection.DB()
 	if err != nil {
 		// TODO health check failed event
 		ssas.Logger.Error("health check: database connection error: ", err.Error())
 		return false
 	}
-
-	defer func() {
-		if err = db.Close(); err != nil {
-			ssas.Logger.Infof("failed to close db connection in ssas/service/server.go#doHealthCheck() because %s", err)
-		}
-	}()
 
 	if err = db.Ping(); err != nil {
 		ssas.Logger.Error("health check: database ping error: ", err.Error())
@@ -447,8 +440,7 @@ func (s *Server) VerifyClientSignedToken(tokenString string, trackingId string) 
 
 // GetSystemIDFromMacaroon returns the system id from macaroon and verify macaroon
 func (s *Server) GetSystemIDFromMacaroon(issuer string) (string, error) {
-	db := ssas.GetGORMDbConnection()
-	defer ssas.Close(db)
+	db := ssas.Connection
 
 	var um macaroon.Macaroon
 	b, _ := base64.StdEncoding.DecodeString(issuer)
@@ -465,7 +457,7 @@ func (s *Server) GetSystemIDFromMacaroon(issuer string) (string, error) {
 	}
 
 	var rootKey ssas.RootKey
-	db.First(&rootKey, "uuid = ?", um.Id(), "system_id = ? AND deleted_at IS NULL", systemId)
+	db.First(&rootKey, "uuid = ? AND system_id = ? AND deleted_at IS NULL", um.Id(), systemId)
 
 	if rootKey.IsExpired() {
 		return "", fmt.Errorf("macaroon expired or deleted")

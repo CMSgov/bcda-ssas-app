@@ -23,7 +23,7 @@ type MainTestSuite struct {
 }
 
 func (s *MainTestSuite) SetupSuite() {
-	s.db = ssas.GetGORMDbConnection()
+	s.db = ssas.Connection
 }
 
 func (s *MainTestSuite) TestResetSecret() {
@@ -109,7 +109,7 @@ func (s *MainTestSuite) TestFixtureData() {
 		EKID       uint   `json:"ekid"`
 		ScrtID     uint   `json:"scrtid"`
 	}
-	rows, err := ssas.GetGORMDbConnection().Raw(q).Rows()
+	rows, err := ssas.Connection.Raw(q).Rows()
 	require.Nil(s.T(), err, "error checking fixture data")
 	defer rows.Close()
 
@@ -132,8 +132,7 @@ func (s *MainTestSuite) TestFixtureData() {
 }
 
 func (s *MainTestSuite) TestListIPs() {
-	db := ssas.GetGORMDbConnection()
-	defer ssas.Close(db)
+	db := ssas.Connection
 	fixtureClientID := "0c527d2e-2e8a-4808-b11d-0fa06baf8254"
 	system, err := ssas.GetSystemByClientID(fixtureClientID)
 	assert.Nil(s.T(), err)
@@ -156,8 +155,7 @@ func (s *MainTestSuite) TestListIPs() {
 
 func (s *MainTestSuite) TestListExpiringCredentials() {
 	var secret ssas.Secret
-	db := ssas.GetGORMDbConnection()
-	defer ssas.Close(db)
+	db := ssas.Connection
 
 	assert.Nil(s.T(), os.Setenv("SSAS_CRED_EXPIRATION_DAYS", "90"))
 	assert.Nil(s.T(), os.Setenv("SSAS_CRED_TIMEOUT_DAYS", "60"))

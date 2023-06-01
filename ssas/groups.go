@@ -73,9 +73,7 @@ func CreateGroup(gd GroupData, trackingID string) (Group, error) {
 		Data:    gd,
 	}
 
-	db := GetGORMDbConnection()
-	defer Close(db)
-	err := db.Save(&g).Error
+	err := Connection.Save(&g).Error
 	if err != nil {
 		event.Help = err.Error()
 		OperationFailed(event)
@@ -91,9 +89,7 @@ func ListGroups(trackingID string) (list GroupList, err error) {
 	OperationStarted(event)
 
 	groups := []GroupSummary{}
-	db := GetGORMDbConnection()
-	defer Close(db)
-	err = db.Table("groups").Where("deleted_at IS NULL").Preload("Systems").Find(&groups).Error
+	err = Connection.Table("groups").Where("deleted_at IS NULL").Preload("Systems").Find(&groups).Error
 	if err != nil {
 		event.Help = err.Error()
 		OperationFailed(event)
@@ -112,9 +108,6 @@ func UpdateGroup(id string, gd GroupData) (Group, error) {
 	event := Event{Op: "UpdateGroup", TrackingID: id}
 	OperationStarted(event)
 
-	db := GetGORMDbConnection()
-	defer Close(db)
-
 	g, err := GetGroupByID(id)
 	if err != nil {
 		errString := fmt.Sprintf("record not found for id=%s", id)
@@ -128,7 +121,7 @@ func UpdateGroup(id string, gd GroupData) (Group, error) {
 	gd.Name = g.Data.Name
 
 	g.Data = gd
-	err = db.Save(&g).Error
+	err = Connection.Save(&g).Error
 	if err != nil {
 		event.Help = err.Error()
 		OperationFailed(event)
@@ -143,8 +136,6 @@ func DeleteGroup(id string) error {
 	event := Event{Op: "DeleteGroup", TrackingID: id}
 	OperationStarted(event)
 
-	db := GetGORMDbConnection()
-	defer Close(db)
 	g, err := GetGroupByID(id)
 	if err != nil {
 		event.Help = err.Error()
@@ -166,15 +157,12 @@ func DeleteGroup(id string) error {
 // GetAuthorizedGroupsForOktaID returns a slice of GroupID's representing all groups this Okta user has rights to manage
 // TODO: this is the slowest and most memory intensive way possible to implement this.  Refactor!
 func GetAuthorizedGroupsForOktaID(oktaID string) ([]string, error) {
-	db := GetGORMDbConnection()
-	defer Close(db)
-
 	var (
 		result []string
 	)
 
 	groups := []Group{}
-	err := db.Select("*").Find(&groups).Error
+	err := Connection.Select("*").Find(&groups).Error
 	if err != nil {
 		return result, err
 	}
@@ -196,31 +184,29 @@ func cascadeDeleteGroup(group Group) error {
 		encryptionKey EncryptionKey
 		secret        Secret
 		systemIds     []int
-		db            = GetGORMDbConnection()
 	)
-	defer Close(db)
 
-	err := db.Table("systems").Where("group_id = ?", group.GroupID).Pluck("id", &systemIds).Error
+	err := Connection.Table("systems").Where("group_id = ?", group.GroupID).Pluck("id", &systemIds).Error
 	if err != nil {
 		return fmt.Errorf("unable to find associated systems: %s", err.Error())
 	}
 
-	err = db.Where("system_id IN (?)", systemIds).Delete(&encryptionKey).Error
+	err = Connection.Where("system_id IN (?)", systemIds).Delete(&encryptionKey).Error
 	if err != nil {
 		return fmt.Errorf("unable to delete encryption keys: %s", err.Error())
 	}
 
-	err = db.Where("system_id IN (?)", systemIds).Delete(&secret).Error
+	err = Connection.Where("system_id IN (?)", systemIds).Delete(&secret).Error
 	if err != nil {
 		return fmt.Errorf("unable to delete secrets: %s", err.Error())
 	}
 
-	err = db.Where("id IN (?)", systemIds).Delete(&system).Error
+	err = Connection.Where("id IN (?)", systemIds).Delete(&system).Error
 	if err != nil {
 		return fmt.Errorf("unable to delete systems: %s", err.Error())
 	}
 
-	err = db.Delete(&group).Error
+	err = Connection.Delete(&group).Error
 	if err != nil {
 		return fmt.Errorf("unable to delete group: %s", err.Error())
 	}
@@ -273,13 +259,11 @@ type Resource struct {
 
 func GetGroupByGroupID(groupID string) (Group, error) {
 	var (
-		db    = GetGORMDbConnection()
 		group Group
 		err   error
 	)
-	defer Close(db)
 
-	if err = db.First(&group, "group_id = ?", groupID).Error; err != nil && errors.Is(err, gorm.ErrRecordNotFound) {
+	if err = Connection.First(&group, "group_id = ?", groupID).Error; err != nil && errors.Is(err, gorm.ErrRecordNotFound) {
 		err = fmt.Errorf("no Group record found for groupID %s", groupID)
 	}
 
@@ -289,18 +273,16 @@ func GetGroupByGroupID(groupID string) (Group, error) {
 // GetGroupByID returns the group associated with the provided ID
 func GetGroupByID(id string) (Group, error) {
 	var (
-		db    = GetGORMDbConnection()
 		group Group
 		err   error
 	)
-	defer Close(db)
 
 	id1, err := strconv.ParseUint(id, 10, 64)
 	if err != nil {
 		return Group{}, fmt.Errorf("invalid input %s; %s", id, err)
 	}
 
-	if err = db.First(&group, id1).Error; err != nil {
+	if err = Connection.First(&group, id1).Error; err != nil {
 		err = fmt.Errorf("no Group record found with ID %s", id)
 	}
 	return group, err

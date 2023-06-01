@@ -190,8 +190,7 @@ func newForwardingRouter() http.Handler {
 }
 
 func addFixtureData() {
-	db := ssas.GetGORMDbConnection()
-	defer ssas.Close(db)
+	db := ssas.Connection
 
 	if err := db.Save(&ssas.Group{GroupID: "admin"}).Error; err != nil {
 		fmt.Println(err)
@@ -288,8 +287,7 @@ func newAdminSystem(name string) {
 		return
 	}
 
-	db := ssas.GetGORMDbConnection()
-	defer ssas.Close(db)
+	db := ssas.Connection
 
 	if err = db.Model(&ssas.System{}).Where("id = ?", uint(u)).Update("api_scope", "bcda-admin").Error; err != nil {
 		ssas.Logger.Warnf("bcda-admin scope not set for new system %s", c.SystemID)
@@ -309,8 +307,7 @@ func listIPs() {
 }
 
 func listExpiringCredentials() {
-	db := ssas.GetGORMDbConnection()
-	defer ssas.Close(db)
+	db := ssas.Connection
 
 	type result struct {
 		ClientID    string     `json:"client_id"`

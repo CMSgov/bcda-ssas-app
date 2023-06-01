@@ -11,9 +11,9 @@ import (
 	"strings"
 	"testing"
 
-	"gorm.io/gorm"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
+	"gorm.io/gorm"
 
 	"github.com/CMSgov/bcda-ssas-app/ssas"
 )
@@ -30,7 +30,7 @@ type PublicRouterTestSuite struct {
 func (s *PublicRouterTestSuite) SetupSuite() {
 	os.Setenv("DEBUG", "true")
 	s.publicRouter = routes()
-	s.db = ssas.GetGORMDbConnection()
+	s.db = ssas.Connection
 	s.rr = httptest.NewRecorder()
 	groupBytes := []byte(`{"group_id":"T1234","users":["fake_okta_id","abcdefg"]}`)
 	gd := ssas.GroupData{}
@@ -49,7 +49,6 @@ func (s *PublicRouterTestSuite) SetupSuite() {
 func (s *PublicRouterTestSuite) TearDownSuite() {
 	err := ssas.CleanDatabase(s.group)
 	assert.Nil(s.T(), err)
-	ssas.Close(s.db)
 }
 
 func (s *PublicRouterTestSuite) reqPublicRoute(verb string, route string, body io.Reader, token string) *http.Response {
