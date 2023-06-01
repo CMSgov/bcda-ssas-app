@@ -5,9 +5,7 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/sha256"
-	"crypto/x509"
 	"encoding/base64"
-	"encoding/pem"
 	"errors"
 	"fmt"
 	"io"
@@ -393,69 +391,6 @@ func (system *System) AddAdditionalPublicKey(publicKey io.Reader, signature stri
 	return system.SavePublicKeyDB(publicKey, signature, false, Connection)
 }
 
-/*
-	RevokeSystemKeyPair soft deletes the active encryption key
-	for the specified system so that it can no longer be used
-*/
-func (system *System) RevokeSystemKeyPair() error {
-	var encryptionKey EncryptionKey
-
-	err := Connection.Where("system_id = ?", system.ID).Find(&encryptionKey).Error
-	if err != nil {
-		return err
-	}
-
-	err = Connection.Delete(&encryptionKey).Error
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-/*
-	GenerateSystemKeyPair creates a keypair for a system. The public key is saved to the database and the private key is returned.
-*/
-func (system *System) GenerateSystemKeyPair() (string, error) {
-	if err := Connection.First(&EncryptionKey{}, "system_id = ?", system.ID).Error; !errors.Is(err, gorm.ErrRecordNotFound) {
-		return "", fmt.Errorf("encryption keypair already exists for system ID %d", system.ID)
-	}
-
-	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
-	if err != nil {
-		return "", fmt.Errorf("could not create key for system ID %d: %s", system.ID, err.Error())
-	}
-
-	publicKeyPKIX, err := x509.MarshalPKIXPublicKey(&privateKey.PublicKey)
-	if err != nil {
-		return "", fmt.Errorf("could not marshal public key for system ID %d: %s", system.ID, err.Error())
-	}
-
-	publicKeyBytes := pem.EncodeToMemory(&pem.Block{
-		Type:  "RSA PUBLIC KEY",
-		Bytes: publicKeyPKIX,
-	})
-
-	encryptionKey := EncryptionKey{
-		Body:     string(publicKeyBytes),
-		SystemID: system.ID,
-	}
-
-	err = Connection.Create(&encryptionKey).Error
-	if err != nil {
-		return "", fmt.Errorf("could not save key for system ID %d: %s", system.ID, err.Error())
-	}
-
-	privateKeyBytes := pem.EncodeToMemory(
-		&pem.Block{
-			Type:  "RSA PRIVATE KEY",
-			Bytes: x509.MarshalPKCS1PrivateKey(privateKey),
-		},
-	)
-
-	return string(privateKeyBytes), nil
-}
-
 type Credentials struct {
 	ClientID     string    `json:"client_id,omitempty"`
 	ClientSecret string    `json:"client_secret,omitempty"`
@@ -789,19 +724,6 @@ func XDataFor(system System) (string, error) {
 		return "", fmt.Errorf("no group for system %d; %s", system.ID, err)
 	}
 	return group.XData, nil
-}
-
-//	GetSystemsByGroupID returns the systems associated with the provided groups.id
-func GetSystemsByGroupID(groupId uint) ([]System, error) {
-	var (
-		systems []System
-		err     error
-	)
-
-	if err = Connection.Where("g_id = ?", groupId).Find(&systems).Error; err != nil {
-		err = fmt.Errorf("no Systems found with g_id %d", groupId)
-	}
-	return systems, err
 }
 
 //	GetSystemsByGroupIDString returns the systems associated with the provided groups.group_id
