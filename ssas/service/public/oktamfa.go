@@ -1,6 +1,7 @@
 package public
 
 import (
+	"context"
 	"crypto/rand"
 	"encoding/json"
 	"errors"
@@ -141,7 +142,7 @@ func (o *OktaMFAPlugin) VerifyPassword(userIdentifier string, password string, t
 
 //	VerifyFactorChallenge tests an MFA passcode for validity.  This function should be used for all factor types
 //	except Push.
-func (o *OktaMFAPlugin) VerifyFactorChallenge(userIdentifier string, factorType string, passcode string, trackingId string) (success bool, oktaID string, groupIDs []string) {
+func (o *OktaMFAPlugin) VerifyFactorChallenge(ctx context.Context, userIdentifier string, factorType string, passcode string, trackingId string) (success bool, oktaID string, groupIDs []string) {
 	startTime := time.Now()
 	success = false
 	requestEvent := ssas.Event{Op: "VerifyOktaFactorChallenge", TrackingID: trackingId}
@@ -188,7 +189,7 @@ func (o *OktaMFAPlugin) VerifyFactorChallenge(userIdentifier string, factorType 
 		return
 	}
 
-	groupIDs, err = ssas.GetAuthorizedGroupsForOktaID(oktaID)
+	groupIDs, err = ssas.GetAuthorizedGroupsForOktaID(ctx, oktaID)
 	if err != nil {
 		requestEvent.Help = "failure getting authorized groups: " + err.Error()
 		ssas.OperationFailed(requestEvent)

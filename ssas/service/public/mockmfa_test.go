@@ -1,6 +1,7 @@
 package public
 
 import (
+	"context"
 	"testing"
 
 	"github.com/pborman/uuid"
@@ -139,7 +140,7 @@ func (s *MockMFATestSuite) TestVerifyFactorChallengeSuccess() {
 	factorType := "SMS"
 	passcode := "mock doesn't care what this is"
 
-	success, oktaID, groupIDs := s.o.VerifyFactorChallenge(userId, factorType, passcode, trackingId)
+	success, oktaID, groupIDs := s.o.VerifyFactorChallenge(context.Background(), userId, factorType, passcode, trackingId)
 	assert.True(s.T(), success)
 	assert.NotEqual(s.T(), "", oktaID)
 	assert.False(s.T(), empty(groupIDs))
@@ -151,7 +152,7 @@ func (s *MockMFATestSuite) TestVerifyFactorChallengeFailure() {
 	factorType := "SMS"
 	passcode := "mock doesn't care what this is"
 
-	success, _, _ := s.o.VerifyFactorChallenge(userId, factorType, passcode, trackingId)
+	success, _, _ := s.o.VerifyFactorChallenge(context.Background(), userId, factorType, passcode, trackingId)
 	assert.False(s.T(), success)
 }
 
@@ -161,7 +162,7 @@ func (s *MockMFATestSuite) TestVerifyFactorChallengeError() {
 	factorType := "SMS"
 	passcode := "mock doesn't care what this is"
 
-	success, oktaID, groupIDs := s.o.VerifyFactorChallenge(userId, factorType, passcode, trackingId)
+	success, oktaID, groupIDs := s.o.VerifyFactorChallenge(context.Background(), userId, factorType, passcode, trackingId)
 	assert.False(s.T(), success)
 	assert.Equal(s.T(), "", oktaID)
 	assert.True(s.T(), empty(groupIDs))
@@ -173,7 +174,7 @@ func (s *MockMFATestSuite) TestVerifyFactorChallengeRandomUserID() {
 	factorType := "SMS"
 	passcode := "mock doesn't care what this is"
 
-	success, oktaID, groupIDs := s.o.VerifyFactorChallenge(userId, factorType, passcode, trackingId)
+	success, oktaID, groupIDs := s.o.VerifyFactorChallenge(context.Background(), userId, factorType, passcode, trackingId)
 	assert.True(s.T(), success)
 	assert.NotEqual(s.T(), "", oktaID)
 	assert.False(s.T(), empty(groupIDs))
@@ -185,7 +186,7 @@ func (s *MockMFATestSuite) TestVerifyFactorChallengeBadFactor() {
 	factorType := "Unknown factor type"
 	passcode := "mock doesn't care what this is"
 
-	success, _, _ := s.o.VerifyFactorChallenge(userId, factorType, passcode, trackingId)
+	success, _, _ := s.o.VerifyFactorChallenge(context.Background(), userId, factorType, passcode, trackingId)
 	assert.False(s.T(), success)
 }
 

@@ -2,19 +2,21 @@ package public
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/CMSgov/bcda-ssas-app/ssas/okta"
-	"github.com/pborman/uuid"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-	"github.com/stretchr/testify/suite"
 	"io/ioutil"
 	"net/http"
 	"regexp"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/CMSgov/bcda-ssas-app/ssas/okta"
+	"github.com/pborman/uuid"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/suite"
 )
 
 type OTestSuite struct {
@@ -497,7 +499,7 @@ func (s *OTestSuite) TestFormatFactorReturnSucceededPushRequest() {
 func (s *OTestSuite) TestVerifyFactorChallengeInvalidFactor() {
 	trackingId := uuid.NewRandom().String()
 	o := NewOktaMFA(nil)
-	success, oktaID, groupIDs := o.VerifyFactorChallenge("bcda_user@cms.gov", "badFactor", "badPasscode", trackingId)
+	success, oktaID, groupIDs := o.VerifyFactorChallenge(context.Background(), "bcda_user@cms.gov", "badFactor", "badPasscode", trackingId)
 	assert.False(s.T(), success)
 	assert.Equal(s.T(), "", oktaID)
 	assert.Len(s.T(), groupIDs, 0)
@@ -510,7 +512,7 @@ func (s *OTestSuite) TestVerifyFactorChallengeUserNotFound() {
 	}
 	client := okta.NewTestClient(testHttpResponses(responses))
 	o := NewOktaMFA(client)
-	success, oktaID, groupIDs := o.VerifyFactorChallenge("bcda_user@cms.gov", "sms", "badPasscode", trackingId)
+	success, oktaID, groupIDs := o.VerifyFactorChallenge(context.Background(), "bcda_user@cms.gov", "sms", "badPasscode", trackingId)
 	assert.False(s.T(), success)
 	assert.Equal(s.T(), "", oktaID)
 	assert.Len(s.T(), groupIDs, 0)
@@ -524,7 +526,7 @@ func (s *OTestSuite) TestVerifyFactorChallengeFactorNotFound() {
 	}
 	client := okta.NewTestClient(testHttpResponses(responses))
 	o := NewOktaMFA(client)
-	success, oktaID, groupIDs := o.VerifyFactorChallenge("bcda_user@cms.gov", "sms", "badPasscode", trackingId)
+	success, oktaID, groupIDs := o.VerifyFactorChallenge(context.Background(), "bcda_user@cms.gov", "sms", "badPasscode", trackingId)
 	assert.False(s.T(), success)
 	assert.Equal(s.T(), "abc123", oktaID)
 	assert.Len(s.T(), groupIDs, 0)
@@ -539,7 +541,7 @@ func (s *OTestSuite) TestVerifyFactorChallengePasscodeError() {
 	}
 	client := okta.NewTestClient(testHttpResponses(responses))
 	o := NewOktaMFA(client)
-	success, oktaID, groupIDs := o.VerifyFactorChallenge("bcda_user@cms.gov", "call", "badPasscode", trackingId)
+	success, oktaID, groupIDs := o.VerifyFactorChallenge(context.Background(), "bcda_user@cms.gov", "call", "badPasscode", trackingId)
 	assert.False(s.T(), success)
 	assert.Equal(s.T(), "abc123", oktaID)
 	assert.Len(s.T(), groupIDs, 0)
@@ -554,7 +556,7 @@ func (s *OTestSuite) TestVerifyFactorChallengeInvalidPasscode() {
 	}
 	client := okta.NewTestClient(testHttpResponses(responses))
 	o := NewOktaMFA(client)
-	success, oktaID, groupIDs := o.VerifyFactorChallenge("bcda_user@cms.gov", "call", "badPasscode", trackingId)
+	success, oktaID, groupIDs := o.VerifyFactorChallenge(context.Background(), "bcda_user@cms.gov", "call", "badPasscode", trackingId)
 	assert.False(s.T(), success)
 	assert.Equal(s.T(), "abc123", oktaID)
 	assert.Len(s.T(), groupIDs, 0)
@@ -569,7 +571,7 @@ func (s *OTestSuite) TestVerifyFactorChallengeSuccess() {
 	}
 	client := okta.NewTestClient(testHttpResponses(responses))
 	o := NewOktaMFA(client)
-	success, oktaID, groupIDs := o.VerifyFactorChallenge("bcda_user@cms.gov", "call", "badPasscode", trackingId)
+	success, oktaID, groupIDs := o.VerifyFactorChallenge(context.Background(), "bcda_user@cms.gov", "call", "badPasscode", trackingId)
 	assert.True(s.T(), success)
 	assert.Equal(s.T(), "abc123", oktaID)
 	assert.Len(s.T(), groupIDs, 0)

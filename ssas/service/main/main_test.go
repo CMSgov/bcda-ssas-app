@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/base64"
 	"errors"
 	"io"
@@ -134,7 +135,7 @@ func (s *MainTestSuite) TestFixtureData() {
 func (s *MainTestSuite) TestListIPs() {
 	db := ssas.Connection
 	fixtureClientID := "0c527d2e-2e8a-4808-b11d-0fa06baf8254"
-	system, err := ssas.GetSystemByClientID(fixtureClientID)
+	system, err := ssas.GetSystemByClientID(context.Background(), fixtureClientID)
 	assert.Nil(s.T(), err)
 	testIP := ssas.RandomIPv4()
 	ip := ssas.IP{
@@ -162,7 +163,7 @@ func (s *MainTestSuite) TestListExpiringCredentials() {
 	assert.Nil(s.T(), os.Setenv("SSAS_CRED_WARNING_DAYS", "7"))
 
 	fixtureClientID := "0c527d2e-2e8a-4808-b11d-0fa06baf8254"
-	system, err := ssas.GetSystemByClientID(fixtureClientID)
+	system, err := ssas.GetSystemByClientID(context.Background(), fixtureClientID)
 	assert.Nil(s.T(), err)
 	assert.False(s.T(), errors.Is(db.First(&secret, "system_id = ?", system.ID).Error, gorm.ErrRecordNotFound))
 	origCreatedAt := secret.CreatedAt

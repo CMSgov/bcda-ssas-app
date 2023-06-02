@@ -174,7 +174,7 @@ func (s *PublicMiddlewareTestSuite) TestRequireRegTokenAuthRevoked() {
 	assert.Nil(s.T(), err)
 
 	claims := token.Claims.(*service.CommonClaims)
-	err = service.TokenBlacklist.BlacklistToken(claims.Id, service.TokenCacheLifetime)
+	err = service.TokenBlacklist.BlacklistToken(req.Context(), claims.Id, service.TokenCacheLifetime)
 	assert.Nil(s.T(), err)
 	assert.True(s.T(), service.TokenBlacklist.IsTokenBlacklisted(claims.Id))
 

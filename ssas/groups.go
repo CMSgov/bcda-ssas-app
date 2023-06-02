@@ -1,6 +1,7 @@
 package ssas
 
 import (
+	"context"
 	"database/sql/driver"
 	"encoding/json"
 	"errors"
@@ -50,7 +51,7 @@ type GroupList struct {
 	Groups     []GroupSummary `json:"groups"`
 }
 
-func CreateGroup(gd GroupData, trackingID string) (Group, error) {
+func CreateGroup(ctx context.Context, gd GroupData, trackingID string) (Group, error) {
 	event := Event{Op: "CreateGroup", TrackingID: trackingID}
 	OperationStarted(event)
 
@@ -73,7 +74,7 @@ func CreateGroup(gd GroupData, trackingID string) (Group, error) {
 		Data:    gd,
 	}
 
-	err := Connection.Save(&g).Error
+	err := Connection.WithContext(ctx).Save(&g).Error
 	if err != nil {
 		event.Help = err.Error()
 		OperationFailed(event)
@@ -84,12 +85,12 @@ func CreateGroup(gd GroupData, trackingID string) (Group, error) {
 	return g, nil
 }
 
-func ListGroups(trackingID string) (list GroupList, err error) {
+func ListGroups(ctx context.Context, trackingID string) (list GroupList, err error) {
 	event := Event{Op: "ListGroups", TrackingID: trackingID}
 	OperationStarted(event)
 
 	groups := []GroupSummary{}
-	err = Connection.Table("groups").Where("deleted_at IS NULL").Preload("Systems").Find(&groups).Error
+	err = Connection.WithContext(ctx).Table("groups").Where("deleted_at IS NULL").Preload("Systems").Find(&groups).Error
 	if err != nil {
 		event.Help = err.Error()
 		OperationFailed(event)
@@ -104,11 +105,11 @@ func ListGroups(trackingID string) (list GroupList, err error) {
 	return list, nil
 }
 
-func UpdateGroup(id string, gd GroupData) (Group, error) {
+func UpdateGroup(ctx context.Context, id string, gd GroupData) (Group, error) {
 	event := Event{Op: "UpdateGroup", TrackingID: id}
 	OperationStarted(event)
 
-	g, err := GetGroupByID(id)
+	g, err := GetGroupByID(ctx, id)
 	if err != nil {
 		errString := fmt.Sprintf("record not found for id=%s", id)
 		event.Help = errString + ": " + err.Error()
@@ -121,7 +122,7 @@ func UpdateGroup(id string, gd GroupData) (Group, error) {
 	gd.Name = g.Data.Name
 
 	g.Data = gd
-	err = Connection.Save(&g).Error
+	err = Connection.WithContext(ctx).Save(&g).Error
 	if err != nil {
 		event.Help = err.Error()
 		OperationFailed(event)
@@ -132,18 +133,18 @@ func UpdateGroup(id string, gd GroupData) (Group, error) {
 	return g, nil
 }
 
-func DeleteGroup(id string) error {
+func DeleteGroup(ctx context.Context, id string) error {
 	event := Event{Op: "DeleteGroup", TrackingID: id}
 	OperationStarted(event)
 
-	g, err := GetGroupByID(id)
+	g, err := GetGroupByID(ctx, id)
 	if err != nil {
 		event.Help = err.Error()
 		OperationFailed(event)
 		return err
 	}
 
-	err = cascadeDeleteGroup(g)
+	err = cascadeDeleteGroup(ctx, g)
 	if err != nil {
 		event.Help = err.Error()
 		OperationFailed(event)
@@ -156,13 +157,13 @@ func DeleteGroup(id string) error {
 
 // GetAuthorizedGroupsForOktaID returns a slice of GroupID's representing all groups this Okta user has rights to manage
 // TODO: this is the slowest and most memory intensive way possible to implement this.  Refactor!
-func GetAuthorizedGroupsForOktaID(oktaID string) ([]string, error) {
+func GetAuthorizedGroupsForOktaID(ctx context.Context, oktaID string) ([]string, error) {
 	var (
 		result []string
 	)
 
 	groups := []Group{}
-	err := Connection.Select("*").Find(&groups).Error
+	err := Connection.WithContext(ctx).Select("*").Find(&groups).Error
 	if err != nil {
 		return result, err
 	}
@@ -178,7 +179,7 @@ func GetAuthorizedGroupsForOktaID(oktaID string) ([]string, error) {
 	return result, nil
 }
 
-func cascadeDeleteGroup(group Group) error {
+func cascadeDeleteGroup(ctx context.Context, group Group) error {
 	var (
 		system        System
 		encryptionKey EncryptionKey
@@ -186,27 +187,20 @@ func cascadeDeleteGroup(group Group) error {
 		systemIds     []int
 	)
 
-	err := Connection.Table("systems").Where("group_id = ?", group.GroupID).Pluck("id", &systemIds).Error
-	if err != nil {
-		return fmt.Errorf("unable to find associated systems: %s", err.Error())
-	}
+	tx := Connection.WithContext(ctx).Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
 
-	err = Connection.Where("system_id IN (?)", systemIds).Delete(&encryptionKey).Error
-	if err != nil {
-		return fmt.Errorf("unable to delete encryption keys: %s", err.Error())
-	}
+	tx.Table("systems").Where("group_id = ?", group.GroupID).Pluck("id", &systemIds)
+	tx.Where("system_id IN (?)", systemIds).Delete(&encryptionKey)
+	tx.Where("system_id IN (?)", systemIds).Delete(&secret)
+	tx.Where("id IN (?)", systemIds).Delete(&system)
+	tx.Delete(&group)
 
-	err = Connection.Where("system_id IN (?)", systemIds).Delete(&secret).Error
-	if err != nil {
-		return fmt.Errorf("unable to delete secrets: %s", err.Error())
-	}
-
-	err = Connection.Where("id IN (?)", systemIds).Delete(&system).Error
-	if err != nil {
-		return fmt.Errorf("unable to delete systems: %s", err.Error())
-	}
-
-	err = Connection.Delete(&group).Error
+	err := tx.Commit().Error
 	if err != nil {
 		return fmt.Errorf("unable to delete group: %s", err.Error())
 	}
@@ -226,7 +220,11 @@ type GroupData struct {
 
 // Value implements the driver.Value interface for GroupData.
 func (gd GroupData) Value() (driver.Value, error) {
-	systems, _ := GetSystemsByGroupIDString(gd.GroupID)
+	// TODO: pull from configurable setting for db timeout
+	timeoutCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	systems, _ := GetSystemsByGroupIDString(timeoutCtx, gd.GroupID)
 
 	gd.Systems = systems
 
@@ -243,8 +241,11 @@ func (gd *GroupData) Scan(value interface{}) error {
 	if err := json.Unmarshal(b, &gd); err != nil {
 		return err
 	}
-	systems, _ := GetSystemsByGroupIDString(gd.GroupID)
 
+	timeoutCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	systems, _ := GetSystemsByGroupIDString(timeoutCtx, gd.GroupID)
 	gd.Systems = systems
 
 	return nil
@@ -257,13 +258,13 @@ type Resource struct {
 	Scopes []string `json:"scopes"`
 }
 
-func GetGroupByGroupID(groupID string) (Group, error) {
+func GetGroupByGroupID(ctx context.Context, groupID string) (Group, error) {
 	var (
 		group Group
 		err   error
 	)
 
-	if err = Connection.First(&group, "group_id = ?", groupID).Error; err != nil && errors.Is(err, gorm.ErrRecordNotFound) {
+	if err = Connection.WithContext(ctx).First(&group, "group_id = ?", groupID).Error; err != nil && errors.Is(err, gorm.ErrRecordNotFound) {
 		err = fmt.Errorf("no Group record found for groupID %s", groupID)
 	}
 
@@ -271,7 +272,7 @@ func GetGroupByGroupID(groupID string) (Group, error) {
 }
 
 // GetGroupByID returns the group associated with the provided ID
-func GetGroupByID(id string) (Group, error) {
+func GetGroupByID(ctx context.Context, id string) (Group, error) {
 	var (
 		group Group
 		err   error
@@ -282,7 +283,7 @@ func GetGroupByID(id string) (Group, error) {
 		return Group{}, fmt.Errorf("invalid input %s; %s", id, err)
 	}
 
-	if err = Connection.First(&group, id1).Error; err != nil {
+	if err = Connection.WithContext(ctx).First(&group, id1).Error; err != nil {
 		err = fmt.Errorf("no Group record found with ID %s", id)
 	}
 	return group, err

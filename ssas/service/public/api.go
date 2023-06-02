@@ -6,6 +6,7 @@ Package public (ssas/service/api/public) contains API functions, middleware, and
 package public
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -234,7 +235,7 @@ func VerifyMultifactorResponse(w http.ResponseWriter, r *http.Request) {
 	trackingID = uuid.NewRandom().String()
 	event := ssas.Event{Op: "VerifyOktaFactorResponse", TrackingID: trackingID, Help: "calling from public.VerifyMultifactorResponse()"}
 	ssas.OperationCalled(event)
-	success, oktaID, groupIDs := GetProvider().VerifyFactorChallenge(mfaReq.LoginID, mfaReq.FactorType, *mfaReq.Passcode, trackingID)
+	success, oktaID, groupIDs := GetProvider().VerifyFactorChallenge(r.Context(), mfaReq.LoginID, mfaReq.FactorType, *mfaReq.Passcode, trackingID)
 
 	if !success {
 		event.Help = "passcode rejected"
@@ -327,7 +328,7 @@ func ResetSecret(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if sys, err = ssas.GetSystemByClientID(req.ClientID); err != nil {
+	if sys, err = ssas.GetSystemByClientID(r.Context(), req.ClientID); err != nil {
 		service.JSONError(w, http.StatusBadRequest, "invalid_client_metadata", "Client not found")
 		return
 	}
@@ -339,7 +340,7 @@ func ResetSecret(w http.ResponseWriter, r *http.Request) {
 
 	event = ssas.Event{Op: "ResetSecret", TrackingID: uuid.NewRandom().String(), Help: "calling from public.ResetSecret()"}
 	ssas.OperationCalled(event)
-	if credentials, err = sys.ResetSecret(trackingID); err != nil {
+	if credentials, err = sys.ResetSecret(r.Context(), trackingID); err != nil {
 		service.JSONError(w, http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError), "")
 		return
 	}
@@ -426,7 +427,7 @@ func RegisterSystem(w http.ResponseWriter, r *http.Request) {
 	trackingID = uuid.NewRandom().String()
 	event := ssas.Event{Op: "RegisterClient", TrackingID: trackingID, Help: "calling from public.RegisterSystem()"}
 	ssas.OperationCalled(event)
-	credentials, err := ssas.RegisterSystem(reg.ClientName, rd.GroupID, reg.Scope, publicKeyPEM, reg.IPs, trackingID)
+	credentials, err := ssas.RegisterSystem(r.Context(), reg.ClientName, rd.GroupID, reg.Scope, publicKeyPEM, reg.IPs, trackingID)
 	if err != nil {
 		service.JSONError(w, http.StatusBadRequest, "invalid_client_metadata", err.Error())
 		return
@@ -485,7 +486,7 @@ func token(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	system, err := ssas.GetSystemByClientID(clientID)
+	system, err := ssas.GetSystemByClientID(r.Context(), clientID)
 	if err != nil {
 		ssas.Logger.Errorf("The client id %s is invalid", err.Error())
 		service.JSONError(w, http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized), "invalid client id")
@@ -499,7 +500,7 @@ func token(w http.ResponseWriter, r *http.Request) {
 
 	trackingID := uuid.NewRandom().String()
 
-	data, err := ssas.XDataFor(system)
+	data, err := ssas.XDataFor(r.Context(), system)
 	ssas.Logger.Infof("public.api.token: XDataFor(%d) returned '%s'", system.ID, data)
 	if err != nil {
 		service.JSONError(w, http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized), "no group for system")
@@ -519,7 +520,7 @@ func token(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	system.SaveTokenTime()
+	system.SaveTokenTime(r.Context())
 	event.Help = fmt.Sprintf("token created in group %s with XData: %s", system.GroupID, data)
 
 	// https://tools.ietf.org/html/rfc6749#section-5.1
@@ -535,7 +536,7 @@ func token(w http.ResponseWriter, r *http.Request) {
 }
 
 func ValidateSecret(system ssas.System, secret string, w http.ResponseWriter, r *http.Request) (err error) {
-	savedSecret, err := system.GetSecret()
+	savedSecret, err := system.GetSecret(r.Context())
 	if err != nil {
 		ssas.Logger.Errorf("Error getting secret: %s", err.Error())
 		service.JSONError(w, http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized), "Error getting secret")
@@ -567,7 +568,7 @@ func tokenV2(w http.ResponseWriter, r *http.Request) {
 	}
 
 	tokenString := r.Form.Get("client_assertion")
-	token, err := parseClientSignedToken(tokenString, trackingID)
+	token, err := parseClientSignedToken(r.Context(), tokenString, trackingID)
 	if err != nil {
 		event.Help = err.Error()
 		ssas.AuthorizationFailure(event)
@@ -613,13 +614,13 @@ func tokenV2(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	system, err := ssas.GetSystemByID(systemID)
+	system, err := ssas.GetSystemByID(r.Context(), systemID)
 	if err != nil {
 		service.JSONError(w, http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized), "invalid issuer (iss) claim. system not found")
 		return
 	}
 
-	data, err := ssas.XDataFor(system)
+	data, err := ssas.XDataFor(r.Context(), system)
 	ssas.Logger.Infof("public.api.token: XDataFor(%d) returned '%s'", system.ID, data)
 	if err != nil {
 		service.JSONError(w, http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized), "no group for system")
@@ -636,7 +637,7 @@ func tokenV2(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	system.SaveTokenTime()
+	system.SaveTokenTime(r.Context())
 	event.Help = fmt.Sprintf("token created in group %s with XData: %s", system.GroupID, data)
 
 	// https://tools.ietf.org/html/rfc6749#section-5.1
@@ -686,8 +687,8 @@ func validateClientAssertionParams(r *http.Request) string {
 	return ""
 }
 
-func parseClientSignedToken(jwt string, trackingID string) (*jwt.Token, error) {
-	return server.VerifyClientSignedToken(jwt, trackingID)
+func parseClientSignedToken(ctx context.Context, jwt string, trackingID string) (*jwt.Token, error) {
+	return server.VerifyClientSignedToken(ctx, jwt, trackingID)
 }
 
 func introspect(w http.ResponseWriter, r *http.Request) {
@@ -704,13 +705,13 @@ func introspect(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	system, err := ssas.GetSystemByClientID(clientID)
+	system, err := ssas.GetSystemByClientID(r.Context(), clientID)
 	if err != nil {
 		service.JSONError(w, http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized), fmt.Sprintf("invalid client id; %s", err))
 		return
 	}
 
-	savedSecret, err := system.GetSecret()
+	savedSecret, err := system.GetSecret(r.Context())
 	if err != nil {
 		service.JSONError(w, http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized), fmt.Sprintf("can't get secret; %s", err))
 		return
@@ -774,7 +775,7 @@ func validateAndParseToken(w http.ResponseWriter, r *http.Request) {
 		response["valid"] = true
 		response["data"] = claims["dat"]
 		response["system_data"] = claims["system_data"]
-		sys, err := ssas.GetSystemByID(claims["sys"].(string))
+		sys, err := ssas.GetSystemByID(r.Context(), claims["sys"].(string))
 		if err != nil {
 			ssas.Logger.Infof("could not get system id")
 			service.JSONError(w, http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError), "internal server error")

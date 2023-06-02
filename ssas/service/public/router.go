@@ -50,6 +50,7 @@ func Server() *service.Server {
 
 func routes() *chi.Mux {
 	router := chi.NewRouter()
+
 	//v1 Routes
 	router.Use(gcmw.RequestID, service.NewAPILogger(), service.ConnectionClose)
 	router.Post("/token", token)

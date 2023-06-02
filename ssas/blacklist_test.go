@@ -1,6 +1,7 @@
 package ssas
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -20,7 +21,7 @@ func (s *CacheEntriesTestSuite) SetupSuite() {
 }
 
 func (s *CacheEntriesTestSuite) TestGetUnexpiredCacheEntries() {
-	entries, err := GetUnexpiredBlacklistEntries()
+	entries, err := GetUnexpiredBlacklistEntries(context.Background())
 	require.Nil(s.T(), err)
 	origEntries := len(entries)
 
@@ -36,7 +37,7 @@ func (s *CacheEntriesTestSuite) TestGetUnexpiredCacheEntries() {
 		assert.FailNow(s.T(), err.Error())
 	}
 
-	entries, err = GetUnexpiredBlacklistEntries()
+	entries, err = GetUnexpiredBlacklistEntries(context.Background())
 	assert.Nil(s.T(), err)
 	assert.True(s.T(), len(entries) == origEntries+2)
 
@@ -50,10 +51,10 @@ func (s *CacheEntriesTestSuite) TestCreateBlacklistEntryEmptyKey() {
 	entryDate := time.Now().Add(time.Minute * -5)
 	expiration := time.Now().Add(time.Minute * 5)
 
-	_, err := CreateBlacklistEntry("", entryDate, expiration)
+	_, err := CreateBlacklistEntry(context.Background(), "", entryDate, expiration)
 	assert.NotNil(s.T(), err)
 
-	e, err := CreateBlacklistEntry("another_key", entryDate, expiration)
+	e, err := CreateBlacklistEntry(context.Background(), "another_key", entryDate, expiration)
 	assert.Nil(s.T(), err)
 	assert.Equal(s.T(), "another_key", e.Key)
 

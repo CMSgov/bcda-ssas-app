@@ -50,6 +50,7 @@ func Server() *service.Server {
 
 func routes() *chi.Mux {
 	r := chi.NewRouter()
+
 	r.Use(gcmw.RequestID, service.NewAPILogger(), service.ConnectionClose)
 	r.With(requireBasicAuth).Post("/group", createGroup)
 	r.With(requireBasicAuth).Get("/group", listGroups)

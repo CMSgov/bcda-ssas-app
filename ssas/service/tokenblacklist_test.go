@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"math/rand"
 	"strconv"
 	"testing"
@@ -28,7 +29,7 @@ type TokenCacheTestSuite struct {
 
 func (s *TokenCacheTestSuite) SetupSuite() {
 	s.db = ssas.Connection
-	s.t = NewBlacklist(defaultCacheTimeout, cacheCleanupInterval)
+	s.t = NewBlacklist(context.Background(), defaultCacheTimeout, cacheCleanupInterval)
 }
 
 func (s *TokenCacheTestSuite) TearDownTest() {
@@ -48,7 +49,7 @@ func (s *TokenCacheTestSuite) TestLoadFromDatabaseEmpty() {
 	}
 	assert.Len(s.T(), s.t.c.Items(), 0)
 
-	if err := s.t.BlacklistToken(key, expiration); err != nil {
+	if err := s.t.BlacklistToken(context.Background(), key, expiration); err != nil {
 		assert.FailNow(s.T(), err.Error())
 	}
 
@@ -165,14 +166,14 @@ func (s *TokenCacheTestSuite) TestIsTokenBlacklistedFalse() {
 
 func (s *TokenCacheTestSuite) TestBlacklistToken() {
 	key := strconv.Itoa(rand.Int())
-	if err := s.t.BlacklistToken(key, expiration); err != nil {
+	if err := s.t.BlacklistToken(context.Background(), key, expiration); err != nil {
 		assert.FailNow(s.T(), err.Error())
 	}
 
 	_, found := s.t.c.Get(key)
 	assert.True(s.T(), found)
 
-	entries, err := ssas.GetUnexpiredBlacklistEntries()
+	entries, err := ssas.GetUnexpiredBlacklistEntries(context.Background())
 	assert.Nil(s.T(), err)
 	assert.Len(s.T(), entries, 1)
 	assert.Equal(s.T(), key, entries[0].Key)
@@ -219,7 +220,7 @@ func (s *TokenCacheTestSuite) TestBlacklistTokenKeyExists() {
 	key := strconv.Itoa(rand.Int())
 
 	// Place key in blacklist
-	if err := s.t.BlacklistToken(key, expiration); err != nil {
+	if err := s.t.BlacklistToken(context.Background(), key, expiration); err != nil {
 		assert.FailNow(s.T(), err.Error())
 	}
 	// Verify key exists in cache
@@ -227,7 +228,7 @@ func (s *TokenCacheTestSuite) TestBlacklistTokenKeyExists() {
 	assert.True(s.T(), found)
 
 	// Verify key exists in database
-	entries1, err := ssas.GetUnexpiredBlacklistEntries()
+	entries1, err := ssas.GetUnexpiredBlacklistEntries(context.Background())
 	assert.Nil(s.T(), err)
 	assert.Len(s.T(), entries1, 1)
 	assert.Equal(s.T(), key, entries1[0].Key)
@@ -238,7 +239,7 @@ func (s *TokenCacheTestSuite) TestBlacklistTokenKeyExists() {
 	time.Sleep(2 * time.Second)
 
 	// Place key in cache a second time; the expiration will be different
-	if err := s.t.BlacklistToken(key, expiration); err != nil {
+	if err := s.t.BlacklistToken(context.Background(), key, expiration); err != nil {
 		assert.FailNow(s.T(), err.Error())
 	}
 
@@ -248,7 +249,7 @@ func (s *TokenCacheTestSuite) TestBlacklistTokenKeyExists() {
 	assert.NotEqual(s.T(), obj1, obj2)
 
 	// Verify both keys are in the database, and that they are in time order
-	entries2, err := ssas.GetUnexpiredBlacklistEntries()
+	entries2, err := ssas.GetUnexpiredBlacklistEntries(context.Background())
 	assert.Nil(s.T(), err)
 	// 2 entries were added in this test; 1 was added in middleware_test
 	// depending on which order the tests are completed, sometimes there are 2 entries and sometimes there are 3

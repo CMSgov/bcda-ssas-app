@@ -5,6 +5,7 @@
 package migrations
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"os/exec"
@@ -129,26 +130,26 @@ func up2(t *testing.T) {
 		assert.Nil(t, err)
 
 		g2.GroupID = "T0001"
-		group2, err := ssas.CreateGroup(g2, ssas.RandomHexID())
+		group2, err := ssas.CreateGroup(context.Background(), g2, ssas.RandomHexID())
 		require.Nil(t, err)
 		assert.Equal(t, group2.GroupID, "T0001")
 
 		g3.GroupID = "T0001"
 		// We still don't let two undeleted groups have the same group_id . . .
-		group3, err := ssas.CreateGroup(g3, ssas.RandomHexID())
+		group3, err := ssas.CreateGroup(context.Background(), g3, ssas.RandomHexID())
 		assert.NotNil(t, err)
 
-		err = ssas.DeleteGroup(strconv.Itoa(int(group2.ID)))
+		err = ssas.DeleteGroup(context.Background(), strconv.Itoa(int(group2.ID)))
 		assert.Nil(t, err)
 
 		// . . . but one can now share the same group_id as a deleted group
-		group3, err = ssas.CreateGroup(g3, ssas.RandomHexID())
+		group3, err = ssas.CreateGroup(context.Background(), g3, ssas.RandomHexID())
 		require.Nil(t, err)
 		assert.Equal(t, group3.GroupID, "T0001")
 		assert.NotEqual(t, group1.ID, group3.ID)
 
 		// Multiple deleted groups should be able to share the same group_id
-		err = ssas.DeleteGroup(strconv.Itoa(int(group3.ID)))
+		err = ssas.DeleteGroup(context.Background(), strconv.Itoa(int(group3.ID)))
 		assert.Nil(t, err)
 
 		assert.Nil(t, db.Unscoped().Delete(&s1).Error)
