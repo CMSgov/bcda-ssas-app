@@ -2,10 +2,8 @@ package monitoring
 
 import (
 	"fmt"
-	"net/http"
-
-	"github.com/CMSgov/bcda-sass-app/sass/cfg"
-	"github.com/CMSgov/bcda-app/log"
+	"log"
+	"os"
 
 	"github.com/newrelic/go-agent/v3/newrelic"
 )
@@ -18,13 +16,14 @@ type apm struct {
 
 func GetMonitor() *apm {
 	if a == nil {
-		target := conf.GetEnv("DEPLOYMENT_TARGET")
+		target := os.Getenv("DEPLOYMENT_TARGET")
+		// conf.GetEnv("DEPLOYMENT_TARGET")
 		if target == "" {
 			target = "local"
 		}
 		app, err := newrelic.NewApplication(
-			newrelic.ConfigAppName(fmt.Sprintf("BCDA-%s", target)),
-			newrelic.ConfigLicense(conf.GetEnv("NEW_RELIC_LICENSE_KEY")),
+			newrelic.ConfigAppName(fmt.Sprintf("BCDA-SSAS-%s", target)),
+			newrelic.ConfigLicense(os.Getenv("NEW_RELIC_LICENSE_KEY")),
 			newrelic.ConfigEnabled(true),
 			newrelic.ConfigDistributedTracerEnabled(true),
 			func(cfg *newrelic.Config) {
@@ -32,7 +31,7 @@ func GetMonitor() *apm {
 			},
 		)
 		if err != nil {
-			log.API.Error(err)
+			log.Fatal(err)
 		}
 		a = &apm{
 			App: app,
