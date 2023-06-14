@@ -25,11 +25,11 @@ func GetAccessTokenCreator() TokenCreator {
 	return accessTokenCreator
 }
 
-//TokenCreator provides methods for the creation of tokens.
-//Currently only AccessTokenCreator implements this interface.
-//TO DO:
-//Define a MFATokenCreator & a RegistrationTokenCreator that will implement TokenCreator interface,
-//then add CreateCommonClaims to this interface that all 3 can share.
+// TokenCreator provides methods for the creation of tokens.
+// Currently only AccessTokenCreator implements this interface.
+// TO DO:
+// Define a MFATokenCreator & a RegistrationTokenCreator that will implement TokenCreator interface,
+// then add CreateCommonClaims to this interface that all 3 can share.
 type TokenCreator interface {
 	GenerateToken(claims service.CommonClaims) (*jwt.Token, string, error)
 }
@@ -40,20 +40,6 @@ type AccessTokenCreator struct {
 
 // validates that AccessTokenCreator implements the TokenCreator interface
 var _ TokenCreator = AccessTokenCreator{}
-
-// MintMFAToken generates a tokenstring for MFA endpoints
-func MintMFAToken(oktaID string) (*jwt.Token, string, error) {
-	claims := service.CommonClaims{
-		TokenType: "MFAToken",
-		OktaID:    oktaID,
-	}
-
-	if err := checkTokenClaims(&claims); err != nil {
-		return nil, "", err
-	}
-
-	return server.MintTokenWithDuration(&claims, selfRegistrationTokenDuration)
-}
 
 // MintRegistrationToken generates a tokenstring for system self-registration endpoints
 func MintRegistrationToken(oktaID string, groupIDs []string) (*jwt.Token, string, error) {
