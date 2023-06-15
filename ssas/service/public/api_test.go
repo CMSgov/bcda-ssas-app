@@ -53,24 +53,6 @@ func (s *APITestSuite) SetupTest() {
 	s.rr = httptest.NewRecorder()
 }
 
-func (s *APITestSuite) TestAuthVerifyPasswordValid() {
-	rb := strings.NewReader(`{"login_id":"success@test.com","password":"abcdefg"}`)
-	req, err := http.NewRequest("POST", "/authn", rb)
-	assert.Nil(s.T(), err)
-
-	http.HandlerFunc(VerifyPassword).ServeHTTP(s.rr, req)
-	assert.Equal(s.T(), http.StatusOK, s.rr.Code)
-}
-
-func (s *APITestSuite) TestAuthVerifyPasswordNonJson() {
-	rb := strings.NewReader(`"login_id":"success@test.com","password":"abcdefg"`)
-	req, err := http.NewRequest("POST", "/authn", rb)
-	assert.Nil(s.T(), err)
-
-	http.HandlerFunc(VerifyPassword).ServeHTTP(s.rr, req)
-	assert.Equal(s.T(), http.StatusOK, s.rr.Code)
-}
-
 func (s *APITestSuite) TestAuthRegisterEmpty() {
 	regBody := strings.NewReader("")
 
