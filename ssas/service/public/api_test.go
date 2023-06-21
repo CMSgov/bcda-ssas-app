@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
@@ -463,14 +462,14 @@ func (s *APITestSuite) TestTokenEmptyClientIdProduces401() {
 func (s *APITestSuite) testIntrospectFlaw(flaw service.TokenFlaw, errorText string) {
 	var (
 		signingKeyPath string
-		origLog        io.Writer
-		buf            bytes.Buffer
+		//origLog        io.Writer
+		buf bytes.Buffer
 	)
 
-	origLog = ssas.Logger.Out
-	ssas.Logger.SetOutput(&buf)
+	//origLog = ssas.Logger.Out
+	//ssas.Logger.SetOutput(&buf)
 	defer func() {
-		ssas.Logger.SetOutput(origLog)
+		//ssas.Logger.SetOutput(origLog)
 	}()
 
 	if flaw == service.BadSigner {

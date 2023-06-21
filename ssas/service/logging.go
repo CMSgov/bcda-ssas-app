@@ -13,18 +13,19 @@ import (
 	"github.com/CMSgov/bcda-ssas-app/ssas"
 )
 
-// https://github.com/go-chi/chi/blob/master/_examples/logging/main.go
+//https://github.com/go-chi/chi/blob/master/_examples/logging/main.go
 
 func NewAPILogger() func(next http.Handler) http.Handler {
 	return middleware.RequestLogger(&APILogger{ssas.Logger})
 }
 
 type APILogger struct {
-	Logger *logrus.Logger
+	Logger logrus.FieldLogger
 }
 
 func (l *APILogger) NewLogEntry(r *http.Request) middleware.LogEntry {
-	entry := &APILoggerEntry{Logger: logrus.NewEntry(l.Logger)}
+	// change the parameter to take an entry for fieldLogger, change line 23 to entry, pass in an entry
+	entry := &APILoggerEntry{Logger: l.Logger}
 	logFields := logrus.Fields{}
 
 	logFields["ts"] = time.Now() // .UTC().Format(time.RFC1123)
@@ -34,9 +35,6 @@ func (l *APILogger) NewLogEntry(r *http.Request) middleware.LogEntry {
 	}
 
 	scheme := "http"
-	// if servicemux.IsHTTPS(r) {
-	// 	scheme = "https"
-	// }
 	logFields["http_scheme"] = scheme
 	logFields["http_proto"] = r.Proto
 	logFields["http_method"] = r.Method
@@ -46,6 +44,7 @@ func (l *APILogger) NewLogEntry(r *http.Request) middleware.LogEntry {
 
 	logFields["uri"] = fmt.Sprintf("%s://%s%s", scheme, r.Host, Redact(r.RequestURI))
 
+	// comment for review: can this be removed since we are not using Okta?
 	if rd, ok := r.Context().Value("rd").(ssas.AuthRegData); ok {
 		logFields["group_id"] = rd.GroupID
 		logFields["okta_id"] = rd.OktaID
