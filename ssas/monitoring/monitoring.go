@@ -3,6 +3,7 @@ package monitoring
 import (
 	"fmt"
 	"log"
+	"net/http"
 	"os"
 
 	"github.com/newrelic/go-agent/v3/newrelic"
@@ -17,7 +18,6 @@ type apm struct {
 func GetMonitor() *apm {
 	if a == nil {
 		target := os.Getenv("DEPLOYMENT_TARGET")
-		// conf.GetEnv("DEPLOYMENT_TARGET")
 		if target == "" {
 			target = "local"
 		}
@@ -38,4 +38,11 @@ func GetMonitor() *apm {
 		}
 	}
 	return a
+}
+
+func (a apm) WrapHandler(pattern string, h http.HandlerFunc) (string, func(http.ResponseWriter, *http.Request)) {
+	if a.App != nil {
+		return newrelic.WrapHandleFunc(a.App, pattern, h)
+	}
+	return pattern, h
 }
