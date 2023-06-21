@@ -14,24 +14,26 @@ import (
 )
 
 /*
-	swagger:route POST /group group createGroup
+swagger:route POST /group group createGroup
 
-	Create group
+# Create group
 
-	Creates a security group (which roughly corresponds to an entity such as an ACO).  Systems (which have credentials)
-	can be associated with this group in order to specify their scopes (rights).
+Creates a security group (which roughly corresponds to an entity such as an ACO).  Systems (which have credentials)
+can be associated with this group in order to specify their scopes (rights).
 
-	Produces:
-	- application/json
+Produces:
+- application/json
 
-	Security:
-		basic_auth:
+Security:
 
-	Responses:
-		201: groupResponse
-		400: badRequestResponse
-		401: invalidCredentials
-		500: serverError
+	basic_auth:
+
+Responses:
+
+	201: groupResponse
+	400: badRequestResponse
+	401: invalidCredentials
+	500: serverError
 */
 func createGroup(w http.ResponseWriter, r *http.Request) {
 	trackingID := ssas.RandomHexID()
@@ -50,7 +52,7 @@ func createGroup(w http.ResponseWriter, r *http.Request) {
 
 	groupEvent.Help = fmt.Sprintf("calling from admin.createGroup(), raw request: %v", string(body))
 	ssas.OperationCalled(groupEvent)
-	g, err := ssas.CreateGroup(gd, trackingID)
+	g, err := ssas.CreateGroup(r.Context(), gd, trackingID)
 	if err != nil {
 		service.JSONError(w, http.StatusBadRequest, fmt.Sprintf("failed to create group; %s", err), "")
 		return
@@ -75,28 +77,30 @@ func createGroup(w http.ResponseWriter, r *http.Request) {
 }
 
 /*
-	swagger:route GET /group group listGroups
+swagger:route GET /group group listGroups
 
-	List groups
+# List groups
 
-	Returns the complete list of registered security groups and their systems.
+Returns the complete list of registered security groups and their systems.
 
-	Produces:
-	- application/json
+Produces:
+- application/json
 
-	Security:
-		basic_auth:
+Security:
 
-	Responses:
-		200: groupsResponse
-		401: invalidCredentials
-		500: serverError
+	basic_auth:
+
+Responses:
+
+	200: groupsResponse
+	401: invalidCredentials
+	500: serverError
 */
 func listGroups(w http.ResponseWriter, r *http.Request) {
 	trackingID := ssas.RandomHexID()
 
 	ssas.OperationCalled(ssas.Event{Op: "ListGroups", TrackingID: trackingID, Help: "calling from admin.listGroups()"})
-	groups, err := ssas.ListGroups(trackingID)
+	groups, err := ssas.ListGroups(r.Context(), trackingID)
 	if err != nil {
 		ssas.OperationFailed(ssas.Event{Op: "admin.listGroups", TrackingID: trackingID, Help: err.Error()})
 		service.JSONError(w, http.StatusInternalServerError, "internal error", "")
@@ -120,23 +124,25 @@ func listGroups(w http.ResponseWriter, r *http.Request) {
 }
 
 /*
-	swagger:route PUT /group/{group_id} group updateGroup
+swagger:route PUT /group/{group_id} group updateGroup
 
-	Update group
+# Update group
 
-	Updates the attributes of an existing group.
+Updates the attributes of an existing group.
 
-	Produces:
-	- application/json
+Produces:
+- application/json
 
-	Security:
-		basic_auth:
+Security:
 
-	Responses:
-		200: groupResponse
-		400: badRequestResponse
-		401: invalidCredentials
-		500: serverError
+	basic_auth:
+
+Responses:
+
+	200: groupResponse
+	400: badRequestResponse
+	401: invalidCredentials
+	500: serverError
 */
 func updateGroup(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
@@ -156,7 +162,7 @@ func updateGroup(w http.ResponseWriter, r *http.Request) {
 
 	groupEvent.Help = fmt.Sprintf("calling from admin.updateGroup(), raw request: %v", string(body))
 	ssas.OperationCalled(groupEvent)
-	g, err := ssas.UpdateGroup(id, gd)
+	g, err := ssas.UpdateGroup(r.Context(), id, gd)
 	if err != nil {
 		service.JSONError(w, http.StatusBadRequest, http.StatusText(http.StatusBadRequest), fmt.Sprintf("failed to update group; %s", err))
 		return
@@ -184,7 +190,7 @@ func getSystem(w http.ResponseWriter, r *http.Request) {
 	trackingID := ssas.RandomHexID()
 	systemEvent := ssas.Event{Op: "UpdateSystem", TrackingID: trackingID}
 
-	s, err := ssas.GetSystemByID(id)
+	s, err := ssas.GetSystemByID(r.Context(), id)
 	if err != nil {
 		systemEvent.Help = fmt.Sprintf("; could not find system %s", id)
 		ssas.OperationFailed(systemEvent)
@@ -192,9 +198,9 @@ func getSystem(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ips, _ := s.GetIPsData()
-	cts, _ := s.GetClientTokens(trackingID)
-	eks, _ := s.GetEncryptionKeys(trackingID)
+	ips, _ := s.GetIPsData(r.Context())
+	cts, _ := s.GetClientTokens(r.Context(), trackingID)
+	eks, _ := s.GetEncryptionKeys(r.Context(), trackingID)
 
 	o := ssas.SystemOutput{
 		GID:          fmt.Sprintf("%d", s.GID),
@@ -262,7 +268,7 @@ func updateSystem(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	_, err = ssas.UpdateSystem(id, v)
+	_, err = ssas.UpdateSystem(r.Context(), id, v)
 	if err != nil {
 		service.JSONError(w, http.StatusBadRequest, fmt.Sprintf("failed to update system; %s", err), "")
 		return
@@ -273,28 +279,30 @@ func updateSystem(w http.ResponseWriter, r *http.Request) {
 }
 
 /*
-	swagger:route DELETE /group/{group_id} group deleteGroup
+swagger:route DELETE /group/{group_id} group deleteGroup
 
-	Delete group
+# Delete group
 
-	Soft-deletes a group, invalidating any associated systems and their credentials.
+Soft-deletes a group, invalidating any associated systems and their credentials.
 
-	Produces:
-	- application/json
+Produces:
+- application/json
 
-	Security:
-		basic_auth:
+Security:
 
-	Responses:
-		200: okResponse
-		400: badRequestResponse
-		401: invalidCredentials
+	basic_auth:
+
+Responses:
+
+	200: okResponse
+	400: badRequestResponse
+	401: invalidCredentials
 */
 func deleteGroup(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 
 	ssas.OperationCalled(ssas.Event{Op: "DeleteGroup", TrackingID: id, Help: "calling from admin.deleteGroup()"})
-	err := ssas.DeleteGroup(id)
+	err := ssas.DeleteGroup(r.Context(), id)
 	if err != nil {
 		ssas.OperationFailed(ssas.Event{Op: "admin.deleteGroup", TrackingID: id, Help: err.Error()})
 		service.JSONError(w, http.StatusBadRequest, http.StatusText(http.StatusBadRequest), fmt.Sprintf("failed to delete group; %s", err))
@@ -305,24 +313,26 @@ func deleteGroup(w http.ResponseWriter, r *http.Request) {
 }
 
 /*
-	swagger:route POST /system system createSystem
+swagger:route POST /system system createSystem
 
-	Create system
+# Create system
 
-	Creates a system, which will have credentials that can be used by an automated software system.  The system will be
-	associated with a security group (which roughly corresponds to an entity such as an ACO).
+Creates a system, which will have credentials that can be used by an automated software system.  The system will be
+associated with a security group (which roughly corresponds to an entity such as an ACO).
 
-	Produces:
-	- application/json
+Produces:
+- application/json
 
-	Security:
-		basic_auth:
+Security:
 
-	Responses:
-		201: systemResponse
-		400: badRequestResponse
-		401: invalidCredentials
-		500: serverError
+	basic_auth:
+
+Responses:
+
+	201: systemResponse
+	400: badRequestResponse
+	401: invalidCredentials
+	500: serverError
 */
 func createSystem(w http.ResponseWriter, r *http.Request) {
 	sys := ssas.SystemInput{}
@@ -332,7 +342,7 @@ func createSystem(w http.ResponseWriter, r *http.Request) {
 	}
 
 	ssas.OperationCalled(ssas.Event{Op: "RegisterClient", TrackingID: sys.TrackingID, Help: "calling from admin.createSystem()"})
-	creds, err := ssas.RegisterSystem(sys.ClientName, sys.GroupID, sys.Scope, sys.PublicKey, sys.IPs, sys.TrackingID)
+	creds, err := ssas.RegisterSystem(r.Context(), sys.ClientName, sys.GroupID, sys.Scope, sys.PublicKey, sys.IPs, sys.TrackingID)
 	if err != nil {
 		service.JSONError(w, http.StatusBadRequest, fmt.Sprintf("could not create system; %s", err), "")
 		return
@@ -360,7 +370,7 @@ func createV2System(w http.ResponseWriter, r *http.Request) {
 	}
 
 	ssas.OperationCalled(ssas.Event{Op: "RegisterClient", TrackingID: sys.TrackingID, Help: "calling from admin.createSystem()"})
-	creds, err := ssas.RegisterV2System(sys)
+	creds, err := ssas.RegisterV2System(r.Context(), sys)
 	if err != nil {
 		service.JSONError(w, http.StatusBadRequest, http.StatusText(http.StatusBadRequest), fmt.Sprintf("could not create v2 system; %s", err))
 		return
@@ -381,28 +391,30 @@ func createV2System(w http.ResponseWriter, r *http.Request) {
 }
 
 /*
-	swagger:route PUT /system/{system_id}/credentials system resetCredentials
+swagger:route PUT /system/{system_id}/credentials system resetCredentials
 
-	Reset credentials
+# Reset credentials
 
-	Rotates the credentials for the specified system.
+Rotates the credentials for the specified system.
 
-	Produces:
-	- application/json
+Produces:
+- application/json
 
-	Security:
-		basic_auth:
+Security:
 
-	Responses:
-		201: systemResponse
-		401: invalidCredentials
-		404: notFoundResponse
-		500: serverError
+	basic_auth:
+
+Responses:
+
+	201: systemResponse
+	401: invalidCredentials
+	404: notFoundResponse
+	500: serverError
 */
 func resetCredentials(w http.ResponseWriter, r *http.Request) {
 	systemID := chi.URLParam(r, "systemID")
 
-	system, err := ssas.GetSystemByID(systemID)
+	system, err := ssas.GetSystemByID(r.Context(), systemID)
 	if err != nil {
 		service.JSONError(w, http.StatusNotFound, "Invalid system ID", "")
 		return
@@ -410,7 +422,7 @@ func resetCredentials(w http.ResponseWriter, r *http.Request) {
 
 	trackingID := ssas.RandomHexID()
 	ssas.OperationCalled(ssas.Event{Op: "ResetSecret", TrackingID: trackingID, Help: "calling from admin.resetCredentials()"})
-	creds, err := system.ResetSecret(trackingID)
+	creds, err := system.ResetSecret(r.Context(), trackingID)
 	if err != nil {
 		service.JSONError(w, http.StatusInternalServerError, "internal error", "")
 		return
@@ -431,27 +443,29 @@ func resetCredentials(w http.ResponseWriter, r *http.Request) {
 }
 
 /*
-	swagger:route GET /system/{system_id}/key system getPublicKey
+swagger:route GET /system/{system_id}/key system getPublicKey
 
-	Get Public Key
+# Get Public Key
 
-	Returns the specified system's public key, if present.
+Returns the specified system's public key, if present.
 
-	Produces:
-	- application/json
+Produces:
+- application/json
 
-	Security:
-		basic_auth:
+Security:
 
-	Responses:
-		200: publicKeyResponse
-		401: invalidCredentials
-		404: notFoundResponse
+	basic_auth:
+
+Responses:
+
+	200: publicKeyResponse
+	401: invalidCredentials
+	404: notFoundResponse
 */
 func getPublicKey(w http.ResponseWriter, r *http.Request) {
 	systemID := chi.URLParam(r, "systemID")
 
-	system, err := ssas.GetSystemByID(systemID)
+	system, err := ssas.GetSystemByID(r.Context(), systemID)
 	if err != nil {
 		service.JSONError(w, http.StatusNotFound, "invalid system ID", "")
 		return
@@ -459,7 +473,7 @@ func getPublicKey(w http.ResponseWriter, r *http.Request) {
 
 	trackingID := ssas.RandomHexID()
 	ssas.OperationCalled(ssas.Event{Op: "GetEncryptionKey", TrackingID: trackingID, Help: "calling from admin.getPublicKey()"})
-	key, _ := system.GetEncryptionKey(trackingID)
+	key, _ := system.GetEncryptionKey(r.Context(), trackingID)
 
 	w.Header().Set("Content-Type", "application/json")
 	keyStr := strings.Replace(key.Body, "\n", "\\n", -1)
@@ -467,33 +481,35 @@ func getPublicKey(w http.ResponseWriter, r *http.Request) {
 }
 
 /*
-	swagger:route DELETE /system/{system_id}/credentials system deleteCredentials
+swagger:route DELETE /system/{system_id}/credentials system deleteCredentials
 
-	Delete credentials
+# Delete credentials
 
-	Revokes the credentials for the specified system.
+Revokes the credentials for the specified system.
 
-	Produces:
-	- application/json
+Produces:
+- application/json
 
-	Security:
-		basic_auth:
+Security:
 
-	Responses:
-		200: okResponse
-		401: invalidCredentials
-		404: notFoundResponse
-		500: serverError
+	basic_auth:
+
+Responses:
+
+	200: okResponse
+	401: invalidCredentials
+	404: notFoundResponse
+	500: serverError
 */
 func deactivateSystemCredentials(w http.ResponseWriter, r *http.Request) {
 	systemID := chi.URLParam(r, "systemID")
 
-	system, err := ssas.GetSystemByID(systemID)
+	system, err := ssas.GetSystemByID(r.Context(), systemID)
 	if err != nil {
 		service.JSONError(w, http.StatusNotFound, "invalid system ID", "")
 		return
 	}
-	err = system.RevokeSecret(systemID)
+	err = system.RevokeSecret(r.Context(), systemID)
 
 	if err != nil {
 		service.JSONError(w, http.StatusInternalServerError, "invalid system ID", "")
@@ -504,22 +520,22 @@ func deactivateSystemCredentials(w http.ResponseWriter, r *http.Request) {
 }
 
 /*
-  	swagger:route DELETE /token/{token_id} token revokeToken
+	  	swagger:route DELETE /token/{token_id} token revokeToken
 
-	Revoke token
+		Revoke token
 
-	Revokes the specified tokenID by placing it on a blacklist.  Will return an HTTP 200 status whether or not the tokenID has been issued.
+		Revokes the specified tokenID by placing it on a blacklist.  Will return an HTTP 200 status whether or not the tokenID has been issued.
 
-	Produces:
-	- application/json
+		Produces:
+		- application/json
 
-	Security:
-		basic_auth:
+		Security:
+			basic_auth:
 
-	Responses:
-		200: okResponse
-		401: invalidCredentials
-		500: serverError
+		Responses:
+			200: okResponse
+			401: invalidCredentials
+			500: serverError
 */
 func revokeToken(w http.ResponseWriter, r *http.Request) {
 	tokenID := chi.URLParam(r, "tokenID")
@@ -527,7 +543,7 @@ func revokeToken(w http.ResponseWriter, r *http.Request) {
 	event := ssas.Event{Op: "TokenBlacklist", TokenID: tokenID}
 	ssas.OperationCalled(event)
 
-	if err := service.TokenBlacklist.BlacklistToken(tokenID, service.TokenCacheLifetime); err != nil {
+	if err := service.TokenBlacklist.BlacklistToken(r.Context(), tokenID, service.TokenCacheLifetime); err != nil {
 		event.Help = err.Error()
 		ssas.OperationFailed(event)
 		service.JSONError(w, http.StatusInternalServerError, "internal server error", "")
@@ -544,7 +560,7 @@ func registerIP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	system, err := ssas.GetSystemByID(systemID)
+	system, err := ssas.GetSystemByID(r.Context(), systemID)
 	if err != nil {
 		service.JSONError(w, http.StatusNotFound, "Invalid system ID", "")
 		return
@@ -558,7 +574,7 @@ func registerIP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	ssas.OperationCalled(ssas.Event{Op: "RegisterIP", TrackingID: trackingID, Help: "calling from admin.resetCredentials()"})
-	ip, err := system.RegisterIP(input.Address, trackingID)
+	ip, err := system.RegisterIP(r.Context(), input.Address, trackingID)
 	if err != nil {
 		if err.Error() == "duplicate ip address" {
 			service.JSONError(w, http.StatusConflict, "duplicate ip address", "")
@@ -589,7 +605,7 @@ func registerIP(w http.ResponseWriter, r *http.Request) {
 func getSystemIPs(w http.ResponseWriter, r *http.Request) {
 	systemID := chi.URLParam(r, "systemID")
 
-	system, err := ssas.GetSystemByID(systemID)
+	system, err := ssas.GetSystemByID(r.Context(), systemID)
 	if err != nil {
 		service.JSONError(w, http.StatusNotFound, "Invalid system ID", "")
 		return
@@ -597,7 +613,7 @@ func getSystemIPs(w http.ResponseWriter, r *http.Request) {
 
 	trackingID := ssas.RandomHexID()
 	ssas.OperationCalled(ssas.Event{Op: "GetSystemIPs", TrackingID: trackingID, Help: "calling from admin.getSystemIPs()"})
-	ips, err := system.GetIps(trackingID)
+	ips, err := system.GetIps(r.Context(), trackingID)
 	if err != nil {
 		ssas.Logger.Error("Could not retrieve system ips", err)
 		service.JSONError(w, http.StatusInternalServerError, "internal error", "")
@@ -620,23 +636,25 @@ func getSystemIPs(w http.ResponseWriter, r *http.Request) {
 }
 
 /*
-	swagger:route DELETE /system/{system_id}/ip/{ip_id} system deleteSystemIP
+swagger:route DELETE /system/{system_id}/ip/{ip_id} system deleteSystemIP
 
-	Delete IP
+# Delete IP
 
-	Soft-deletes the IP of the associated system. Returns the deleted IP.
+Soft-deletes the IP of the associated system. Returns the deleted IP.
 
-	Produces:
-	- application/json
+Produces:
+- application/json
 
-	Security:
-		basic_auth:
+Security:
 
-	Responses:
-		200: okResponse
-		400: badRequestResponse
-		500: serverErrorResponse
-		404: notFoundResponse
+	basic_auth:
+
+Responses:
+
+	200: okResponse
+	400: badRequestResponse
+	500: serverErrorResponse
+	404: notFoundResponse
 */
 func deleteSystemIP(w http.ResponseWriter, r *http.Request) {
 	systemID := chi.URLParam(r, "systemID")
@@ -644,7 +662,7 @@ func deleteSystemIP(w http.ResponseWriter, r *http.Request) {
 	trackingID := ssas.RandomHexID()
 	ipEvent := ssas.Event{Op: "UpdateGroup", TrackingID: trackingID, Help: "calling from admin.deleteSystemIP()"}
 
-	system, err := ssas.GetSystemByID(systemID)
+	system, err := ssas.GetSystemByID(r.Context(), systemID)
 	if err != nil {
 		ssas.OperationFailed(ipEvent)
 		service.JSONError(w, http.StatusNotFound, "Invalid system ID", "")
@@ -653,7 +671,7 @@ func deleteSystemIP(w http.ResponseWriter, r *http.Request) {
 
 	ssas.OperationCalled(ipEvent)
 
-	err = system.DeleteIP(ipID, trackingID)
+	err = system.DeleteIP(r.Context(), ipID, trackingID)
 	if err != nil {
 		ssas.OperationFailed(ipEvent)
 		service.JSONError(w, http.StatusBadRequest, fmt.Sprintf("Failed to delete IP: %s", err), "")
@@ -668,14 +686,14 @@ func createToken(w http.ResponseWriter, r *http.Request) {
 	trackingID := ssas.RandomHexID()
 	tokenEvent := ssas.Event{Op: "CreateToken", TrackingID: trackingID, Help: "calling from admin.createToken()"}
 
-	system, err := ssas.GetSystemByID(systemID)
+	system, err := ssas.GetSystemByID(r.Context(), systemID)
 	if err != nil {
 		ssas.OperationFailed(tokenEvent)
 		service.JSONError(w, http.StatusNotFound, "Invalid system ID", "")
 		return
 	}
 
-	group, err := ssas.GetGroupByGroupID(system.GroupID)
+	group, err := ssas.GetGroupByGroupID(r.Context(), system.GroupID)
 	if err != nil {
 		ssas.OperationFailed(tokenEvent)
 		service.JSONError(w, http.StatusInternalServerError, "Internal Error", "")
@@ -705,7 +723,7 @@ func createToken(w http.ResponseWriter, r *http.Request) {
 	}
 
 	expiration := time.Now().Add(ssas.MacaroonExpiration)
-	ct, m, err := system.SaveClientToken(body["label"], group.XData, expiration)
+	ct, m, err := system.SaveClientToken(r.Context(), body["label"], group.XData, expiration)
 	if err != nil {
 		tokenEvent.Help = fmt.Sprintf("could not save client token for clientID %s, groupID %s: %s", system.ClientID, system.GroupID, err.Error())
 		ssas.OperationFailed(tokenEvent)
@@ -736,7 +754,7 @@ func deleteToken(w http.ResponseWriter, r *http.Request) {
 	trackingID := ssas.RandomHexID()
 	tokenEvent := ssas.Event{Op: "DeleteToken", TrackingID: trackingID, Help: "calling from admin.deleteToken()"}
 
-	system, err := ssas.GetSystemByID(systemID)
+	system, err := ssas.GetSystemByID(r.Context(), systemID)
 	if err != nil {
 		ssas.OperationFailed(tokenEvent)
 		service.JSONError(w, http.StatusNotFound, "Invalid system ID", "")
@@ -744,7 +762,7 @@ func deleteToken(w http.ResponseWriter, r *http.Request) {
 	}
 
 	ssas.OperationCalled(tokenEvent)
-	err = system.DeleteClientToken(tokenID)
+	err = system.DeleteClientToken(r.Context(), tokenID)
 	if err != nil {
 		ssas.OperationFailed(tokenEvent)
 		service.JSONError(w, http.StatusInternalServerError, "Failed to delete client token", "")
@@ -759,7 +777,7 @@ func createKey(w http.ResponseWriter, r *http.Request) {
 	trackingID := ssas.RandomHexID()
 	keyEvent := ssas.Event{Op: "CreateKey", TrackingID: trackingID, Help: "calling from admin.createKey()"}
 
-	system, err := ssas.GetSystemByID(systemID)
+	system, err := ssas.GetSystemByID(r.Context(), systemID)
 	if err != nil {
 		ssas.OperationFailed(keyEvent)
 		service.JSONError(w, http.StatusNotFound, "Invalid system ID", "")
@@ -792,14 +810,14 @@ func deleteKey(w http.ResponseWriter, r *http.Request) {
 	trackingID := ssas.RandomHexID()
 	keyEvent := ssas.Event{Op: "DeleteKey", TrackingID: trackingID, Help: "calling from admin.deleteKey()"}
 
-	system, err := ssas.GetSystemByID(systemID)
+	system, err := ssas.GetSystemByID(r.Context(), systemID)
 	if err != nil {
 		ssas.OperationFailed(keyEvent)
 		service.JSONError(w, http.StatusNotFound, "Invalid system ID", "")
 		return
 	}
 
-	if err := system.DeleteEncryptionKey(trackingID, keyID); err != nil {
+	if err := system.DeleteEncryptionKey(r.Context(), trackingID, keyID); err != nil {
 		ssas.OperationFailed(keyEvent)
 		service.JSONError(w, http.StatusInternalServerError, "Failed to delete key", "")
 		return

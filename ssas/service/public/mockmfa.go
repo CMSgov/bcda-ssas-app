@@ -1,6 +1,7 @@
 package public
 
 import (
+	"context"
 	"errors"
 	"strings"
 	"time"
@@ -71,7 +72,7 @@ func (m *MockMFAPlugin) VerifyPassword(userIdentifier string, password string, t
 	error@test.com			false				(non-nil error)
 	(all others)			false				none
 */
-func (m *MockMFAPlugin) VerifyFactorChallenge(userIdentifier string, factorType string, passcode string, trackingId string) (success bool, oktaUserID string, groupIDs []string) {
+func (m *MockMFAPlugin) VerifyFactorChallenge(ctx context.Context, userIdentifier string, factorType string, passcode string, trackingId string) (success bool, oktaUserID string, groupIDs []string) {
 	success = false
 	verifyEvent := ssas.Event{Op: "VerifyOktaFactorChallenge", TrackingID: trackingId}
 	ssas.OperationStarted(verifyEvent)

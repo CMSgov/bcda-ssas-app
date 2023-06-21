@@ -1,10 +1,10 @@
 package service
 
 import (
+	"context"
 	"crypto/rsa"
 	"crypto/tls"
 	"crypto/x509"
-	"database/sql"
 	"encoding/base64"
 	b64 "encoding/base64"
 	"errors"
@@ -257,7 +257,7 @@ func (s *Server) getVersion(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) getHealthCheck(w http.ResponseWriter, r *http.Request) {
 	m := make(map[string]string)
-	if doHealthCheck() {
+	if doHealthCheck(r.Context()) {
 		m["database"] = "ok"
 		w.WriteHeader(http.StatusOK)
 	} else {
@@ -272,19 +272,13 @@ func (s *Server) getHealthCheck(w http.ResponseWriter, r *http.Request) {
 // is there any circumstance where the server could be partially disabled? (e.g., unable to sign tokens but still running)
 // could less than 3 servers be running?
 // since this ping will be run against all servers, isn't this excessive?
-func doHealthCheck() bool {
-	db, err := sql.Open("postgres", os.Getenv("DATABASE_URL"))
+func doHealthCheck(ctx context.Context) bool {
+	db, err := ssas.Connection.WithContext(ctx).DB()
 	if err != nil {
 		// TODO health check failed event
 		ssas.Logger.Error("health check: database connection error: ", err.Error())
 		return false
 	}
-
-	defer func() {
-		if err = db.Close(); err != nil {
-			ssas.Logger.Infof("failed to close db connection in ssas/service/server.go#doHealthCheck() because %s", err)
-		}
-	}()
 
 	if err = db.Ping(); err != nil {
 		ssas.Logger.Error("health check: database ping error: ", err.Error())
@@ -403,7 +397,7 @@ func (s *Server) VerifyToken(tokenString string) (*jwt.Token, error) {
 	return jwt.ParseWithClaims(tokenString, &CommonClaims{}, keyFunc)
 }
 
-func (s *Server) VerifyClientSignedToken(tokenString string, trackingId string) (*jwt.Token, error) {
+func (s *Server) VerifyClientSignedToken(ctx context.Context, tokenString string, trackingId string) (*jwt.Token, error) {
 	keyFunc := func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodRSA); !ok {
 			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
@@ -418,7 +412,7 @@ func (s *Server) VerifyClientSignedToken(tokenString string, trackingId string) 
 			return nil, fmt.Errorf("failed to retrieve systemID from macaroon")
 		}
 
-		system, err := ssas.GetSystemByID(systemID)
+		system, err := ssas.GetSystemByID(ctx, systemID)
 		if err != nil {
 			ssas.Logger.Error(err)
 			return nil, fmt.Errorf("failed to retrieve system information")
@@ -429,7 +423,7 @@ func (s *Server) VerifyClientSignedToken(tokenString string, trackingId string) 
 			return nil, fmt.Errorf("missing public key id (kid) in jwt header")
 		}
 
-		key, err := system.FindEncryptionKey(trackingId, kid.(string))
+		key, err := system.FindEncryptionKey(ctx, trackingId, kid.(string))
 		if err != nil {
 			ssas.Logger.Error(err)
 			return nil, fmt.Errorf("key not found for system: %v", claims.Issuer)
@@ -447,8 +441,7 @@ func (s *Server) VerifyClientSignedToken(tokenString string, trackingId string) 
 
 // GetSystemIDFromMacaroon returns the system id from macaroon and verify macaroon
 func (s *Server) GetSystemIDFromMacaroon(issuer string) (string, error) {
-	db := ssas.GetGORMDbConnection()
-	defer ssas.Close(db)
+	db := ssas.Connection
 
 	var um macaroon.Macaroon
 	b, _ := base64.StdEncoding.DecodeString(issuer)
@@ -465,7 +458,7 @@ func (s *Server) GetSystemIDFromMacaroon(issuer string) (string, error) {
 	}
 
 	var rootKey ssas.RootKey
-	db.First(&rootKey, "uuid = ?", um.Id(), "system_id = ? AND deleted_at IS NULL", systemId)
+	db.First(&rootKey, "uuid = ? AND system_id = ? AND deleted_at IS NULL", um.Id(), systemId)
 
 	if rootKey.IsExpired() {
 		return "", fmt.Errorf("macaroon expired or deleted")

@@ -1,13 +1,15 @@
 package ssas
 
 import (
+	"context"
 	"encoding/base64"
+	"testing"
+	"time"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 	"gopkg.in/macaroon.v2"
 	"gorm.io/gorm"
-	"testing"
-	"time"
 )
 
 type RootKeyTestSuite struct {
@@ -16,11 +18,7 @@ type RootKeyTestSuite struct {
 }
 
 func (s *RootKeyTestSuite) SetupSuite() {
-	s.db = GetGORMDbConnection()
-}
-
-func (s *RootKeyTestSuite) TearDownSuite() {
-	Close(s.db)
+	s.db = Connection
 }
 
 func TestRootKeyTestSuite(t *testing.T) {
@@ -29,7 +27,7 @@ func TestRootKeyTestSuite(t *testing.T) {
 
 func (s *RootKeyTestSuite) TestRootKeyMacaroonGeneration() {
 	expiration := time.Duration(5*24) * time.Hour
-	rk, _ := NewRootKey(123, time.Now().Add(expiration))
+	rk, _ := NewRootKey(context.Background(), 123, time.Now().Add(expiration))
 	m, _ := rk.Generate([]Caveats{map[string]string{"foo": "bar"}}, "my-location")
 
 	var um macaroon.Macaroon

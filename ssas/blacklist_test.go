@@ -1,12 +1,14 @@
 package ssas
 
 import (
-	"gorm.io/gorm"
+	"context"
+	"testing"
+	"time"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-	"testing"
-	"time"
+	"gorm.io/gorm"
 )
 
 type CacheEntriesTestSuite struct {
@@ -15,15 +17,11 @@ type CacheEntriesTestSuite struct {
 }
 
 func (s *CacheEntriesTestSuite) SetupSuite() {
-	s.db = GetGORMDbConnection()
-}
-
-func (s *CacheEntriesTestSuite) TearDownSuite() {
-	Close(s.db)
+	s.db = Connection
 }
 
 func (s *CacheEntriesTestSuite) TestGetUnexpiredCacheEntries() {
-	entries, err := GetUnexpiredBlacklistEntries()
+	entries, err := GetUnexpiredBlacklistEntries(context.Background())
 	require.Nil(s.T(), err)
 	origEntries := len(entries)
 
@@ -39,7 +37,7 @@ func (s *CacheEntriesTestSuite) TestGetUnexpiredCacheEntries() {
 		assert.FailNow(s.T(), err.Error())
 	}
 
-	entries, err = GetUnexpiredBlacklistEntries()
+	entries, err = GetUnexpiredBlacklistEntries(context.Background())
 	assert.Nil(s.T(), err)
 	assert.True(s.T(), len(entries) == origEntries+2)
 
@@ -53,10 +51,10 @@ func (s *CacheEntriesTestSuite) TestCreateBlacklistEntryEmptyKey() {
 	entryDate := time.Now().Add(time.Minute * -5)
 	expiration := time.Now().Add(time.Minute * 5)
 
-	_, err := CreateBlacklistEntry("", entryDate, expiration)
+	_, err := CreateBlacklistEntry(context.Background(), "", entryDate, expiration)
 	assert.NotNil(s.T(), err)
 
-	e, err := CreateBlacklistEntry("another_key", entryDate, expiration)
+	e, err := CreateBlacklistEntry(context.Background(), "another_key", entryDate, expiration)
 	assert.Nil(s.T(), err)
 	assert.Equal(s.T(), "another_key", e.Key)
 

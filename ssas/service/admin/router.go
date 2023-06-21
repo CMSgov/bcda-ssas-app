@@ -52,6 +52,7 @@ func Server() *service.Server {
 func routes() *chi.Mux {
 	r := chi.NewRouter()
 	m := monitoring.GetMonitor()
+
 	r.Use(gcmw.RequestID, service.NewAPILogger(), service.ConnectionClose)
 	r.With(requireBasicAuth).Post(m.WrapHandler("/group", createGroup))
 	r.With(requireBasicAuth).Get(m.WrapHandler("/group", listGroups))

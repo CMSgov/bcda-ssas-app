@@ -1,15 +1,17 @@
 package ssas
 
 import (
+	"context"
 	"crypto/rand"
 	"encoding/base64"
 	"fmt"
+	"math/big"
+	"time"
+
 	"github.com/CMSgov/bcda-ssas-app/ssas/cfg"
 	"github.com/pborman/uuid"
 	"gopkg.in/macaroon.v2"
 	"gorm.io/gorm"
-	"math/big"
-	"time"
 )
 
 type RootKey struct {
@@ -22,10 +24,7 @@ type RootKey struct {
 
 type Caveats map[string]string
 
-func NewRootKey(systemID uint, expiration time.Time) (*RootKey, error) {
-	db := GetGORMDbConnection()
-	defer Close(db)
-
+func NewRootKey(ctx context.Context, systemID uint, expiration time.Time) (*RootKey, error) {
 	secret, err := generateRandomString()
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate macaroon secret: %s", err.Error())
@@ -37,7 +36,7 @@ func NewRootKey(systemID uint, expiration time.Time) (*RootKey, error) {
 		SystemID:  systemID,
 	}
 
-	if err := db.Create(rk).Error; err != nil {
+	if err := Connection.WithContext(ctx).Create(rk).Error; err != nil {
 		return nil, fmt.Errorf("could not save root key: %s", err.Error())
 	}
 	return rk, nil

@@ -36,9 +36,6 @@ func (s *RouterTestSuite) SetupTest() {
 }
 
 func (s *RouterTestSuite) TearDownSuite() {
-	db := ssas.GetGORMDbConnection()
-	defer ssas.Close(db)
-
 	_ = ssas.CleanDatabase(s.group)
 }
 
@@ -125,8 +122,7 @@ func (s *RouterTestSuite) TestPostSystem() {
 }
 
 func (s *RouterTestSuite) TestDeactivateSystemCredentials() {
-	db := ssas.GetGORMDbConnection()
-	defer ssas.Close(db)
+	db := ssas.Connection
 	group := ssas.Group{GroupID: "delete-system-credentials-test-group"}
 	db.Create(&group)
 	system := ssas.System{GID: group.ID, ClientID: "delete-system-credentials-test-system"}
@@ -145,8 +141,7 @@ func (s *RouterTestSuite) TestDeactivateSystemCredentials() {
 }
 
 func (s *RouterTestSuite) TestPutSystemCredentials() {
-	db := ssas.GetGORMDbConnection()
-	defer ssas.Close(db)
+	db := ssas.Connection
 	group := ssas.Group{GroupID: "put-system-credentials-test-group"}
 	db.Create(&group)
 	system := ssas.System{GID: group.ID, ClientID: "put-system-credentials-test-system"}

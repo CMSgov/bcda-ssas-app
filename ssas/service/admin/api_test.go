@@ -6,13 +6,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/CMSgov/bcda-ssas-app/ssas/service"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
 	"strings"
 	"testing"
+
+	"github.com/CMSgov/bcda-ssas-app/ssas/service"
 
 	"github.com/CMSgov/bcda-ssas-app/ssas"
 	"github.com/go-chi/chi/v5"
@@ -61,13 +62,13 @@ type APITestSuite struct {
 }
 
 func (s *APITestSuite) SetupSuite() {
-	s.db = ssas.GetGORMDbConnection()
+	s.db = ssas.Connection
 	service.StartBlacklist()
 	ssas.MaxIPs = 3
 }
 
 func (s *APITestSuite) TearDownSuite() {
-	ssas.Close(s.db)
+	//ssas.Close(s.db)
 }
 
 func TestAPITestSuite(t *testing.T) {
@@ -122,12 +123,12 @@ func (s *APITestSuite) TestListGroups() {
 	gd := ssas.GroupData{}
 	err := json.Unmarshal([]byte(testInput1), &gd)
 	assert.Nil(s.T(), err)
-	g1, err := ssas.CreateGroup(gd, ssas.RandomHexID())
+	g1, err := ssas.CreateGroup(context.Background(), gd, ssas.RandomHexID())
 	assert.Nil(s.T(), err)
 
 	gd.GroupID = g2ID
 	gd.Name = "another-fake-name"
-	g2, err := ssas.CreateGroup(gd, ssas.RandomHexID())
+	g2, err := ssas.CreateGroup(context.Background(), gd, ssas.RandomHexID())
 	assert.Nil(s.T(), err)
 
 	req := httptest.NewRequest("GET", "/group", nil)
@@ -166,7 +167,7 @@ func (s *APITestSuite) TestUpdateGroup() {
 	gd := ssas.GroupData{}
 	err := json.Unmarshal([]byte(testInput), &gd)
 	assert.Nil(s.T(), err)
-	g, err := ssas.CreateGroup(gd, ssas.RandomHexID())
+	g, err := ssas.CreateGroup(context.Background(), gd, ssas.RandomHexID())
 	assert.Nil(s.T(), err)
 
 	url := fmt.Sprintf("/group/%v", g.ID)
@@ -225,7 +226,7 @@ func (s *APITestSuite) TestDeleteGroup() {
 	gd := ssas.GroupData{}
 	err := json.Unmarshal(groupBytes, &gd)
 	assert.Nil(s.T(), err)
-	g, err := ssas.CreateGroup(gd, ssas.RandomHexID())
+	g, err := ssas.CreateGroup(context.Background(), gd, ssas.RandomHexID())
 	assert.Nil(s.T(), err)
 
 	url := fmt.Sprintf("/group/%v", g.ID)
@@ -290,7 +291,7 @@ func (s *APITestSuite) TestCreateSystemMultipleIps() {
 	assert.NotEqual(s.T(), "", creds.ClientID)
 	assert.Equal(s.T(), "Test Client", creds.ClientName)
 
-	system, err := ssas.GetSystemByClientID(creds.ClientID)
+	system, err := ssas.GetSystemByClientID(context.Background(), creds.ClientID)
 	assert.Nil(s.T(), err)
 	ips, err := system.GetIPs()
 	assert.Nil(s.T(), err)
@@ -836,7 +837,7 @@ func (s *APITestSuite) TestUpdateSystem() {
 	assert.Equal(s.T(), http.StatusNoContent, rr.Result().StatusCode)
 
 	//Verify patch
-	sys, err := ssas.GetSystemByID(sysId)
+	sys, err := ssas.GetSystemByID(context.Background(), sysId)
 	assert.NoError(s.T(), err)
 	assert.Equal(s.T(), "Updated Client Name", sys.ClientName)
 
@@ -849,7 +850,7 @@ func (s *APITestSuite) TestUpdateSystem() {
 	assert.Equal(s.T(), http.StatusNoContent, rr.Result().StatusCode)
 
 	//Verify API Scope patch
-	sys, err = ssas.GetSystemByID(sysId)
+	sys, err = ssas.GetSystemByID(context.Background(), sysId)
 	assert.NoError(s.T(), err)
 	assert.Equal(s.T(), "updated_scope", sys.APIScope)
 
@@ -862,7 +863,7 @@ func (s *APITestSuite) TestUpdateSystem() {
 	assert.Equal(s.T(), http.StatusNoContent, rr.Result().StatusCode)
 
 	//Verify Software Id patch
-	sys, err = ssas.GetSystemByID(sysId)
+	sys, err = ssas.GetSystemByID(context.Background(), sysId)
 	assert.NoError(s.T(), err)
 	assert.Equal(s.T(), "42", sys.SoftwareID)
 
@@ -924,7 +925,7 @@ func contains(list []string, target string) bool {
 	return false
 }
 
-//V2 Tests Below
+// V2 Tests Below
 func (s *APITestSuite) TestCreateV2System() {
 	group := ssas.Group{GroupID: "test-group-id"}
 	err := s.db.Save(&group).Error
@@ -999,7 +1000,7 @@ func (s *APITestSuite) TestCreateV2SystemMultipleIps() {
 	assert.NotEqual(s.T(), "", creds.ClientID)
 	assert.Equal(s.T(), "Test Client", creds.ClientName)
 
-	system, err := ssas.GetSystemByClientID(creds.ClientID)
+	system, err := ssas.GetSystemByClientID(req.Context(), creds.ClientID)
 	assert.Nil(s.T(), err)
 	ips, err := system.GetIPs()
 	assert.Nil(s.T(), err)

@@ -41,7 +41,7 @@ type APITestSuite struct {
 }
 
 func (s *APITestSuite) SetupSuite() {
-	s.db = ssas.GetGORMDbConnection()
+	s.db = ssas.Connection
 	s.server = Server()
 	s.badSigningKeyPath = "../../../shared_files/ssas/admin_test_signing_key.pem"
 	s.assertAud = "http://local.testing.cms.gov/api/v2/Token/auth"
@@ -49,12 +49,8 @@ func (s *APITestSuite) SetupSuite() {
 }
 
 func (s *APITestSuite) SetupTest() {
-	s.db = ssas.GetGORMDbConnection()
+	s.db = ssas.Connection
 	s.rr = httptest.NewRecorder()
-}
-
-func (s *APITestSuite) TearDownSuite() {
-	ssas.Close(s.db)
 }
 
 func (s *APITestSuite) TestAuthRegisterEmpty() {
@@ -306,7 +302,7 @@ func (s *APITestSuite) TestTokenSuccess() {
 	pemString, err := ssas.ConvertPublicKeyToPEMString(&pubKey)
 	require.Nil(s.T(), err)
 
-	creds, err := ssas.RegisterSystem(constants.TestSystemName, groupID, ssas.DefaultScope, pemString, []string{}, uuid.NewRandom().String())
+	creds, err := ssas.RegisterSystem(context.Background(), constants.TestSystemName, groupID, ssas.DefaultScope, pemString, []string{}, uuid.NewRandom().String())
 	assert.Nil(s.T(), err)
 	assert.Equal(s.T(), constants.TestSystemName, creds.ClientName)
 	assert.NotNil(s.T(), creds.ClientSecret)
@@ -339,7 +335,7 @@ func (s *APITestSuite) TestTokenErrAtGenerateTokenReturn401() {
 	pemString, err := ssas.ConvertPublicKeyToPEMString(&pubKey)
 	require.Nil(s.T(), err)
 
-	creds, err := ssas.RegisterSystem(constants.TestSystemName, groupID, ssas.DefaultScope, pemString, []string{}, uuid.NewRandom().String())
+	creds, err := ssas.RegisterSystem(context.Background(), constants.TestSystemName, groupID, ssas.DefaultScope, pemString, []string{}, uuid.NewRandom().String())
 	assert.Nil(s.T(), err)
 	assert.Equal(s.T(), constants.TestSystemName, creds.ClientName)
 	assert.NotNil(s.T(), creds.ClientSecret)
@@ -381,7 +377,7 @@ func (s *APITestSuite) TestTokenEmptySecretProduces401() {
 	pemString, err := ssas.ConvertPublicKeyToPEMString(&pubKey)
 	require.Nil(s.T(), err)
 
-	creds, err := ssas.RegisterSystem(constants.TestSystemName, groupID, ssas.DefaultScope, pemString, []string{}, uuid.NewRandom().String())
+	creds, err := ssas.RegisterSystem(context.Background(), constants.TestSystemName, groupID, ssas.DefaultScope, pemString, []string{}, uuid.NewRandom().String())
 	assert.Nil(s.T(), err)
 	assert.Equal(s.T(), constants.TestSystemName, creds.ClientName)
 	assert.NotNil(s.T(), creds.ClientSecret)
@@ -413,7 +409,7 @@ func (s *APITestSuite) TestTokenWrongSecretProduces401() {
 	pemString, err := ssas.ConvertPublicKeyToPEMString(&pubKey)
 	require.Nil(s.T(), err)
 
-	creds, err := ssas.RegisterSystem(constants.TestSystemName, groupID, ssas.DefaultScope, pemString, []string{}, uuid.NewRandom().String())
+	creds, err := ssas.RegisterSystem(context.Background(), constants.TestSystemName, groupID, ssas.DefaultScope, pemString, []string{}, uuid.NewRandom().String())
 	assert.Nil(s.T(), err)
 	assert.Equal(s.T(), constants.TestSystemName, creds.ClientName)
 	assert.NotNil(s.T(), creds.ClientSecret)
@@ -445,7 +441,7 @@ func (s *APITestSuite) TestTokenEmptyClientIdProduces401() {
 	pemString, err := ssas.ConvertPublicKeyToPEMString(&pubKey)
 	require.Nil(s.T(), err)
 
-	creds, err := ssas.RegisterSystem(constants.TestSystemName, groupID, ssas.DefaultScope, pemString, []string{}, uuid.NewRandom().String())
+	creds, err := ssas.RegisterSystem(context.Background(), constants.TestSystemName, groupID, ssas.DefaultScope, pemString, []string{}, uuid.NewRandom().String())
 	assert.Nil(s.T(), err)
 	assert.Equal(s.T(), constants.TestSystemName, creds.ClientName)
 	assert.NotNil(s.T(), creds.ClientSecret)
@@ -485,9 +481,9 @@ func (s *APITestSuite) testIntrospectFlaw(flaw service.TokenFlaw, errorText stri
 
 	creds, group := ssas.CreateTestXData(s.T(), s.db)
 
-	system, err := ssas.GetSystemByClientID(creds.ClientID)
+	system, err := ssas.GetSystemByClientID(context.Background(), creds.ClientID)
 	assert.Nil(s.T(), err)
-	data, err := ssas.XDataFor(system)
+	data, err := ssas.XDataFor(context.Background(), system)
 	assert.Nil(s.T(), err)
 
 	claims := service.CommonClaims{
@@ -571,23 +567,23 @@ func (s *APITestSuite) TestSaveTokenTime() {
 	err := s.db.Create(&group).Error
 	require.Nil(s.T(), err)
 
-	creds, err := ssas.RegisterSystem("Introspect Test", groupID, ssas.DefaultScope, "", []string{}, uuid.NewRandom().String())
+	creds, err := ssas.RegisterSystem(context.Background(), "Introspect Test", groupID, ssas.DefaultScope, "", []string{}, uuid.NewRandom().String())
 	assert.Nil(s.T(), err)
 	assert.Equal(s.T(), "Introspect Test", creds.ClientName)
 	assert.NotNil(s.T(), creds.ClientSecret)
 
-	system, err := ssas.GetSystemByClientID(creds.ClientID)
+	system, err := ssas.GetSystemByClientID(context.Background(), creds.ClientID)
 	assert.Nil(s.T(), err)
 	assert.True(s.T(), system.LastTokenAt.IsZero())
 
-	system.SaveTokenTime()
-	system, err = ssas.GetSystemByClientID(creds.ClientID)
+	system.SaveTokenTime(context.Background())
+	system, err = ssas.GetSystemByClientID(context.Background(), creds.ClientID)
 	assert.Nil(s.T(), err)
 	assert.False(s.T(), system.LastTokenAt.IsZero())
 
 	time1 := system.LastTokenAt
-	system.SaveTokenTime()
-	system, err = ssas.GetSystemByClientID(creds.ClientID)
+	system.SaveTokenTime(context.Background())
+	system, err = ssas.GetSystemByClientID(context.Background(), creds.ClientID)
 	assert.Nil(s.T(), err)
 	assert.NotEqual(s.T(), system.LastTokenAt, time1)
 
@@ -632,7 +628,7 @@ func (s *APITestSuite) SetupClientAssertionTest() (ssas.Credentials, ssas.Group,
 		TrackingID: uuid.NewRandom().String(),
 		XData:      `{"impl": "blah"}`,
 	}
-	creds, err := ssas.RegisterV2System(si)
+	creds, err := ssas.RegisterV2System(context.Background(), si)
 	assert.Nil(s.T(), err)
 	assert.Equal(s.T(), constants.TestSystemName, creds.ClientName)
 	assert.NotNil(s.T(), creds.ClientSecret)
@@ -673,7 +669,7 @@ func (s *APITestSuite) TestAuthenticatingWithJWT() {
 // Authenticate and generate access token using JWT (v2/token/)
 func (s *APITestSuite) TestAuthenticatingWithJWTUsingSecondPublicKey() {
 	creds, group, _ := s.SetupClientAssertionTest()
-	system, _ := ssas.GetSystemByID(creds.SystemID)
+	system, _ := ssas.GetSystemByID(context.Background(), creds.SystemID)
 	pubK, sig, newPrivateKey, _ := ssas.GeneratePublicKey(2048)
 	secondKey, _ := system.AddAdditionalPublicKey(strings.NewReader(pubK), sig)
 
@@ -699,7 +695,7 @@ func (s *APITestSuite) TestAuthenticatingWithJWTUsingSecondPublicKey() {
 
 func (s *APITestSuite) TestAuthenticatingWithJWTUsingWrongPrivateKey() {
 	creds, group, firstPrivateKey := s.SetupClientAssertionTest()
-	system, _ := ssas.GetSystemByID(creds.SystemID)
+	system, _ := ssas.GetSystemByID(context.Background(), creds.SystemID)
 	pubK, sig, _, _ := ssas.GeneratePublicKey(2048)
 	secondKey, _ := system.AddAdditionalPublicKey(strings.NewReader(pubK), sig)
 
@@ -866,18 +862,17 @@ func (s *APITestSuite) TestAuthenticatingWithJWTWithSoftDeletedPublicKey() {
 	req.Header.Add("Accept", constants.HeaderApplicationJSON)
 	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 
-	system, err := ssas.GetSystemByID(creds.SystemID)
+	system, err := ssas.GetSystemByID(context.Background(), creds.SystemID)
 	assert.Nil(s.T(), err)
-	key, err := system.GetEncryptionKey(uuid.NewRandom().String())
+	key, err := system.GetEncryptionKey(req.Context(), uuid.NewRandom().String())
 	assert.Nil(s.T(), err)
 
 	//Soft delete public key
-	db := ssas.GetGORMDbConnection()
-	defer ssas.Close(db)
+	db := ssas.Connection
 	assert.Nil(s.T(), s.db.Delete(&key).Error)
 
 	//Ensure record was soft deleted, and not permanently deleted.
-	key, err = system.GetEncryptionKey(uuid.NewRandom().String())
+	key, err = system.GetEncryptionKey(req.Context(), uuid.NewRandom().String())
 	assert.NotNil(s.T(), err)
 	assert.Empty(s.T(), key)
 	var encryptionKey ssas.EncryptionKey
@@ -1239,9 +1234,9 @@ func (s *APITestSuite) TestGetTokenInfoWithExpiredToken() {
 
 func (s *APITestSuite) MintTestAccessTokenWithDuration(duration time.Duration) (*jwt.Token, string, error) {
 	creds, _ := ssas.CreateTestXDataV2(s.T(), s.db)
-	system, err := ssas.GetSystemByClientID(creds.ClientID)
+	system, err := ssas.GetSystemByClientID(context.Background(), creds.ClientID)
 	assert.Nil(s.T(), err)
-	data, err := ssas.XDataFor(system)
+	data, err := ssas.XDataFor(context.Background(), system)
 	assert.Nil(s.T(), err)
 
 	claims := service.CommonClaims{

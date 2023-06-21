@@ -1,9 +1,11 @@
 package ssas
 
 import (
+	"context"
 	"fmt"
-	"github.com/pborman/uuid"
 	"time"
+
+	"github.com/pborman/uuid"
 
 	"gorm.io/gorm"
 )
@@ -15,7 +17,7 @@ type BlacklistEntry struct {
 	CacheExpiration int64  `gorm:"not null" json:"cache_expiration"`
 }
 
-func CreateBlacklistEntry(key string, entryDate time.Time, cacheExpiration time.Time) (entry BlacklistEntry, err error) {
+func CreateBlacklistEntry(ctx context.Context, key string, entryDate time.Time, cacheExpiration time.Time) (entry BlacklistEntry, err error) {
 	event := Event{Op: "CreateBlacklistEntry", TrackingID: key, TokenID: key}
 	OperationStarted(event)
 
@@ -32,9 +34,7 @@ func CreateBlacklistEntry(key string, entryDate time.Time, cacheExpiration time.
 		CacheExpiration: cacheExpiration.UnixNano(),
 	}
 
-	db := GetGORMDbConnection()
-	defer Close(db)
-	err = db.Save(&be).Error
+	err = Connection.WithContext(ctx).Save(&be).Error
 	if err != nil {
 		event.Help = err.Error()
 		OperationFailed(event)
@@ -46,14 +46,12 @@ func CreateBlacklistEntry(key string, entryDate time.Time, cacheExpiration time.
 	return
 }
 
-func GetUnexpiredBlacklistEntries() (entries []BlacklistEntry, err error) {
+func GetUnexpiredBlacklistEntries(ctx context.Context) (entries []BlacklistEntry, err error) {
 	trackingID := uuid.NewRandom().String()
 	event := Event{Op: "GetBlacklistEntries", TrackingID: trackingID}
 	OperationStarted(event)
 
-	db := GetGORMDbConnection()
-	defer Close(db)
-	err = db.Order("entry_date, cache_expiration").Where("cache_expiration > ?", time.Now().UnixNano()).Find(&entries).Error
+	err = Connection.WithContext(ctx).Order("entry_date, cache_expiration").Where("cache_expiration > ?", time.Now().UnixNano()).Find(&entries).Error
 	if err != nil {
 		event.Help = err.Error()
 		OperationFailed(event)

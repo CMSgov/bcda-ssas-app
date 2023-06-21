@@ -1,6 +1,7 @@
 package ssas
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -53,11 +54,7 @@ type GroupsTestSuite struct {
 }
 
 func (s *GroupsTestSuite) SetupSuite() {
-	s.db = GetGORMDbConnection()
-}
-
-func (s *GroupsTestSuite) TearDownSuite() {
-	Close(s.db)
+	s.db = Connection
 }
 
 func (s *GroupsTestSuite) AfterTest() {
@@ -68,7 +65,7 @@ func (s *GroupsTestSuite) TestCreateGroup() {
 	gd := GroupData{}
 	err := json.Unmarshal([]byte(fmt.Sprintf(SampleGroup, gid, SampleXdata)), &gd)
 	assert.Nil(s.T(), err)
-	g, err := CreateGroup(gd, RandomHexID())
+	g, err := CreateGroup(context.Background(), gd, RandomHexID())
 
 	require.Nil(s.T(), err)
 	require.NotNil(s.T(), g)
@@ -81,9 +78,7 @@ func (s *GroupsTestSuite) TestCreateGroup() {
 	assert.Equal(s.T(), g.Data.XData, g.XData)
 
 	dbGroup := Group{}
-	db := GetGORMDbConnection()
-	defer Close(db)
-	if err := db.First(&dbGroup, g.ID).Error; errors.Is(err, gorm.ErrRecordNotFound) {
+	if err := Connection.First(&dbGroup, g.ID).Error; errors.Is(err, gorm.ErrRecordNotFound) {
 		assert.FailNow(s.T(), fmt.Sprintf("record not found for id=%d", g.ID))
 	}
 	assert.Equal(s.T(), gid, dbGroup.GroupID)
@@ -95,26 +90,26 @@ func (s *GroupsTestSuite) TestCreateGroup() {
 	err = CleanDatabase(g)
 	assert.Nil(s.T(), err)
 	gd.GroupID = ""
-	_, err = CreateGroup(gd, RandomHexID())
+	_, err = CreateGroup(context.Background(), gd, RandomHexID())
 	assert.EqualError(s.T(), err, "group_id cannot be blank")
 }
 
 func (s *GroupsTestSuite) TestListGroups() {
 	var startingCount int64
-	GetGORMDbConnection().Table("groups").Count(&startingCount)
+	Connection.Table("groups").Count(&startingCount)
 	groupBytes := []byte(fmt.Sprintf(SampleGroup, RandomHexID(), SampleXdata))
 	gd := GroupData{}
 	err := json.Unmarshal(groupBytes, &gd)
 	require.Nil(s.T(), err)
-	g1, err := CreateGroup(gd, RandomHexID())
+	g1, err := CreateGroup(context.Background(), gd, RandomHexID())
 	require.Nil(s.T(), err)
 
 	gd.GroupID = RandomHexID()
 	gd.Name = "some-fake-name"
-	g2, err := CreateGroup(gd, RandomHexID())
+	g2, err := CreateGroup(context.Background(), gd, RandomHexID())
 	assert.Nil(s.T(), err)
 
-	groupList, err := ListGroups("test-list-groups")
+	groupList, err := ListGroups(context.Background(), "test-list-groups")
 	assert.Nil(s.T(), err)
 	assert.Len(s.T(), groupList.Groups, int(2+startingCount))
 
@@ -123,7 +118,7 @@ func (s *GroupsTestSuite) TestListGroups() {
 	err = CleanDatabase(g2)
 	assert.Nil(s.T(), err)
 
-	groupList, err = ListGroups("test-list-groups")
+	groupList, err = ListGroups(context.Background(), "test-list-groups")
 	assert.Nil(s.T(), err)
 	assert.Len(s.T(), groupList.Groups, int(startingCount))
 }
@@ -142,7 +137,7 @@ func (s *GroupsTestSuite) TestUpdateGroup() {
 	gd.Scopes = []string{"aScope", "anotherScope"}
 	gd.GroupID = RandomHexID()
 	gd.Name = "aNewGroupName"
-	changed, err := UpdateGroup(fmt.Sprint(orig.ID), gd)
+	changed, err := UpdateGroup(context.Background(), fmt.Sprint(orig.ID), gd)
 	assert.Nil(s.T(), err)
 
 	assert.Nil(s.T(), err)
@@ -171,7 +166,7 @@ func (s *GroupsTestSuite) TestDeleteGroup() {
 	err = s.db.Create(&encrKey).Error
 	require.Nil(s.T(), err, "unexpected error")
 
-	err = DeleteGroup(fmt.Sprint(group.ID))
+	err = DeleteGroup(context.Background(), fmt.Sprint(group.ID))
 	assert.Nil(s.T(), err)
 	err = CleanDatabase(group)
 	assert.Nil(s.T(), err)
@@ -185,23 +180,23 @@ func (s *GroupsTestSuite) TestGetAuthorizedGroupsForOktaID() {
 	g1 := GroupData{}
 	err := json.Unmarshal(group1bytes, &g1)
 	assert.Nil(s.T(), err)
-	group1, _ := CreateGroup(g1, RandomHexID())
+	group1, _ := CreateGroup(context.Background(), g1, RandomHexID())
 
 	g2 := GroupData{}
 	err = json.Unmarshal(group2bytes, &g2)
 	assert.Nil(s.T(), err)
-	group2, _ := CreateGroup(g2, RandomHexID())
+	group2, _ := CreateGroup(context.Background(), g2, RandomHexID())
 
 	g3 := GroupData{}
 	err = json.Unmarshal(group3bytes, &g3)
 	assert.Nil(s.T(), err)
-	group3, _ := CreateGroup(g3, RandomHexID())
+	group3, _ := CreateGroup(context.Background(), g3, RandomHexID())
 
 	defer s.db.Unscoped().Delete(&group1)
 	defer s.db.Unscoped().Delete(&group2)
 	defer s.db.Unscoped().Delete(&group3)
 
-	authorizedGroups, err := GetAuthorizedGroupsForOktaID("abcdef")
+	authorizedGroups, err := GetAuthorizedGroupsForOktaID(context.Background(), "abcdef")
 	if err != nil {
 		s.FailNow(err.Error())
 	}

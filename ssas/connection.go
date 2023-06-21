@@ -3,47 +3,49 @@ package ssas
 import (
 	"database/sql"
 	"os"
-	"runtime"
+	"time"
 
 	_ "github.com/lib/pq"
-	log "github.com/sirupsen/logrus"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
 
-// Variable substitution to support testing.
-var LogFatal = log.Fatal
+var Connection *gorm.DB
 
-func GetDbConnection() *sql.DB {
-	databaseURL := os.Getenv("DATABASE_URL")
-	db, err := sql.Open("postgres", databaseURL)
+func init() {
+	var err error
+	Connection, err = createDB()
+
 	if err != nil {
-		LogFatal(err)
+		Logger.Fatalf("Failed to create db %s", err.Error())
 	}
-	pingErr := db.Ping()
-	if pingErr != nil {
-		LogFatal(pingErr)
-	}
-	return db
 }
 
-func GetGORMDbConnection() *gorm.DB {
+func createDB() (*gorm.DB, error) {
 	databaseURL := os.Getenv("DATABASE_URL")
-	db, err := gorm.Open(postgres.Open(databaseURL), &gorm.Config{})
-	if err != nil {
-		LogFatal(err)
-	}
-	return db
-}
 
-func Close(db *gorm.DB) {
-	d, err := db.DB()
+	sqlDB, err := sql.Open("pgx", databaseURL)
 	if err != nil {
-		log.Warnf("failed to retrieve db connection %v", err)
-		return
+		return nil, err
 	}
-	if err := d.Close(); err != nil {
-		_, file, line, _ := runtime.Caller(1)
-		Logger.Infof("failed to close db connection at %s#%d because %s", file, line, err)
+
+	// TODO: Allow connection settings to be configured by env vars
+	// https://jira.cms.gov/browse/BCDA-7109
+	sqlDB.SetMaxOpenConns(40)
+	sqlDB.SetMaxIdleConns(40)
+	sqlDB.SetConnMaxLifetime(time.Duration(5) * time.Minute)
+
+	db, err := gorm.Open(postgres.New(postgres.Config{
+		Conn: sqlDB,
+	}), &gorm.Config{})
+
+	if err != nil {
+		return nil, err
 	}
+
+	if err := sqlDB.Ping(); err != nil {
+		return nil, err
+	}
+
+	return db, nil
 }
