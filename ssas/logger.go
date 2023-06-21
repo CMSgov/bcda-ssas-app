@@ -43,7 +43,7 @@ func init() {
 
 	Logger = logInstance.WithFields(logrus.Fields{
 		"application": constants.Application,
-		"environment": "local",
+		"environment": os.Getenv("DEPLOYMENT TARGET"),
 		"version":     constants.Version})
 
 }
