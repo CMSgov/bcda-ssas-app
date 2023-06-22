@@ -12,3 +12,5 @@ const TestSystemName = "Token Test"
 const TokenEndpoint = "/token"
 
 const HeaderApplicationJSON = "application/json"
+
+const Application = "ssas"

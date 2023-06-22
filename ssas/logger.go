@@ -4,11 +4,12 @@ import (
 	"os"
 	"time"
 
+	"github.com/CMSgov/bcda-ssas-app/ssas/constants"
 	"github.com/sirupsen/logrus"
 )
 
 // Logger provides a structured logger for this service
-var Logger *logrus.Logger
+var Logger logrus.FieldLogger
 
 // Event contains the superset of fields that may be included in Logger statements
 type Event struct {
@@ -22,9 +23,9 @@ type Event struct {
 }
 
 func init() {
-	Logger = logrus.New()
-	Logger.Formatter = &logrus.JSONFormatter{}
-	Logger.Formatter.(*logrus.JSONFormatter).TimestampFormat = time.RFC3339Nano
+
+	logInstance := logrus.New()
+	logInstance.SetFormatter(&logrus.JSONFormatter{TimestampFormat: time.RFC3339Nano})
 
 	filePath, success := os.LookupEnv("SSAS_LOG")
 	if success {
@@ -32,38 +33,48 @@ func init() {
 		file, err := os.OpenFile(filePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0664)
 
 		if err == nil {
-			Logger.SetOutput(file)
+			logInstance.SetOutput(file)
 		} else {
-			Logger.Info("Failed to open SSAS log file; using default stderr")
+			logInstance.Info("Failed to open SSAS log file; using default stderr")
 		}
 	} else {
-		Logger.Info("No SSAS log location provided; using default stderr")
+		logInstance.Info("No SSAS log location provided; using default stderr")
 	}
+
+	Logger = logInstance.WithFields(logrus.Fields{
+		"application": constants.Application,
+		"environment": os.Getenv("DEPLOYMENT_TARGET"),
+		"version":     constants.Version})
+
 }
 
-func mergeNonEmpty(data Event) *logrus.Entry {
-	var entry = logrus.NewEntry(Logger)
+type APILoggerEntry struct {
+	Logger logrus.FieldLogger
+}
+
+func mergeNonEmpty(data Event) logrus.FieldLogger {
+	entry := &APILoggerEntry{Logger: Logger}
 
 	if data.UserID != "" {
-		entry = entry.WithField("userID", data.UserID)
+		entry.Logger = entry.Logger.WithField("userID", data.UserID)
 	}
 	if data.ClientID != "" {
-		entry = entry.WithField("clientID", data.ClientID)
+		entry.Logger = entry.Logger.WithField("clientID", data.ClientID)
 	}
 	if data.TrackingID != "" {
-		entry = entry.WithField("trackingID", data.TrackingID)
+		entry.Logger = entry.Logger.WithField("trackingID", data.TrackingID)
 	}
 	if data.Elapsed != 0 {
-		entry = entry.WithField("elapsed", data.Elapsed)
+		entry.Logger = entry.Logger.WithField("elapsed", data.Elapsed)
 	}
 	if data.Op != "" {
-		entry = entry.WithField("op", data.Op)
+		entry.Logger = entry.Logger.WithField("op", data.Op)
 	}
 	if data.TokenID != "" {
-		entry = entry.WithField("tokenID", data.TokenID)
+		entry.Logger = entry.Logger.WithField("tokenID", data.TokenID)
 	}
 
-	return entry
+	return entry.Logger
 }
 
 /*

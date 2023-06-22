@@ -14,6 +14,7 @@ import (
 	"testing"
 
 	"github.com/pborman/uuid"
+	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
@@ -169,4 +170,13 @@ func CreateTestXDataV2(t *testing.T, db *gorm.DB) (creds Credentials, group Grou
 	assert.NotNil(t, creds.ClientSecret)
 
 	return
+}
+
+// GetLogger returns the underlying implementation of the field logger
+func GetLogger(logger logrus.FieldLogger) *logrus.Logger {
+	if entry, ok := logger.(*logrus.Entry); ok {
+		return entry.Logger
+	}
+	// Must be a *logrus.Logger
+	return logger.(*logrus.Logger)
 }
