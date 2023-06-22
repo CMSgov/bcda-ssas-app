@@ -25,7 +25,7 @@ type Event struct {
 func init() {
 
 	logInstance := logrus.New()
-	logInstance.SetFormatter(&logrus.JSONFormatter{TimestampFormat: time.RFC3339Nano}) //change to setformatter
+	logInstance.SetFormatter(&logrus.JSONFormatter{TimestampFormat: time.RFC3339Nano})
 
 	filePath, success := os.LookupEnv("SSAS_LOG")
 	if success {
@@ -43,7 +43,7 @@ func init() {
 
 	Logger = logInstance.WithFields(logrus.Fields{
 		"application": constants.Application,
-		"environment": os.Getenv("DEPLOYMENT TARGET"),
+		"environment": os.Getenv("DEPLOYMENT_TARGET"),
 		"version":     constants.Version})
 
 }

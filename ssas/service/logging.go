@@ -24,7 +24,6 @@ type APILogger struct {
 }
 
 func (l *APILogger) NewLogEntry(r *http.Request) middleware.LogEntry {
-	// change the parameter to take an entry for fieldLogger, change line 23 to entry, pass in an entry
 	entry := &APILoggerEntry{Logger: l.Logger}
 	logFields := logrus.Fields{}
 
@@ -44,7 +43,6 @@ func (l *APILogger) NewLogEntry(r *http.Request) middleware.LogEntry {
 
 	logFields["uri"] = fmt.Sprintf("%s://%s%s", scheme, r.Host, Redact(r.RequestURI))
 
-	// comment for review: can this be removed since we are not using Okta?
 	if rd, ok := r.Context().Value("rd").(ssas.AuthRegData); ok {
 		logFields["group_id"] = rd.GroupID
 		logFields["okta_id"] = rd.OktaID

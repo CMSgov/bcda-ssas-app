@@ -24,7 +24,6 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/pborman/uuid"
-	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	m "github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -461,21 +460,13 @@ func (s *APITestSuite) TestTokenEmptyClientIdProduces401() {
 	assert.Nil(s.T(), err)
 }
 
-func GetLogger(logger logrus.FieldLogger) *logrus.Logger {
-	if entry, ok := logger.(*logrus.Entry); ok {
-		return entry.Logger
-	}
-
-	return logger.(*logrus.Logger)
-}
-
 func (s *APITestSuite) testIntrospectFlaw(flaw service.TokenFlaw, errorText string) {
 	var (
 		signingKeyPath string
 		origLog        io.Writer
 		buf            bytes.Buffer
 	)
-	logger := GetLogger(ssas.Logger)
+	logger := ssas.GetLogger(ssas.Logger)
 	origLog = logger.Out
 	logger.SetOutput(&buf)
 	defer func() {
