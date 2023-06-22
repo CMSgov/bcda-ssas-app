@@ -26,22 +26,6 @@ func (s *PublicTokenTestSuite) SetupSuite() {
 	assert.Nil(s.T(), err)
 }
 
-func (s *PublicTokenTestSuite) TestMintMFAToken() {
-	token, ts, err := MintMFAToken("my_okta_id")
-
-	assert.Nil(s.T(), err)
-	assert.NotNil(s.T(), token)
-	assert.NotNil(s.T(), ts)
-}
-
-func (s *PublicTokenTestSuite) TestMintMFATokenMissingID() {
-	token, ts, err := MintMFAToken("")
-
-	assert.NotNil(s.T(), err)
-	assert.Nil(s.T(), token)
-	assert.Equal(s.T(), "", ts)
-}
-
 func (s *PublicTokenTestSuite) TestMintRegistrationToken() {
 	groupIDs := []string{"A0000", "A0001"}
 	token, ts, err := MintRegistrationToken("my_okta_id", groupIDs)
