@@ -31,7 +31,7 @@ func GetMonitor() *apm {
 			},
 		)
 		if err != nil {
-			log.Fatal(err)
+			log.Println(err)
 		}
 		a = &apm{
 			App: app,
