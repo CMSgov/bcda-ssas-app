@@ -31,7 +31,7 @@ func GetMonitor() *apm {
 			},
 		)
 		if err != nil {
-			log.Println(err)
+			ssas.Logger.Error(err)
 		}
 		a = &apm{
 			App: app,
