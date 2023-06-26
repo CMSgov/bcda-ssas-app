@@ -2,10 +2,10 @@ package monitoring
 
 import (
 	"fmt"
-	"log"
 	"net/http"
 	"os"
 
+	"github.com/CMSgov/bcda-ssas-app/ssas"
 	"github.com/newrelic/go-agent/v3/newrelic"
 )
 
