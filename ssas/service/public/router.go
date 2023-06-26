@@ -7,6 +7,7 @@ import (
 
 	"github.com/CMSgov/bcda-ssas-app/ssas"
 	"github.com/CMSgov/bcda-ssas-app/ssas/constants"
+	"github.com/CMSgov/bcda-ssas-app/ssas/monitoring"
 	"github.com/CMSgov/bcda-ssas-app/ssas/service"
 	"github.com/go-chi/chi/v5"
 	gcmw "github.com/go-chi/chi/v5/middleware"
@@ -50,17 +51,17 @@ func Server() *service.Server {
 
 func routes() *chi.Mux {
 	router := chi.NewRouter()
-
+	m := monitoring.GetMonitor()
 	//v1 Routes
 	router.Use(gcmw.RequestID, service.NewAPILogger(), service.ConnectionClose)
-	router.Post("/token", token)
-	router.Post("/introspect", introspect)
-	router.With(parseToken, requireRegTokenAuth, readGroupID).Post("/register", RegisterSystem)
-	router.With(parseToken, requireRegTokenAuth, readGroupID).Post("/reset", ResetSecret)
+	router.Post(m.WrapHandler("/token", token))
+	router.Post(m.WrapHandler("/introspect", introspect))
+	router.With(parseToken, requireRegTokenAuth, readGroupID).Post(m.WrapHandler("/register", RegisterSystem))
+	router.With(parseToken, requireRegTokenAuth, readGroupID).Post(m.WrapHandler("/reset", ResetSecret))
 
 	//v2 Routes
-	router.Post("/v2/token", tokenV2)
-	router.Post("/v2/token_info", validateAndParseToken)
+	router.Post(m.WrapHandler("/v2/token", tokenV2))
+	router.Post(m.WrapHandler("/v2/token_info", validateAndParseToken))
 
 	return router
 }

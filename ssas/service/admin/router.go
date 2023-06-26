@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/CMSgov/bcda-ssas-app/ssas"
+	"github.com/CMSgov/bcda-ssas-app/ssas/monitoring"
 
 	"github.com/go-chi/chi/v5"
 	gcmw "github.com/go-chi/chi/v5/middleware"
@@ -50,32 +51,33 @@ func Server() *service.Server {
 
 func routes() *chi.Mux {
 	r := chi.NewRouter()
+	m := monitoring.GetMonitor()
 
 	r.Use(gcmw.RequestID, service.NewAPILogger(), service.ConnectionClose)
-	r.With(requireBasicAuth).Post("/group", createGroup)
-	r.With(requireBasicAuth).Get("/group", listGroups)
-	r.With(requireBasicAuth).Put("/group/{id}", updateGroup)
-	r.With(requireBasicAuth).Delete("/group/{id}", deleteGroup)
-	r.With(requireBasicAuth).Post("/system", createSystem)
-	r.With(requireBasicAuth).Put("/system/{systemID}/credentials", resetCredentials)
-	r.With(requireBasicAuth).Get("/system/{systemID}/key", getPublicKey)
-	r.With(requireBasicAuth).Delete("/system/{systemID}/credentials", deactivateSystemCredentials)
-	r.With(requireBasicAuth).Delete("/token/{tokenID}", revokeToken)
+	r.With(requireBasicAuth).Post(m.WrapHandler("/group", createGroup))
+	r.With(requireBasicAuth).Get(m.WrapHandler("/group", listGroups))
+	r.With(requireBasicAuth).Put(m.WrapHandler("/group/{id}", updateGroup))
+	r.With(requireBasicAuth).Delete(m.WrapHandler("/group/{id}", deleteGroup))
+	r.With(requireBasicAuth).Post(m.WrapHandler("/system", createSystem))
+	r.With(requireBasicAuth).Put(m.WrapHandler("/system/{systemID}/credentials", resetCredentials))
+	r.With(requireBasicAuth).Get(m.WrapHandler("/system/{systemID}/key", getPublicKey))
+	r.With(requireBasicAuth).Delete(m.WrapHandler("/system/{systemID}/credentials", deactivateSystemCredentials))
+	r.With(requireBasicAuth).Delete(m.WrapHandler("/token/{tokenID}", revokeToken))
 
 	r.Route("/v2", func(r chi.Router) {
-		r.With(requireBasicAuth).Post("/system", createV2System)
-		r.With(requireBasicAuth).Post("/group", createGroup)
-		r.With(requireBasicAuth).Get("/group", listGroups)
-		r.With(requireBasicAuth).Patch("/group/{id}", updateGroup)
-		r.With(requireBasicAuth).Patch("/system/{id}", updateSystem)
-		r.With(requireBasicAuth).Get("/system/{id}", getSystem)
-		r.With(requireBasicAuth).Post("/system/{systemID}/ip", registerIP)
-		r.With(requireBasicAuth).Get("/system/{systemID}/ip", getSystemIPs)
-		r.With(requireBasicAuth).Delete("/system/{systemID}/ip/{id}", deleteSystemIP)
-		r.With(requireBasicAuth).Post("/system/{systemID}/token", createToken)
-		r.With(requireBasicAuth).Delete("/system/{systemID}/token/{id}", deleteToken)
-		r.With(requireBasicAuth).Post("/system/{systemID}/key", createKey)
-		r.With(requireBasicAuth).Delete("/system/{systemID}/key/{id}", deleteKey)
+		r.With(requireBasicAuth).Post(m.WrapHandler("/system", createV2System))
+		r.With(requireBasicAuth).Post(m.WrapHandler("/group", createGroup))
+		r.With(requireBasicAuth).Get(m.WrapHandler("/group", listGroups))
+		r.With(requireBasicAuth).Patch(m.WrapHandler("/group/{id}", updateGroup))
+		r.With(requireBasicAuth).Patch(m.WrapHandler("/system/{id}", updateSystem))
+		r.With(requireBasicAuth).Get(m.WrapHandler("/system/{id}", getSystem))
+		r.With(requireBasicAuth).Post(m.WrapHandler("/system/{systemID}/ip", registerIP))
+		r.With(requireBasicAuth).Get(m.WrapHandler("/system/{systemID}/ip", getSystemIPs))
+		r.With(requireBasicAuth).Delete(m.WrapHandler("/system/{systemID}/ip/{id}", deleteSystemIP))
+		r.With(requireBasicAuth).Post(m.WrapHandler("/system/{systemID}/token", createToken))
+		r.With(requireBasicAuth).Delete(m.WrapHandler("/system/{systemID}/token/{id}", deleteToken))
+		r.With(requireBasicAuth).Post(m.WrapHandler("/system/{systemID}/key", createKey))
+		r.With(requireBasicAuth).Delete(m.WrapHandler("/system/{systemID}/key/{id}", deleteKey))
 
 	})
 
