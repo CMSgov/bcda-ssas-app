@@ -466,11 +466,11 @@ func (s *APITestSuite) testIntrospectFlaw(flaw service.TokenFlaw, errorText stri
 		origLog        io.Writer
 		buf            bytes.Buffer
 	)
-
-	origLog = ssas.Logger.Out
-	ssas.Logger.SetOutput(&buf)
+	logger := ssas.GetLogger(ssas.Logger)
+	origLog = logger.Out
+	logger.SetOutput(&buf)
 	defer func() {
-		ssas.Logger.SetOutput(origLog)
+		logger.SetOutput(origLog)
 	}()
 
 	if flaw == service.BadSigner {

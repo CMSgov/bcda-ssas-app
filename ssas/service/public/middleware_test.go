@@ -210,51 +210,6 @@ func (s *PublicMiddlewareTestSuite) TestRequireRegTokenAuthEmptyToken() {
 	assert.Equal(s.T(), http.StatusUnauthorized, resp.StatusCode)
 }
 
-func (s *PublicMiddlewareTestSuite) TestRequireMFATokenAuthValidToken() {
-	s.server = httptest.NewServer(s.CreateRouter(requireMFATokenAuth))
-
-	// Valid token should return a 200 response
-	req, err := http.NewRequest("GET", s.server.URL, nil)
-	if err != nil {
-		assert.FailNow(s.T(), err.Error())
-	}
-
-	handler := requireMFATokenAuth(mockHandler)
-	token, ts, err := MintMFAToken("fake_okta_id")
-	assert.Nil(s.T(), err)
-	assert.NotNil(s.T(), token)
-	assert.NotNil(s.T(), ts)
-
-	ctx := req.Context()
-	ctx = context.WithValue(ctx, "ts", ts)
-	req = req.WithContext(ctx)
-
-	handler.ServeHTTP(s.rr, req)
-	if err != nil {
-		assert.FailNow(s.T(), err.Error())
-	}
-	assert.Equal(s.T(), http.StatusOK, s.rr.Code)
-}
-
-func (s *PublicMiddlewareTestSuite) TestRequireMFATokenAuthEmptyToken() {
-	s.server = httptest.NewServer(s.CreateRouter(requireMFATokenAuth))
-	client := s.server.Client()
-
-	// Valid token should return a 200 response
-	req, err := http.NewRequest("GET", s.server.URL, nil)
-	if err != nil {
-		assert.FailNow(s.T(), err.Error())
-	}
-
-	ctx := context.WithValue(context.Background(), "ts", nil)
-
-	resp, err := client.Do(req.WithContext(ctx))
-	if err != nil {
-		assert.FailNow(s.T(), err.Error())
-	}
-	assert.Equal(s.T(), http.StatusUnauthorized, resp.StatusCode)
-}
-
 func (s *PublicMiddlewareTestSuite) TestContains() {
 	list := []string{"abc", "def", "hij", "hij"}
 	assert.True(s.T(), contains(list, "abc"))

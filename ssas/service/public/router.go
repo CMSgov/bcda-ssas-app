@@ -56,9 +56,6 @@ func routes() *chi.Mux {
 	router.Use(gcmw.RequestID, service.NewAPILogger(), service.ConnectionClose)
 	router.Post(m.WrapHandler("/token", token))
 	router.Post(m.WrapHandler("/introspect", introspect))
-	router.Post(m.WrapHandler("/authn", VerifyPassword))
-	router.With(parseToken, requireMFATokenAuth).Post(m.WrapHandler("/authn/challenge", RequestMultifactorChallenge))
-	router.With(parseToken, requireMFATokenAuth).Post(m.WrapHandler("/authn/verify", VerifyMultifactorResponse))
 	router.With(parseToken, requireRegTokenAuth, readGroupID).Post(m.WrapHandler("/register", RegisterSystem))
 	router.With(parseToken, requireRegTokenAuth, readGroupID).Post(m.WrapHandler("/reset", ResetSecret))
 

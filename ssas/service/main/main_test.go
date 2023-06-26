@@ -80,7 +80,8 @@ func (s *MainTestSuite) TestNewAdminSystem() {
 
 func (s *MainTestSuite) TestMainLog() {
 	var str bytes.Buffer
-	ssas.Logger.SetOutput(&str)
+	logger := ssas.GetLogger(ssas.Logger)
+	logger.SetOutput(&str)
 	main()
 	output := str.String()
 	assert.Contains(s.T(), output, "Home of")
@@ -145,7 +146,8 @@ func (s *MainTestSuite) TestListIPs() {
 	err = db.Save(&ip).Error
 	assert.Nil(s.T(), err)
 	var str bytes.Buffer
-	ssas.Logger.SetOutput(&str)
+	logger := ssas.GetLogger(ssas.Logger)
+	logger.SetOutput(&str)
 	cliOutput := captureOutput(func() { listIPs() })
 	output := str.String()
 	assert.NotContains(s.T(), output, "unable to get registered IPs")
