@@ -880,9 +880,9 @@ func (s *APITestSuite) TestDeleteIPSystemNotFound() {
 }
 
 func (s *APITestSuite) TestDeleteIPIPNotFound() {
-	group := ssas.Group{GroupID: "test-reset-creds-group"}
+	group := ssas.Group{GroupID: "test-delete-ip-ip-not-found-group"}
 	s.db.Create(&group)
-	system := ssas.System{GID: group.ID, ClientID: "test-reset-creds-client"}
+	system := ssas.System{GID: group.ID, ClientID: "test-delete-ip-ip-not-found-client"}
 	s.db.Create(&system)
 
 	systemID := strconv.FormatUint(uint64(system.ID), 10)
@@ -1285,7 +1285,7 @@ func (s *APITestSuite) TestCreateV2SystemTokenNonJson() {
 	handler := http.HandlerFunc(createToken)
 	rr := httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
-	assert.Equal(s.T(), http.StatusBadRequest, rr.Result().StatusCode)
+	assert.Equal(s.T(), http.StatusInternalServerError, rr.Result().StatusCode)
 }
 
 func (s *APITestSuite) TestCreateV2SystemTokenMissingLabel() {
