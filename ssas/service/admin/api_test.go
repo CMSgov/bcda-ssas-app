@@ -803,19 +803,14 @@ func (s *APITestSuite) TestRegisterSystemIPInvalidBody() {
 	rr := httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
 	assert.Equal(s.T(), http.StatusBadRequest, rr.Result().StatusCode)
+	_ = ssas.CleanDatabase(group)
 }
 
 func (s *APITestSuite) TestRegisterSystemIPSystemNotFound() {
-	group := ssas.Group{GroupID: "test-reset-creds-group"}
-	s.db.Create(&group)
-	system := ssas.System{GID: group.ID, ClientID: "test-reset-creds-client"}
-	s.db.Create(&system)
-
-	systemID := strconv.FormatUint(uint64(system.ID), 10)
 	body := `{"address":"2.5.22.81"}`
 	req := httptest.NewRequest("POST", "/system/123/ip", strings.NewReader(body))
 	rctx := chi.NewRouteContext()
-	rctx.URLParams.Add("systemID", systemID)
+	rctx.URLParams.Add("systemID", "123")
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
 	handler := http.HandlerFunc(registerIP)
 
@@ -901,6 +896,7 @@ func (s *APITestSuite) TestDeleteIPIPNotFound() {
 	rr := httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
 	assert.Equal(s.T(), http.StatusBadRequest, rr.Result().StatusCode)
+	_ = ssas.CleanDatabase(group)
 }
 
 func (s *APITestSuite) TestUpdateSystem() {
