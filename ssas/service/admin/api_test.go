@@ -115,6 +115,16 @@ func (s *APITestSuite) TestCreateGroupFailure() {
 	assert.Nil(s.T(), err)
 }
 
+func (s *APITestSuite) TestCreateGroupEmptyGroupId() {
+	gid := ""
+	testInput := fmt.Sprintf(SampleGroup, gid, SampleXdata)
+	req := httptest.NewRequest("POST", "/group", strings.NewReader(testInput))
+	handler := http.HandlerFunc(createGroup)
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+	assert.Equal(s.T(), http.StatusBadRequest, rr.Result().StatusCode)
+}
+
 func (s *APITestSuite) TestListGroups() {
 	g1ID := ssas.RandomBase64(16)
 	g2ID := ssas.RandomHexID()
@@ -217,6 +227,20 @@ func (s *APITestSuite) TestRevokeToken() {
 
 	assert.True(s.T(), service.TokenBlacklist.IsTokenBlacklisted(tokenID))
 	assert.False(s.T(), service.TokenBlacklist.IsTokenBlacklisted("this_key_should_not_exist"))
+}
+
+func (s *APITestSuite) TestRevokeTokenNoToken() {
+	tokenID := ""
+
+	url := fmt.Sprintf("/token/%s", tokenID)
+	req := httptest.NewRequest("DELETE", url, nil)
+	rctx := chi.NewRouteContext()
+	rctx.URLParams.Add("tokenID", tokenID)
+	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+	handler := http.HandlerFunc(revokeToken)
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+	assert.Equal(s.T(), http.StatusInternalServerError, rr.Result().StatusCode)
 }
 
 func (s *APITestSuite) TestDeleteGroup() {
