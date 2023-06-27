@@ -47,6 +47,21 @@ func ExpireAdminCreds() {
 	Connection.Exec("UPDATE secrets SET created_at = '2000-01-01', updated_at = '2000-01-01' WHERE system_id IN (SELECT id FROM systems WHERE client_id = '31e029ef-0e97-47f8-873c-0e8b7e7f99bf')")
 }
 
+// RevokeActiveCreds revokes all credentials for the specified GroupID
+func RevokeActiveCreds(groupID string) error {
+	systems, err := GetSystemsByGroupIDString(context.Background(), groupID)
+	if err != nil {
+		return err
+	}
+	for _, system := range systems {
+		err = system.RevokeSecret(context.Background(), "ssas.RevokeActiveCreds for GroupID "+groupID)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func GeneratePublicKey(bits int) (string, string, *rsa.PrivateKey, error) {
 	keyPair, err := rsa.GenerateKey(rand.Reader, bits)
 	if err != nil {
@@ -179,4 +194,51 @@ func GetLogger(logger logrus.FieldLogger) *logrus.Logger {
 	}
 	// Must be a *logrus.Logger
 	return logger.(*logrus.Logger)
+}
+
+// CleanDatabase deletes the given group and associated systems, encryption keys, and secrets.
+func CleanDatabase(group Group) error {
+	var (
+		system        System
+		encryptionKey EncryptionKey
+		secret        Secret
+		ip            IP
+		systemIds     []int
+	)
+
+	if group.ID == 0 {
+		return fmt.Errorf("invalid group.ID")
+	}
+
+	foundGroup := Group{}
+	foundGroup.ID = group.ID
+
+	err := Connection.Unscoped().Find(&foundGroup).Error
+	if err != nil {
+		return fmt.Errorf("unable to find group %d: %s", group.ID, err.Error())
+	}
+
+	err = Connection.Table("systems").Where("g_id = ?", group.ID).Pluck("id", &systemIds).Error
+	if err != nil {
+		Logger.Errorf("unable to find associated systems: %s", err.Error())
+	} else {
+		tx := Connection.Unscoped().Begin()
+
+		tx.Where("system_id IN (?)", systemIds).Delete(&ip)
+		tx.Where("system_id IN (?)", systemIds).Delete(&encryptionKey)
+		tx.Where("system_id IN (?)", systemIds).Delete(&secret)
+		tx.Where("id IN (?)", systemIds).Delete(&system)
+
+		err = tx.Commit().Error
+		if err != nil {
+			Logger.Errorf("unable to remove records for group: %s", err.Error())
+		}
+	}
+
+	err = Connection.Unscoped().Delete(&group).Error
+	if err != nil {
+		return fmt.Errorf("unable to delete group: %s", err.Error())
+	}
+
+	return nil
 }

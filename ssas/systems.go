@@ -154,10 +154,6 @@ func (secret *Secret) IsExpired() bool {
 	return secret.UpdatedAt.Add(CredentialExpiration).Before(time.Now())
 }
 
-func (key *EncryptionKey) IsEncryptionKeyExpired() bool {
-	return key.UpdatedAt.Add(CredentialExpiration).Before(time.Now())
-}
-
 type IP struct {
 	gorm.Model
 	Address  string
@@ -866,75 +862,6 @@ func (system *System) ResetSecret(ctx context.Context, trackingID string) (Crede
 	creds.ClientName = system.ClientName
 	creds.ExpiresAt = time.Now().Add(CredentialExpiration)
 	return creds, nil
-}
-
-// RevokeActiveCreds revokes all credentials for the specified GroupID
-func RevokeActiveCreds(groupID string) error {
-	systems, err := GetSystemsByGroupIDString(context.Background(), groupID)
-	if err != nil {
-		return err
-	}
-	for _, system := range systems {
-		err = system.RevokeSecret(context.Background(), "ssas.RevokeActiveCreds for GroupID "+groupID)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-// CleanDatabase deletes the given group and associated systems, encryption keys, and secrets.
-func CleanDatabase(group Group) error {
-	var (
-		system        System
-		encryptionKey EncryptionKey
-		secret        Secret
-		ip            IP
-		systemIds     []int
-	)
-
-	if group.ID == 0 {
-		return fmt.Errorf("invalid group.ID")
-	}
-
-	foundGroup := Group{}
-	foundGroup.ID = group.ID
-	err := Connection.Unscoped().Find(&foundGroup).Error
-	if err != nil {
-		return fmt.Errorf("unable to find group %d: %s", group.ID, err.Error())
-	}
-
-	err = Connection.Table("systems").Where("g_id = ?", group.ID).Pluck("id", &systemIds).Error
-	if err != nil {
-		Logger.Errorf("unable to find associated systems: %s", err.Error())
-	} else {
-		err = Connection.Unscoped().Where("system_id IN (?)", systemIds).Delete(&ip).Error
-		if err != nil {
-			Logger.Errorf("unable to delete ip addresses: %s", err.Error())
-		}
-
-		err = Connection.Unscoped().Where("system_id IN (?)", systemIds).Delete(&encryptionKey).Error
-		if err != nil {
-			Logger.Errorf("unable to delete encryption keys: %s", err.Error())
-		}
-
-		err = Connection.Unscoped().Where("system_id IN (?)", systemIds).Delete(&secret).Error
-		if err != nil {
-			Logger.Errorf("unable to delete secrets: %s", err.Error())
-		}
-
-		err = Connection.Unscoped().Where("id IN (?)", systemIds).Delete(&system).Error
-		if err != nil {
-			Logger.Errorf("unable to delete systems: %s", err.Error())
-		}
-	}
-
-	err = Connection.Unscoped().Delete(&group).Error
-	if err != nil {
-		return fmt.Errorf("unable to delete group: %s", err.Error())
-	}
-
-	return nil
 }
 
 func ValidAddress(address string) bool {

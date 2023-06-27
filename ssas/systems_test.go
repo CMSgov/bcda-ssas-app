@@ -668,6 +668,11 @@ func (s *SystemsTestSuite) TestScopeEnvSuccess() {
 	assert.Nil(s.T(), err)
 }
 
+func (s *SystemsTestSuite) TestScopeEnvDebug() {
+	getEnvVars()
+	assert.Equal(s.T(), "bcda-api", DefaultScope)
+}
+
 func (s *SystemsTestSuite) TestScopeEnvFailure() {
 	scope := ""
 	err := os.Setenv("SSAS_DEFAULT_SYSTEM_SCOPE", scope)
