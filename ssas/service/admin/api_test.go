@@ -1173,6 +1173,18 @@ func (s *APITestSuite) TestCreateAndDeleteAdditionalV2SystemToken() {
 	assert.Len(s.T(), system.ClientTokens, 1)
 }
 
+func (s *APITestSuite) TestDeleteV2SystemTokenSystemNotFound() {
+	req := httptest.NewRequest("DELETE", fmt.Sprintf("/v2/system/%s/token/%s", "fake-token", "fake-uuid"), strings.NewReader(`{"label":"hello"}`))
+	rctx := chi.NewRouteContext()
+	rctx.URLParams.Add("systemID", "fake-token")
+	rctx.URLParams.Add("id", "fake-uuid")
+	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+	handler := http.HandlerFunc(deleteToken)
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+	assert.Equal(s.T(), http.StatusNotFound, rr.Result().StatusCode)
+}
+
 func (s *APITestSuite) TestCreateAndDeletePublicKey() {
 	creds, _ := ssas.CreateTestXDataV2(s.T(), s.db)
 
