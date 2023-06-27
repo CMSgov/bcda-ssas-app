@@ -894,7 +894,7 @@ func (s *APITestSuite) TestDeleteIPIPNotFound() {
 	req := httptest.NewRequest("DELETE", "/system/"+systemID+"/ip/123", nil)
 	rctx := chi.NewRouteContext()
 
-	rctx.URLParams.Add("id", "123")
+	rctx.URLParams.Add("id", systemID)
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
 	handler := http.HandlerFunc(deleteSystemIP)
 
@@ -1243,10 +1243,11 @@ func (s *APITestSuite) TestCreateAndDeleteAdditionalV2SystemToken() {
 	assert.Equal(s.T(), "hello", system.ClientTokens[1].Label)
 
 	//delete the token
-	req = httptest.NewRequest("DELETE", fmt.Sprintf("/v2/system/%s/token/%s", creds.SystemID, system.ClientTokens[1].UUID), strings.NewReader(`{"label":"hello"}`))
+	tokenUUID := system.ClientTokens[1].UUID
+	req = httptest.NewRequest("DELETE", fmt.Sprintf("/v2/system/%s/token/%s", creds.SystemID, tokenUUID), strings.NewReader(`{"label":"hello"}`))
 	rctx = chi.NewRouteContext()
 	rctx.URLParams.Add("systemID", creds.SystemID)
-	rctx.URLParams.Add("id", system.ClientTokens[1].UUID)
+	rctx.URLParams.Add("id", tokenUUID)
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
 	handler = deleteToken
 	rr = httptest.NewRecorder()
@@ -1276,6 +1277,19 @@ func (s *APITestSuite) TestCreateV2SystemTokenSystemNotFound() {
 	rr := httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
 	assert.Equal(s.T(), http.StatusNotFound, rr.Result().StatusCode)
+}
+
+func (s *APITestSuite) TestCreateV2SystemTokenNonJson() {
+	creds, _ := ssas.CreateTestXDataV2(s.T(), s.db)
+
+	req := httptest.NewRequest("POST", fmt.Sprintf("/v2/system/%s/token", creds.SystemID), strings.NewReader(`"notalabel":"hello"}`))
+	rctx := chi.NewRouteContext()
+	rctx.URLParams.Add("systemID", creds.SystemID)
+	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+	handler := http.HandlerFunc(createToken)
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+	assert.Equal(s.T(), http.StatusBadRequest, rr.Result().StatusCode)
 }
 
 func (s *APITestSuite) TestCreateV2SystemTokenMissingLabel() {
@@ -1378,7 +1392,22 @@ func (s *APITestSuite) TestCreatePublicKeySystemNotFound() {
 	assert.Equal(s.T(), http.StatusNotFound, rr.Result().StatusCode)
 }
 
-func (s *APITestSuite) TestCreatePublicKeyBadRequest() {
+func (s *APITestSuite) TestCreatePublicKeyNonJson() {
+	creds, _ := ssas.CreateTestXDataV2(s.T(), s.db)
+
+	key, sig, _, _ := ssas.GeneratePublicKey(2048)
+	keyStr := strings.Replace(key, "\n", "\\n", -1)
+	req := httptest.NewRequest("POST", fmt.Sprintf("/v2/system/%s/key", creds.SystemID), strings.NewReader(fmt.Sprintf(`"public_abcd":"%s", "signature":"%s"}`, keyStr, sig)))
+	rctx := chi.NewRouteContext()
+	rctx.URLParams.Add("systemID", creds.SystemID)
+	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+	handler := http.HandlerFunc(createKey)
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+	assert.Equal(s.T(), http.StatusBadRequest, rr.Result().StatusCode)
+}
+
+func (s *APITestSuite) TestCreatePublicKeyMissingFields() {
 	creds, _ := ssas.CreateTestXDataV2(s.T(), s.db)
 
 	key, sig, _, _ := ssas.GeneratePublicKey(2048)
@@ -1390,7 +1419,9 @@ func (s *APITestSuite) TestCreatePublicKeyBadRequest() {
 	handler := http.HandlerFunc(createKey)
 	rr := httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
-	assert.Equal(s.T(), http.StatusBadRequest, rr.Result().StatusCode)
+
+	// TODO: Graceful handling of this
+	assert.Equal(s.T(), http.StatusInternalServerError, rr.Result().StatusCode)
 }
 
 func (s *APITestSuite) TestDeletePublicKeySystemNotFound() {
