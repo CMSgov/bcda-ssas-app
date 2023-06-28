@@ -240,6 +240,8 @@ func (s *APITestSuite) TestRevokeTokenNoToken() {
 	handler := http.HandlerFunc(revokeToken)
 	rr := httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
+
+	// TODO: Handle gracefully
 	assert.Equal(s.T(), http.StatusInternalServerError, rr.Result().StatusCode)
 }
 
@@ -1239,11 +1241,10 @@ func (s *APITestSuite) TestCreateAndDeleteAdditionalV2SystemToken() {
 	assert.Equal(s.T(), "hello", system.ClientTokens[1].Label)
 
 	//delete the token
-	tokenUUID := system.ClientTokens[1].UUID
-	req = httptest.NewRequest("DELETE", fmt.Sprintf("/v2/system/%s/token/%s", creds.SystemID, tokenUUID), strings.NewReader(`{"label":"hello"}`))
+	req = httptest.NewRequest("DELETE", fmt.Sprintf("/v2/system/%s/token/%s", creds.SystemID, system.ClientTokens[1].UUID), strings.NewReader(`{"label":"hello"}`))
 	rctx = chi.NewRouteContext()
 	rctx.URLParams.Add("systemID", creds.SystemID)
-	rctx.URLParams.Add("id", tokenUUID)
+	rctx.URLParams.Add("id", system.ClientTokens[1].UUID)
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
 	handler = deleteToken
 	rr = httptest.NewRecorder()
@@ -1285,6 +1286,8 @@ func (s *APITestSuite) TestCreateV2SystemTokenNonJson() {
 	handler := http.HandlerFunc(createToken)
 	rr := httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
+
+	// TODO: handle gracefully
 	assert.Equal(s.T(), http.StatusInternalServerError, rr.Result().StatusCode)
 }
 
