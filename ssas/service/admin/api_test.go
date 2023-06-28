@@ -241,7 +241,7 @@ func (s *APITestSuite) TestRevokeTokenNoToken() {
 	rr := httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
 
-	// TODO: Handle gracefully
+	// TODO(BCDA-7212): Handle gracefully
 	assert.Equal(s.T(), http.StatusInternalServerError, rr.Result().StatusCode)
 }
 
@@ -1287,7 +1287,7 @@ func (s *APITestSuite) TestCreateV2SystemTokenNonJson() {
 	rr := httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
 
-	// TODO: handle gracefully
+	// TODO(BCDA-7212): Handle gracefully
 	assert.Equal(s.T(), http.StatusInternalServerError, rr.Result().StatusCode)
 }
 
@@ -1419,7 +1419,7 @@ func (s *APITestSuite) TestCreatePublicKeyMissingFields() {
 	rr := httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
 
-	// TODO: Graceful handling of this
+	// TODO(BCDA-7212): Handle gracefully
 	assert.Equal(s.T(), http.StatusInternalServerError, rr.Result().StatusCode)
 }
 
