@@ -889,7 +889,7 @@ func (s *APITestSuite) TestDeleteIPIPNotFound() {
 	req := httptest.NewRequest("DELETE", "/system/"+systemID+"/ip/123", nil)
 	rctx := chi.NewRouteContext()
 
-	rctx.URLParams.Add("id", systemID)
+	rctx.URLParams.Add("systemID", systemID)
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
 	handler := http.HandlerFunc(deleteSystemIP)
 
