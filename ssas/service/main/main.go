@@ -152,31 +152,31 @@ func handleFlags(flags Flags) {
 		return
 	}
 	if flags.doStart {
-		start()
+		publicServer, adminServer, forwarder, err := createServers()
+
+		if err != nil {
+			os.Exit(-1)
+		}
+
+		start(publicServer, adminServer, forwarder)
 		return
 	}
 }
 
-func start() {
-	ssas.Logger.Infof("%s", "Starting ssas...")
-
+func createServers() (*service.Server, *service.Server, *http.Server, error) {
 	ps := public.Server()
 	if ps == nil {
 		ssas.Logger.Error("unable to create public server")
-		os.Exit(-1)
+		return nil, nil, nil, errors.New("unable to create public server")
 	}
 	ps.LogRoutes()
-	ps.Serve()
 
 	as := admin.Server()
 	if as == nil {
 		ssas.Logger.Error("unable to create admin server")
-		os.Exit(-1)
+		return nil, nil, nil, errors.New("unable to create admin server")
 	}
 	as.LogRoutes()
-	as.Serve()
-
-	service.StartBlacklist()
 
 	// Accepts and redirects HTTP requests to HTTPS. Not sure we should do this.
 	forwarder := &http.Server{
@@ -186,6 +186,16 @@ func start() {
 		ReadTimeout:       5 * time.Second,
 		WriteTimeout:      5 * time.Second,
 	}
+
+	return ps, as, forwarder, nil
+}
+
+func start(ps *service.Server, as *service.Server, forwarder *http.Server) {
+	ssas.Logger.Infof("%s", "Starting ssas...")
+
+	ps.Serve()
+	as.Serve()
+	service.StartBlacklist()
 	ssas.Logger.Fatal(forwarder.ListenAndServe())
 }
 

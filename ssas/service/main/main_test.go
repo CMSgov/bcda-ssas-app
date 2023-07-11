@@ -273,6 +273,16 @@ func (s *MainTestSuite) TestListExpiringCredentials() {
 	assert.Nil(s.T(), db.Save(&secret).Error)
 }
 
+func (s *MainTestSuite) TestCreateServers() {
+	ps, as, forwarder, err := createServers()
+	assert.Nil(s.T(), err)
+
+	start(ps, as, forwarder)
+	ps.Stop()
+	as.Stop()
+	forwarder.Close()
+}
+
 func TestMainTestSuite(t *testing.T) {
 	suite.Run(t, new(MainTestSuite))
 }
