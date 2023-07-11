@@ -140,7 +140,7 @@ func handleFlags(flags Flags) {
 		listExpiringCredentials()
 		return
 	}
-	if flags.doShowXData && (flags.clientID != "" || flags.auth != "") {
+	if flags.doShowXData {
 		if flags.clientID != "" || flags.auth != "" {
 			err := showXData(flags.clientID, flags.auth)
 			if err != nil {
@@ -152,29 +152,24 @@ func handleFlags(flags Flags) {
 		return
 	}
 	if flags.doStart {
-		publicServer, adminServer, forwarder, err := createServers()
-
-		if err != nil {
-			os.Exit(-1)
-		}
-
+		publicServer, adminServer, forwarder := createServers()
 		start(publicServer, adminServer, forwarder)
 		return
 	}
 }
 
-func createServers() (*service.Server, *service.Server, *http.Server, error) {
+func createServers() (*service.Server, *service.Server, *http.Server) {
 	ps := public.Server()
 	if ps == nil {
 		ssas.Logger.Error("unable to create public server")
-		return nil, nil, nil, errors.New("unable to create public server")
+		os.Exit(1)
 	}
 	ps.LogRoutes()
 
 	as := admin.Server()
 	if as == nil {
 		ssas.Logger.Error("unable to create admin server")
-		return nil, nil, nil, errors.New("unable to create admin server")
+		os.Exit(1)
 	}
 	as.LogRoutes()
 
@@ -187,7 +182,7 @@ func createServers() (*service.Server, *service.Server, *http.Server, error) {
 		WriteTimeout:      5 * time.Second,
 	}
 
-	return ps, as, forwarder, nil
+	return ps, as, forwarder
 }
 
 func start(ps *service.Server, as *service.Server, forwarder *http.Server) {
