@@ -162,14 +162,14 @@ func createServers() (*service.Server, *service.Server, *http.Server) {
 	ps := public.Server()
 	if ps == nil {
 		ssas.Logger.Error("unable to create public server")
-		os.Exit(1)
+		os.Exit(-1)
 	}
 	ps.LogRoutes()
 
 	as := admin.Server()
 	if as == nil {
 		ssas.Logger.Error("unable to create admin server")
-		os.Exit(1)
+		os.Exit(-1)
 	}
 	as.LogRoutes()
 
