@@ -28,19 +28,53 @@ func (s *MainTestSuite) SetupSuite() {
 }
 
 func (s *MainTestSuite) TestResetSecret() {
-	fixtureClientID := "0c527d2e-2e8a-4808-b11d-0fa06baf8254"
-	output := captureOutput(func() { resetSecret(fixtureClientID) })
+	var flags Flags
+	flags.doResetSecret = true
+	flags.clientID = "0c527d2e-2e8a-4808-b11d-0fa06baf8254" // gitleaks:allow
+	output := captureOutput(func() { handleFlags(flags) })
 	assert.NotEqual(s.T(), "", output)
+}
+
+func (s *MainTestSuite) TestResetSecretBadClientID() {
+	var flags Flags
+	flags.doResetSecret = true
+	flags.clientID = "This client does not exist"
+	output := captureOutput(func() { handleFlags(flags) })
+	assert.Equal(s.T(), "", output)
 }
 
 func (s *MainTestSuite) TestShowXDataWithClientID() {
 	creds, _ := ssas.CreateTestXData(s.T(), s.db)
 
-	output := captureOutput(func() {
-		err := showXData(creds.ClientID, "")
-		assert.Nil(s.T(), err)
-	})
+	var flags Flags
+	flags.doShowXData = true
+	flags.clientID = creds.ClientID
+	output := captureOutput(func() { handleFlags(flags) })
 	assert.Equal(s.T(), "{\"group\":\"1\"}\n", output)
+}
+
+func (s *MainTestSuite) TestShowXDataClientIDDoesNotExist() {
+	var flags Flags
+	flags.doShowXData = true
+	flags.clientID = "0c527d2e-2e8a-4808-b11d-0fa06baf8123" // gitleaks:allow
+	output := captureLog(func() { handleFlags(flags) })
+	assert.Contains(s.T(), output, "invalid client id")
+}
+
+func (s *MainTestSuite) TestShowXDataSystemGroupIDDoesNotExist() {
+	creds, _ := ssas.CreateTestXData(s.T(), s.db)
+	sys, err := ssas.GetSystemByID(context.Background(), creds.SystemID)
+	assert.Nil(s.T(), err)
+
+	sys.GroupID = ""
+	err = s.db.Save(&sys).Error
+	assert.Nil(s.T(), err)
+
+	var flags Flags
+	flags.doShowXData = true
+	flags.clientID = creds.ClientID
+	output := captureLog(func() { handleFlags(flags) })
+	assert.Contains(s.T(), output, "no Group record found for groupID")
 }
 
 func (s *MainTestSuite) TestShowXDataWithAuth() {
@@ -49,32 +83,57 @@ func (s *MainTestSuite) TestShowXDataWithAuth() {
 	// Build encoded api key to mimic auth header
 	auth := base64.StdEncoding.EncodeToString([]byte(creds.ClientID + ":" + creds.ClientSecret))
 
-	output := captureOutput(func() {
-		err := showXData("", auth)
-		assert.Nil(s.T(), err)
-	})
+	var flags Flags
+	flags.doShowXData = true
+	flags.auth = auth
+	output := captureOutput(func() { handleFlags(flags) })
 	assert.Equal(s.T(), "{\"group\":\"1\"}\n", output)
 }
 
-func (s *MainTestSuite) TestResetCredentialsBadClientID() {
-	badClientID := "This client does not exist"
-	output := captureOutput(func() { resetSecret(badClientID) })
-	assert.Equal(s.T(), "", output)
+func (s *MainTestSuite) TestShowXDataWithInvalidBase64() {
+	var flags Flags
+	flags.doShowXData = true
+	flags.auth = "12%123"
+	output := captureLog(func() { handleFlags(flags) })
+	assert.Contains(s.T(), output, "unable to decode the auth hash")
 }
 
-func (s *MainTestSuite) TestMainResetCredentials() {
-	doResetSecret = true
-	clientID = "0c527d2e-2e8a-4808-b11d-0fa06baf8254"
+func (s *MainTestSuite) TestShowXDataWithInvalidAuth() {
+	var flags Flags
+	flags.doShowXData = true
+	flags.auth = "1234"
+	output := captureLog(func() { handleFlags(flags) })
+	assert.Contains(s.T(), output, "no client id present after decoding auth hash")
+}
 
-	output := captureOutput(func() { main() })
+func (s *MainTestSuite) TestShowXDataWithoutParameters() {
+	var flags Flags
+	flags.doShowXData = true
+	output := captureLog(func() { handleFlags(flags) })
+	assert.Contains(s.T(), output, "requires either the client-id or auth key")
+}
+
+func (s *MainTestSuite) TestAddFixtureData() {
+	var flags Flags
+	flags.doAddFixtureData = true
+	output := captureLog(func() { handleFlags(flags) })
+	assert.Contains(s.T(), output, "ERROR")
+}
+
+func (s *MainTestSuite) TestResetCredentials() {
+	var flags Flags
+	flags.doResetSecret = true
+	flags.clientID = "0c527d2e-2e8a-4808-b11d-0fa06baf8254" // gitleaks:allow
+
+	output := captureOutput(func() { handleFlags(flags) })
 	assert.NotEqual(s.T(), output, "")
-
-	doResetSecret = false
-	clientID = ""
 }
 
 func (s *MainTestSuite) TestNewAdminSystem() {
-	output := captureOutput(func() { newAdminSystem("Main Test System") })
+	var flags Flags
+	flags.doNewAdminSystem = true
+	flags.systemName = "Main Test System"
+	output := captureOutput(func() { handleFlags(flags) })
 	assert.NotEqual(s.T(), "", output)
 }
 
@@ -148,7 +207,10 @@ func (s *MainTestSuite) TestListIPs() {
 	var str bytes.Buffer
 	logger := ssas.GetLogger(ssas.Logger)
 	logger.SetOutput(&str)
-	cliOutput := captureOutput(func() { listIPs() })
+
+	var flags Flags
+	flags.doListIPs = true
+	cliOutput := captureOutput(func() { handleFlags(flags) })
 	output := str.String()
 	assert.NotContains(s.T(), output, "unable to get registered IPs")
 	assert.Contains(s.T(), output, testIP)
@@ -171,12 +233,15 @@ func (s *MainTestSuite) TestListExpiringCredentials() {
 	origCreatedAt := secret.CreatedAt
 	origLastTokenAt := system.LastTokenAt
 
+	var flags Flags
+	flags.doListExpCreds = true
+
 	// Credentials that will expire but not timeout during the warning period WILL be shown
 	secret.CreatedAt = time.Now().Add(-84 * 24 * time.Hour)
 	system.LastTokenAt = time.Now().Add(-52 * 24 * time.Hour)
 	assert.Nil(s.T(), db.Save(&system).Error)
 	assert.Nil(s.T(), db.Save(&secret).Error)
-	output := captureOutput(func() { listExpiringCredentials() })
+	output := captureOutput(func() { handleFlags(flags) })
 	assert.NotContains(s.T(), output, "unable")
 	assert.NotContains(s.T(), output, "error")
 	assert.Contains(s.T(), output, fixtureClientID)
@@ -186,7 +251,7 @@ func (s *MainTestSuite) TestListExpiringCredentials() {
 	system.LastTokenAt = time.Now().Add(-54 * 24 * time.Hour)
 	assert.Nil(s.T(), db.Save(&system).Error)
 	assert.Nil(s.T(), db.Save(&secret).Error)
-	output = captureOutput(func() { listExpiringCredentials() })
+	output = captureOutput(func() { handleFlags(flags) })
 	assert.NotContains(s.T(), output, "unable")
 	assert.NotContains(s.T(), output, "error")
 	assert.Contains(s.T(), output, fixtureClientID)
@@ -196,7 +261,7 @@ func (s *MainTestSuite) TestListExpiringCredentials() {
 	system.LastTokenAt = time.Now().Add(-52 * 24 * time.Hour)
 	assert.Nil(s.T(), db.Save(&system).Error)
 	assert.Nil(s.T(), db.Save(&secret).Error)
-	output = captureOutput(func() { listExpiringCredentials() })
+	output = captureOutput(func() { handleFlags(flags) })
 	assert.NotContains(s.T(), output, "unable")
 	assert.NotContains(s.T(), output, "error")
 	assert.NotContains(s.T(), output, fixtureClientID)
@@ -205,6 +270,13 @@ func (s *MainTestSuite) TestListExpiringCredentials() {
 	system.LastTokenAt = origLastTokenAt
 	assert.Nil(s.T(), db.Save(&system).Error)
 	assert.Nil(s.T(), db.Save(&secret).Error)
+}
+
+func (s *MainTestSuite) TestCreateServers() {
+	ps, as, forwarder := createServers()
+	assert.NotNil(s.T(), ps)
+	assert.NotNil(s.T(), as)
+	assert.NotNil(s.T(), forwarder)
 }
 
 func TestMainTestSuite(t *testing.T) {
@@ -221,5 +293,20 @@ func captureOutput(f func()) string {
 	output = &buf
 	f()
 	output = outOrig
+	return buf.String()
+}
+
+func captureLog(f func()) string {
+	var (
+		buf     bytes.Buffer
+		origLog io.Writer
+	)
+
+	logger := ssas.GetLogger(ssas.Logger)
+	origLog = logger.Out
+	logger.SetOutput(&buf)
+
+	f()
+	logger.SetOutput(origLog)
 	return buf.String()
 }
