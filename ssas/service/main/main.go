@@ -52,46 +52,23 @@ import (
 	"gorm.io/gorm"
 )
 
-var doAddFixtureData bool
-var doResetSecret bool
-var doNewAdminSystem bool
-var doListIPs bool
-var doListExpCreds bool
-var doShowXData bool
-var doStart bool
-var clientID string
-var auth string
-var systemName string
+type Flags struct {
+	doAddFixtureData bool
+	doResetSecret    bool
+	doNewAdminSystem bool
+	doListIPs        bool
+	doListExpCreds   bool
+	doShowXData      bool
+	doStart          bool
+	clientID         string
+	auth             string
+	systemName       string
+}
+
 var output io.Writer
 
 func init() {
 	output = os.Stdout
-
-	const usageAddFixtureData = "unconditionally add fixture data"
-	flag.BoolVar(&doAddFixtureData, "add-fixture-data", false, usageAddFixtureData)
-
-	const usageResetSecret = "reset system secret for the given client_id; requires client-id flag with argument"
-	flag.BoolVar(&doResetSecret, "reset-secret", false, usageResetSecret)
-
-	const usageNewAdminSystem = "add a new admin system to the service; requires system-name flag with argument"
-	flag.BoolVar(&doNewAdminSystem, "new-admin-system", false, usageNewAdminSystem)
-	flag.StringVar(&systemName, "system-name", "", "the system's name (e.g., 'BCDA Admin')")
-
-	const usageListIPs = "list all IP addresses registered to active systems"
-	flag.BoolVar(&doListIPs, "list-ips", false, usageListIPs)
-
-	const usageListExpCreds = "list credentials about to expire or timeout due to inactivity"
-	flag.BoolVar(&doListExpCreds, "list-exp-creds", false, usageListExpCreds)
-
-	const usageShowXData = "display group xdata"
-	flag.BoolVar(&doShowXData, "show-xdata", false, usageShowXData)
-	flag.StringVar(&auth, "auth", "", "an auth header containing the hashed client id")
-
-	const usageStart = "start the service"
-	flag.BoolVar(&doStart, "start", false, usageStart)
-
-	// used by both `doResetSecret` and `doGetXdata`
-	flag.StringVar(&clientID, "client-id", "", "a system's client id")
 
 	appName := os.Getenv("NEW_RELIC_APP_NAME")
 	licenseKey := os.Getenv("NEW_RELIC_LICENSE_KEY")
@@ -107,31 +84,65 @@ func init() {
 // We provide some simple commands for bootstrapping the system into place. Commands cannot be combined.
 func main() {
 	ssas.Logger.Info("Home of the System-to-System Authentication Service")
+	var config = parseConfig()
+	handleFlags(config)
+}
 
+func parseConfig() Flags {
+	var flags Flags
+	const usageAddFixtureData = "unconditionally add fixture data"
+	flag.BoolVar(&flags.doAddFixtureData, "add-fixture-data", false, usageAddFixtureData)
+
+	const usageResetSecret = "reset system secret for the given client_id; requires client-id flag with argument"
+	flag.BoolVar(&flags.doResetSecret, "reset-secret", false, usageResetSecret)
+
+	const usageNewAdminSystem = "add a new admin system to the service; requires system-name flag with argument"
+	flag.BoolVar(&flags.doNewAdminSystem, "new-admin-system", false, usageNewAdminSystem)
+	flag.StringVar(&flags.systemName, "system-name", "", "the system's name (e.g., 'BCDA Admin')")
+
+	const usageListIPs = "list all IP addresses registered to active systems"
+	flag.BoolVar(&flags.doListIPs, "list-ips", false, usageListIPs)
+
+	const usageListExpCreds = "list credentials about to expire or timeout due to inactivity"
+	flag.BoolVar(&flags.doListExpCreds, "list-exp-creds", false, usageListExpCreds)
+
+	const usageShowXData = "display group xdata"
+	flag.BoolVar(&flags.doShowXData, "show-xdata", false, usageShowXData)
+	flag.StringVar(&flags.auth, "auth", "", "an auth header containing the hashed client id")
+
+	const usageStart = "start the service"
+	flag.BoolVar(&flags.doStart, "start", false, usageStart)
+
+	// used by both `doResetSecret` and `doGetXdata`
+	flag.StringVar(&flags.clientID, "client-id", "", "a system's client id")
 	flag.Parse()
-	if doAddFixtureData {
+	return flags
+}
+
+func handleFlags(flags Flags) {
+	if flags.doAddFixtureData {
 		addFixtureData()
 		return
 	}
-	if doResetSecret && clientID != "" {
-		resetSecret(clientID)
+	if flags.doResetSecret && flags.clientID != "" {
+		resetSecret(flags.clientID)
 		return
 	}
-	if doNewAdminSystem && systemName != "" {
-		newAdminSystem(systemName)
+	if flags.doNewAdminSystem && flags.systemName != "" {
+		newAdminSystem(flags.systemName)
 		return
 	}
-	if doListIPs {
+	if flags.doListIPs {
 		listIPs()
 		return
 	}
-	if doListExpCreds {
+	if flags.doListExpCreds {
 		listExpiringCredentials()
 		return
 	}
-	if doShowXData && (clientID != "" || auth != "") {
-		if clientID != "" || auth != "" {
-			err := showXData(clientID, auth)
+	if flags.doShowXData {
+		if flags.clientID != "" || flags.auth != "" {
+			err := showXData(flags.clientID, flags.auth)
 			if err != nil {
 				ssas.Logger.Error(err)
 			}
@@ -140,22 +151,20 @@ func main() {
 		}
 		return
 	}
-	if doStart {
-		start()
+	if flags.doStart {
+		publicServer, adminServer, forwarder := createServers()
+		start(publicServer, adminServer, forwarder)
 		return
 	}
 }
 
-func start() {
-	ssas.Logger.Infof("%s", "Starting ssas...")
-
+func createServers() (*service.Server, *service.Server, *http.Server) {
 	ps := public.Server()
 	if ps == nil {
 		ssas.Logger.Error("unable to create public server")
 		os.Exit(-1)
 	}
 	ps.LogRoutes()
-	ps.Serve()
 
 	as := admin.Server()
 	if as == nil {
@@ -163,9 +172,6 @@ func start() {
 		os.Exit(-1)
 	}
 	as.LogRoutes()
-	as.Serve()
-
-	service.StartBlacklist()
 
 	// Accepts and redirects HTTP requests to HTTPS. Not sure we should do this.
 	forwarder := &http.Server{
@@ -175,6 +181,16 @@ func start() {
 		ReadTimeout:       5 * time.Second,
 		WriteTimeout:      5 * time.Second,
 	}
+
+	return ps, as, forwarder
+}
+
+func start(ps *service.Server, as *service.Server, forwarder *http.Server) {
+	ssas.Logger.Infof("%s", "Starting ssas...")
+
+	ps.Serve()
+	as.Serve()
+	service.StartBlacklist()
 	ssas.Logger.Fatal(forwarder.ListenAndServe())
 }
 
