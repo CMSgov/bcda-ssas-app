@@ -84,6 +84,7 @@ func ChooseSigningKey(signingKeyPath, signingKey string) (*rsa.PrivateKey, error
 
 // NewServer correctly initializes an instance of the Server type.
 func NewServer(name, port, version string, info interface{}, routes *chi.Mux, notSecure bool, useMTLS bool, signingKey *rsa.PrivateKey, ttl time.Duration, clientAssertAud string) *Server {
+
 	if signingKey == nil {
 		ssas.Logger.Error("Private Key is nil")
 		return nil
@@ -160,6 +161,7 @@ func (s *Server) LogRoutes() {
 	routes, err := s.ListRoutes()
 	if err != nil {
 		ssas.Logger.Infof("%s routing error: %v", banner, err)
+		return
 	}
 	ssas.Logger.Infof("%s %v", banner, routes)
 }
@@ -281,6 +283,7 @@ func doHealthCheck(ctx context.Context) bool {
 	}
 
 	if err = db.Ping(); err != nil {
+		// (?) don't know if it actually gets to this error
 		ssas.Logger.Error("health check: database ping error: ", err.Error())
 		return false
 	}
