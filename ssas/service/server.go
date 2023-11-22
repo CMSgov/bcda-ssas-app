@@ -52,7 +52,7 @@ type Server struct {
 func ChooseSigningKey(signingKeyPath, signingKey string) (*rsa.PrivateKey, error) {
 	var key *rsa.PrivateKey = nil
 	var error error = nil
-
+	// *TODO: To prevent duplicate logging, remove error handling out of this function. Return error and log error outside of function.
 	if signingKey == "" && signingKeyPath != "" {
 		sk, err := GetPrivateKey(signingKeyPath)
 		if err != nil {
