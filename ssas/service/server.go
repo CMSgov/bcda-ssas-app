@@ -160,7 +160,7 @@ func (s *Server) LogRoutes() {
 	banner := fmt.Sprintf("Routes for %s at port %s: ", s.name, s.port)
 	routes, err := s.ListRoutes()
 	if err != nil {
-		ssas.Logger.Infof("%s routing error: %v", banner, err)
+		ssas.Logger.Errorf("%s routing error: %v", banner, err)
 		return
 	}
 	ssas.Logger.Infof("%s %v", banner, routes)
@@ -283,7 +283,6 @@ func doHealthCheck(ctx context.Context) bool {
 	}
 
 	if err = db.Ping(); err != nil {
-		// (?) don't know if it actually gets to this error
 		ssas.Logger.Error("health check: database ping error: ", err.Error())
 		return false
 	}

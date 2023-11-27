@@ -252,6 +252,7 @@ func token(w http.ResponseWriter, r *http.Request) {
 	err = ValidateSecret(system, secret, r)
 	if err != nil {
 		ssas.Logger.Error("The client id and secret cannot be validated: ", err.Error())
+		service.JSONError(w, http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized), "Error getting secret")
 		return
 	}
 
