@@ -1,22 +1,27 @@
 /*
-	Package main System-to-System Authentication Service
-	The System-to-System Authentication Service (SSAS) enables one software system to authenticate and authorize another software system. In this model, the Systems act automatically, independent of a human user identity. Human users are involved only to administer the Service, including establishing the identities and privileges of participating systems.
-	For more details see our repository readme and Postman tests:
-	- https://github.com/CMSgov/bcda-ssas-app
-	- https://github.com/CMSgov/bcda-ssas-app/tree/master/test/postman_test
-	If you have a Client ID and Secret you can use this page to explore the API.  To do this, click the green "Authorize" button below and enter your Client ID and secret in the Basic Authentication username and password boxes.
-
+ Package main System-to-System Authentication Service
+ 
+ The System-to-System Authentication Service (SSAS) enables one software system to authenticate and authorize another software system. In this model, the Systems act automatically, independent of a human user identity. Human users are involved only to administer the Service, including establishing the identities and privileges of participating systems.
+ 
+ For more details see our repository readme and Postman tests:
+ - https://github.com/CMSgov/bcda-ssas-app
+ - https://github.com/CMSgov/bcda-ssas-app/tree/master/test/postman_test
+ 
+ If you have a Client ID and Secret you can use this page to explore the API.  To do this, click the green "Authorize" button below and enter your Client ID and secret in the Basic Authentication username and password boxes.
 Until you click logout your token will be presented with every request made.  To make requests click on the "Try it out" button for the desired endpoint.
 
-	    Version: 1.0.0
-	    License: Public Domain https://github.com/CMSgov/bcda-ssas-app/blob/master/LICENSE.md
-	    Contact: bcapi@cms.hhs.gov
-	    Produces:
-	    - application/json
-	    SecurityDefinitions:
-	    basic_auth:
-	         type: basic
-	swagger:meta
+     Version: 1.0.0
+     License: Public Domain https://github.com/CMSgov/bcda-ssas-app/blob/master/LICENSE.md
+     Contact: bcapi@cms.hhs.gov
+
+     Produces:
+     - application/json
+
+     SecurityDefinitions:
+     basic_auth:
+          type: basic
+ 
+ swagger:meta
 */
 package main
 
