@@ -296,11 +296,11 @@ func token(w http.ResponseWriter, r *http.Request) {
 func ValidateSecret(system ssas.System, secret string, r *http.Request) (err error) {
 	savedSecret, err := system.GetSecret(r.Context())
 	if !ssas.Hash(savedSecret.Hash).IsHashOf(secret) {
-		err = errors.New(constants.InvalidClientSecret)
+		return errors.New(constants.InvalidClientSecret)
 	}
 
 	if savedSecret.IsExpired() {
-		err = errors.New("The saved client credendials are expired")
+		return errors.New("The saved client credendials are expired")
 	}
 	return err
 }
