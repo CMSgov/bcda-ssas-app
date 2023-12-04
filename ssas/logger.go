@@ -103,6 +103,7 @@ func OperationCalled(data Event) {
 // OperationFailed should be called after an event's failure, and should always be preceded by
 // a call to OperationStarted
 func OperationFailed(data Event) {
+	// *TODO: refactor. Remove OperationFailed to prevent duplicate logging. Address areas affected by removal.
 	mergeNonEmpty(data).WithField("Event", "OperationFailed").Print(data.Help)
 }
 
