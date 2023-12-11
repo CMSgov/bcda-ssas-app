@@ -52,7 +52,7 @@ type Server struct {
 func ChooseSigningKey(signingKeyPath, signingKey string) (*rsa.PrivateKey, error) {
 	var key *rsa.PrivateKey = nil
 	var error error = nil
-
+	// *TODO: To prevent duplicate logging, remove error handling out of this function. Return error and log error outside of function.
 	if signingKey == "" && signingKeyPath != "" {
 		sk, err := GetPrivateKey(signingKeyPath)
 		if err != nil {
@@ -84,6 +84,7 @@ func ChooseSigningKey(signingKeyPath, signingKey string) (*rsa.PrivateKey, error
 
 // NewServer correctly initializes an instance of the Server type.
 func NewServer(name, port, version string, info interface{}, routes *chi.Mux, notSecure bool, useMTLS bool, signingKey *rsa.PrivateKey, ttl time.Duration, clientAssertAud string) *Server {
+
 	if signingKey == nil {
 		ssas.Logger.Error("Private Key is nil")
 		return nil
@@ -159,7 +160,8 @@ func (s *Server) LogRoutes() {
 	banner := fmt.Sprintf("Routes for %s at port %s: ", s.name, s.port)
 	routes, err := s.ListRoutes()
 	if err != nil {
-		ssas.Logger.Infof("%s routing error: %v", banner, err)
+		ssas.Logger.Errorf("%s routing error: %v", banner, err)
+		return
 	}
 	ssas.Logger.Infof("%s %v", banner, routes)
 }
