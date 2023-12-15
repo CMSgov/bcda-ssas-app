@@ -7,6 +7,8 @@ services:
       dockerfile: Dockerfiles/Dockerfile.tests
       args:
         VERSION: latest
+    env_file:
+      - ./ssas/cfg/configs/local.env
     environment:
       - DB=postgresql://postgres:toor@db:5432
       - DATABASE_URL=postgresql://postgres:toor@db:5432/bcda?sslmode=disable
@@ -17,13 +19,9 @@ services:
       - SSAS_PUBLIC_PORT=:3003
       - SSAS_ADMIN_PORT=:3004
       - SSAS_HTTP_TO_HTTPS_PORT=:3005
-      - SSAS_READ_TIMEOUT=10
-      - SSAS_WRITE_TIMEOUT=20
-      - SSAS_IDLE_TIMEOUT=120
       - SSAS_HASH_ITERATIONS=130000
       - SSAS_HASH_KEY_LENGTH=64
       - SSAS_HASH_SALT_SIZE=32
-      - SSAS_DEFAULT_SYSTEM_SCOPE=bcda-api
       - SSAS_TOKEN_BLACKLIST_CACHE_CLEANUP_MINUTES=15
       - SSAS_TOKEN_BLACKLIST_CACHE_TIMEOUT_MINUTES=1440
       - SSAS_TOKEN_BLACKLIST_CACHE_REFRESH_MINUTES=5
