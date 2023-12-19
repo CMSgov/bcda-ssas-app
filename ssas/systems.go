@@ -89,8 +89,8 @@ type ClientToken struct {
 }
 
 /*
-	SaveClientToken should be provided with a token label and token uuid, which will
-	be saved to the client tokens table and associated with the current system.
+SaveClientToken should be provided with a token label and token uuid, which will
+be saved to the client tokens table and associated with the current system.
 */
 func (system *System) SaveClientToken(ctx context.Context, label string, groupXData string, expiration time.Time) (*ClientToken, string, error) {
 	rk, err := NewRootKey(ctx, system.ID, expiration)
@@ -167,8 +167,8 @@ type AuthRegData struct {
 }
 
 /*
-	SaveSecret should be provided with a secret hashed with ssas.NewHash(), which will
-	be saved to the secrets table and associated with the current system.
+SaveSecret should be provided with a secret hashed with ssas.NewHash(), which will
+be saved to the secrets table and associated with the current system.
 */
 func (system *System) SaveSecret(ctx context.Context, hashedSecret string) error {
 	secret := Secret{
@@ -189,7 +189,7 @@ func (system *System) SaveSecret(ctx context.Context, hashedSecret string) error
 }
 
 /*
-	GetSecret will retrieve the hashed secret associated with the current system.
+GetSecret will retrieve the hashed secret associated with the current system.
 */
 func (system *System) GetSecret(ctx context.Context) (Secret, error) {
 	secret := Secret{}
@@ -220,7 +220,7 @@ func (system *System) SaveTokenTime(ctx context.Context) {
 }
 
 /*
-	RevokeSecret revokes a system's secret
+RevokeSecret revokes a system's secret
 */
 func (system *System) RevokeSecret(ctx context.Context, trackingID string) error {
 	revokeCredentialsEvent := Event{Op: "RevokeCredentials", TrackingID: trackingID, ClientID: system.ClientID}
@@ -246,7 +246,7 @@ func (system *System) RevokeSecret(ctx context.Context, trackingID string) error
 }
 
 /*
-	DeactivateSecrets soft deletes secrets associated with the system.
+DeactivateSecrets soft deletes secrets associated with the system.
 */
 func (system *System) deactivateSecrets(ctx context.Context) error {
 	err := Connection.WithContext(ctx).Where("system_id = ?", system.ID).Delete(&Secret{}).Error
@@ -257,7 +257,7 @@ func (system *System) deactivateSecrets(ctx context.Context) error {
 }
 
 /*
-	GetEncryptionKey retrieves the key associated with the current system.
+GetEncryptionKey retrieves the key associated with the current system.
 */
 func (system *System) GetEncryptionKey(ctx context.Context, trackingID string) (EncryptionKey, error) {
 	getKeyEvent := Event{Op: "GetEncryptionKey", TrackingID: trackingID, ClientID: system.ClientID}
@@ -275,7 +275,7 @@ func (system *System) GetEncryptionKey(ctx context.Context, trackingID string) (
 }
 
 /*
-	FindEncryptionKey retrieves the key by id associated with the current system.
+FindEncryptionKey retrieves the key by id associated with the current system.
 */
 func (system *System) FindEncryptionKey(ctx context.Context, trackingID string, keyId string) (EncryptionKey, error) {
 	findKeyEvent := Event{Op: "FindEncryptionKey", TrackingID: trackingID, ClientID: system.ClientID}
@@ -293,7 +293,7 @@ func (system *System) FindEncryptionKey(ctx context.Context, trackingID string, 
 }
 
 /*
-	GetEncryptionKeys retrieves the keys associated with the current system.
+GetEncryptionKeys retrieves the keys associated with the current system.
 */
 func (system *System) GetEncryptionKeys(ctx context.Context, trackingID string) ([]EncryptionKey, error) {
 	getKeyEvent := Event{Op: "GetEncryptionKey", TrackingID: trackingID, ClientID: system.ClientID}
@@ -311,7 +311,7 @@ func (system *System) GetEncryptionKeys(ctx context.Context, trackingID string) 
 }
 
 /*
-	DeleteEncryptionKey deletes the key associated with the current system.
+DeleteEncryptionKey deletes the key associated with the current system.
 */
 func (system *System) DeleteEncryptionKey(ctx context.Context, trackingID string, keyID string) error {
 	deleteKeyEvent := Event{Op: "DeleteEncryptionKey", TrackingID: trackingID, ClientID: system.ClientID}
@@ -334,8 +334,8 @@ func (system *System) DeleteEncryptionKey(ctx context.Context, trackingID string
 }
 
 /*
-	SavePublicKey should be provided with a public key in PEM format, which will be saved
-	to the encryption_keys table and associated with the current system.
+SavePublicKey should be provided with a public key in PEM format, which will be saved
+to the encryption_keys table and associated with the current system.
 */
 func (system *System) SavePublicKey(publicKey io.Reader, signature string) (*EncryptionKey, error) {
 	return system.SavePublicKeyDB(publicKey, signature, true, Connection)
@@ -400,8 +400,8 @@ type Credentials struct {
 }
 
 /*
-	RegisterSystem will save a new system and public key after verifying provided details for validity.  It returns
-	a ssas.Credentials struct including the generated clientID and secret.
+RegisterSystem will save a new system and public key after verifying provided details for validity.  It returns
+a ssas.Credentials struct including the generated clientID and secret.
 */
 func RegisterSystem(ctx context.Context, clientName string, groupID string, scope string, publicKeyPEM string, ips []string, trackingID string) (Credentials, error) {
 	systemInput := SystemInput{
