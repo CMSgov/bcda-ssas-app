@@ -127,6 +127,13 @@ Note that to initialize our docker container, we use migrate-and-start, which co
 The SSAS can be tested by running `make unit-test`. You can also use the repo-wide command `make test`, which will run tests against the entire repo, including the SSAS code. Some tests are designed to be only run as needed, and are excluded from `make` by a build tag. To include
 one of these test suites, follow the instructions at the top of the test file.
 
+### **Running Single / Single-file Unit Tests**
+
+This step assumes that the user has installed VSCode, the Go language extension available [here](https://marketplace.visualstudio.com/items?itemName=golang.Go), and has successfully imported test data to their local database. 
+
+To run tests from within VSCode:
+In a FILENAME_test.go file, there will be a green arrow to the left of the method name, and clicking this arrow will run a single test locally. Tests should not be dependent upon other tests, but if a known-good test is failing, the user can run all tests in a given file by going to View -> Command Palette -> Go: Test Package, which will run all tests in a given file. Alternatively, in some instances, the init() method can be commented out to enable testing of single functions.
+
 # Integration Testing
 
 To run postman tests locally:
