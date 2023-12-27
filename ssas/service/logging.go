@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"regexp"
@@ -10,6 +11,8 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/sirupsen/logrus"
 
+	"github.com/CMSgov/bcda-app/bcda/auth"
+	"github.com/CMSgov/bcda-app/log"
 	"github.com/CMSgov/bcda-ssas-app/ssas"
 )
 
@@ -99,4 +102,18 @@ func LogEntrySetFields(r *http.Request, fields map[string]interface{}) {
 	if entry, ok := r.Context().Value(middleware.LogEntryCtxKey).(*APILoggerEntry); ok {
 		entry.Logger = entry.Logger.WithFields(fields)
 	}
+}
+
+// NewCtxLogger adds new key value pair of {CtxLoggerKey: logrus.FieldLogger} to the requests context
+func NewCtxLogger(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		logFields := logrus.Fields{}
+		logFields["request_id"] = middleware.GetReqID(r.Context())
+		if rd, ok := r.Context().Value(auth.AuthDataContextKey).(auth.AuthData); ok {
+			logFields["okta_id"] = rd.OktaID
+		}
+		newLogEntry := &log.StructuredLoggerEntry{Logger: log.API.WithFields(logFields)}
+		r = r.WithContext(context.WithValue(r.Context(), log.CtxLoggerKey, newLogEntry))
+		next.ServeHTTP(w, r)
+	})
 }
