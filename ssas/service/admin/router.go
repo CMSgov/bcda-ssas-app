@@ -1,13 +1,14 @@
 package admin
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"os"
 	"strings"
 	"time"
 
-	"github.com/CMSgov/bcda-ssas-app/ssas"
+	"github.com/CMSgov/bcda-ssas-app/log"
 	"github.com/CMSgov/bcda-ssas-app/ssas/monitoring"
 
 	"github.com/go-chi/chi/v5"
@@ -34,9 +35,10 @@ func Server() *service.Server {
 	useMTLS := os.Getenv("ADMIN_USE_MTLS") == "true"
 
 	signingKey, err := service.ChooseSigningKey(adminSigningKeyPath, adminSigningKey)
+	logger := log.GetCtxLogger(context.Background())
 	if err != nil {
 		msg := fmt.Sprintf("Unable to get admin server signing key %v", err)
-		ssas.Logger.Error(msg)
+		logger.Error(msg)
 		return nil
 	}
 
@@ -82,11 +84,12 @@ func routes() *chi.Mux {
 	})
 
 	swaggerPath := "./swaggerui"
+	logger := log.GetCtxLogger(context.Background())
 	if _, err := os.Stat(swaggerPath); os.IsNotExist(err) {
-		ssas.Logger.Info("swagger path not found: " + swaggerPath)
+		logger.Info("swagger path not found: " + swaggerPath)
 		swaggerPath = "../swaggerui"
 	} else {
-		ssas.Logger.Info("swagger path found: " + swaggerPath)
+		logger.Info("swagger path found: " + swaggerPath)
 	}
 	FileServer(r, "/swagger", http.Dir(swaggerPath))
 

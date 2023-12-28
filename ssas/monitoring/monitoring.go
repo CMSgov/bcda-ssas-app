@@ -1,11 +1,12 @@
 package monitoring
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"os"
 
-	"github.com/CMSgov/bcda-ssas-app/ssas"
+	"github.com/CMSgov/bcda-app/log"
 	"github.com/newrelic/go-agent/v3/newrelic"
 )
 
@@ -16,6 +17,7 @@ type apm struct {
 }
 
 func GetMonitor() *apm {
+	logger := log.GetCtxLogger(context.Background())
 	if a == nil {
 		target := os.Getenv("DEPLOYMENT_TARGET")
 		if target == "" {
@@ -31,7 +33,7 @@ func GetMonitor() *apm {
 			},
 		)
 		if err != nil {
-			ssas.Logger.Error(err)
+			logger.Error(err)
 		}
 		a = &apm{
 			App: app,

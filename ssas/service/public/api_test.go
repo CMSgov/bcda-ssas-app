@@ -18,6 +18,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/CMSgov/bcda-ssas-app/log"
 	"github.com/CMSgov/bcda-ssas-app/ssas"
 	"github.com/CMSgov/bcda-ssas-app/ssas/constants"
 	"github.com/CMSgov/bcda-ssas-app/ssas/service"
@@ -1140,9 +1141,10 @@ func mintClientAssertion(issuer, subject, aud string, issuedAt, expiresAt int64,
 	token.Claims = claims
 	token.Header["kid"] = kid
 	var signedString, err = token.SignedString(privateKey)
+	logger := log.GetCtxLogger(context.Background())
 	if err != nil {
 		ssas.TokenMintingFailure(ssas.Event{TokenID: tokenID})
-		ssas.Logger.Errorf("token signing error %s", err)
+		logger.Errorf("token signing error %s", err)
 		return nil, "", err
 	}
 	return token, signedString, nil

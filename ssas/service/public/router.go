@@ -1,11 +1,12 @@
 package public
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"time"
 
-	"github.com/CMSgov/bcda-ssas-app/ssas"
+	"github.com/CMSgov/bcda-ssas-app/log"
 	"github.com/CMSgov/bcda-ssas-app/ssas/constants"
 	"github.com/CMSgov/bcda-ssas-app/ssas/monitoring"
 	"github.com/CMSgov/bcda-ssas-app/ssas/service"
@@ -22,11 +23,12 @@ var server *service.Server
 
 func init() {
 	infoMap = make(map[string][]string)
+	logger := log.GetCtxLogger(context.Background())
 	publicSigningKeyPath = os.Getenv("SSAS_PUBLIC_SIGNING_KEY_PATH")
 	publicSigningKey = os.Getenv("SSAS_PUBLIC_SIGNING_KEY")
-	ssas.Logger.Info("public signing key sourced from ", publicSigningKeyPath)
+	logger.Info("public signing key sourced from ", publicSigningKeyPath)
 	clientAssertAud = os.Getenv("SSAS_CLIENT_ASSERTION_AUD")
-	ssas.Logger.Info("aud value required in client assertion tokens:", clientAssertAud)
+	logger.Info("aud value required in client assertion tokens:", clientAssertAud)
 }
 
 func Server() *service.Server {
@@ -34,9 +36,10 @@ func Server() *service.Server {
 	useMTLS := os.Getenv("PUBLIC_USE_MTLS") == "true"
 
 	signingKey, err := service.ChooseSigningKey(publicSigningKeyPath, publicSigningKey)
+	logger := log.GetCtxLogger(context.Background())
 	if err != nil {
 		msg := fmt.Sprintf("Unable to get public server signing key: %v", err)
-		ssas.Logger.Error(msg)
+		logger.Error(msg)
 		return nil
 	}
 

@@ -17,6 +17,7 @@ import (
 
 	"gopkg.in/macaroon.v2"
 
+	log2 "github.com/CMSgov/bcda-ssas-app/log"
 	"github.com/CMSgov/bcda-ssas-app/ssas"
 	"github.com/CMSgov/bcda-ssas-app/ssas/cfg"
 	"github.com/go-chi/chi/v5"
@@ -52,12 +53,12 @@ type Server struct {
 func ChooseSigningKey(signingKeyPath, signingKey string) (*rsa.PrivateKey, error) {
 	var key *rsa.PrivateKey = nil
 	var error error = nil
+	// (?)Dont have access to context here because this is called before server is established
 	// *TODO: To prevent duplicate logging, remove error handling out of this function. Return error and log error outside of function.
 	if signingKey == "" && signingKeyPath != "" {
 		sk, err := GetPrivateKey(signingKeyPath)
 		if err != nil {
 			msg := fmt.Sprintf("bad signing key; path %s; %v", signingKeyPath, err)
-			ssas.Logger.Error(msg)
 			error = fmt.Errorf(msg)
 		}
 		key = sk
@@ -65,17 +66,14 @@ func ChooseSigningKey(signingKeyPath, signingKey string) (*rsa.PrivateKey, error
 		sk, err := ssas.ReadPrivateKey([]byte(signingKey))
 		if err != nil {
 			msg := fmt.Sprintf("bad inline signing key; %v", err)
-			ssas.Logger.Error(msg)
 			error = fmt.Errorf(msg)
 		}
 		key = sk
 	} else if signingKey == "" && signingKeyPath == "" {
 		msg := "inline key and path are both empty strings"
-		ssas.Logger.Error(msg)
 		error = fmt.Errorf(msg)
 	} else {
 		msg := "inline key or path must be set, but not both"
-		ssas.Logger.Error(msg)
 		error = fmt.Errorf(msg)
 	}
 
@@ -84,15 +82,15 @@ func ChooseSigningKey(signingKeyPath, signingKey string) (*rsa.PrivateKey, error
 
 // NewServer correctly initializes an instance of the Server type.
 func NewServer(name, port, version string, info interface{}, routes *chi.Mux, notSecure bool, useMTLS bool, signingKey *rsa.PrivateKey, ttl time.Duration, clientAssertAud string) *Server {
-
+	logger := log2.GetCtxLogger(context.Background())
 	if signingKey == nil {
-		ssas.Logger.Error("Private Key is nil")
+		logger.Error("Private Key is nil")
 		return nil
 	}
 
 	err := signingKey.Validate()
 	if err != nil {
-		ssas.Logger.Error("Private Key is invalid")
+		logger.Error("Private Key is invalid")
 		return nil
 	}
 
@@ -159,17 +157,19 @@ func (s *Server) ListRoutes() ([]string, error) {
 func (s *Server) LogRoutes() {
 	banner := fmt.Sprintf("Routes for %s at port %s: ", s.name, s.port)
 	routes, err := s.ListRoutes()
+	logger := log2.GetCtxLogger(context.Background())
 	if err != nil {
-		ssas.Logger.Errorf("%s routing error: %v", banner, err)
+		logger.Errorf("%s routing error: %v", banner, err)
 		return
 	}
-	ssas.Logger.Infof("%s %v", banner, routes)
+	logger.Infof("%s %v", banner, routes)
 }
 
 // Serve starts the server listening for and responding to requests.
 func (s *Server) Serve() {
+	logger := log2.GetCtxLogger(context.Background())
 	if s.notSecure {
-		ssas.Logger.Infof("starting %s server running UNSAFE http only mode; do not do this in production environments", s.name)
+		logger.Infof("starting %s server running UNSAFE http only mode; do not do this in production environments", s.name)
 		go func() { log.Fatal(s.server.ListenAndServe()) }()
 	} else {
 		if s.useMTLS {
@@ -180,12 +180,12 @@ func (s *Server) Serve() {
 			s.server.TLSConfig = conf
 
 			//If cert and key file paths are not passed the certs in TLS configs are used.
-			ssas.Logger.Infof("starting %s server in MTLS mode", s.name)
+			logger.Infof("starting %s server in MTLS mode", s.name)
 			go func() { log.Fatal(s.server.ListenAndServeTLS("", "")) }()
 		} else {
 			tlsCertPath := os.Getenv("BCDA_TLS_CERT") // borrowing for now; we need to get our own (for both servers?)
 			tlsKeyPath := os.Getenv("BCDA_TLS_KEY")
-			ssas.Logger.Infof("starting %s server in TLS mode", s.name)
+			logger.Infof("starting %s server in TLS mode", s.name)
 			go func() { log.Fatal(s.server.ListenAndServeTLS(tlsCertPath, tlsKeyPath)) }()
 		}
 	}
@@ -193,13 +193,14 @@ func (s *Server) Serve() {
 
 func getServerCertificates() (*x509.CertPool, tls.Certificate, error) {
 	crtB, err := b64.StdEncoding.DecodeString(os.Getenv("BCDA_TLS_CERT_B64"))
+	logger := log2.GetCtxLogger(context.Background())
 	if err != nil {
-		ssas.Logger.Error(err)
+		logger.Error(err)
 		return nil, tls.Certificate{}, errors.New("could not base64 decode BCDA_TLS_CERT_B64")
 	}
 	keyB, err := b64.StdEncoding.DecodeString(os.Getenv("BCDA_TLS_KEY_B64"))
 	if err != nil {
-		ssas.Logger.Error(err)
+		logger.Error(err)
 		return nil, tls.Certificate{}, errors.New("could not base64 decode BCDA_TLS_KEY_B64")
 	}
 
@@ -207,7 +208,7 @@ func getServerCertificates() (*x509.CertPool, tls.Certificate, error) {
 	keyStr := string(keyB)
 
 	if crtStr == "" || keyStr == "" {
-		ssas.Logger.Error(err)
+		logger.Error(err)
 		return nil, tls.Certificate{}, errors.New("one of the following required environment variables is missing or not base64 encoded: BCDA_TLS_CERT_B64, BCDA_TLS_KEY_B64")
 
 	}
@@ -216,13 +217,13 @@ func getServerCertificates() (*x509.CertPool, tls.Certificate, error) {
 	certPool := x509.NewCertPool()
 	ok := certPool.AppendCertsFromPEM([]byte(crtStr))
 	if !ok {
-		ssas.Logger.Error(err)
+		logger.Error(err)
 		return nil, tls.Certificate{}, errors.New("failed to parse server cert")
 	}
 
 	crt, err := tls.X509KeyPair([]byte(crtStr), []byte(keyStr))
 	if err != nil {
-		ssas.Logger.Error(err)
+		logger.Error(err)
 		return nil, tls.Certificate{}, errors.New("failed to parse server cert/key pair")
 	}
 	return certPool, crt, nil
@@ -230,7 +231,8 @@ func getServerCertificates() (*x509.CertPool, tls.Certificate, error) {
 
 // Stops the server listening for and responding to requests.
 func (s *Server) Stop() {
-	ssas.Logger.Infof("closing server %s; %+v", s.name, s.server.Close())
+	logger := log2.GetCtxLogger(context.Background())
+	logger.Infof("closing server %s; %+v", s.name, s.server.Close())
 }
 
 func (s *Server) newBaseRouter() *chi.Mux {
@@ -277,14 +279,15 @@ func (s *Server) getHealthCheck(w http.ResponseWriter, r *http.Request) {
 // since this ping will be run against all servers, isn't this excessive?
 func doHealthCheck(ctx context.Context) bool {
 	db, err := ssas.Connection.WithContext(ctx).DB()
+	logger := log2.GetCtxLogger(context.Background())
 	if err != nil {
 		// TODO health check failed event
-		ssas.Logger.Error("health check: database connection error: ", err.Error())
+		logger.Error("health check: database connection error: ", err.Error())
 		return false
 	}
 
 	if err = db.Ping(); err != nil {
-		ssas.Logger.Error("health check: database ping error: ", err.Error())
+		logger.Error("health check: database ping error: ", err.Error())
 		return false
 	}
 
@@ -376,9 +379,10 @@ func (s *Server) mintToken(claims *CommonClaims, issuedAt int64, expiresAt int64
 	claims.Issuer = "ssas"
 	token.Claims = claims
 	var signedString, err = token.SignedString(s.tokenSigningKey)
+	logger := log2.GetCtxLogger(context.Background())
 	if err != nil {
 		ssas.TokenMintingFailure(ssas.Event{TokenID: tokenID})
-		ssas.Logger.Errorf("token signing error %s", err)
+		logger.Errorf("token signing error %s", err)
 		return nil, "", err
 	}
 	// not emitting AccessTokenIssued here because it hasn't been given to anyone
@@ -414,10 +418,10 @@ func (s *Server) VerifyClientSignedToken(ctx context.Context, tokenString string
 		if err != nil {
 			return nil, fmt.Errorf("failed to retrieve systemID from macaroon")
 		}
-
+		logger := log2.GetCtxLogger(ctx)
 		system, err := ssas.GetSystemByID(ctx, systemID)
 		if err != nil {
-			ssas.Logger.Error(err)
+			logger.Error(err)
 			return nil, fmt.Errorf("failed to retrieve system information")
 		}
 
@@ -428,12 +432,12 @@ func (s *Server) VerifyClientSignedToken(ctx context.Context, tokenString string
 
 		key, err := system.FindEncryptionKey(ctx, trackingId, kid.(string))
 		if err != nil {
-			ssas.Logger.Error(err)
+			logger.Error(err)
 			return nil, fmt.Errorf("key not found for system: %v", claims.Issuer)
 		}
 		pubKey, err := ssas.ReadPublicKey(key.Body)
 		if err != nil {
-			ssas.Logger.Error(err)
+			logger.Error(err)
 			return nil, fmt.Errorf("failed to read public key")
 
 		}
