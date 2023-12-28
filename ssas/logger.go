@@ -4,6 +4,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/CMSgov/bcda-ssas-app/log"
 	"github.com/CMSgov/bcda-ssas-app/ssas/constants"
 	"github.com/sirupsen/logrus"
 )
@@ -48,12 +49,8 @@ func init() {
 
 }
 
-type APILoggerEntry struct {
-	Logger logrus.FieldLogger
-}
-
 func mergeNonEmpty(data Event) logrus.FieldLogger {
-	entry := &APILoggerEntry{Logger: Logger}
+	entry := &log.APILoggerEntry{Logger: Logger}
 
 	if data.UserID != "" {
 		entry.Logger = entry.Logger.WithField("userID", data.UserID)
