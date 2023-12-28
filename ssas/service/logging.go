@@ -108,10 +108,6 @@ type CtxLoggerKeyType string
 // logrus.FieldLogger value within request context
 const CtxLoggerKey CtxLoggerKeyType = "ctxLogger"
 
-type StructuredLoggerEntry struct {
-	Logger logrus.FieldLogger
-}
-
 // NewCtxLogger adds new key value pair of {CtxLoggerKey: logrus.FieldLogger} to the requests context
 func NewCtxLogger(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -120,8 +116,28 @@ func NewCtxLogger(next http.Handler) http.Handler {
 		if rd, ok := r.Context().Value("rd").(ssas.AuthRegData); ok {
 			logFields["okta_id"] = rd.OktaID
 		}
-		newLogEntry := &StructuredLoggerEntry{Logger: ssas.Logger.WithFields(logFields)}
+		newLogEntry := &APILoggerEntry{Logger: ssas.Logger.WithFields(logFields)}
 		r = r.WithContext(context.WithValue(r.Context(), CtxLoggerKey, newLogEntry))
 		next.ServeHTTP(w, r)
 	})
+}
+
+// Gets the logrus.FieldLogger from a context
+func GetCtxLogger(ctx context.Context) logrus.FieldLogger {
+	entry := ctx.Value(CtxLoggerKey).(*APILoggerEntry)
+	return entry.Logger
+}
+
+// Appends additional or creates new logrus.Fields to a logrus.FieldLogger within a context
+func SetCtxLogger(ctx context.Context, key string, value interface{}) (context.Context, logrus.FieldLogger) {
+	if entry, ok := ctx.Value(CtxLoggerKey).(*APILoggerEntry); ok {
+		entry.Logger = entry.Logger.WithField(key, value)
+		nCtx := context.WithValue(ctx, CtxLoggerKey, entry)
+		return nCtx, entry.Logger
+	}
+
+	var lggr logrus.Logger
+	newLogEntry := &APILoggerEntry{Logger: lggr.WithField(key, value)}
+	nCtx := context.WithValue(ctx, CtxLoggerKey, newLogEntry)
+	return nCtx, newLogEntry.Logger
 }
