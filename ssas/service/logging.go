@@ -66,11 +66,6 @@ func Redact(uri string) string {
 	return uri
 }
 
-func GetLogEntry(r *http.Request) logrus.FieldLogger {
-	entry := middleware.GetLogEntry(r).(*log.APILoggerEntry)
-	return entry.Logger
-}
-
 func LogEntrySetField(r *http.Request, key string, value interface{}) {
 	if entry, ok := r.Context().Value(middleware.LogEntryCtxKey).(*log.APILoggerEntry); ok {
 		entry.Logger = entry.Logger.WithField(key, value)

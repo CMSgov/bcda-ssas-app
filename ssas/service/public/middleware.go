@@ -3,10 +3,13 @@ package public
 import (
 	"context"
 	"fmt"
-	"github.com/CMSgov/bcda-ssas-app/ssas"
-	"github.com/CMSgov/bcda-ssas-app/ssas/service"
 	"net/http"
 	"regexp"
+
+	"github.com/CMSgov/bcda-app/log"
+	"github.com/CMSgov/bcda-ssas-app/log"
+	"github.com/CMSgov/bcda-ssas-app/ssas"
+	"github.com/CMSgov/bcda-ssas-app/ssas/service"
 )
 
 func readGroupID(next http.Handler) http.Handler {
@@ -16,19 +19,19 @@ func readGroupID(next http.Handler) http.Handler {
 			err error
 		)
 		if rd, err = readRegData(r); err != nil {
-			service.GetLogEntry(r).Println("no data from token about allowed groups")
+			log.GetCtxLogger(r.Context()).Println("no data from token about allowed groups")
 			respond(w, http.StatusUnauthorized)
 			return
 		}
 
 		if rd.GroupID = r.Header.Get("x-group-id"); rd.GroupID == "" {
-			service.GetLogEntry(r).Println("missing header x-group-id")
+			log.GetCtxLogger(r.Context()).Println("missing header x-group-id")
 			respond(w, http.StatusUnauthorized)
 			return
 		}
 
 		if !contains(rd.AllowedGroupIDs, rd.GroupID) {
-			service.GetLogEntry(r).Println("group specified in x-group-id not in token's allowed groups")
+			log.GetCtxLogger(r.Context()).Println("group specified in x-group-id not in token's allowed groups")
 			respond(w, http.StatusUnauthorized)
 			return
 		}

@@ -70,7 +70,7 @@ func ResetSecret(w http.ResponseWriter, r *http.Request) {
 	setHeaders(w)
 
 	if rd, err = readRegData(r); err != nil || rd.GroupID == "" {
-		service.GetLogEntry(r).Println("missing or invalid GroupID")
+		log.GetCtxLogger(r.Context()).Println("missing or invalid GroupID")
 		service.JSONError(w, http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized), "")
 		return
 	}
@@ -142,7 +142,7 @@ func RegisterSystem(w http.ResponseWriter, r *http.Request) {
 	setHeaders(w)
 
 	if rd, err = readRegData(r); err != nil || rd.GroupID == "" {
-		service.GetLogEntry(r).Println("missing or invalid GroupID")
+		log.GetCtxLogger(r.Context()).Println("missing or invalid GroupID")
 		// Specified in RFC 7592 https://tools.ietf.org/html/rfc7592#page-6
 		service.JSONError(w, http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized), "")
 		return
