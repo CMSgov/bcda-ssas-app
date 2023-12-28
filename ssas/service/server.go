@@ -240,6 +240,7 @@ func (s *Server) newBaseRouter() *chi.Mux {
 		NewAPILogger(),
 		render.SetContentType(render.ContentTypeJSON),
 		ConnectionClose,
+		NewCtxLogger,
 	)
 	r.Get("/_version", s.getVersion)
 	r.Get("/_health", s.getHealthCheck)
