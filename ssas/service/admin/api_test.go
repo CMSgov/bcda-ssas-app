@@ -6,7 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
@@ -601,7 +601,7 @@ func (s *APITestSuite) TestJSONError() {
 	rr := httptest.NewRecorder()
 	service.JSONError(rr, http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized), "unauthorized")
 
-	b, _ := ioutil.ReadAll(rr.Body)
+	b, _ := io.ReadAll(rr.Body)
 	var error ssas.ErrorResponse
 	_ = json.Unmarshal(b, &error)
 
@@ -1170,7 +1170,7 @@ func (s *APITestSuite) TestGetV2System() {
 	rr := httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
 
-	b, _ := ioutil.ReadAll(rr.Body)
+	b, _ := io.ReadAll(rr.Body)
 	var system ssas.SystemOutput
 	_ = json.Unmarshal(b, &system)
 
@@ -1200,7 +1200,7 @@ func (s *APITestSuite) TestGetV2SystemInactive() {
 	rr := httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
 
-	b, _ := ioutil.ReadAll(rr.Body)
+	b, _ := io.ReadAll(rr.Body)
 	var error ssas.ErrorResponse
 	_ = json.Unmarshal(b, &error)
 
@@ -1219,7 +1219,7 @@ func (s *APITestSuite) TestCreateAndDeleteAdditionalV2SystemToken() {
 	handler.ServeHTTP(rr, req)
 
 	//verify it created a new client token
-	b, _ := ioutil.ReadAll(rr.Body)
+	b, _ := io.ReadAll(rr.Body)
 	var clr ssas.ClientTokenResponse
 	_ = json.Unmarshal(b, &clr)
 	assert.NotNil(s.T(), clr.Token)
@@ -1233,7 +1233,7 @@ func (s *APITestSuite) TestCreateAndDeleteAdditionalV2SystemToken() {
 	rr = httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
 
-	b, _ = ioutil.ReadAll(rr.Body)
+	b, _ = io.ReadAll(rr.Body)
 	var system ssas.SystemOutput
 	_ = json.Unmarshal(b, &system)
 
@@ -1259,7 +1259,7 @@ func (s *APITestSuite) TestCreateAndDeleteAdditionalV2SystemToken() {
 	rr = httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
 
-	b, _ = ioutil.ReadAll(rr.Body)
+	b, _ = io.ReadAll(rr.Body)
 	_ = json.Unmarshal(b, &system)
 
 	assert.Len(s.T(), system.ClientTokens, 1)
@@ -1330,7 +1330,7 @@ func (s *APITestSuite) TestCreateAndDeletePublicKey() {
 	handler.ServeHTTP(rr, req)
 
 	//verify it created the new key
-	b, _ := ioutil.ReadAll(rr.Body)
+	b, _ := io.ReadAll(rr.Body)
 	var responseMap map[string]string
 	_ = json.Unmarshal(b, &responseMap)
 	assert.NotNil(s.T(), string(b))
@@ -1346,7 +1346,7 @@ func (s *APITestSuite) TestCreateAndDeletePublicKey() {
 	rr = httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
 
-	b, _ = ioutil.ReadAll(rr.Body)
+	b, _ = io.ReadAll(rr.Body)
 	var system ssas.SystemOutput
 	_ = json.Unmarshal(b, &system)
 
@@ -1372,7 +1372,7 @@ func (s *APITestSuite) TestCreateAndDeletePublicKey() {
 	rr = httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
 
-	b, _ = ioutil.ReadAll(rr.Body)
+	b, _ = io.ReadAll(rr.Body)
 	_ = json.Unmarshal(b, &system)
 
 	assert.Len(s.T(), system.PublicKeys, 1)

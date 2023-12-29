@@ -3,7 +3,7 @@ package admin
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"strings"
 	"time"
@@ -40,7 +40,7 @@ func createGroup(w http.ResponseWriter, r *http.Request) {
 	groupEvent := ssas.Event{Op: "CreateGroup", TrackingID: trackingID}
 
 	defer r.Body.Close()
-	body, _ := ioutil.ReadAll(r.Body)
+	body, _ := io.ReadAll(r.Body)
 	gd := ssas.GroupData{}
 	err := json.Unmarshal(body, &gd)
 	if err != nil {
@@ -150,7 +150,7 @@ func updateGroup(w http.ResponseWriter, r *http.Request) {
 	groupEvent := ssas.Event{Op: "UpdateGroup", TrackingID: trackingID}
 
 	defer r.Body.Close()
-	body, _ := ioutil.ReadAll(r.Body)
+	body, _ := io.ReadAll(r.Body)
 	gd := ssas.GroupData{}
 	err := json.Unmarshal(body, &gd)
 	if err != nil {
@@ -703,7 +703,7 @@ func createToken(w http.ResponseWriter, r *http.Request) {
 	ssas.OperationCalled(tokenEvent)
 
 	var body map[string]string
-	b, err := ioutil.ReadAll(r.Body)
+	b, err := io.ReadAll(r.Body)
 	if err != nil {
 		ssas.OperationFailed(tokenEvent)
 		service.JSONError(w, http.StatusInternalServerError, "Internal Error", "")
