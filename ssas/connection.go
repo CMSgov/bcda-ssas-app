@@ -31,9 +31,10 @@ func createDB() (*gorm.DB, error) {
 
 	// TODO: Allow connection settings to be configured by env vars
 	// https://jira.cms.gov/browse/BCDA-7109
-	sqlDB.SetMaxOpenConns(40)
+	sqlDB.SetMaxOpenConns(60)
 	sqlDB.SetMaxIdleConns(40)
 	sqlDB.SetConnMaxLifetime(time.Duration(5) * time.Minute)
+	sqlDB.SetConnMaxIdleTime(time.Duration(30) * time.Second)
 
 	db, err := gorm.Open(postgres.New(postgres.Config{
 		Conn: sqlDB,
