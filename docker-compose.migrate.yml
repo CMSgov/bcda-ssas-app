@@ -5,3 +5,4 @@ services:
     image: migrate/migrate
     volumes:
       - .:/go/src/github.com/CMSgov/bcda-ssas-app
+      - ./ssas/cfg/configs:/usr/local/configs

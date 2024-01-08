@@ -1,12 +1,12 @@
 /*
  Package main System-to-System Authentication Service
- 
+
  The System-to-System Authentication Service (SSAS) enables one software system to authenticate and authorize another software system. In this model, the Systems act automatically, independent of a human user identity. Human users are involved only to administer the Service, including establishing the identities and privileges of participating systems.
- 
+
  For more details see our repository readme and Postman tests:
  - https://github.com/CMSgov/bcda-ssas-app
  - https://github.com/CMSgov/bcda-ssas-app/tree/master/test/postman_test
- 
+
  If you have a Client ID and Secret you can use this page to explore the API.  To do this, click the green "Authorize" button below and enter your Client ID and secret in the Basic Authentication username and password boxes.
 Until you click logout your token will be presented with every request made.  To make requests click on the "Try it out" button for the desired endpoint.
 
@@ -20,9 +20,11 @@ Until you click logout your token will be presented with every request made.  To
      SecurityDefinitions:
      basic_auth:
           type: basic
- 
+
  swagger:meta
 */
+//nolint: lll // Ignore long line linting
+
 package main
 
 import (
@@ -47,6 +49,7 @@ import (
 	"github.com/CMSgov/bcda-ssas-app/ssas/service/public"
 	"github.com/go-chi/chi/v5"
 	gcmw "github.com/go-chi/chi/v5/middleware"
+	"github.com/joho/godotenv"
 	"github.com/newrelic/go-agent/v3/newrelic"
 	"gorm.io/gorm"
 )
@@ -78,6 +81,15 @@ func init() {
 	if nil != err {
 		ssas.Logger.Warnf("New Relic integration is disabled: %s", err)
 	}
+	env := os.Getenv("DEPLOYMENT_TARGET")
+	envPath := fmt.Sprintf("/usr/local/configs/%s.env", env)
+	err = godotenv.Load(envPath)
+
+	if err != nil {
+		ssas.Logger.Error("Unable to load environment file, exiting.")
+		os.Exit(-1)
+	}
+
 }
 
 // We provide some simple commands for bootstrapping the system into place. Commands cannot be combined.
