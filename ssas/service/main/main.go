@@ -49,7 +49,6 @@ import (
 	"github.com/CMSgov/bcda-ssas-app/ssas/service/public"
 	"github.com/go-chi/chi/v5"
 	gcmw "github.com/go-chi/chi/v5/middleware"
-	"github.com/joho/godotenv"
 	"github.com/newrelic/go-agent/v3/newrelic"
 	"gorm.io/gorm"
 )
@@ -80,14 +79,6 @@ func init() {
 	)
 	if nil != err {
 		ssas.Logger.Warnf("New Relic integration is disabled: %s", err)
-	}
-	env := os.Getenv("DEPLOYMENT_TARGET")
-	envPath := fmt.Sprintf("/usr/local/configs/%s.env", env)
-	err = godotenv.Load(envPath)
-
-	if err != nil {
-		ssas.Logger.Error("Unable to load environment file, exiting.")
-		os.Exit(-1)
 	}
 
 }

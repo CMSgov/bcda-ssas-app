@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/CMSgov/bcda-ssas-app/ssas/cfg"
+	"github.com/joho/godotenv"
 	"github.com/pborman/uuid"
 	"gorm.io/gorm"
 )
@@ -31,6 +32,14 @@ func init() {
 }
 
 func getEnvVars() {
+	env := os.Getenv("DEPLOYMENT_TARGET")
+	envPath := fmt.Sprintf("/usr/local/configs/%s.env", env)
+	err := godotenv.Load(envPath)
+
+	if err != nil {
+		//ssas.Logger.Error("Unable to load environment file, exiting.")
+		os.Exit(-1)
+	}
 	DefaultScope = os.Getenv("SSAS_DEFAULT_SYSTEM_SCOPE")
 
 	if DefaultScope == "" {
