@@ -11,7 +11,6 @@ services:
       - DB=postgresql://postgres:toor@db:5432
       - DATABASE_URL=postgresql://postgres:toor@db:5432/bcda?sslmode=disable
       - BCDA_SSAS_CLIENT_ID=fake-client-id
-      - DEPLOYMENT_TARGET=test
       - BCDA_SSAS_SECRET=fake-secret
       - SSAS_ADMIN_SIGNING_KEY_PATH=../../../shared_files/ssas/admin_test_signing_key.pem
       - SSAS_PUBLIC_SIGNING_KEY_PATH=../../../shared_files/ssas/public_test_signing_key.pem
