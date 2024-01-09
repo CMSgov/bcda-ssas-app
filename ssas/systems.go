@@ -39,7 +39,6 @@ func getEnvVars() {
 	if err != nil {
 		ServiceHalted(Event{Help: "Unable to load environment variables."})
 		panic("Unable to start application without loading environment variables.")
-		os.Exit(-1)
 	}
 	DefaultScope = os.Getenv("SSAS_DEFAULT_SYSTEM_SCOPE")
 
