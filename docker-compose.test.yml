@@ -29,7 +29,6 @@ services:
       - SSAS_CLIENT_ASSERTION_AUD=http://local.testing.cms.gov/api/v2/Token/auth
     volumes:
       - .:/go/src/github.com/CMSgov/bcda-ssas-app
-      - ./ssas/cfg/configs:/usr/local/configs
   postman_test:
     build:
       context: .

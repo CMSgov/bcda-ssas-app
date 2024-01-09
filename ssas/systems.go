@@ -9,6 +9,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"go/build"
 	"io"
 	"net"
 	"os"
@@ -33,7 +34,12 @@ func init() {
 
 func getEnvVars() {
 	env := os.Getenv("DEPLOYMENT_TARGET")
-	envPath := fmt.Sprintf("/usr/local/configs/%s.env", env)
+	gopath := os.Getenv("GOPATH")
+
+	if gopath == "" {
+		gopath = build.Default.GOPATH
+	}
+	envPath := fmt.Sprintf(gopath+"/src/github.com/CMSgov/bcda-ssas-app/ssas/cfg/configs/%s.env", env)
 	err := godotenv.Load(envPath)
 
 	if err != nil {
