@@ -28,6 +28,9 @@ RUN apk --no-cache add ca-certificates aws-cli curl
 WORKDIR /usr/local/bin
 COPY --from=builder /go/src/github.com/CMSgov/bcda-ssas-app/ssas/ssas .
 COPY --from=documentation /go/src/github.com/CMSgov/bcda-ssas-app/ssas/swaggerui ./swaggerui
+RUN echo "Alabama"
+RUN pwd
+RUN ls
 EXPOSE 3003
 EXPOSE 3004
 EXPOSE 3005
