@@ -43,7 +43,7 @@ func getEnvVars() {
 	err := godotenv.Load(envPath)
 
 	if err != nil {
-		ServiceHalted(Event{Help: fmt.Sprintf("Unable to load environment variables in env %s, message: %s", env, err.Error())})
+		ServiceHalted(Event{Help: fmt.Sprintf("Unable to load environment variables in env %s; message: %s", env, err.Error())})
 		panic("Unable to start application without loading environment variables.")
 	}
 	DefaultScope = os.Getenv("SSAS_DEFAULT_SYSTEM_SCOPE")
