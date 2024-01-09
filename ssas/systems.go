@@ -38,18 +38,10 @@ func getEnvVars() {
 
 	if err != nil {
 		ServiceHalted(Event{Help: "Unable to load environment variables."})
+		panic("Unable to start application without loading environment variables.")
 		os.Exit(-1)
 	}
 	DefaultScope = os.Getenv("SSAS_DEFAULT_SYSTEM_SCOPE")
-
-	if DefaultScope == "" {
-		if os.Getenv("DEBUG") == "true" {
-			DefaultScope = "bcda-api"
-			return
-		}
-		ServiceHalted(Event{Help: "SSAS_DEFAULT_SYSTEM_SCOPE environment value must be set"})
-		panic("SSAS_DEFAULT_SYSTEM_SCOPE environment value must be set")
-	}
 
 	expirationDays := cfg.GetEnvInt("SSAS_CRED_EXPIRATION_DAYS", 90)
 	CredentialExpiration = time.Duration(expirationDays*24) * time.Hour
