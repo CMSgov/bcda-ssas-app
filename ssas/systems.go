@@ -41,6 +41,9 @@ func getEnvVars() {
 		panic("Unable to start application without loading environment variables.")
 	}
 	DefaultScope = os.Getenv("SSAS_DEFAULT_SYSTEM_SCOPE")
+	if DefaultScope == "" {
+		panic("Unable to source default system scope; check env files")
+	}
 
 	expirationDays := cfg.GetEnvInt("SSAS_CRED_EXPIRATION_DAYS", 90)
 	CredentialExpiration = time.Duration(expirationDays*24) * time.Hour
