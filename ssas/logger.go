@@ -163,3 +163,8 @@ func ServiceHalted(data Event) {
 func ServiceStarted(data Event) {
 	mergeNonEmpty(data).WithField("Event", "ServiceStarted").Print(data.Help)
 }
+
+// ServiceStarted should be called to log the starting of the service
+func HelpfulLog(data Event) {
+	mergeNonEmpty(data).WithField("Event", "HelpfulLog").Print(data.Help)
+}
