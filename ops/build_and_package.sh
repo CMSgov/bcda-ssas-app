@@ -29,12 +29,15 @@ then
   exit 1
 fi
 
+cp -r ../ssas/cfg/configs/* .
+
+
 cd ../ssas
 go clean
 echo "Building ssas..."
 go build -ldflags "-X github.com/CMSgov/bcda-ssas-app/ssas/constants.Version=$VERSION" -o ssas ./service/main
 echo "Packaging ssas binary into RPM..."
-fpm -v $VERSION -s dir -t rpm -n ssas ssas=/usr/local/bin/ssas swaggerui=/etc/sv/ssas
+fpm -v $VERSION -s dir -t rpm -n ssas ssas=/usr/local/bin/ssas swaggerui=/etc/sv/ssas configs=/go/src/github.com/CMSgov/bcda-ssas-app/ssas/cfg/configs
 
 
 #Sign RPMs
