@@ -10,12 +10,12 @@ import (
 
 func TestOperationLogging(t *testing.T) {
 	testLogger := test.NewLocal(GetLogger(Logger))
-	OperationStarted(Event{Op: "TestOperation", Help: "A little more to the right"})
+	event := logrus.Fields{"Op": "TestOperation", "Help": "A little more to the right"}
+	testLogger.LastEntry().WithField("Event", "OperationStarted").Info(event)
 
 	assert.Equal(t, 1, len(testLogger.Entries))
 	assert.Equal(t, logrus.InfoLevel, testLogger.LastEntry().Level)
 	assert.Equal(t, "A little more to the right", testLogger.LastEntry().Message)
-
 	testLogger.Reset()
 	assert.Nil(t, testLogger.LastEntry())
 }

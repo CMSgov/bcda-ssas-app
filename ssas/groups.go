@@ -9,6 +9,8 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/CMSgov/bcda-ssas-app/log"
+	"github.com/sirupsen/logrus"
 	"gorm.io/gorm"
 )
 
@@ -52,13 +54,14 @@ type GroupList struct {
 }
 
 func CreateGroup(ctx context.Context, gd GroupData, trackingID string) (Group, error) {
-	event := Event{Op: "CreateGroup", TrackingID: trackingID}
-	OperationStarted(event)
+	event := logrus.Fields{"Op": "CreateGroup", "TrackingID": trackingID}
+	logger := log.GetCtxLogger(ctx).WithFields(event)
+	logger.Info(logrus.Fields{"Event": "OperationStarted"})
+	errLog := logrus.WithField("Event", "OperationFailed")
 
 	if gd.GroupID == "" {
 		err := fmt.Errorf("group_id cannot be blank")
-		event.Help = err.Error()
-		OperationFailed(event)
+		errLog.Error(err)
 		return Group{}, err
 	}
 
@@ -76,24 +79,23 @@ func CreateGroup(ctx context.Context, gd GroupData, trackingID string) (Group, e
 
 	err := Connection.WithContext(ctx).Save(&g).Error
 	if err != nil {
-		event.Help = err.Error()
-		OperationFailed(event)
+		errLog.Error()
 		return Group{}, fmt.Errorf("group violates uniqueness or other constraints")
 	}
 
-	OperationSucceeded(event)
+	logger.Info(logrus.Fields{"Event": "OperationSucceeded"})
 	return g, nil
 }
 
 func ListGroups(ctx context.Context, trackingID string) (list GroupList, err error) {
-	event := Event{Op: "ListGroups", TrackingID: trackingID}
-	OperationStarted(event)
+	event := logrus.Fields{"Op": "ListGroups", "TrackingID": trackingID}
+	logger := log.GetCtxLogger(ctx).WithFields(event)
+	logger.Info(logrus.Fields{"Event": "OperationStarted"})
 
 	groups := []GroupSummary{}
 	err = Connection.WithContext(ctx).Table("groups").Where("deleted_at IS NULL").Preload("Systems").Find(&groups).Error
 	if err != nil {
-		event.Help = err.Error()
-		OperationFailed(event)
+		logger.Error(logrus.Fields{"Event": "OperationFailed"})
 		return
 	}
 
@@ -101,20 +103,22 @@ func ListGroups(ctx context.Context, trackingID string) (list GroupList, err err
 	list.ReportedAt = time.Now()
 	list.Groups = groups
 
-	OperationSucceeded(event)
+	logger.Info(logrus.Fields{"Event": "OperationSucceeded"})
 	return list, nil
 }
 
 func UpdateGroup(ctx context.Context, id string, gd GroupData) (Group, error) {
-	event := Event{Op: "UpdateGroup", TrackingID: id}
-	OperationStarted(event)
+	event := logrus.Fields{"Op": "UpdateGroup", "TrackingID": id}
+	logger := log.GetCtxLogger(ctx).WithFields(event)
+	logger.Info(logrus.Fields{"Event": "OperationStarted"})
+	errField := logrus.Fields{"Event": "OperationFailed"}
 
 	g, err := GetGroupByID(ctx, id)
 	if err != nil {
 		errString := fmt.Sprintf("record not found for id=%s", id)
-		event.Help = errString + ": " + err.Error()
 		err := fmt.Errorf(errString)
-		OperationFailed(event)
+		// (?) how to print this errString, where does fmt print to?
+		logger.Error(errField)
 		return Group{}, err
 	}
 
@@ -124,34 +128,36 @@ func UpdateGroup(ctx context.Context, id string, gd GroupData) (Group, error) {
 	g.Data = gd
 	err = Connection.WithContext(ctx).Save(&g).Error
 	if err != nil {
-		event.Help = err.Error()
-		OperationFailed(event)
+		// event.Help = err.Error()
+		logger.Error(errField)
 		return Group{}, fmt.Errorf("group failed to meet database constraints")
 	}
 
-	OperationSucceeded(event)
+	logger.Info(logrus.Fields{"Event": "OperationSucceeded"})
 	return g, nil
 }
 
 func DeleteGroup(ctx context.Context, id string) error {
-	event := Event{Op: "DeleteGroup", TrackingID: id}
-	OperationStarted(event)
+	event := logrus.Fields{"Op": "DeleteGroup", "TrackingID": id}
+	logger := log.GetCtxLogger(ctx).WithFields(event)
+	logger.Info(logrus.Fields{"Event": "OperationStarted"})
+	errField := logrus.Fields{"Event": "OperationFailed"}
 
 	g, err := GetGroupByID(ctx, id)
 	if err != nil {
-		event.Help = err.Error()
-		OperationFailed(event)
+		// event.Help = err.Error()
+		logger.Error(errField)
 		return err
 	}
 
 	err = cascadeDeleteGroup(ctx, g)
 	if err != nil {
-		event.Help = err.Error()
-		OperationFailed(event)
+		// event.Help = err.Error()
+		logger.Error(errField)
 		return fmt.Errorf("database error")
 	}
 
-	OperationSucceeded(event)
+	logger.Info(logrus.Fields{"Event": "OperationSucceeded"})
 	return nil
 }
 

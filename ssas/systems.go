@@ -210,16 +210,16 @@ func (system *System) GetSecret(ctx context.Context) (Secret, error) {
 
 // SaveTokenTime puts the current time in systems.last_token_at
 func (system *System) SaveTokenTime(ctx context.Context) {
-	event := Event{Op: "UpdateLastTokenAt", TrackingID: system.GroupID, ClientID: system.ClientID}
-	OperationCalled(event)
+	event := logrus.Fields{"Op": "UpdateLastTokenAt", "TrackingID": system.GroupID, "ClientID": system.ClientID}
+	logger := log.GetCtxLogger(ctx).WithFields(event)
+	logger.Info(logrus.Fields{"Event": "OperationCalled"})
 
 	err := Connection.WithContext(ctx).Model(&system).UpdateColumn("last_token_at", time.Now()).Error
 	if err != nil {
-		event.Help = err.Error()
-		OperationFailed(event)
+		logger.WithField("Event", "OperationFailed").Error(err.Error())
 	}
 
-	OperationSucceeded(event)
+	logger.Info(logrus.Fields{"Event": "OperationSucceeded"})
 }
 
 /*
@@ -243,7 +243,7 @@ func (system *System) RevokeSecret(ctx context.Context, trackingID string) error
 		return fmt.Errorf("unable to revoke credentials for clientID %s: %s", system.ClientID, err.Error())
 	}
 
-	logger.WithField("Event", "OperationSucceded").Info(fmt.Sprintf("secret revoked in group %s with XData: %s", system.GroupID, xdata))
+	logger.WithField("Event", "OperationSucceeded").Info(fmt.Sprintf("secret revoked in group %s with XData: %s", system.GroupID, xdata))
 	return nil
 }
 
@@ -439,7 +439,6 @@ func registerSystem(ctx context.Context, input SystemInput, isV2 bool) (Credenti
 	creds := Credentials{}
 	clientID := uuid.NewRandom().String()
 
-	// The caller of this function should have logged OperationCalled() with the same trackingID
 	event := logrus.Fields{"Op": "RegisterClient", "TrackingID": input.TrackingID, "ClientID": clientID}
 	logger := log.GetCtxLogger(ctx).WithFields(event)
 	logger.Info(logrus.Fields{"Event": "OperationStarted"})
@@ -605,7 +604,6 @@ func VerifySignature(pubKey *rsa.PublicKey, signatureStr string) error {
 }
 
 func (system *System) RegisterIP(ctx context.Context, address string, trackingID string) (IP, error) {
-	// The caller of this function should have logged OperationCalled() with the same trackingID
 	event := logrus.Fields{"Op": "RegisterIP", "TrackingID": trackingID, "Help": "calling from admin.RegisterIP()"}
 	logger := log.GetCtxLogger(ctx).WithFields(event)
 	logger.Info(logrus.Fields{"Event": "OperationStarted"})

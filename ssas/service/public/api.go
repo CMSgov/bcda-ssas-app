@@ -21,6 +21,7 @@ import (
 	"github.com/go-chi/render"
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/pborman/uuid"
+	"github.com/sirupsen/logrus"
 )
 
 type Key struct {
@@ -275,7 +276,7 @@ func token(w http.ResponseWriter, r *http.Request) {
 	token, ts, err := GetAccessTokenCreator().GenerateToken(claims)
 	if err != nil {
 		event.Help = "failure minting token: " + err.Error()
-		ssas.OperationFailed(event)
+		logger.Error(logrus.Fields{"Event": "OperationFailed"})
 		service.JSONError(w, http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized), "failure minting token")
 		return
 	}
@@ -291,7 +292,7 @@ func token(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "no-store")
 	w.Header().Set("Pragma", "no-cache")
 	ssas.AccessTokenIssued(event)
-	ssas.OperationSucceeded(event)
+	logger.Info(logrus.Fields{"Event": "OperationSucceeded"})
 	render.JSON(w, r, m)
 }
 
@@ -309,12 +310,15 @@ func ValidateSecret(system ssas.System, secret string, r *http.Request) (err err
 
 func tokenV2(w http.ResponseWriter, r *http.Request) {
 	trackingID := uuid.NewRandom().String()
-	event := ssas.Event{Op: "V2-Token", TrackingID: trackingID, Help: "calling from public.tokenV2()"}
-	ssas.OperationCalled(event)
+	event := logrus.Fields{"Op": "V2-Token", "TrackingID": trackingID, "Help": "calling from public.tokenV2()"}
+	logger := log.GetCtxLogger(r.Context()).WithFields(event)
+	logger.Info(logrus.Fields{"Event": "OperationCalled"})
+	errLog := logger.WithField("Event", "AuthorizationFailed")
 	valError := validateClientAssertionParams(r)
+
 	if valError != "" {
-		event.Help = valError
-		ssas.AuthorizationFailure(event)
+		errMsg := valError
+		errLog.Error(errMsg)
 		service.JSONError(w, http.StatusBadRequest, valError, "")
 		return
 	}
@@ -322,46 +326,46 @@ func tokenV2(w http.ResponseWriter, r *http.Request) {
 	tokenString := r.Form.Get("client_assertion")
 	token, err := parseClientSignedToken(r.Context(), tokenString, trackingID)
 	if err != nil {
-		event.Help = err.Error()
-		ssas.AuthorizationFailure(event)
+		errMsg := err.Error()
+		errLog.Error(errMsg)
 		service.JSONError(w, http.StatusBadRequest, err.Error(), "")
 		return
 	}
 
 	claims := token.Claims.(*service.CommonClaims)
 	if claims.Subject != claims.Issuer {
-		event.Help = "subject (sub) and issuer (iss) claims do not match"
-		ssas.AuthorizationFailure(event)
+		errMsg := "subject (sub) and issuer (iss) claims do not match"
+		errLog.Error(errMsg)
 		service.JSONError(w, http.StatusBadRequest, "subject (sub) and issuer (iss) claims do not match", "")
 		return
 	}
 
 	if claims.Id == "" {
-		event.Help = "missing Token ID (jti) claim"
-		ssas.AuthorizationFailure(event)
+		errMsg := "missing Token ID (jti) claim"
+		errLog.Error(errMsg)
 		service.JSONError(w, http.StatusBadRequest, "missing Token ID (jti) claim", "")
 		return
 	}
 
 	if claims.Audience != server.GetClientAssertionAudience() {
-		event.Help = "invalid audience (aud) claim"
-		ssas.AuthorizationFailure(event)
+		errMsg := "invalid audience (aud) claim"
+		errLog.Error(errMsg)
 		service.JSONError(w, http.StatusBadRequest, "invalid audience (aud) claim", "")
 		return
 	}
 
 	tokenDuration := claims.ExpiresAt - claims.IssuedAt
 	if tokenDuration > 300 { //5 minute max duration
-		event.Help = "IssuedAt (iat) and ExpiresAt (exp) claims are more than 5 minutes apart"
-		ssas.AuthorizationFailure(event)
+		errMsg := "IssuedAt (iat) and ExpiresAt (exp) claims are more than 5 minutes apart"
+		errLog.Error(errMsg)
 		service.JSONError(w, http.StatusBadRequest, "IssuedAt (iat) and ExpiresAt (exp) claims are more than 5 minutes apart", "")
 		return
 	}
 
 	systemID, err := server.GetSystemIDFromMacaroon(claims.Issuer)
 	if err != nil {
-		event.Help = "Macaroon does not contain system id"
-		ssas.AuthorizationFailure(event)
+		errMsg := "Macaroon does not contain system id"
+		errLog.Error(errMsg)
 		service.JSONError(w, http.StatusBadRequest, "Macaroon does not contain system id", "")
 		return
 	}
@@ -373,7 +377,6 @@ func tokenV2(w http.ResponseWriter, r *http.Request) {
 	}
 
 	data, err := ssas.XDataFor(r.Context(), system)
-	logger := log.GetCtxLogger(r.Context())
 	logger.Infof("public.api.token: XDataFor(%d) returned '%s'", system.ID, data)
 	if err != nil {
 		service.JSONError(w, http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized), "no group for system")
@@ -384,14 +387,14 @@ func tokenV2(w http.ResponseWriter, r *http.Request) {
 
 	accessToken, ts, err := GetAccessTokenCreator().GenerateToken(commonClaims)
 	if err != nil {
-		event.Help = "failure minting token: " + err.Error()
-		ssas.OperationFailed(event)
+		errMsg := "failure minting token: " + err.Error()
+		errLog.Error(errMsg)
 		service.JSONError(w, http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized), "")
 		return
 	}
 
 	system.SaveTokenTime(r.Context())
-	event.Help = fmt.Sprintf("token created in group %s with XData: %s", system.GroupID, data)
+	successMsg := fmt.Sprintf("token created in group %s with XData: %s", system.GroupID, data)
 
 	// https://tools.ietf.org/html/rfc6749#section-5.1
 	// expires_in is duration in seconds
@@ -400,8 +403,8 @@ func tokenV2(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Cache-Control", "no-store")
 	w.Header().Set("Pragma", "no-cache")
-	ssas.AccessTokenIssued(event)
-	ssas.OperationSucceeded(event)
+	logger.Info(logrus.Fields{"Event": "AccessTokenIssued", "Help": successMsg})
+	logger.Info(logrus.Fields{"Event": "OperationSucceeded", "Help": successMsg})
 	render.JSON(w, r, m)
 }
 

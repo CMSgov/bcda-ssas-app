@@ -12,6 +12,7 @@ import (
 	"github.com/CMSgov/bcda-ssas-app/ssas"
 	"github.com/CMSgov/bcda-ssas-app/ssas/service"
 	"github.com/go-chi/chi/v5"
+	"github.com/sirupsen/logrus"
 )
 
 /*
@@ -38,21 +39,23 @@ Responses:
 */
 func createGroup(w http.ResponseWriter, r *http.Request) {
 	trackingID := ssas.RandomHexID()
-	groupEvent := ssas.Event{Op: "CreateGroup", TrackingID: trackingID}
+	event := logrus.Fields{"Op": "CreateGroup", "TrackingID": trackingID}
+	logger := log.GetCtxLogger(r.Context()).WithFields(event)
+	errLog := logger.WithField("Event", "OperationFailed")
 
 	defer r.Body.Close()
 	body, _ := ioutil.ReadAll(r.Body)
 	gd := ssas.GroupData{}
 	err := json.Unmarshal(body, &gd)
 	if err != nil {
-		groupEvent.Help = fmt.Sprintf("error in request to create group; raw request: %v; error: %v", body, err.Error())
-		ssas.OperationFailed(groupEvent)
+		errMsg := fmt.Sprintf("error in request to create group; raw request: %v; error: %v", body, err.Error())
+		errLog.Error(logrus.Fields{"Help": errMsg})
 		service.JSONError(w, http.StatusBadRequest, "invalid request body", "")
 		return
 	}
 
-	groupEvent.Help = fmt.Sprintf("calling from admin.createGroup(), raw request: %v", string(body))
-	ssas.OperationCalled(groupEvent)
+	calledMsg := fmt.Sprintf("calling from admin.createGroup(), raw request: %v", string(body))
+	logger.Info(logrus.Fields{"Event": "OperationCalled", "Help": calledMsg})
 	g, err := ssas.CreateGroup(r.Context(), gd, trackingID)
 	if err != nil {
 		service.JSONError(w, http.StatusBadRequest, fmt.Sprintf("failed to create group; %s", err), "")
@@ -61,8 +64,8 @@ func createGroup(w http.ResponseWriter, r *http.Request) {
 
 	groupJSON, err := json.Marshal(g)
 	if err != nil {
-		groupEvent.Help = err.Error()
-		ssas.OperationFailed(groupEvent)
+		errMsg := err.Error()
+		errLog.Error(logrus.Fields{"Help": errMsg})
 		service.JSONError(w, http.StatusInternalServerError, "internal error", "")
 		return
 	}
@@ -71,8 +74,8 @@ func createGroup(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusCreated)
 	_, err = w.Write(groupJSON)
 	if err != nil {
-		groupEvent.Help = err.Error()
-		ssas.OperationFailed(groupEvent)
+		errMsg := err.Error()
+		errLog.Error(logrus.Fields{"Help": errMsg})
 		service.JSONError(w, http.StatusInternalServerError, "internal error", "")
 	}
 }
@@ -99,18 +102,21 @@ Responses:
 */
 func listGroups(w http.ResponseWriter, r *http.Request) {
 	trackingID := ssas.RandomHexID()
+	event := logrus.Fields{"Op": "ListGroups", "TrackingID": trackingID, "Help": "calling from admin.listGroups()"}
+	logger := log.GetCtxLogger(r.Context()).WithFields(event)
+	logger.Info(logrus.Fields{"Event": "OperationCalled"})
+	errLog := logger.WithField("Event", "OperationFailed")
 
-	ssas.OperationCalled(ssas.Event{Op: "ListGroups", TrackingID: trackingID, Help: "calling from admin.listGroups()"})
 	groups, err := ssas.ListGroups(r.Context(), trackingID)
 	if err != nil {
-		ssas.OperationFailed(ssas.Event{Op: "admin.listGroups", TrackingID: trackingID, Help: err.Error()})
+		errLog.Error(logrus.Fields{"Help": err.Error()})
 		service.JSONError(w, http.StatusInternalServerError, "internal error", "")
 		return
 	}
 
 	groupsJSON, err := json.Marshal(groups)
 	if err != nil {
-		ssas.OperationFailed(ssas.Event{Op: "admin.listGroups", TrackingID: trackingID, Help: err.Error()})
+		errLog.Error(logrus.Fields{"Help": err.Error()})
 		service.JSONError(w, http.StatusInternalServerError, "internal error", "")
 		return
 	}
@@ -119,7 +125,7 @@ func listGroups(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	_, err = w.Write(groupsJSON)
 	if err != nil {
-		ssas.OperationFailed(ssas.Event{Op: "admin.listGroups", TrackingID: trackingID, Help: err.Error()})
+		errLog.Error(logrus.Fields{"Help": err.Error()})
 		service.JSONError(w, http.StatusInternalServerError, "internal error", "")
 	}
 }

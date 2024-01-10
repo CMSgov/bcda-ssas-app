@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/CMSgov/bcda-ssas-app/log"
 	"github.com/pborman/uuid"
+	"github.com/sirupsen/logrus"
 
 	"gorm.io/gorm"
 )
@@ -18,13 +20,14 @@ type BlacklistEntry struct {
 }
 
 func CreateBlacklistEntry(ctx context.Context, key string, entryDate time.Time, cacheExpiration time.Time) (entry BlacklistEntry, err error) {
-	event := Event{Op: "CreateBlacklistEntry", TrackingID: key, TokenID: key}
-	OperationStarted(event)
+	event := logrus.Fields{"Op": "CreateBlacklistEntry", "TrackingID": key, "TokenID": key}
+	logger := log.GetCtxLogger(ctx).WithFields(event)
+	logger.Info(logrus.Fields{"Event": "OperationStarted"})
+	errField := logrus.Fields{"Event": "OperationFailed"}
 
 	if key == "" {
 		err = fmt.Errorf("key cannot be blank")
-		event.Help = err.Error()
-		OperationFailed(event)
+		logger.Error(errField)
 		return
 	}
 
@@ -36,28 +39,27 @@ func CreateBlacklistEntry(ctx context.Context, key string, entryDate time.Time, 
 
 	err = Connection.WithContext(ctx).Save(&be).Error
 	if err != nil {
-		event.Help = err.Error()
-		OperationFailed(event)
+		logger.Error(errField)
 		return
 	}
 
-	OperationSucceeded(event)
+	logger.Info(logrus.Fields{"Event": "OperationSucceeded"})
 	entry = be
 	return
 }
 
 func GetUnexpiredBlacklistEntries(ctx context.Context) (entries []BlacklistEntry, err error) {
 	trackingID := uuid.NewRandom().String()
-	event := Event{Op: "GetBlacklistEntries", TrackingID: trackingID}
-	OperationStarted(event)
+	event := logrus.Fields{"Op": "GetBlacklistEntries", "TrackingID": trackingID}
+	logger := log.GetCtxLogger(ctx).WithFields(event)
+	logger.Info(logrus.Fields{"Event": "OperationStarted"})
 
 	err = Connection.WithContext(ctx).Order("entry_date, cache_expiration").Where("cache_expiration > ?", time.Now().UnixNano()).Find(&entries).Error
 	if err != nil {
-		event.Help = err.Error()
-		OperationFailed(event)
+		logger.Error(logrus.Fields{"Event": "OperationFailed"})
 		return
 	}
 
-	OperationSucceeded(event)
+	logger.Info(logrus.Fields{"Event": "OperationSucceeded"})
 	return
 }

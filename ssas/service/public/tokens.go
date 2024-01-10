@@ -1,13 +1,15 @@
 package public
 
 import (
+	"context"
 	"fmt"
 	"time"
 
-	"github.com/CMSgov/bcda-ssas-app/ssas"
+	"github.com/CMSgov/bcda-ssas-app/log"
 	"github.com/CMSgov/bcda-ssas-app/ssas/cfg"
 	"github.com/CMSgov/bcda-ssas-app/ssas/service"
 	"github.com/golang-jwt/jwt/v4"
+	"github.com/sirupsen/logrus"
 )
 
 var accessTokenCreator TokenCreator
@@ -90,12 +92,15 @@ func empty(arr []string) bool {
 }
 
 func tokenValidity(tokenString string, requiredTokenType string) error {
-	tknEvent := ssas.Event{Op: "tokenValidity"}
-	ssas.OperationStarted(tknEvent)
+	event := logrus.Fields{"Op": "tokenValidity"}
+	logger := log.GetCtxLogger(context.Background()).WithFields(event)
+	logger.Info(logrus.Fields{"Event": "OperationStarted"})
+	errLog := logger.WithField("Event", "OperationFailed")
+
 	t, err := server.VerifyToken(tokenString)
 	if err != nil {
-		tknEvent.Help = err.Error()
-		ssas.OperationFailed(tknEvent)
+		errMsg := err.Error()
+		errLog.Error(errMsg)
 		return err
 	}
 
@@ -103,26 +108,26 @@ func tokenValidity(tokenString string, requiredTokenType string) error {
 
 	err = checkAllClaims(c, requiredTokenType)
 	if err != nil {
-		tknEvent.Help = err.Error()
-		ssas.OperationFailed(tknEvent)
+		errMsg := err.Error()
+		errLog.Error(errMsg)
 		return err
 	}
 
 	err = c.Valid()
 	if err != nil {
-		tknEvent.Help = err.Error()
-		ssas.OperationFailed(tknEvent)
+		errMsg := err.Error()
+		errLog.Error(errMsg)
 		return err
 	}
 
 	if service.TokenBlacklist.IsTokenBlacklisted(c.Id) {
 		err = fmt.Errorf("token has been revoked")
-		tknEvent.Help = err.Error()
-		ssas.OperationFailed(tknEvent)
+		errMsg := err.Error()
+		errLog.Error(errMsg)
 		return err
 	}
 
-	ssas.OperationSucceeded(tknEvent)
+	logger.Info(logrus.Fields{"Event": "OperationSucceeded"})
 	return nil
 }
 
