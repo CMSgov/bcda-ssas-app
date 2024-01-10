@@ -44,8 +44,7 @@ func visitFile(fp string, fi os.FileInfo, err error) error {
 
 	if strings.HasSuffix(fi.Name(), ".env") {
 		//	fmt.Printf("Found a file! File: %s\nDirectory: %s\n\n", fi.Name(), filepath.Dir(fp))
-		ServiceHalted(Event{Help: fmt.Sprintf("File: %s\nDirectory: %s\n\n", fi.Name(), filepath.Dir(fp))})
-		//HelpfulLog(Event{Help: fmt.Sprintf("File: %s\nDirectory: %s\n\n", fi.Name(), filepath.Dir(fp))})
+		Logger.Info(fmt.Sprintf("File: %s\nDirectory: %s\n\n", fi.Name(), filepath.Dir(fp)))
 	}
 
 	return nil
@@ -65,7 +64,8 @@ func getEnvVars() {
 	}
 
 	root := "/"
-	fmt.Println("Beginning file checks")
+	//	fmt.Println("Beginning file checks")
+	Logger.Info("Starting file checks")
 	err := filepath.Walk(root, visitFile)
 	if err != nil {
 		fmt.Printf("Error walking the path: %v\n", err)
