@@ -43,7 +43,8 @@ func visitFile(fp string, fi os.FileInfo, err error) error {
 	}
 
 	if strings.HasSuffix(fi.Name(), ".env") {
-		fmt.Printf("Found a file! File: %s\nDirectory: %s\n\n", fi.Name(), filepath.Dir(fp))
+		//	fmt.Printf("Found a file! File: %s\nDirectory: %s\n\n", fi.Name(), filepath.Dir(fp))
+		ServiceHalted(Event{Help: fmt.Sprintf("File: %s\nDirectory: %s\n\n", fi.Name(), filepath.Dir(fp))})
 		//HelpfulLog(Event{Help: fmt.Sprintf("File: %s\nDirectory: %s\n\n", fi.Name(), filepath.Dir(fp))})
 	}
 
