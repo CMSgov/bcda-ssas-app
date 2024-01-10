@@ -31,7 +31,6 @@ fi
 
 cp -r ../ssas/cfg/configs/* .
 
-
 cd ../ssas
 go clean
 echo "Building ssas..."
