@@ -1,6 +1,7 @@
 package ssas
 
 import (
+	"context"
 	"crypto/rand"
 	"crypto/sha512"
 	"encoding/base64"
@@ -13,7 +14,9 @@ import (
 
 	"golang.org/x/crypto/pbkdf2"
 
+	"github.com/CMSgov/bcda-ssas-app/log"
 	"github.com/CMSgov/bcda-ssas-app/ssas/cfg"
+	"github.com/sirupsen/logrus"
 )
 
 var (
@@ -62,8 +65,7 @@ func NewHash(source string) (Hash, error) {
 	start := time.Now()
 	h := pbkdf2.Key([]byte(source), salt, hashIter, hashKeyLen, sha512.New)
 	hashCreationTime := time.Since(start)
-	hashEvent := Event{Elapsed: hashCreationTime}
-	SecureHashTime(hashEvent)
+	log.GetCtxLogger(context.Background()).Info(logrus.Fields{"Elapsed": hashCreationTime, "Event": "SecureHashTime"})
 
 	hashValue := fmt.Sprintf("%s:%s:%d", base64.StdEncoding.EncodeToString(salt), base64.StdEncoding.EncodeToString(h), hashIter)
 	return Hash(hashValue), nil

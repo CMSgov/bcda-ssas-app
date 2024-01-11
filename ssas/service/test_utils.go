@@ -1,11 +1,13 @@
 package service
 
 import (
+	"context"
 	"errors"
 	"time"
 
-	"github.com/CMSgov/bcda-ssas-app/ssas"
+	"github.com/CMSgov/bcda-ssas-app/log"
 	"github.com/golang-jwt/jwt/v4"
+	"github.com/sirupsen/logrus"
 )
 
 type TokenFlaw int
@@ -59,7 +61,7 @@ func BadToken(claims *CommonClaims, flaw TokenFlaw, keyPath string) (token *jwt.
 	token.Claims = claims
 	signedString, err = token.SignedString(signingKey)
 	if err != nil {
-		ssas.TokenMintingFailure(ssas.Event{TokenID: tokenID, Help: "token signing error " + err.Error()})
+		log.GetCtxLogger(context.Background()).Error(logrus.Fields{"TokenID": tokenID, "Help": "token signing error " + err.Error(), "Event": "TokenMintingFailure"})
 	}
 	return
 }

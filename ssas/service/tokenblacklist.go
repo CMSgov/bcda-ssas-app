@@ -80,7 +80,7 @@ func (t *Blacklist) BlacklistToken(ctx context.Context, tokenID string, blacklis
 	}
 
 	// Add to cache only after token is blacklisted in database
-	ssas.TokenBlacklisted(ssas.Event{Op: "TokenBlacklist", TrackingID: tokenID, TokenID: tokenID})
+	log.GetCtxLogger(ctx).Info(logrus.Fields{"Op": "TokenBlacklist", "TrackingID": tokenID, "TokenID": tokenID, "Event": "TokenBlacklisted"})
 	t.c.Set(tokenID, entryDate.Unix(), blacklistExpiration)
 
 	return nil
@@ -95,9 +95,10 @@ func (t *Blacklist) IsTokenBlacklisted(tokenID string) bool {
 	t.RLock()
 	defer t.RUnlock()
 
-	bEvent := ssas.Event{Op: "TokenVerification", TrackingID: t.ID, TokenID: tokenID}
+	bEvent := logrus.Fields{"Op": "TokenVerification", "TrackingID": t.ID, "TokenID": tokenID}
+	logger := log.GetCtxLogger(context.Background()).WithFields(bEvent)
 	if _, found := t.c.Get(tokenID); found {
-		ssas.BlacklistedTokenPresented(bEvent)
+		logger.Info(logrus.Fields{"Event": "BlacklistedTokenPresented"})
 		return true
 	}
 	return false
@@ -113,9 +114,10 @@ func (t *Blacklist) LoadFromDatabase() error {
 	// TODO: pull from configurable setting for db timeout
 	timeoutCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
+	logger := log.GetCtxLogger(timeoutCtx)
 
 	if entries, err = ssas.GetUnexpiredBlacklistEntries(timeoutCtx); err != nil {
-		ssas.CacheSyncFailure(ssas.Event{Op: "BlacklistLoadFromDatabase", TrackingID: t.ID, Help: err.Error()})
+		logger.Error(logger.Fields{"Op": "BlacklistLoadFromDatabase", "TrackingID": t.ID, "Help": err.Error(), "Event": "CacheSyncFailure"})
 		return err
 	}
 
@@ -134,8 +136,7 @@ func (t *Blacklist) LoadFromDatabase() error {
 }
 
 func (t *Blacklist) startCacheRefreshTicker(refreshFreq time.Duration) (*time.Ticker, context.CancelFunc) {
-	event := ssas.Event{Op: "CacheRefreshTicker", TrackingID: t.ID}
-	ssas.ServiceStarted(event)
+	log.GetCtxLogger(context.Background()).Info(logrus.Fields{"Event": "ServiceStarted", "Op": "CacheRefreshTicker", "TrackingID": t.ID})
 
 	ticker := time.NewTicker(refreshFreq)
 

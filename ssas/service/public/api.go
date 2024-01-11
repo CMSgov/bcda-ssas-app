@@ -66,12 +66,13 @@ func ResetSecret(w http.ResponseWriter, r *http.Request) {
 		sys         ssas.System
 		bodyStr     []byte
 		credentials ssas.Credentials
-		event       ssas.Event
+		event       logrus.Fields
 	)
 	setHeaders(w)
+	logger := log.GetCtxLogger(r.Context())
 
 	if rd, err = readRegData(r); err != nil || rd.GroupID == "" {
-		log.GetCtxLogger(r.Context()).Println("missing or invalid GroupID")
+		logger.Println("missing or invalid GroupID")
 		service.JSONError(w, http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized), "")
 		return
 	}
@@ -97,8 +98,9 @@ func ResetSecret(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	event = ssas.Event{Op: "ResetSecret", TrackingID: uuid.NewRandom().String(), Help: "calling from public.ResetSecret()"}
-	ssas.OperationCalled(event)
+	event = logrus.Fields{"Op": "ResetSecret", "TrackingID": uuid.NewRandom().String(), "Help": "calling from public.ResetSecret()"}
+	logger = logger.WithFields(event)
+	logger.Info(logrus.Fields{"Event": "OperationCalled"})
 	if credentials, err = sys.ResetSecret(r.Context(), trackingID); err != nil {
 		service.JSONError(w, http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError), "")
 		return
@@ -113,14 +115,14 @@ func ResetSecret(w http.ResponseWriter, r *http.Request) {
 	body, err := json.Marshal(response)
 	if err != nil {
 		service.JSONError(w, http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError), "")
-		event.Help = "failure generating JSON for credential reset: " + err.Error()
-		ssas.OperationFailed(event)
+		errMsg := "failure generating JSON for credential reset: " + err.Error()
+		logger.Error(logrus.Fields{"Event": "OperationFailed", "Help": errMsg})
 		return
 	}
 	if _, err = w.Write(body); err != nil {
 		service.JSONError(w, http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError), "")
-		event.Help = "failure writing response body: " + err.Error()
-		ssas.OperationFailed(event)
+		errMsg := "failure writing response body: " + err.Error()
+		logger.Error(logrus.Fields{"Event": "OperationFailed", "Help": errMsg})
 		return
 	}
 }
@@ -141,9 +143,9 @@ func RegisterSystem(w http.ResponseWriter, r *http.Request) {
 	)
 
 	setHeaders(w)
-
+	logger := log.GetCtxLogger(r.Context())
 	if rd, err = readRegData(r); err != nil || rd.GroupID == "" {
-		log.GetCtxLogger(r.Context()).Println("missing or invalid GroupID")
+		logger.Println("missing or invalid GroupID")
 		// Specified in RFC 7592 https://tools.ietf.org/html/rfc7592#page-6
 		service.JSONError(w, http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized), "")
 		return
@@ -184,8 +186,9 @@ func RegisterSystem(w http.ResponseWriter, r *http.Request) {
 
 	// Log the source of the call for this operation.  Remaining logging will be in ssas.RegisterSystem() below.
 	trackingID = uuid.NewRandom().String()
-	event := ssas.Event{Op: "RegisterClient", TrackingID: trackingID, Help: "calling from public.RegisterSystem()"}
-	ssas.OperationCalled(event)
+	logger = logger.WithFields(logrus.Fields{"Op": "RegisterClient", "TrackingID": trackingID, "Help": "calling from public.RegisterSystem()"})
+	logger.Info(logrus.Fields{"Event": "OperationCalled"})
+	errLog := logger.WithField("Event", "OperationFailed")
 	credentials, err := ssas.RegisterSystem(r.Context(), reg.ClientName, rd.GroupID, reg.Scope, publicKeyPEM, reg.IPs, trackingID)
 	if err != nil {
 		service.JSONError(w, http.StatusBadRequest, "invalid_client_metadata", err.Error())
@@ -201,8 +204,8 @@ func RegisterSystem(w http.ResponseWriter, r *http.Request) {
 	body, err := json.Marshal(response)
 	if err != nil {
 		service.JSONError(w, http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError), "")
-		event.Help = "failure generating JSON for system creation: " + err.Error()
-		ssas.OperationFailed(event)
+		errMsg := "failure generating JSON for system creation: " + err.Error()
+		errLog.Error(errMsg)
 		return
 	}
 	// https://tools.ietf.org/html/rfc7591#section-3.2 dictates 201, not 200
@@ -210,8 +213,8 @@ func RegisterSystem(w http.ResponseWriter, r *http.Request) {
 	_, err = w.Write(body)
 	if err != nil {
 		service.JSONError(w, http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError), "")
-		event.Help = "failure writing response body: " + err.Error()
-		ssas.OperationFailed(event)
+		errMsg := "failure writing response body: " + err.Error()
+		errLog.Error(errMsg)
 		return
 	}
 }
@@ -268,21 +271,21 @@ func token(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	event := ssas.Event{Op: "Token", TrackingID: trackingID, Help: "calling from public.token()"}
-	ssas.OperationCalled(event)
+	event := logrus.Fields{"Op": "Token", "TrackingID": trackingID, "Help": "calling from public.token()"}
+	logger.WithFields(event).Info(logrus.Fields{"Event": "OperationCalled"})
 
 	claims := CreateCommonClaims("AccessToken", "", fmt.Sprintf("%d", system.ID), system.ClientID, data, "", nil)
 
 	token, ts, err := GetAccessTokenCreator().GenerateToken(claims)
 	if err != nil {
-		event.Help = "failure minting token: " + err.Error()
-		logger.Error(logrus.Fields{"Event": "OperationFailed"})
+		errMsg := "failure minting token: " + err.Error()
+		logger.Error(logrus.Fields{"Event": "OperationFailed", "Help": errMsg})
 		service.JSONError(w, http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized), "failure minting token")
 		return
 	}
 
 	system.SaveTokenTime(r.Context())
-	event.Help = fmt.Sprintf("token created in group %s with XData: %s", system.GroupID, data)
+	accessMsg := fmt.Sprintf("token created in group %s with XData: %s", system.GroupID, data)
 
 	// https://tools.ietf.org/html/rfc6749#section-5.1
 	// expires_in is duration in seconds
@@ -291,8 +294,8 @@ func token(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Cache-Control", "no-store")
 	w.Header().Set("Pragma", "no-cache")
-	ssas.AccessTokenIssued(event)
-	logger.Info(logrus.Fields{"Event": "OperationSucceeded"})
+	logger.Info(logrus.Fields{"Event": "AccessTokenIssued", "Help": accessMsg})
+	logger.Info(logrus.Fields{"Event": "OperationSucceeded", "Help": accessMsg})
 	render.JSON(w, r, m)
 }
 
@@ -502,9 +505,9 @@ func introspect(w http.ResponseWriter, r *http.Request) {
 
 func validateAndParseToken(w http.ResponseWriter, r *http.Request) {
 	trackingID := uuid.NewRandom().String()
-	event := ssas.Event{Op: "V2-Token-Info", TrackingID: trackingID, Help: "calling from admin.validateAndParseToken()"}
-	ssas.OperationCalled(event)
-	logger := log.GetCtxLogger(r.Context())
+	event := logrus.Fields{"Op": "V2-Token-Info", "TrackingID": trackingID, "Help": "calling from admin.validateAndParseToken()"}
+	logger := log.GetCtxLogger(r.Context()).WithFields(event)
+	logger.Info(logrus.Fields{"Event": "OperationCalled"})
 
 	defer r.Body.Close()
 

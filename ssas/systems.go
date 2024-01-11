@@ -41,7 +41,7 @@ func getEnvVars() {
 			DefaultScope = "bcda-api"
 			return
 		}
-		ServiceHalted(Event{Help: "SSAS_DEFAULT_SYSTEM_SCOPE environment value must be set"})
+		log.GetCtxLogger(context.Background()).Info(logrus.Fields{"Event": "ServiceHalted", "Help": "SSAS_DEFAULT_SYSTEM_SCOPE environment value must be set"})
 		panic("SSAS_DEFAULT_SYSTEM_SCOPE environment value must be set")
 	}
 
@@ -119,7 +119,7 @@ func (system *System) SaveClientToken(ctx context.Context, label string, groupXD
 	if err := Connection.WithContext(ctx).Create(&ct).Error; err != nil {
 		return nil, "", fmt.Errorf("could not save client token for clientID %s: %s", system.ClientID, err.Error())
 	}
-	ClientTokenCreated(Event{Op: "SaveClientToken", TrackingID: uuid.NewRandom().String(), ClientID: system.ClientID})
+	log.GetCtxLogger(ctx).Info(logrus.Fields{"Op": "SaveClientToken", "TrackingID": uuid.NewRandom().String(), "ClientID": system.ClientID, "Event": "ClientTokenCreated"})
 	return &ct, token, nil
 }
 
@@ -186,7 +186,7 @@ func (system *System) SaveSecret(ctx context.Context, hashedSecret string) error
 	if err := Connection.WithContext(ctx).Create(&secret).Error; err != nil {
 		return fmt.Errorf("could not save secret for clientID %s: %s", system.ClientID, err.Error())
 	}
-	SecretCreated(Event{Op: "SaveSecret", TrackingID: uuid.NewRandom().String(), ClientID: system.ClientID})
+	log.GetCtxLogger(ctx).Info(logrus.Fields{"Op": "SaveSecret", "TrackingID": uuid.NewRandom().String(), "ClientID": system.ClientID, "Event": "SecretCreated"})
 
 	return nil
 }

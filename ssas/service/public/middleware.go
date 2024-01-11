@@ -10,6 +10,7 @@ import (
 	"github.com/CMSgov/bcda-ssas-app/log"
 	"github.com/CMSgov/bcda-ssas-app/ssas"
 	"github.com/CMSgov/bcda-ssas-app/ssas/service"
+	"github.com/sirupsen/logrus"
 )
 
 func readGroupID(next http.Handler) http.Handler {
@@ -47,11 +48,12 @@ func readGroupID(next http.Handler) http.Handler {
 // occurs in requireRegTokenAuth() or requireMFATokenAuth().
 func parseToken(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		event := ssas.Event{Op: "ParseToken"}
+		event := logrus.Fields{"Op": "ParseToken"}
+		logger := log.GetCtxLogger(r.Context()).WithFields(event)
 		authHeader := r.Header.Get("Authorization")
 		if authHeader == "" {
-			event.Help = "no authorization header found"
-			ssas.AuthorizationFailure(event)
+			errMsg := "no authorization header found"
+			logger.Error(logrus.Fields{"Event": "AuthorizationFailure", "Help": errMsg})
 			next.ServeHTTP(w, r)
 			return
 		}
@@ -59,8 +61,8 @@ func parseToken(next http.Handler) http.Handler {
 		authRegexp := regexp.MustCompile(`^Bearer (\S+)$`)
 		authSubmatches := authRegexp.FindStringSubmatch(authHeader)
 		if len(authSubmatches) < 2 {
-			event.Help = "invalid Authorization header value"
-			ssas.AuthorizationFailure(event)
+			errMsg := "invalid Authorization header value"
+			logger.Error(logrus.Fields{"Event": "AuthorizationFailure", "Help": errMsg})
 			next.ServeHTTP(w, r)
 			return
 		}
@@ -68,8 +70,8 @@ func parseToken(next http.Handler) http.Handler {
 		tokenString := authSubmatches[1]
 		token, err := server.VerifyToken(tokenString)
 		if err != nil {
-			event.Help = fmt.Sprintf("unable to decode authorization header value; %s", err)
-			ssas.AuthorizationFailure(event)
+			errMsg := fmt.Sprintf("unable to decode authorization header value; %s", err)
+			logger.Error(logrus.Fields{"Event": "AuthorizationFailure", "Help": errMsg})
 			next.ServeHTTP(w, r)
 			return
 		}
@@ -105,26 +107,26 @@ func tokenAuth(next http.Handler, tokenType string) http.Handler {
 			ok bool
 		)
 		event := ssas.Event{Op: "TokenAuth"}
-
+		logger := log.GetCtxLogger(r.Context()).WithFields(event)
 		tsObj := r.Context().Value("ts")
 		if tsObj == nil {
-			event.Help = "no token string found"
-			ssas.AuthorizationFailure(event)
+			errMsg := "no token string found"
+			logger.Error(logrus.Fields{"Event": "AuthorizationFailure", "Help": errMsg})
 			respond(w, http.StatusUnauthorized)
 			return
 		}
 		ts, ok = tsObj.(string)
 		if !ok {
-			event.Help = "token string invalid"
-			ssas.AuthorizationFailure(event)
+			errMsg := "token string invalid"
+			logger.Error(logrus.Fields{"Event": "AuthorizationFailure", "Help": errMsg})
 			respond(w, http.StatusUnauthorized)
 			return
 		}
 
 		err := tokenValidity(ts, tokenType)
 		if err != nil {
-			event.Help = "token invalid"
-			ssas.AuthorizationFailure(event)
+			errMsg := "token invalid"
+			logger.Error(logrus.Fields{"Event": "AuthorizationFailure", "Help": errMsg})
 			respond(w, http.StatusUnauthorized)
 			return
 		}

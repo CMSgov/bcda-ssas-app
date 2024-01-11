@@ -25,6 +25,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/pborman/uuid"
+	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	m "github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -1143,7 +1144,7 @@ func mintClientAssertion(issuer, subject, aud string, issuedAt, expiresAt int64,
 	var signedString, err = token.SignedString(privateKey)
 	logger := log.GetCtxLogger(context.Background())
 	if err != nil {
-		ssas.TokenMintingFailure(ssas.Event{TokenID: tokenID})
+		logger.Error(logrus.Fields{"Event": "TokenMintingFailure", "TokenID": tokenID})
 		logger.Errorf("token signing error %s", err)
 		return nil, "", err
 	}
