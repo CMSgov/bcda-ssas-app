@@ -3,15 +3,16 @@ package admin
 import (
 	"encoding/base64"
 	"encoding/json"
-	"github.com/CMSgov/bcda-ssas-app/ssas"
-	"github.com/go-chi/chi/v5"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/suite"
-	"io/ioutil"
+	"io"
 	"log"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/CMSgov/bcda-ssas-app/ssas"
+	"github.com/go-chi/chi/v5"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/suite"
 )
 
 type AdminMiddlewareTestSuite struct {
@@ -51,7 +52,7 @@ func (s *AdminMiddlewareTestSuite) TestRequireBasicAuthSuccess() {
 func (s *AdminMiddlewareTestSuite) TestRequireBasicAuthFailure() {
 	r := testAuth(s.badAuth, http.StatusUnauthorized, s)
 
-	b, err := ioutil.ReadAll(r.Body)
+	b, err := io.ReadAll(r.Body)
 	if err != nil {
 		assert.FailNow(s.T(), err.Error())
 	}
@@ -64,7 +65,7 @@ func (s *AdminMiddlewareTestSuite) TestRequireBasicAuthExpired() {
 	ssas.ExpireAdminCreds()
 	r := testAuth(s.basicAuth, http.StatusUnauthorized, s)
 
-	b, err := ioutil.ReadAll(r.Body)
+	b, err := io.ReadAll(r.Body)
 	if err != nil {
 		assert.FailNow(s.T(), err.Error())
 	}

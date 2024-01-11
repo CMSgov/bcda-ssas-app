@@ -8,7 +8,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -597,7 +596,7 @@ func (s *APITestSuite) TestJSONError() {
 	rr := httptest.NewRecorder()
 	service.JSONError(rr, http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized), "unauthorized")
 
-	b, _ := ioutil.ReadAll(rr.Body)
+	b, _ := io.ReadAll(rr.Body)
 	var error ssas.ErrorResponse
 	_ = json.Unmarshal(b, &error)
 

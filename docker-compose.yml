@@ -24,28 +24,26 @@ services:
       args:
         VERSION: latest
     image: bcda-ssas:latest
+    env_file:
+      - ./ssas/cfg/configs/local.env
     environment:
       - DATABASE_URL=postgresql://postgres:toor@db:5432/bcda?sslmode=disable
-      - DEBUG=true
-      - DEPLOYMENT_TARGET=local
       - ATO_PUBLIC_KEY_FILE=../shared_files/ATO_public.pem
       - ATO_PRIVATE_KEY_FILE=../shared_files/ATO_private.pem
       - HTTP_ONLY=true
       - BCDA_AUTH_PROVIDER=${BCDA_AUTH_PROVIDER}
       - BCDA_SSAS_CLIENT_ID=${BCDA_SSAS_CLIENT_ID}
       - BCDA_SSAS_SECRET=${BCDA_SSAS_SECRET}
+      - DEBUG=true
+      - DEPLOYMENT_TARGET=local
       - SSAS_ADMIN_SIGNING_KEY_PATH=../shared_files/ssas/admin_test_signing_key.pem
       - SSAS_PUBLIC_SIGNING_KEY_PATH=../shared_files/ssas/public_test_signing_key.pem
       - SSAS_ADMIN_PORT=:3004
       - SSAS_PUBLIC_PORT=:3003
       - SSAS_HTTP_TO_HTTPS_PORT=:3005
-      - SSAS_READ_TIMEOUT=10
-      - SSAS_WRITE_TIMEOUT=20
-      - SSAS_IDLE_TIMEOUT=120
       - SSAS_HASH_ITERATIONS=130000
       - SSAS_HASH_KEY_LENGTH=64
       - SSAS_HASH_SALT_SIZE=32
-      - SSAS_DEFAULT_SYSTEM_SCOPE=bcda-api
       - SSAS_TOKEN_BLACKLIST_CACHE_CLEANUP_MINUTES=15
       - SSAS_TOKEN_BLACKLIST_CACHE_TIMEOUT_MINUTES=1440
       - SSAS_TOKEN_BLACKLIST_CACHE_REFRESH_MINUTES=5

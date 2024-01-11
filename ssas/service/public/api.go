@@ -10,7 +10,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"strconv"
 
@@ -77,7 +77,7 @@ func ResetSecret(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if bodyStr, err = ioutil.ReadAll(r.Body); err != nil {
+	if bodyStr, err = io.ReadAll(r.Body); err != nil {
 		service.JSONError(w, http.StatusBadRequest, "invalid_client_metadata", "Request body cannot be read")
 		return
 	}
@@ -151,7 +151,7 @@ func RegisterSystem(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	bodyStr, err := ioutil.ReadAll(r.Body)
+	bodyStr, err := io.ReadAll(r.Body)
 	if err != nil {
 		// Response types and format specified in RFC 7591 https://tools.ietf.org/html/rfc7591#section-3.2.2
 		service.JSONError(w, http.StatusBadRequest, "invalid_client_metadata", "Request body cannot be read")

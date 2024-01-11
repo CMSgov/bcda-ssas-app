@@ -10,7 +10,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net"
 	"os"
 	"strconv"
@@ -348,7 +347,7 @@ func (system *System) SavePublicKey(publicKey io.Reader, signature string) (*Enc
 }
 
 func (system *System) SavePublicKeyDB(publicKey io.Reader, signature string, onlyOne bool, db *gorm.DB) (*EncryptionKey, error) {
-	k, err := ioutil.ReadAll(publicKey)
+	k, err := io.ReadAll(publicKey)
 	if err != nil {
 		return nil, fmt.Errorf("cannot read public key for clientID %s: %s", system.ClientID, err.Error())
 	}
