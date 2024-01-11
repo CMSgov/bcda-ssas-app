@@ -13,7 +13,6 @@ import (
 	"io"
 	"net"
 	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -32,23 +31,6 @@ var MacaroonExpiration time.Duration
 func init() {
 	getEnvVars()
 }
-func visitFile(fp string, fi os.FileInfo, err error) error {
-	if err != nil {
-		fmt.Println(err) // can't walk here,
-		return nil       // but continue walking elsewhere
-	}
-
-	if fi.IsDir() {
-		return nil // not a file, ignore
-	}
-
-	if strings.HasSuffix(fi.Name(), ".env") {
-		//	fmt.Printf("Found a file! File: %s\nDirectory: %s\n\n", fi.Name(), filepath.Dir(fp))
-		Logger.Info(fmt.Sprintf("File: %s\nDirectory: %s\n\n", fi.Name(), filepath.Dir(fp)))
-	}
-
-	return nil
-}
 
 func getEnvVars() {
 	env := os.Getenv("DEPLOYMENT_TARGET")
@@ -63,16 +45,8 @@ func getEnvVars() {
 
 	}
 
-	root := "/"
-	//	fmt.Println("Beginning file checks")
-	Logger.Info("Starting file checks")
-	err := filepath.Walk(root, visitFile)
-	if err != nil {
-		fmt.Printf("Error walking the path: %v\n", err)
-	}
-
 	envPath := fmt.Sprintf(gopath+"/src/github.com/CMSgov/bcda-ssas-app/ssas/cfg/configs/%s.env", env)
-	err = godotenv.Load(envPath)
+	err := godotenv.Load(envPath)
 
 	if err != nil {
 		ServiceHalted(Event{Help: fmt.Sprintf("Unable to load environment variables in env %s; message: %s", env, err.Error())})
