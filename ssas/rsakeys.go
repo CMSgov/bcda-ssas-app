@@ -10,8 +10,8 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"math/big"
+	"os"
 )
 
 const RSAKEYMINBITS = 2048
@@ -21,7 +21,7 @@ const RSAKEYMINBITS = 2048
 func ReadPEMFile(pemPath string) ([]byte, error) {
 	// This function only reads PEM files, and PEM files should never be large enough to require buffering
 	/* #nosec -- Potential file inclusion via variable */
-	pemData, err := ioutil.ReadFile(pemPath)
+	pemData, err := os.ReadFile(pemPath)
 	if err != nil {
 		return nil, err
 	}

@@ -3,7 +3,7 @@ package service
 import (
 	"crypto/rand"
 	"crypto/rsa"
-	"io/ioutil"
+	"io"
 	"math/big"
 	"net/http"
 	"net/http/httptest"
@@ -184,7 +184,7 @@ func (s *ServerTestSuite) TestGetInfo() {
 	handler.ServeHTTP(rr, req)
 
 	assert.Equal(s.T(), http.StatusOK, rr.Result().StatusCode)
-	b, _ := ioutil.ReadAll(rr.Result().Body)
+	b, _ := io.ReadAll(rr.Result().Body)
 	assert.Contains(s.T(), string(b), `{"public":["token","register"]}`)
 }
 
@@ -195,7 +195,7 @@ func (s *ServerTestSuite) TestGetVersion() {
 	handler.ServeHTTP(rr, req)
 
 	assert.Equal(s.T(), http.StatusOK, rr.Result().StatusCode)
-	b, _ := ioutil.ReadAll(rr.Result().Body)
+	b, _ := io.ReadAll(rr.Result().Body)
 	assert.Contains(s.T(), string(b), `{"version":"9.99.999"}`)
 }
 
@@ -206,7 +206,7 @@ func (s *ServerTestSuite) TestGetHealthCheck() {
 	handler.ServeHTTP(rr, req)
 
 	assert.Equal(s.T(), http.StatusOK, rr.Result().StatusCode)
-	b, _ := ioutil.ReadAll(rr.Result().Body)
+	b, _ := io.ReadAll(rr.Result().Body)
 	assert.Contains(s.T(), string(b), `{"database":"ok"}`)
 }
 
@@ -217,7 +217,7 @@ func (s *ServerTestSuite) TestNYI() {
 	handler.ServeHTTP(rr, req)
 
 	assert.Equal(s.T(), http.StatusOK, rr.Result().StatusCode)
-	b, _ := ioutil.ReadAll(rr.Result().Body)
+	b, _ := io.ReadAll(rr.Result().Body)
 	assert.Contains(s.T(), string(b), "Not Yet Implemented")
 }
 
