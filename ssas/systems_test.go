@@ -668,6 +668,15 @@ func (s *SystemsTestSuite) TestScopeEnvSuccess() {
 	assert.Nil(s.T(), err)
 }
 
+func (s *SystemsTestSuite) TestEmptyGoPath() {
+	err := os.Setenv("GOPATH", "")
+	if err != nil {
+		s.FailNow(err.Error())
+	}
+	getEnvVars()
+	assert.Equal(s.T(), "bcda-api", DefaultScope)
+}
+
 func (s *SystemsTestSuite) TestScopeEnvDebug() {
 	getEnvVars()
 	assert.Equal(s.T(), "bcda-api", DefaultScope)

@@ -7,13 +7,12 @@ services:
       dockerfile: Dockerfiles/Dockerfile.tests
       args:
         VERSION: latest
-    env_file:
-      - ./ssas/cfg/configs/local.env
     environment:
       - DB=postgresql://postgres:toor@db:5432
       - DATABASE_URL=postgresql://postgres:toor@db:5432/bcda?sslmode=disable
       - BCDA_SSAS_CLIENT_ID=fake-client-id
       - BCDA_SSAS_SECRET=fake-secret
+      - DEPLOYMENT_TARGET=local
       - SSAS_ADMIN_SIGNING_KEY_PATH=../../../shared_files/ssas/admin_test_signing_key.pem
       - SSAS_PUBLIC_SIGNING_KEY_PATH=../../../shared_files/ssas/public_test_signing_key.pem
       - SSAS_PUBLIC_PORT=:3003

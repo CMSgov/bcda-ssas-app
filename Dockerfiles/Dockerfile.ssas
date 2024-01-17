@@ -25,6 +25,8 @@ RUN go build -ldflags "-X github.com/CMSgov/bcda-ssas-app/ssas/constants.Version
 FROM golang:1.19-alpine3.15
 RUN apk update upgrade
 RUN apk --no-cache add ca-certificates aws-cli curl
+WORKDIR /go/src/github.com/CMSgov/bcda-ssas-app
+COPY --from=builder /go/src/github.com/CMSgov/bcda-ssas-app/ssas/cfg/configs ssas/cfg/configs
 WORKDIR /usr/local/bin
 COPY --from=builder /go/src/github.com/CMSgov/bcda-ssas-app/ssas/ssas .
 COPY --from=documentation /go/src/github.com/CMSgov/bcda-ssas-app/ssas/swaggerui ./swaggerui
