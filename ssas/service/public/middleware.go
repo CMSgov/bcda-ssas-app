@@ -105,7 +105,7 @@ func tokenAuth(next http.Handler, tokenType string) http.Handler {
 			ts string
 			ok bool
 		)
-		event := ssas.Event{Op: "TokenAuth"}
+		event := logrus.Fields{"Op": "TokenAuth"}
 		logger := log.GetCtxLogger(r.Context()).WithFields(event)
 		tsObj := r.Context().Value("ts")
 		if tsObj == nil {

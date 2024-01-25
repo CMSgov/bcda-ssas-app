@@ -13,6 +13,7 @@ import (
 	"net"
 	"testing"
 
+	"github.com/CMSgov/bcda-ssas-app/log"
 	"github.com/pborman/uuid"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
@@ -219,8 +220,9 @@ func CleanDatabase(group Group) error {
 	}
 
 	err = Connection.Table("systems").Where("g_id = ?", group.ID).Pluck("id", &systemIds).Error
+	logger := log.GetCtxLogger(context.Background())
 	if err != nil {
-		Logger.Errorf("unable to find associated systems: %s", err.Error())
+		logger.Errorf("unable to find associated systems: %s", err.Error())
 	} else {
 		tx := Connection.Unscoped().Begin()
 
@@ -231,7 +233,7 @@ func CleanDatabase(group Group) error {
 
 		err = tx.Commit().Error
 		if err != nil {
-			Logger.Errorf("unable to remove records for group: %s", err.Error())
+			logger.Errorf("unable to remove records for group: %s", err.Error())
 		}
 	}
 
