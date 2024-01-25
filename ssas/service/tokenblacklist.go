@@ -117,7 +117,7 @@ func (t *Blacklist) LoadFromDatabase() error {
 	logger := log.GetCtxLogger(timeoutCtx)
 
 	if entries, err = ssas.GetUnexpiredBlacklistEntries(timeoutCtx); err != nil {
-		logger.Error(logger.Fields{"Op": "BlacklistLoadFromDatabase", "TrackingID": t.ID, "Help": err.Error(), "Event": "CacheSyncFailure"})
+		logger.Error(logrus.Fields{"Op": "BlacklistLoadFromDatabase", "TrackingID": t.ID, "Help": err.Error(), "Event": "CacheSyncFailure"})
 		return err
 	}
 

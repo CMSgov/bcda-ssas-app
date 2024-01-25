@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"github.com/CMSgov/bcda-ssas-app/ssas"
+	"github.com/sirupsen/logrus"
 )
 
 func WriteHTTPSError(w http.ResponseWriter, e ssas.ErrorResponse, errorStatus int) {
@@ -25,11 +26,13 @@ func WriteHTTPSError(w http.ResponseWriter, e ssas.ErrorResponse, errorStatus in
 }
 
 // Follow RFC 7591 format for input errors
-func JSONError(w http.ResponseWriter, errorStatus int, statusText string, statusDescription string) {
+func JSONError(w http.ResponseWriter, errorStatus int, statusText string, statusDescription string, logger logrus.FieldLogger) {
 	// *TODO: address duplicate logging. Remove logging from JSONError but make sure areas that rely on it for logging, still have logging after removal.
 	e := ssas.ErrorResponse{Error: statusText, ErrorDescription: statusDescription}
 
 	WriteHTTPSError(w, e, errorStatus)
 
-	ssas.Logger.Printf("%s; %s", statusText, statusDescription) // TODO: log information about the request
+	if logger != nil {
+		logger.Printf("%s; %s", statusText, statusDescription)
+	}
 }

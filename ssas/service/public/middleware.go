@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"regexp"
 
-	"github.com/CMSgov/bcda-app/log"
 	"github.com/CMSgov/bcda-ssas-app/log"
 	"github.com/CMSgov/bcda-ssas-app/ssas"
 	"github.com/CMSgov/bcda-ssas-app/ssas/service"
