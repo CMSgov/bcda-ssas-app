@@ -464,8 +464,16 @@ func (s *APITestSuite) TestTokenEmptyClientIdProduces401() {
 func (s *APITestSuite) testIntrospectFlaw(flaw service.TokenFlaw, errorText string) {
 	var (
 		signingKeyPath string
+		origLog        io.Writer
 		buf            bytes.Buffer
 	)
+
+	logger := ssas.GetLogger(log.Logger)
+	origLog = logger.Out
+	logger.SetOutput(&buf)
+	defer func() {
+		logger.SetOutput(origLog)
+	}()
 
 	if flaw == service.BadSigner {
 		signingKeyPath = s.badSigningKeyPath
@@ -1134,7 +1142,7 @@ func mintClientAssertion(issuer, subject, aud string, issuedAt, expiresAt int64,
 	token.Claims = claims
 	token.Header["kid"] = kid
 	var signedString, err = token.SignedString(privateKey)
-	logger := log.GetCtxLogger(context.Background())
+	logger := ssas.GetLogger(log.Logger)
 	if err != nil {
 		logger.Error(logrus.Fields{"Event": "TokenMintingFailure", "TokenID": tokenID})
 		logger.Errorf("token signing error %s", err)
