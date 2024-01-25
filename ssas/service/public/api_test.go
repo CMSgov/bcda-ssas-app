@@ -464,15 +464,8 @@ func (s *APITestSuite) TestTokenEmptyClientIdProduces401() {
 func (s *APITestSuite) testIntrospectFlaw(flaw service.TokenFlaw, errorText string) {
 	var (
 		signingKeyPath string
-		origLog        io.Writer
 		buf            bytes.Buffer
 	)
-	logger := ssas.GetLogger(ssas.Logger)
-	origLog = logger.Out
-	logger.SetOutput(&buf)
-	defer func() {
-		logger.SetOutput(origLog)
-	}()
 
 	if flaw == service.BadSigner {
 		signingKeyPath = s.badSigningKeyPath
@@ -594,7 +587,7 @@ func (s *APITestSuite) TestSaveTokenTime() {
 
 func (s *APITestSuite) TestJSONError() {
 	rr := httptest.NewRecorder()
-	service.JSONError(rr, http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized), "unauthorized")
+	service.JSONError(rr, http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized), "unauthorized", nil)
 
 	b, _ := io.ReadAll(rr.Body)
 	var error ssas.ErrorResponse
