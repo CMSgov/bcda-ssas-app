@@ -18,7 +18,7 @@ import (
 //https://github.com/go-chi/chi/blob/master/_examples/logging/main.go
 
 func NewAPILogger() func(next http.Handler) http.Handler {
-	return middleware.RequestLogger(&APILogger{ssas.Logger})
+	return middleware.RequestLogger(&APILogger{log.Logger})
 }
 
 type APILogger struct {
