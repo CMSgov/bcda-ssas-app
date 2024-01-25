@@ -15,6 +15,7 @@ import (
 	"github.com/stretchr/testify/suite"
 	"gorm.io/gorm"
 
+	"github.com/CMSgov/bcda-ssas-app/log"
 	"github.com/CMSgov/bcda-ssas-app/ssas"
 )
 
@@ -139,7 +140,7 @@ func (s *MainTestSuite) TestNewAdminSystem() {
 
 func (s *MainTestSuite) TestMainLog() {
 	var str bytes.Buffer
-	logger := ssas.GetLogger(ssas.Logger)
+	logger := ssas.GetLogger(log.Logger)
 	logger.SetOutput(&str)
 	main()
 	output := str.String()
@@ -205,7 +206,7 @@ func (s *MainTestSuite) TestListIPs() {
 	err = db.Save(&ip).Error
 	assert.Nil(s.T(), err)
 	var str bytes.Buffer
-	logger := ssas.GetLogger(ssas.Logger)
+	logger := ssas.GetLogger(log.Logger)
 	logger.SetOutput(&str)
 
 	var flags Flags
@@ -302,7 +303,7 @@ func captureLog(f func()) string {
 		origLog io.Writer
 	)
 
-	logger := ssas.GetLogger(ssas.Logger)
+	logger := ssas.GetLogger(log.Logger)
 	origLog = logger.Out
 	logger.SetOutput(&buf)
 
