@@ -9,6 +9,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"go/build"
 	"io"
 	"net"
 	"os"
@@ -18,6 +19,7 @@ import (
 
 	"github.com/CMSgov/bcda-ssas-app/log"
 	"github.com/CMSgov/bcda-ssas-app/ssas/cfg"
+	"github.com/joho/godotenv"
 	"github.com/pborman/uuid"
 	"github.com/sirupsen/logrus"
 	"gorm.io/gorm"
@@ -33,15 +35,28 @@ func init() {
 }
 
 func getEnvVars() {
-	DefaultScope = os.Getenv("SSAS_DEFAULT_SYSTEM_SCOPE")
+	env := os.Getenv("DEPLOYMENT_TARGET")
+	gopath := os.Getenv("GOPATH")
 
-	if DefaultScope == "" {
-		if os.Getenv("DEBUG") == "true" {
-			DefaultScope = "bcda-api"
-			return
+	if gopath == "" {
+		gopath = build.Default.GOPATH
+		//when GOROOT==gopath, it'll still be empty. Thus, we specify what's in our Dockerfile.
+		if gopath == "" {
+			gopath = "/go"
 		}
-		log.GetCtxLogger(context.Background()).Info(logrus.Fields{"Event": "ServiceHalted", "Help": "SSAS_DEFAULT_SYSTEM_SCOPE environment value must be set"})
-		panic("SSAS_DEFAULT_SYSTEM_SCOPE environment value must be set")
+
+	}
+
+	envPath := fmt.Sprintf(gopath+"/src/github.com/CMSgov/bcda-ssas-app/ssas/cfg/configs/%s.env", env)
+	err := godotenv.Load(envPath)
+
+	if err != nil {
+		ServiceHalted(Event{Help: fmt.Sprintf("Unable to load environment variables in env %s; message: %s", env, err.Error())})
+		panic("Unable to start application without loading environment variables.")
+	}
+	DefaultScope = os.Getenv("SSAS_DEFAULT_SYSTEM_SCOPE")
+	if DefaultScope == "" {
+		panic("Unable to source default system scope; check env files")
 	}
 
 	expirationDays := cfg.GetEnvInt("SSAS_CRED_EXPIRATION_DAYS", 90)

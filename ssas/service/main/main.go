@@ -20,7 +20,8 @@ Until you click logout your token will be presented with every request made.  To
 
  swagger:meta
 */
-//nolint: lll
+
+//nolint: lll // Ignore long line linting
 
 package main
 
@@ -80,6 +81,7 @@ func init() {
 	if nil != err {
 		logger.Warnf("New Relic integration is disabled: %s", err)
 	}
+
 }
 
 // We provide some simple commands for bootstrapping the system into place. Commands cannot be combined.
