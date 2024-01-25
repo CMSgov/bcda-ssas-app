@@ -9,7 +9,6 @@ import (
 	b64 "encoding/base64"
 	"errors"
 	"fmt"
-	"log"
 	"net/http"
 	"os"
 	"strings"
@@ -170,23 +169,23 @@ func (s *Server) Serve() {
 	logger := log2.GetCtxLogger(context.Background())
 	if s.notSecure {
 		logger.Infof("starting %s server running UNSAFE http only mode; do not do this in production environments", s.name)
-		go func() { log.Fatal(s.server.ListenAndServe()) }()
+		go func() { logger.Fatal(s.server.ListenAndServe()) }()
 	} else {
 		if s.useMTLS {
 			conf, err := BuildMTLSConfig()
 			if err != nil {
-				log.Fatal(err)
+				logger.Fatal(err)
 			}
 			s.server.TLSConfig = conf
 
 			//If cert and key file paths are not passed the certs in TLS configs are used.
 			logger.Infof("starting %s server in MTLS mode", s.name)
-			go func() { log.Fatal(s.server.ListenAndServeTLS("", "")) }()
+			go func() { logger.Fatal(s.server.ListenAndServeTLS("", "")) }()
 		} else {
 			tlsCertPath := os.Getenv("BCDA_TLS_CERT") // borrowing for now; we need to get our own (for both servers?)
 			tlsKeyPath := os.Getenv("BCDA_TLS_KEY")
 			logger.Infof("starting %s server in TLS mode", s.name)
-			go func() { log.Fatal(s.server.ListenAndServeTLS(tlsCertPath, tlsKeyPath)) }()
+			go func() { logger.Fatal(s.server.ListenAndServeTLS(tlsCertPath, tlsKeyPath)) }()
 		}
 	}
 }

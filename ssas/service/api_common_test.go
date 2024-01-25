@@ -25,7 +25,7 @@ func (s *APICommonTestSuite) SetupSuite() {
 func (s *APICommonTestSuite) TestJSONError() {
 	// JSON output is valid for simple strings
 	w := httptest.NewRecorder()
-	JSONError(w, http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized), "unauthorized")
+	JSONError(w, http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized), "unauthorized", nil)
 	resp := w.Result()
 	body, err := io.ReadAll(resp.Body)
 	assert.NoError(s.T(), err)
