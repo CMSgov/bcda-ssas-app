@@ -16,7 +16,7 @@ import (
 
 	"gopkg.in/macaroon.v2"
 
-	log2 "github.com/CMSgov/bcda-ssas-app/log"
+	"github.com/CMSgov/bcda-ssas-app/log"
 	"github.com/CMSgov/bcda-ssas-app/ssas"
 	"github.com/CMSgov/bcda-ssas-app/ssas/cfg"
 	"github.com/go-chi/chi/v5"
@@ -81,7 +81,7 @@ func ChooseSigningKey(signingKeyPath, signingKey string) (*rsa.PrivateKey, error
 
 // NewServer correctly initializes an instance of the Server type.
 func NewServer(name, port, version string, info interface{}, routes *chi.Mux, notSecure bool, useMTLS bool, signingKey *rsa.PrivateKey, ttl time.Duration, clientAssertAud string) *Server {
-	logger := log2.GetCtxLogger(context.Background())
+	logger := log.GetCtxLogger(context.Background())
 	if signingKey == nil {
 		logger.Error("Private Key is nil")
 		return nil
@@ -156,7 +156,7 @@ func (s *Server) ListRoutes() ([]string, error) {
 func (s *Server) LogRoutes() {
 	banner := fmt.Sprintf("Routes for %s at port %s: ", s.name, s.port)
 	routes, err := s.ListRoutes()
-	logger := log2.GetCtxLogger(context.Background())
+	logger := log.GetCtxLogger(context.Background())
 	if err != nil {
 		logger.Errorf("%s routing error: %v", banner, err)
 		return
@@ -166,7 +166,7 @@ func (s *Server) LogRoutes() {
 
 // Serve starts the server listening for and responding to requests.
 func (s *Server) Serve() {
-	logger := log2.GetCtxLogger(context.Background())
+	logger := log.GetCtxLogger(context.Background())
 	if s.notSecure {
 		logger.Infof("starting %s server running UNSAFE http only mode; do not do this in production environments", s.name)
 		go func() { logger.Fatal(s.server.ListenAndServe()) }()
@@ -192,7 +192,7 @@ func (s *Server) Serve() {
 
 func getServerCertificates() (*x509.CertPool, tls.Certificate, error) {
 	crtB, err := b64.StdEncoding.DecodeString(os.Getenv("BCDA_TLS_CERT_B64"))
-	logger := log2.GetCtxLogger(context.Background())
+	logger := log.GetCtxLogger(context.Background())
 	if err != nil {
 		logger.Error(err)
 		return nil, tls.Certificate{}, errors.New("could not base64 decode BCDA_TLS_CERT_B64")
@@ -230,7 +230,7 @@ func getServerCertificates() (*x509.CertPool, tls.Certificate, error) {
 
 // Stops the server listening for and responding to requests.
 func (s *Server) Stop() {
-	logger := log2.GetCtxLogger(context.Background())
+	logger := log.GetCtxLogger(context.Background())
 	logger.Infof("closing server %s; %+v", s.name, s.server.Close())
 }
 
@@ -278,7 +278,7 @@ func (s *Server) getHealthCheck(w http.ResponseWriter, r *http.Request) {
 // since this ping will be run against all servers, isn't this excessive?
 func doHealthCheck(ctx context.Context) bool {
 	db, err := ssas.Connection.WithContext(ctx).DB()
-	logger := log2.GetCtxLogger(context.Background())
+	logger := log.GetCtxLogger(context.Background())
 	if err != nil {
 		// TODO health check failed event
 		logger.Error("health check: database connection error: ", err.Error())
@@ -378,7 +378,7 @@ func (s *Server) mintToken(claims *CommonClaims, issuedAt int64, expiresAt int64
 	claims.Issuer = "ssas"
 	token.Claims = claims
 	var signedString, err = token.SignedString(s.tokenSigningKey)
-	logger := log2.GetCtxLogger(context.Background())
+	logger := log.GetCtxLogger(context.Background())
 	if err != nil {
 		logger.Error(logrus.Fields{"Event": "TokenMintingFailure", "TokenID": tokenID})
 		logger.Errorf("token signing error %s", err)
@@ -417,7 +417,7 @@ func (s *Server) VerifyClientSignedToken(ctx context.Context, tokenString string
 		if err != nil {
 			return nil, fmt.Errorf("failed to retrieve systemID from macaroon")
 		}
-		logger := log2.GetCtxLogger(ctx)
+		logger := log.GetCtxLogger(ctx)
 		system, err := ssas.GetSystemByID(ctx, systemID)
 		if err != nil {
 			logger.Error(err)
