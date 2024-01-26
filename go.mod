@@ -19,7 +19,6 @@ require (
 )
 
 require (
-	github.com/CMSgov/bcda-app v0.0.0-20240116200610-366105d4b80b // indirect
 	github.com/ajg/form v1.5.1 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/fsnotify/fsnotify v1.5.4 // indirect
