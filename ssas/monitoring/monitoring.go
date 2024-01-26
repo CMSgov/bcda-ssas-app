@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/CMSgov/bcda-app/log"
+	"github.com/CMSgov/bcda-ssas-app/log"
 	"github.com/newrelic/go-agent/v3/newrelic"
 )
 
