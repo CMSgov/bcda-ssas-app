@@ -1,15 +1,17 @@
-package ssas
+package service
 
 import (
 	"testing"
 
+	"github.com/CMSgov/bcda-ssas-app/log"
+	"github.com/CMSgov/bcda-ssas-app/ssas"
 	"github.com/sirupsen/logrus"
 	"github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestOperationLogging(t *testing.T) {
-	testLogger := test.NewLocal(GetLogger(Logger))
+	testLogger := test.NewLocal(ssas.GetLogger(log.Logger))
 	event := logrus.Fields{"Op": "TestOperation", "Help": "A little more to the right"}
 	testLogger.LastEntry().WithField("Event", "OperationStarted").Info(event)
 
