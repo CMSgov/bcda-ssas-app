@@ -83,7 +83,7 @@ func ResetSecret(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err = json.Unmarshal(bodyStr, &req); err != nil {
-		service.LogEntrySetField(r, "bodyStr", bodyStr)
+		// service.LogEntrySetField(r, "bodyStr", bodyStr)
 		service.JSONError(w, http.StatusBadRequest, "invalid_client_metadata", "Request body cannot be parsed", nil)
 		return
 	}
@@ -160,7 +160,7 @@ func RegisterSystem(w http.ResponseWriter, r *http.Request) {
 
 	err = json.Unmarshal(bodyStr, &reg)
 	if err != nil {
-		service.LogEntrySetField(r, "bodyStr", bodyStr)
+		// service.LogEntrySetField(r, "bodyStr", bodyStr)
 		service.JSONError(w, http.StatusBadRequest, "invalid_client_metadata", "Request body cannot be parsed", logger)
 		return
 	}
