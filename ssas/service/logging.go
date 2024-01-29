@@ -66,18 +66,6 @@ func Redact(uri string) string {
 	return uri
 }
 
-func LogEntrySetField(r *http.Request, key string, value interface{}) {
-	if entry, ok := r.Context().Value(middleware.LogEntryCtxKey).(*log.APILoggerEntry); ok {
-		entry.Logger = entry.Logger.WithField(key, value)
-	}
-}
-
-func LogEntrySetFields(r *http.Request, fields map[string]interface{}) {
-	if entry, ok := r.Context().Value(middleware.LogEntryCtxKey).(*log.APILoggerEntry); ok {
-		entry.Logger = entry.Logger.WithFields(fields)
-	}
-}
-
 // NewCtxLogger adds new key value pair of {CtxLoggerKey: logrus.FieldLogger} to the requests context
 func NewCtxLogger(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
