@@ -1,7 +1,6 @@
 package admin
 
 import (
-	"context"
 	"fmt"
 	"net/http"
 	"os"
@@ -35,7 +34,7 @@ func Server() *service.Server {
 	useMTLS := os.Getenv("ADMIN_USE_MTLS") == "true"
 
 	signingKey, err := service.ChooseSigningKey(adminSigningKeyPath, adminSigningKey)
-	logger := log.GetCtxLogger(context.Background())
+	logger := log.Logger
 	if err != nil {
 		msg := fmt.Sprintf("Unable to get admin server signing key %v", err)
 		logger.Error(msg)
@@ -84,7 +83,7 @@ func routes() *chi.Mux {
 	})
 
 	swaggerPath := "./swaggerui"
-	logger := log.GetCtxLogger(context.Background())
+	logger := log.Logger
 	if _, err := os.Stat(swaggerPath); os.IsNotExist(err) {
 		logger.Info("swagger path not found: " + swaggerPath)
 		swaggerPath = "../swaggerui"

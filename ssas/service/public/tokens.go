@@ -1,7 +1,6 @@
 package public
 
 import (
-	"context"
 	"fmt"
 	"time"
 
@@ -93,7 +92,7 @@ func empty(arr []string) bool {
 
 func tokenValidity(tokenString string, requiredTokenType string) error {
 	event := logrus.Fields{"Op": "tokenValidity"}
-	logger := log.GetCtxLogger(context.Background()).WithFields(event)
+	logger := log.Logger.WithFields(event)
 	logger.Info(logrus.Fields{"Event": "OperationStarted"})
 	errLog := logger.WithField("Event", "OperationFailed")
 

@@ -1,7 +1,6 @@
 package monitoring
 
 import (
-	"context"
 	"fmt"
 	"net/http"
 	"os"
@@ -17,7 +16,7 @@ type apm struct {
 }
 
 func GetMonitor() *apm {
-	logger := log.GetCtxLogger(context.Background())
+	logger := log.Logger
 	if a == nil {
 		target := os.Getenv("DEPLOYMENT_TARGET")
 		if target == "" {

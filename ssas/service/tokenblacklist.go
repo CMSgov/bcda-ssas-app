@@ -96,7 +96,7 @@ func (t *Blacklist) IsTokenBlacklisted(tokenID string) bool {
 	defer t.RUnlock()
 
 	bEvent := logrus.Fields{"Op": "TokenVerification", "TrackingID": t.ID, "TokenID": tokenID}
-	logger := log.GetCtxLogger(context.Background()).WithFields(bEvent)
+	logger := log.Logger.WithFields(bEvent)
 	if _, found := t.c.Get(tokenID); found {
 		logger.Info(logrus.Fields{"Event": "BlacklistedTokenPresented"})
 		return true
@@ -136,7 +136,7 @@ func (t *Blacklist) LoadFromDatabase() error {
 }
 
 func (t *Blacklist) startCacheRefreshTicker(refreshFreq time.Duration) (*time.Ticker, context.CancelFunc) {
-	log.GetCtxLogger(context.Background()).Info(logrus.Fields{"Event": "ServiceStarted", "Op": "CacheRefreshTicker", "TrackingID": t.ID})
+	log.Logger.Info(logrus.Fields{"Event": "ServiceStarted", "Op": "CacheRefreshTicker", "TrackingID": t.ID})
 
 	ticker := time.NewTicker(refreshFreq)
 

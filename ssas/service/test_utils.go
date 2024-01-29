@@ -1,7 +1,6 @@
 package service
 
 import (
-	"context"
 	"errors"
 	"time"
 
@@ -61,7 +60,7 @@ func BadToken(claims *CommonClaims, flaw TokenFlaw, keyPath string) (token *jwt.
 	token.Claims = claims
 	signedString, err = token.SignedString(signingKey)
 	if err != nil {
-		log.GetCtxLogger(context.Background()).Error(logrus.Fields{"TokenID": tokenID, "Help": "token signing error " + err.Error(), "Event": "TokenMintingFailure"})
+		log.Logger.Error(logrus.Fields{"TokenID": tokenID, "Help": "token signing error " + err.Error(), "Event": "TokenMintingFailure"})
 	}
 	return
 }

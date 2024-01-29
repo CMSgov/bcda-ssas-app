@@ -220,7 +220,7 @@ func CleanDatabase(group Group) error {
 	}
 
 	err = Connection.Table("systems").Where("g_id = ?", group.ID).Pluck("id", &systemIds).Error
-	logger := log.GetCtxLogger(context.Background())
+	logger := log.Logger
 	if err != nil {
 		logger.Errorf("unable to find associated systems: %s", err.Error())
 	} else {

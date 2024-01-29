@@ -1,7 +1,6 @@
 package ssas
 
 import (
-	"context"
 	"crypto/rand"
 	"crypto/sha512"
 	"encoding/base64"
@@ -65,7 +64,7 @@ func NewHash(source string) (Hash, error) {
 	start := time.Now()
 	h := pbkdf2.Key([]byte(source), salt, hashIter, hashKeyLen, sha512.New)
 	hashCreationTime := time.Since(start)
-	log.GetCtxLogger(context.Background()).Info(logrus.Fields{"Elapsed": hashCreationTime, "Event": "SecureHashTime"})
+	log.Logger.Info(logrus.Fields{"Elapsed": hashCreationTime, "Event": "SecureHashTime"})
 
 	hashValue := fmt.Sprintf("%s:%s:%d", base64.StdEncoding.EncodeToString(salt), base64.StdEncoding.EncodeToString(h), hashIter)
 	return Hash(hashValue), nil

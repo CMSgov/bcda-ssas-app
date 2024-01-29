@@ -77,7 +77,7 @@ func init() {
 		newrelic.ConfigAppName(appName),
 		newrelic.ConfigLicense(licenseKey),
 	)
-	logger := log.GetCtxLogger(context.Background())
+	logger := log.Logger
 	if nil != err {
 		logger.Warnf("New Relic integration is disabled: %s", err)
 	}
@@ -86,7 +86,7 @@ func init() {
 
 // We provide some simple commands for bootstrapping the system into place. Commands cannot be combined.
 func main() {
-	logger := log.GetCtxLogger(context.Background())
+	logger := log.Logger
 	logger.Info("Home of the System-to-System Authentication Service")
 	var config = parseConfig()
 	handleFlags(config)
@@ -124,7 +124,7 @@ func parseConfig() Flags {
 }
 
 func handleFlags(flags Flags) {
-	logger := log.GetCtxLogger(context.Background())
+	logger := log.Logger
 	if flags.doAddFixtureData {
 		addFixtureData()
 		return
@@ -164,7 +164,7 @@ func handleFlags(flags Flags) {
 }
 
 func createServers() (*service.Server, *service.Server, *http.Server) {
-	logger := log.GetCtxLogger(context.Background())
+	logger := log.Logger
 	ps := public.Server()
 	if ps == nil {
 		logger.Error("unable to create public server")
@@ -192,7 +192,7 @@ func createServers() (*service.Server, *service.Server, *http.Server) {
 }
 
 func start(ps *service.Server, as *service.Server, forwarder *http.Server) {
-	logger := log.GetCtxLogger(context.Background())
+	logger := log.Logger
 	logger.Infof("%s", "Starting ssas...")
 
 	ps.Serve()
@@ -205,7 +205,7 @@ func newForwardingRouter() http.Handler {
 	r := chi.NewRouter()
 	r.Use(gcmw.RequestID, service.NewAPILogger(), service.ConnectionClose, service.NewCtxLogger)
 	r.Get("/*", http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-		logger := log.GetCtxLogger(context.Background())
+		logger := log.Logger
 		// TODO only forward requests for paths in our own host or resource server
 		url := "https://" + req.Host + req.URL.String()
 		logger.Infof("forwarding from %s to %s", req.Host+req.URL.String(), url)
@@ -245,7 +245,7 @@ func makeSystem(db *gorm.DB, groupID, clientID, clientName, scope, hash string) 
 	-----END PUBLIC KEY-----`
 
 	g, err := ssas.GetGroupByGroupID(context.Background(), groupID)
-	logger := log.GetCtxLogger(context.Background())
+	logger := log.Logger
 	if err != nil {
 		logger.Warn(err)
 	}
@@ -278,7 +278,7 @@ func resetSecret(clientID string) {
 		s   ssas.System
 		c   ssas.Credentials
 	)
-	logger := log.GetCtxLogger(context.Background())
+	logger := log.Logger
 	if s, err = ssas.GetSystemByClientID(context.Background(), clientID); err != nil {
 		logger.Warn(err)
 	}
@@ -297,7 +297,7 @@ func newAdminSystem(name string) {
 		c   ssas.Credentials
 		u   uint64
 	)
-	logger := log.GetCtxLogger(context.Background())
+	logger := log.Logger
 	if pk, _, _, err = ssas.GeneratePublicKey(2048); err != nil {
 		logger.Errorf("no public key; %s", err)
 		return
@@ -326,7 +326,7 @@ func newAdminSystem(name string) {
 
 func listIPs() {
 	ips, err := ssas.GetAllIPs()
-	logger := log.GetCtxLogger(context.Background())
+	logger := log.Logger
 	if err != nil {
 		logger.Fatalf("unable to get registered IPs: %s", err)
 	}

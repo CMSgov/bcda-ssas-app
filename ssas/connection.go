@@ -1,7 +1,6 @@
 package ssas
 
 import (
-	"context"
 	"database/sql"
 	"os"
 	"time"
@@ -20,7 +19,7 @@ func init() {
 	Connection, err = createDB()
 
 	if err != nil {
-		log.GetCtxLogger(context.Background()).Fatalf("Failed to create db %s", err.Error())
+		log.Logger.Fatalf("Failed to create db %s", err.Error())
 	}
 }
 
