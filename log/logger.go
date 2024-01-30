@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/CMSgov/bcda-ssas-app/ssas/constants"
+	"github.com/go-chi/chi/v5/middleware"
 	"github.com/sirupsen/logrus"
 )
 
@@ -85,4 +86,11 @@ func GetCtxLogger(ctx context.Context) logrus.FieldLogger {
 func GetCtxEntry(ctx context.Context) *APILoggerEntry {
 	entry := ctx.Value(CtxLoggerKey).(*APILoggerEntry)
 	return entry
+}
+
+// Appends additional or creates new logrus.Fields to a logrus.FieldLogger within a context
+func SetCtxLogger(r *http.Request, key string, value interface{}) {
+	if entry, ok := r.Context().Value(middleware.LogEntryCtxKey).(*APILoggerEntry); ok {
+		entry.Logger = entry.Logger.WithField(key, value)
+	}
 }

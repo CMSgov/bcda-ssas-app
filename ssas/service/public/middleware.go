@@ -9,6 +9,7 @@ import (
 	"github.com/CMSgov/bcda-ssas-app/log"
 	"github.com/CMSgov/bcda-ssas-app/ssas"
 	"github.com/CMSgov/bcda-ssas-app/ssas/service"
+	"github.com/sirupsen/logrus"
 )
 
 func readGroupID(next http.Handler) http.Handler {
@@ -17,26 +18,29 @@ func readGroupID(next http.Handler) http.Handler {
 			rd  ssas.AuthRegData
 			err error
 		)
+
+		logger := log.GetCtxLogger(r.Context())
+
 		if rd, err = readRegData(r); err != nil {
-			log.Logger.Println("no data from token about allowed groups")
+			logger.Println("no data from token about allowed groups")
 			respond(w, http.StatusUnauthorized)
 			return
 		}
 
 		if rd.GroupID = r.Header.Get("x-group-id"); rd.GroupID == "" {
-			log.Logger.Println("missing header x-group-id")
+			logger.Println("missing header x-group-id")
 			respond(w, http.StatusUnauthorized)
 			return
 		}
 
 		if !contains(rd.AllowedGroupIDs, rd.GroupID) {
-			log.Logger.Println("group specified in x-group-id not in token's allowed groups")
+			logger.Println("group specified in x-group-id not in token's allowed groups")
 			respond(w, http.StatusUnauthorized)
 			return
 		}
 
 		ctx := context.WithValue(r.Context(), "rd", rd)
-		// service.LogEntrySetField(r, "rd", rd)
+		log.SetCtxLogger(r, "rd", rd)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
@@ -46,11 +50,12 @@ func readGroupID(next http.Handler) http.Handler {
 // occurs in requireRegTokenAuth() or requireMFATokenAuth().
 func parseToken(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		event := ssas.Event{Op: "ParseToken"}
+		event := logrus.Fields{"Op": "ParseToken"}
+		logger := log.GetCtxLogger(r.Context()).WithFields(event)
 		authHeader := r.Header.Get("Authorization")
 		if authHeader == "" {
-			event.Help = "no authorization header found"
-			ssas.AuthorizationFailure(event)
+			helpMsg := "no authorization header found"
+			logger.Error(logrus.Fields{"Event": "AuthorizationFailure", "Help": helpMsg})
 			next.ServeHTTP(w, r)
 			return
 		}
@@ -58,8 +63,8 @@ func parseToken(next http.Handler) http.Handler {
 		authRegexp := regexp.MustCompile(`^Bearer (\S+)$`)
 		authSubmatches := authRegexp.FindStringSubmatch(authHeader)
 		if len(authSubmatches) < 2 {
-			event.Help = "invalid Authorization header value"
-			ssas.AuthorizationFailure(event)
+			helpMsg := "invalid Authorization header value"
+			logger.Error(logrus.Fields{"Event": "AuthorizationFailure", "Help": helpMsg})
 			next.ServeHTTP(w, r)
 			return
 		}
@@ -67,8 +72,8 @@ func parseToken(next http.Handler) http.Handler {
 		tokenString := authSubmatches[1]
 		token, err := server.VerifyToken(tokenString)
 		if err != nil {
-			event.Help = fmt.Sprintf("unable to decode authorization header value; %s", err)
-			ssas.AuthorizationFailure(event)
+			helpMsg := fmt.Sprintf("unable to decode authorization header value; %s", err)
+			logger.Error(logrus.Fields{"Event": "AuthorizationFailure", "Help": helpMsg})
 			next.ServeHTTP(w, r)
 			return
 		}
@@ -84,7 +89,7 @@ func parseToken(next http.Handler) http.Handler {
 		}
 		ctx := context.WithValue(r.Context(), "ts", tokenString)
 		ctx = context.WithValue(ctx, "rd", rd)
-		// service.LogEntrySetField(r, "rd", rd)
+		log.SetCtxLogger(r, "rd", rd)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
