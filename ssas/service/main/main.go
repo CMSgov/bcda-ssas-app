@@ -198,7 +198,7 @@ func start(ps *service.Server, as *service.Server, forwarder *http.Server) {
 
 func newForwardingRouter() http.Handler {
 	r := chi.NewRouter()
-	r.Use(gcmw.RequestID, service.NewAPILogger(), service.ConnectionClose)
+	r.Use(gcmw.RequestID, service.NewAPILogger(), service.ConnectionClose, service.NewCtxLogger)
 	r.Get("/*", http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		// TODO only forward requests for paths in our own host or resource server
 		url := "https://" + req.Host + req.URL.String()

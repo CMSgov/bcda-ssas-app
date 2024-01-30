@@ -14,6 +14,7 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/CMSgov/bcda-ssas-app/log"
 	"github.com/CMSgov/bcda-ssas-app/ssas"
 	"github.com/CMSgov/bcda-ssas-app/ssas/constants"
 	"github.com/CMSgov/bcda-ssas-app/ssas/service"
@@ -69,7 +70,7 @@ func ResetSecret(w http.ResponseWriter, r *http.Request) {
 	setHeaders(w)
 
 	if rd, err = readRegData(r); err != nil || rd.GroupID == "" {
-		service.GetLogEntry(r).Println("missing or invalid GroupID")
+		log.Logger.Println("missing or invalid GroupID")
 		service.JSONError(w, http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized), "")
 		return
 	}
@@ -80,7 +81,7 @@ func ResetSecret(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err = json.Unmarshal(bodyStr, &req); err != nil {
-		service.LogEntrySetField(r, "bodyStr", bodyStr)
+		// service.LogEntrySetField(r, "bodyStr", bodyStr)
 		service.JSONError(w, http.StatusBadRequest, "invalid_client_metadata", "Request body cannot be parsed")
 		return
 	}
@@ -141,7 +142,7 @@ func RegisterSystem(w http.ResponseWriter, r *http.Request) {
 	setHeaders(w)
 
 	if rd, err = readRegData(r); err != nil || rd.GroupID == "" {
-		service.GetLogEntry(r).Println("missing or invalid GroupID")
+		log.Logger.Println("missing or invalid GroupID")
 		// Specified in RFC 7592 https://tools.ietf.org/html/rfc7592#page-6
 		service.JSONError(w, http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized), "")
 		return
@@ -156,7 +157,7 @@ func RegisterSystem(w http.ResponseWriter, r *http.Request) {
 
 	err = json.Unmarshal(bodyStr, &reg)
 	if err != nil {
-		service.LogEntrySetField(r, "bodyStr", bodyStr)
+		// service.LogEntrySetField(r, "bodyStr", bodyStr)
 		service.JSONError(w, http.StatusBadRequest, "invalid_client_metadata", "Request body cannot be parsed")
 		return
 	}
@@ -245,13 +246,13 @@ func token(w http.ResponseWriter, r *http.Request) {
 
 	system, err := ssas.GetSystemByClientID(r.Context(), clientID)
 	if err != nil {
-		ssas.Logger.Errorf("The client id %s is invalid", err.Error())
+		log.Logger.Errorf("The client id %s is invalid", err.Error())
 		service.JSONError(w, http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized), "invalid client id")
 		return
 	}
 	err = ValidateSecret(system, secret, r)
 	if err != nil {
-		ssas.Logger.Error("The client id and secret cannot be validated: ", err.Error())
+		log.Logger.Error("The client id and secret cannot be validated: ", err.Error())
 		service.JSONError(w, http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized), err.Error())
 		return
 	}
@@ -259,7 +260,7 @@ func token(w http.ResponseWriter, r *http.Request) {
 	trackingID := uuid.NewRandom().String()
 
 	data, err := ssas.XDataFor(r.Context(), system)
-	ssas.Logger.Infof("public.api.token: XDataFor(%d) returned '%s'", system.ID, data)
+	log.Logger.Infof("public.api.token: XDataFor(%d) returned '%s'", system.ID, data)
 	if err != nil {
 		service.JSONError(w, http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized), "no group for system")
 		return
@@ -371,7 +372,7 @@ func tokenV2(w http.ResponseWriter, r *http.Request) {
 	}
 
 	data, err := ssas.XDataFor(r.Context(), system)
-	ssas.Logger.Infof("public.api.token: XDataFor(%d) returned '%s'", system.ID, data)
+	log.Logger.Infof("public.api.token: XDataFor(%d) returned '%s'", system.ID, data)
 	if err != nil {
 		service.JSONError(w, http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized), "no group for system")
 		return
@@ -482,7 +483,7 @@ func introspect(w http.ResponseWriter, r *http.Request) {
 	var answer = make(map[string]bool)
 	answer["active"] = true
 	if err = tokenValidity(reqV["token"], "AccessToken"); err != nil {
-		ssas.Logger.Infof("token failed tokenValidity")
+		log.Logger.Infof("token failed tokenValidity")
 		answer["active"] = false
 	}
 
@@ -513,12 +514,12 @@ func validateAndParseToken(w http.ResponseWriter, r *http.Request) {
 	var response = make(map[string]interface{})
 
 	if err := tokenValidity(tokenS, "AccessToken"); err != nil {
-		ssas.Logger.Infof("token failed tokenValidity")
+		log.Logger.Infof("token failed tokenValidity")
 		response["valid"] = false
 	} else {
 		claims := jwt.MapClaims{}
 		if _, _, err := new(jwt.Parser).ParseUnverified(tokenS, claims); err != nil {
-			ssas.Logger.Infof("could not unmarshal access token")
+			log.Logger.Infof("could not unmarshal access token")
 			service.JSONError(w, http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError), "internal server error")
 			return
 		}
@@ -527,7 +528,7 @@ func validateAndParseToken(w http.ResponseWriter, r *http.Request) {
 		response["system_data"] = claims["system_data"]
 		sys, err := ssas.GetSystemByID(r.Context(), claims["sys"].(string))
 		if err != nil {
-			ssas.Logger.Infof("could not get system id")
+			log.Logger.Infof("could not get system id")
 			service.JSONError(w, http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError), "internal server error")
 			return
 		}
