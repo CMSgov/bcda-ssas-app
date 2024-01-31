@@ -88,8 +88,8 @@ func GetCtxEntry(ctx context.Context) *APILoggerEntry {
 	return entry
 }
 
-// Appends additional or creates new logrus.Fields to a logrus.FieldLogger within a context
-func SetCtxLogger(r *http.Request, key string, value interface{}) {
+// Appends additional logrus.Field to a logrus.FieldLogger within a context
+func SetCtxEntry(r *http.Request, key string, value interface{}) {
 	if entry, ok := r.Context().Value(middleware.LogEntryCtxKey).(*APILoggerEntry); ok {
 		entry.Logger = entry.Logger.WithField(key, value)
 	}

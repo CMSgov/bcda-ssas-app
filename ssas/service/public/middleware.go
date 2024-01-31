@@ -40,7 +40,7 @@ func readGroupID(next http.Handler) http.Handler {
 		}
 
 		ctx := context.WithValue(r.Context(), "rd", rd)
-		log.SetCtxLogger(r, "rd", rd)
+		log.SetCtxEntry(r, "rd", rd)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
@@ -89,7 +89,7 @@ func parseToken(next http.Handler) http.Handler {
 		}
 		ctx := context.WithValue(r.Context(), "ts", tokenString)
 		ctx = context.WithValue(ctx, "rd", rd)
-		log.SetCtxLogger(r, "rd", rd)
+		log.SetCtxEntry(r, "rd", rd)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
