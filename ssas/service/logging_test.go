@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"crypto/rsa"
+	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"strings"
@@ -10,6 +11,7 @@ import (
 
 	"github.com/CMSgov/bcda-ssas-app/ssas"
 	"github.com/CMSgov/bcda-ssas-app/ssas/constants"
+	"github.com/golang-jwt/jwt/v4"
 	"github.com/pborman/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -56,9 +58,9 @@ func (t *LoggingTestSuite) SetupClientAssertionTest() (ssas.Credentials, ssas.Gr
 		XData:      `{"impl": "blah"}`,
 	}
 	creds, err := ssas.RegisterV2System(context.Background(), si)
-	assert.Nil(s.T(), err)
-	assert.Equal(s.T(), constants.TestSystemName, creds.ClientName)
-	assert.NotNil(s.T(), creds.ClientSecret)
+	assert.Nil(t.T(), err)
+	assert.Equal(t.T(), constants.TestSystemName, creds.ClientName)
+	assert.NotNil(t.T(), creds.ClientSecret)
 
 	return creds, group, privateKey
 }
@@ -75,5 +77,29 @@ func (t *LoggingTestSuite) TestGetTransactionID() {
 	form.Add("client_assertion", clientAssertion)
 
 	req := httptest.NewRequest("POST", "/v2/token", strings.NewReader(form.Encode()))
+	req.Header.Add("Accept", constants.HeaderApplicationJSON)
+	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+	handler := http.HandlerFunc(public.token)
+}
 
+func mintClientAssertion(issuer, subject, aud string, issuedAt, expiresAt int64, privateKey *rsa.PrivateKey, kid string) (*jwt.Token, string, error) {
+	claims := CommonClaims{}
+
+	token := jwt.New(jwt.SigningMethodRS512)
+	tokenID := uuid.NewRandom().String()
+	claims.IssuedAt = issuedAt
+	claims.ExpiresAt = expiresAt
+	claims.Id = tokenID
+	claims.Subject = subject
+	claims.Issuer = issuer
+	claims.Audience = aud
+	token.Claims = claims
+	token.Header["kid"] = kid
+	var signedString, err = token.SignedString(privateKey)
+	if err != nil {
+		ssas.TokenMintingFailure(ssas.Event{TokenID: tokenID})
+		ssas.Logger.Errorf("token signing error %s", err)
+		return nil, "", err
+	}
+	return token, signedString, nil
 }
