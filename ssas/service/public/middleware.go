@@ -55,7 +55,8 @@ func parseToken(next http.Handler) http.Handler {
 		authHeader := r.Header.Get("Authorization")
 		if authHeader == "" {
 			helpMsg := "no authorization header found"
-			logger.Error(logrus.Fields{"Event": "AuthorizationFailure", "Help": helpMsg})
+			log.SetCtxEntry(r, "Event", "AuthorizationFailure")
+			logger.Error(helpMsg)
 			next.ServeHTTP(w, r)
 			return
 		}
@@ -64,7 +65,8 @@ func parseToken(next http.Handler) http.Handler {
 		authSubmatches := authRegexp.FindStringSubmatch(authHeader)
 		if len(authSubmatches) < 2 {
 			helpMsg := "invalid Authorization header value"
-			logger.Error(logrus.Fields{"Event": "AuthorizationFailure", "Help": helpMsg})
+			log.SetCtxEntry(r, "Event", "AuthorizationFailure")
+			logger.Error(helpMsg)
 			next.ServeHTTP(w, r)
 			return
 		}
@@ -73,7 +75,8 @@ func parseToken(next http.Handler) http.Handler {
 		token, err := server.VerifyToken(tokenString)
 		if err != nil {
 			helpMsg := fmt.Sprintf("unable to decode authorization header value; %s", err)
-			logger.Error(logrus.Fields{"Event": "AuthorizationFailure", "Help": helpMsg})
+			log.SetCtxEntry(r, "Event", "AuthorizationFailure")
+			logger.Error(helpMsg)
 			next.ServeHTTP(w, r)
 			return
 		}
