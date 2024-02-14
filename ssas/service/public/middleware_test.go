@@ -49,7 +49,7 @@ func (s *PublicMiddlewareTestSuite) TestRequireTokenAuthWithInvalidSignature() {
 				assert.NotNil(s.T(), err)
 			})
 		}
-	s.server = httptest.NewServer(s.CreateRouter(service.GetTransactionID, service.NewCtxLogger, parseToken, testForToken))
+	s.server = httptest.NewServer(s.CreateRouter(GetTransactionID, service.NewCtxLogger, parseToken, testForToken))
 	client := s.server.Client()
 
 	// Valid token should return a 200 response
@@ -77,7 +77,7 @@ func (s *PublicMiddlewareTestSuite) TestParseTokenEmptyToken() {
 				assert.NotNil(s.T(), err)
 			})
 		}
-	s.server = httptest.NewServer(s.CreateRouter(service.GetTransactionID, service.NewCtxLogger, parseToken, testForToken))
+	s.server = httptest.NewServer(s.CreateRouter(service.NewCtxLogger, parseToken, testForToken))
 	client := s.server.Client()
 
 	// Valid token should return a 200 response
