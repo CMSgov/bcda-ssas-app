@@ -6,10 +6,12 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"os"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/CMSgov/bcda-ssas-app/ssas/cfg"
 	"golang.org/x/crypto/pbkdf2"
 )
 
@@ -25,22 +27,22 @@ type Hash string
 // The time for hash comparison should be about 1s.  Increase hashIter if this is significantly faster in production.
 // Use the TestHashIterTime test to determine the amount required to reach 1s.
 // Note that changing hashKeyLen will result in invalidating existing stored hashes (e.g. credentials).
-// func init() {
-// 	if os.Getenv("DEBUG") == "true" {
-// 		hashIter = cfg.GetEnvInt("SSAS_HASH_ITERATIONS", 130000)
-// 		hashKeyLen = cfg.GetEnvInt("SSAS_HASH_KEY_LENGTH", 64)
-// 		saltSize = cfg.GetEnvInt("SSAS_HASH_SALT_SIZE", 32)
-// 	} else {
-// 		hashIter = cfg.GetEnvInt("SSAS_HASH_ITERATIONS", 0)
-// 		hashKeyLen = cfg.GetEnvInt("SSAS_HASH_KEY_LENGTH", 0)
-// 		saltSize = cfg.GetEnvInt("SSAS_HASH_SALT_SIZE", 0)
-// 	}
+func init() {
+	if os.Getenv("DEBUG") == "true" {
+		hashIter = cfg.GetEnvInt("SSAS_HASH_ITERATIONS", 130000)
+		hashKeyLen = cfg.GetEnvInt("SSAS_HASH_KEY_LENGTH", 64)
+		saltSize = cfg.GetEnvInt("SSAS_HASH_SALT_SIZE", 32)
+	} else {
+		hashIter = cfg.GetEnvInt("SSAS_HASH_ITERATIONS", 0)
+		hashKeyLen = cfg.GetEnvInt("SSAS_HASH_KEY_LENGTH", 0)
+		saltSize = cfg.GetEnvInt("SSAS_HASH_SALT_SIZE", 0)
+	}
 
-// 	if hashIter == 0 || hashKeyLen == 0 || saltSize == 0 {
-// 		// ServiceHalted(Event{Help:"SSAS_HASH_ITERATIONS, SSAS_HASH_KEY_LENGTH and SSAS_HASH_SALT_SIZE environment values must be set"})
-// 		panic("SSAS_HASH_ITERATIONS, SSAS_HASH_KEY_LENGTH and SSAS_HASH_SALT_SIZE environment values must be set")
-// 	}
-// }
+	if hashIter == 0 || hashKeyLen == 0 || saltSize == 0 {
+		// ServiceHalted(Event{Help:"SSAS_HASH_ITERATIONS, SSAS_HASH_KEY_LENGTH and SSAS_HASH_SALT_SIZE environment values must be set"})
+		panic("SSAS_HASH_ITERATIONS, SSAS_HASH_KEY_LENGTH and SSAS_HASH_SALT_SIZE environment values must be set")
+	}
+}
 
 // NewHash creates a Hash value from a source string
 // The HashValue consists of the salt and hash separated by a colon ( : )
