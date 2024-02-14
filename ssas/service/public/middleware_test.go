@@ -233,7 +233,7 @@ func (s *PublicMiddlewareTestSuite) TestGetTransactionID() {
 		assert.FailNow(s.T(), err.Error())
 	}
 	assert.Equal(s.T(), http.StatusOK, s.rr.Code)
-	assert.Equal(s.T(), req.Context().Value(service.CtxTransactionKey), "1234")
+	assert.Equal(s.T(), req.Context().Value(service.CtxTransactionKey).(string), "1234")
 }
 
 func (s *PublicMiddlewareTestSuite) TestContains() {
