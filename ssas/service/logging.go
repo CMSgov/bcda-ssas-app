@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"regexp"
@@ -10,13 +11,14 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/sirupsen/logrus"
 
+	"github.com/CMSgov/bcda-ssas-app/log"
 	"github.com/CMSgov/bcda-ssas-app/ssas"
 )
 
 //https://github.com/go-chi/chi/blob/master/_examples/logging/main.go
 
 func NewAPILogger() func(next http.Handler) http.Handler {
-	return middleware.RequestLogger(&APILogger{ssas.Logger})
+	return middleware.RequestLogger(&APILogger{log.Logger})
 }
 
 type APILogger struct {
@@ -24,7 +26,7 @@ type APILogger struct {
 }
 
 func (l *APILogger) NewLogEntry(r *http.Request) middleware.LogEntry {
-	entry := &APILoggerEntry{Logger: l.Logger}
+	entry := &log.APILoggerEntry{Logger: l.Logger}
 	logFields := logrus.Fields{}
 
 	logFields["ts"] = time.Now() // .UTC().Format(time.RFC1123)
@@ -55,26 +57,6 @@ func (l *APILogger) NewLogEntry(r *http.Request) middleware.LogEntry {
 	return entry
 }
 
-type APILoggerEntry struct {
-	Logger logrus.FieldLogger
-}
-
-func (l *APILoggerEntry) Write(status int, bytes int, header http.Header, elapsed time.Duration, extra interface{}) {
-	l.Logger = l.Logger.WithFields(logrus.Fields{
-		"resp_status": status, "resp_bytes_length": bytes,
-		"resp_elapsed_ms": float64(elapsed.Nanoseconds()) / 1000000.0,
-	})
-
-	l.Logger.Infoln("request complete")
-}
-
-func (l *APILoggerEntry) Panic(v interface{}, stack []byte) {
-	l.Logger = l.Logger.WithFields(logrus.Fields{
-		"stack": string(stack),
-		"panic": fmt.Sprintf("%+v", v),
-	})
-}
-
 func Redact(uri string) string {
 	re := regexp.MustCompile(`Bearer%20([^&]+)(?:&|$)`)
 	submatches := re.FindAllStringSubmatch(uri, -1)
@@ -84,19 +66,16 @@ func Redact(uri string) string {
 	return uri
 }
 
-func GetLogEntry(r *http.Request) logrus.FieldLogger {
-	entry := middleware.GetLogEntry(r).(*APILoggerEntry)
-	return entry.Logger
-}
-
-func LogEntrySetField(r *http.Request, key string, value interface{}) {
-	if entry, ok := r.Context().Value(middleware.LogEntryCtxKey).(*APILoggerEntry); ok {
-		entry.Logger = entry.Logger.WithField(key, value)
-	}
-}
-
-func LogEntrySetFields(r *http.Request, fields map[string]interface{}) {
-	if entry, ok := r.Context().Value(middleware.LogEntryCtxKey).(*APILoggerEntry); ok {
-		entry.Logger = entry.Logger.WithFields(fields)
-	}
+// NewCtxLogger adds new key value pair of {CtxLoggerKey: logrus.FieldLogger} to the requests context
+func NewCtxLogger(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		logFields := logrus.Fields{}
+		logFields["request_id"] = middleware.GetReqID(r.Context())
+		if rd, ok := r.Context().Value("rd").(ssas.AuthRegData); ok {
+			logFields["okta_id"] = rd.OktaID
+		}
+		newLogEntry := &log.APILoggerEntry{Logger: log.Logger.WithFields(logFields)}
+		r = r.WithContext(context.WithValue(r.Context(), log.CtxLoggerKey, newLogEntry))
+		next.ServeHTTP(w, r)
+	})
 }
