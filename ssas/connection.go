@@ -12,14 +12,14 @@ import (
 
 var Connection *gorm.DB
 
-func init() {
-	var err error
-	Connection, err = createDB()
+// func init() {
+// 	var err error
+// 	Connection, err = createDB()
 
-	if err != nil {
-		Logger.Fatalf("Failed to create db %s", err.Error())
-	}
-}
+// 	if err != nil {
+// 		Logger.Fatalf("Failed to create db %s", err.Error())
+// 	}
+// }
 
 func createDB() (*gorm.DB, error) {
 	databaseURL := os.Getenv("DATABASE_URL")
