@@ -78,7 +78,9 @@ func NewCtxLogger(next http.Handler) http.Handler {
 		if rd, ok := r.Context().Value("rd").(ssas.AuthRegData); ok {
 			logFields["okta_id"] = rd.OktaID
 		}
-		logFields["transaction_id"] = r.Context().Value(CtxTransactionKey).(string)
+		if tid, ok := r.Context().Value(CtxTransactionKey).(string); ok {
+			logFields["transaction_id"] = tid
+		}
 		newLogEntry := &log.APILoggerEntry{Logger: log.Logger.WithFields(logFields)}
 		r = r.WithContext(context.WithValue(r.Context(), log.CtxLoggerKey, newLogEntry))
 		next.ServeHTTP(w, r)

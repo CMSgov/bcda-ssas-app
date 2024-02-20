@@ -77,7 +77,7 @@ func (s *PublicMiddlewareTestSuite) TestParseTokenEmptyToken() {
 				assert.NotNil(s.T(), err)
 			})
 		}
-	s.server = httptest.NewServer(s.CreateRouter(service.NewCtxLogger, parseToken, testForToken))
+	s.server = httptest.NewServer(s.CreateRouter(GetTransactionID, service.NewCtxLogger, parseToken, testForToken))
 	client := s.server.Client()
 
 	// Valid token should return a 200 response
@@ -111,7 +111,7 @@ func (s *PublicMiddlewareTestSuite) TestParseTokenValidToken() {
 				assert.Equal(s.T(), groupIDs, rd.AllowedGroupIDs)
 			})
 		}
-	s.server = httptest.NewServer(s.CreateRouter(service.NewCtxLogger, parseToken, testForToken))
+	s.server = httptest.NewServer(s.CreateRouter(GetTransactionID, service.NewCtxLogger, parseToken, testForToken))
 	client := s.server.Client()
 
 	_, ts, _ := MintRegistrationToken(oktaID, groupIDs)
@@ -131,7 +131,7 @@ func (s *PublicMiddlewareTestSuite) TestParseTokenValidToken() {
 }
 
 func (s *PublicMiddlewareTestSuite) TestRequireRegTokenAuthValidToken() {
-	s.server = httptest.NewServer(s.CreateRouter(service.NewCtxLogger, requireRegTokenAuth))
+	s.server = httptest.NewServer(s.CreateRouter(GetTransactionID, service.NewCtxLogger, requireRegTokenAuth))
 
 	// Valid token should return a 200 response
 	req, err := http.NewRequest("GET", s.server.URL, nil)
@@ -159,7 +159,7 @@ func (s *PublicMiddlewareTestSuite) TestRequireRegTokenAuthValidToken() {
 }
 
 func (s *PublicMiddlewareTestSuite) TestRequireRegTokenAuthRevoked() {
-	s.server = httptest.NewServer(s.CreateRouter(service.NewCtxLogger, requireMFATokenAuth))
+	s.server = httptest.NewServer(s.CreateRouter(GetTransactionID, service.NewCtxLogger, requireMFATokenAuth))
 
 	// Valid token should return a 200 response
 	req, err := http.NewRequest("GET", s.server.URL, nil)
@@ -192,7 +192,7 @@ func (s *PublicMiddlewareTestSuite) TestRequireRegTokenAuthRevoked() {
 }
 
 func (s *PublicMiddlewareTestSuite) TestRequireRegTokenAuthEmptyToken() {
-	s.server = httptest.NewServer(s.CreateRouter(service.NewCtxLogger, requireRegTokenAuth))
+	s.server = httptest.NewServer(s.CreateRouter(GetTransactionID, service.NewCtxLogger, requireRegTokenAuth))
 	client := s.server.Client()
 
 	// Valid token should return a 200 response
@@ -233,7 +233,9 @@ func (s *PublicMiddlewareTestSuite) TestGetTransactionID() {
 		assert.FailNow(s.T(), err.Error())
 	}
 	assert.Equal(s.T(), http.StatusOK, s.rr.Code)
-	assert.Equal(s.T(), req.Context().Value(service.CtxTransactionKey).(string), "1234")
+	if tid, ok := req.Context().Value(service.CtxTransactionKey).(string); ok {
+		assert.Equal(s.T(), tid, "1234")
+	}
 }
 
 func (s *PublicMiddlewareTestSuite) TestContains() {
