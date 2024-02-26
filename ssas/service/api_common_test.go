@@ -25,7 +25,7 @@ func (s *APICommonTestSuite) SetupSuite() {
 func (s *APICommonTestSuite) TestJSONError() {
 	// JSON output is valid for simple strings
 	w := httptest.NewRecorder()
-	JSONError(w, http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized), "unauthorized")
+	JSONError(w, http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized), "unauthorized", nil)
 	resp := w.Result()
 	body, err := io.ReadAll(resp.Body)
 	assert.NoError(s.T(), err)
@@ -34,7 +34,7 @@ func (s *APICommonTestSuite) TestJSONError() {
 
 	// JSON output is valid for strings that need to be escaped
 	w = httptest.NewRecorder()
-	JSONError(w, http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError), `oh no, there's a database problem (and a backslash \)!: pq: duplicate key value violates unique constraint "groups_group_id_deleted_at_key"`)
+	JSONError(w, http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError), `oh no, there's a database problem (and a backslash \)!: pq: duplicate key value violates unique constraint "groups_group_id_deleted_at_key"`, nil)
 	resp = w.Result()
 	body, err = io.ReadAll(resp.Body)
 	assert.NoError(s.T(), err)
