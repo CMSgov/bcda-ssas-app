@@ -5,7 +5,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/CMSgov/bcda-ssas-app/ssas"
+	"github.com/CMSgov/bcda-ssas-app/log"
 	"github.com/CMSgov/bcda-ssas-app/ssas/constants"
 	"github.com/CMSgov/bcda-ssas-app/ssas/monitoring"
 	"github.com/CMSgov/bcda-ssas-app/ssas/service"
@@ -24,9 +24,9 @@ func init() {
 	infoMap = make(map[string][]string)
 	publicSigningKeyPath = os.Getenv("SSAS_PUBLIC_SIGNING_KEY_PATH")
 	publicSigningKey = os.Getenv("SSAS_PUBLIC_SIGNING_KEY")
-	ssas.Logger.Info("public signing key sourced from ", publicSigningKeyPath)
+	log.Logger.Info("public signing key sourced from ", publicSigningKeyPath)
 	clientAssertAud = os.Getenv("SSAS_CLIENT_ASSERTION_AUD")
-	ssas.Logger.Info("aud value required in client assertion tokens:", clientAssertAud)
+	log.Logger.Info("aud value required in client assertion tokens:", clientAssertAud)
 }
 
 func Server() *service.Server {
@@ -36,7 +36,7 @@ func Server() *service.Server {
 	signingKey, err := service.ChooseSigningKey(publicSigningKeyPath, publicSigningKey)
 	if err != nil {
 		msg := fmt.Sprintf("Unable to get public server signing key: %v", err)
-		ssas.Logger.Error(msg)
+		log.Logger.Error(msg)
 		return nil
 	}
 

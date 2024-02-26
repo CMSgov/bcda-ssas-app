@@ -42,6 +42,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/CMSgov/bcda-ssas-app/log"
 	"github.com/CMSgov/bcda-ssas-app/ssas"
 	"github.com/CMSgov/bcda-ssas-app/ssas/cfg"
 	"github.com/CMSgov/bcda-ssas-app/ssas/service"
@@ -78,14 +79,14 @@ func init() {
 		newrelic.ConfigLicense(licenseKey),
 	)
 	if nil != err {
-		ssas.Logger.Warnf("New Relic integration is disabled: %s", err)
+		log.Logger.Warnf("New Relic integration is disabled: %s", err)
 	}
 
 }
 
 // We provide some simple commands for bootstrapping the system into place. Commands cannot be combined.
 func main() {
-	ssas.Logger.Info("Home of the System-to-System Authentication Service")
+	log.Logger.Info("Home of the System-to-System Authentication Service")
 	var config = parseConfig()
 	handleFlags(config)
 }
@@ -146,10 +147,10 @@ func handleFlags(flags Flags) {
 		if flags.clientID != "" || flags.auth != "" {
 			err := showXData(flags.clientID, flags.auth)
 			if err != nil {
-				ssas.Logger.Error(err)
+				log.Logger.Error(err)
 			}
 		} else {
-			ssas.Logger.Error("`show-xdata` requires either the client-id or auth key arg be set")
+			log.Logger.Error("`show-xdata` requires either the client-id or auth key arg be set")
 		}
 		return
 	}
@@ -163,14 +164,14 @@ func handleFlags(flags Flags) {
 func createServers() (*service.Server, *service.Server, *http.Server) {
 	ps := public.Server()
 	if ps == nil {
-		ssas.Logger.Error("unable to create public server")
+		log.Logger.Error("unable to create public server")
 		os.Exit(-1)
 	}
 	ps.LogRoutes()
 
 	as := admin.Server()
 	if as == nil {
-		ssas.Logger.Error("unable to create admin server")
+		log.Logger.Error("unable to create admin server")
 		os.Exit(-1)
 	}
 	as.LogRoutes()
@@ -188,12 +189,12 @@ func createServers() (*service.Server, *service.Server, *http.Server) {
 }
 
 func start(ps *service.Server, as *service.Server, forwarder *http.Server) {
-	ssas.Logger.Infof("%s", "Starting ssas...")
+	log.Logger.Infof("%s", "Starting ssas...")
 
 	ps.Serve()
 	as.Serve()
 	service.StartBlacklist()
-	ssas.Logger.Fatal(forwarder.ListenAndServe())
+	log.Logger.Fatal(forwarder.ListenAndServe())
 }
 
 func newForwardingRouter() http.Handler {
@@ -202,7 +203,7 @@ func newForwardingRouter() http.Handler {
 	r.Get("/*", http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		// TODO only forward requests for paths in our own host or resource server
 		url := "https://" + req.Host + req.URL.String()
-		ssas.Logger.Infof("forwarding from %s to %s", req.Host+req.URL.String(), url)
+		log.Logger.Infof("forwarding from %s to %s", req.Host+req.URL.String(), url)
 		http.Redirect(w, req, url, http.StatusMovedPermanently)
 	}))
 	return r
@@ -240,12 +241,12 @@ func makeSystem(db *gorm.DB, groupID, clientID, clientName, scope, hash string) 
 
 	g, err := ssas.GetGroupByGroupID(context.Background(), groupID)
 	if err != nil {
-		ssas.Logger.Warn(err)
+		log.Logger.Warn(err)
 	}
 
 	system := ssas.System{GID: g.ID, GroupID: groupID, ClientID: clientID, ClientName: clientName, APIScope: scope}
 	if err := db.Save(&system).Error; err != nil {
-		ssas.Logger.Warn(err)
+		log.Logger.Warn(err)
 	}
 
 	encryptionKey := ssas.EncryptionKey{
@@ -253,7 +254,7 @@ func makeSystem(db *gorm.DB, groupID, clientID, clientName, scope, hash string) 
 		SystemID: system.ID,
 	}
 	if err := db.Save(&encryptionKey).Error; err != nil {
-		ssas.Logger.Warn(err)
+		log.Logger.Warn(err)
 	}
 
 	secret := ssas.Secret{
@@ -261,7 +262,7 @@ func makeSystem(db *gorm.DB, groupID, clientID, clientName, scope, hash string) 
 		SystemID: system.ID,
 	}
 	if err := db.Save(&secret).Error; err != nil {
-		ssas.Logger.Warn(err)
+		log.Logger.Warn(err)
 	}
 }
 
@@ -272,11 +273,11 @@ func resetSecret(clientID string) {
 		c   ssas.Credentials
 	)
 	if s, err = ssas.GetSystemByClientID(context.Background(), clientID); err != nil {
-		ssas.Logger.Warn(err)
+		log.Logger.Warn(err)
 	}
 	ssas.OperationCalled(ssas.Event{Op: "ResetSecret", TrackingID: cliTrackingID(), Help: "calling from main.resetSecret()"})
 	if c, err = s.ResetSecret(context.Background(), clientID); err != nil {
-		ssas.Logger.Warn(err)
+		log.Logger.Warn(err)
 	} else {
 		_, _ = fmt.Fprintf(output, "%s\n", c.ClientSecret)
 	}
@@ -290,26 +291,26 @@ func newAdminSystem(name string) {
 		u   uint64
 	)
 	if pk, _, _, err = ssas.GeneratePublicKey(2048); err != nil {
-		ssas.Logger.Errorf("no public key; %s", err)
+		log.Logger.Errorf("no public key; %s", err)
 		return
 	}
 
 	trackingID := cliTrackingID()
 	ssas.OperationCalled(ssas.Event{Op: "RegisterSystem", TrackingID: trackingID, Help: "calling from main.newAdminSystem()"})
 	if c, err = ssas.RegisterSystem(context.Background(), name, "admin", "bcda-api", pk, []string{}, trackingID); err != nil {
-		ssas.Logger.Error(err)
+		log.Logger.Error(err)
 		return
 	}
 
 	if u, err = strconv.ParseUint(c.SystemID, 10, 64); err != nil {
-		ssas.Logger.Errorf("invalid systemID %d; %s", u, err)
+		log.Logger.Errorf("invalid systemID %d; %s", u, err)
 		return
 	}
 
 	db := ssas.Connection
 
 	if err = db.Model(&ssas.System{}).Where("id = ?", uint(u)).Update("api_scope", "bcda-admin").Error; err != nil {
-		ssas.Logger.Warnf("bcda-admin scope not set for new system %s", c.SystemID)
+		log.Logger.Warnf("bcda-admin scope not set for new system %s", c.SystemID)
 	} else {
 		_, _ = fmt.Fprintf(output, "%s\n", c.ClientID)
 	}
@@ -318,11 +319,11 @@ func newAdminSystem(name string) {
 func listIPs() {
 	ips, err := ssas.GetAllIPs()
 	if err != nil {
-		ssas.Logger.Fatalf("unable to get registered IPs: %s", err)
+		log.Logger.Fatalf("unable to get registered IPs: %s", err)
 	}
 	listOfIps := strings.Join(ips, "\n")
 	fmt.Fprintln(output, listOfIps)
-	ssas.Logger.Infof("Retrieving registered IPs: %s", listOfIps)
+	log.Logger.Infof("Retrieving registered IPs: %s", listOfIps)
 }
 
 func listExpiringCredentials() {

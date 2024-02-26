@@ -5,6 +5,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/CMSgov/bcda-ssas-app/log"
 	_ "github.com/lib/pq"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
@@ -17,7 +18,7 @@ func init() {
 	Connection, err = createDB()
 
 	if err != nil {
-		Logger.Fatalf("Failed to create db %s", err.Error())
+		log.Logger.Fatalf("Failed to create db %s", err.Error())
 	}
 }
 

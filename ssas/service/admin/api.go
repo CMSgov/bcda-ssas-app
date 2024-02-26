@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/CMSgov/bcda-ssas-app/log"
 	"github.com/CMSgov/bcda-ssas-app/ssas"
 	"github.com/CMSgov/bcda-ssas-app/ssas/service"
 	"github.com/go-chi/chi/v5"
@@ -604,7 +605,7 @@ func registerIP(w http.ResponseWriter, r *http.Request) {
 
 func getSystemIPs(w http.ResponseWriter, r *http.Request) {
 	systemID := chi.URLParam(r, "systemID")
-
+	// logger := log.GetCtxLogger(r.Context())
 	system, err := ssas.GetSystemByID(r.Context(), systemID)
 	if err != nil {
 		service.JSONError(w, http.StatusNotFound, "Invalid system ID", "")
@@ -615,14 +616,14 @@ func getSystemIPs(w http.ResponseWriter, r *http.Request) {
 	ssas.OperationCalled(ssas.Event{Op: "GetSystemIPs", TrackingID: trackingID, Help: "calling from admin.getSystemIPs()"})
 	ips, err := system.GetIps(r.Context(), trackingID)
 	if err != nil {
-		ssas.Logger.Error("Could not retrieve system ips", err)
+		log.Logger.Error("Could not retrieve system ips", err)
 		service.JSONError(w, http.StatusInternalServerError, "internal error", "")
 		return
 	}
 
 	ipJson, err := json.Marshal(ips)
 	if err != nil {
-		ssas.Logger.Error("Could not marshal system ips", err)
+		log.Logger.Error("Could not marshal system ips", err)
 		service.JSONError(w, http.StatusInternalServerError, "internal error", "")
 		return
 	}

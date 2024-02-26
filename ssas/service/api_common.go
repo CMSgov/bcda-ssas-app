@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/CMSgov/bcda-ssas-app/log"
 	"github.com/CMSgov/bcda-ssas-app/ssas"
 )
 
@@ -31,5 +32,5 @@ func JSONError(w http.ResponseWriter, errorStatus int, statusText string, status
 
 	WriteHTTPSError(w, e, errorStatus)
 
-	ssas.Logger.Printf("%s; %s", statusText, statusDescription) // TODO: log information about the request
+	log.Logger.Printf("%s; %s", statusText, statusDescription) // TODO: log information about the request
 }

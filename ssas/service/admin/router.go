@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/CMSgov/bcda-ssas-app/ssas"
+	"github.com/CMSgov/bcda-ssas-app/log"
 	"github.com/CMSgov/bcda-ssas-app/ssas/monitoring"
 
 	"github.com/go-chi/chi/v5"
@@ -36,7 +36,7 @@ func Server() *service.Server {
 	signingKey, err := service.ChooseSigningKey(adminSigningKeyPath, adminSigningKey)
 	if err != nil {
 		msg := fmt.Sprintf("Unable to get admin server signing key %v", err)
-		ssas.Logger.Error(msg)
+		log.Logger.Error(msg)
 		return nil
 	}
 
@@ -83,10 +83,10 @@ func routes() *chi.Mux {
 
 	swaggerPath := "./swaggerui"
 	if _, err := os.Stat(swaggerPath); os.IsNotExist(err) {
-		ssas.Logger.Info("swagger path not found: " + swaggerPath)
+		log.Logger.Info("swagger path not found: " + swaggerPath)
 		swaggerPath = "../swaggerui"
 	} else {
-		ssas.Logger.Info("swagger path found: " + swaggerPath)
+		log.Logger.Info("swagger path found: " + swaggerPath)
 	}
 	FileServer(r, "/swagger", http.Dir(swaggerPath))
 

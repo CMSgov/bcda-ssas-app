@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/CMSgov/bcda-ssas-app/ssas"
+	"github.com/CMSgov/bcda-ssas-app/log"
 	"github.com/newrelic/go-agent/v3/newrelic"
 )
 
@@ -31,7 +31,7 @@ func GetMonitor() *apm {
 			},
 		)
 		if err != nil {
-			ssas.Logger.Error(err)
+			log.Logger.Error(err)
 		}
 		a = &apm{
 			App: app,
