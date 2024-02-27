@@ -91,3 +91,5 @@ type CtxTransactionKeyType string
 
 // context.Context key to get the transaction ID from the request context
 const CtxTransactionKey CtxTransactionKeyType = "ctxTransaction"
+
+const TransactionIDHeader = "TRANSACTIONID"
