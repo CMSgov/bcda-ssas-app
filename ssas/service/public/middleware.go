@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"regexp"
 
-	"github.com/CMSgov/bcda-ssas-app/log"
 	"github.com/CMSgov/bcda-ssas-app/ssas"
 	"github.com/CMSgov/bcda-ssas-app/ssas/service"
 	"github.com/sirupsen/logrus"
@@ -19,7 +18,7 @@ func readGroupID(next http.Handler) http.Handler {
 			err error
 		)
 
-		logger := log.GetCtxLogger(r.Context())
+		logger := ssas.GetCtxLogger(r.Context())
 
 		if rd, err = readRegData(r); err != nil {
 			logger.Println("no data from token about allowed groups")
@@ -40,7 +39,7 @@ func readGroupID(next http.Handler) http.Handler {
 		}
 
 		ctx := context.WithValue(r.Context(), "rd", rd)
-		log.SetCtxEntry(r, "rd", rd)
+		ssas.SetCtxEntry(r, "rd", rd)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
@@ -51,11 +50,12 @@ func readGroupID(next http.Handler) http.Handler {
 func parseToken(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		event := logrus.Fields{"Op": "ParseToken"}
-		logger := log.GetCtxLogger(r.Context()).WithFields(event)
+		logger := ssas.GetCtxLogger(r.Context()).WithFields(event)
 		authHeader := r.Header.Get("Authorization")
 		if authHeader == "" {
 			helpMsg := "no authorization header found"
-			logger.Error(logrus.Fields{"Event": "AuthorizationFailure", "Help": helpMsg})
+			ssas.SetCtxEntry(r, "Event", "AuthorizationFailure")
+			logger.Error(helpMsg)
 			next.ServeHTTP(w, r)
 			return
 		}
@@ -64,7 +64,8 @@ func parseToken(next http.Handler) http.Handler {
 		authSubmatches := authRegexp.FindStringSubmatch(authHeader)
 		if len(authSubmatches) < 2 {
 			helpMsg := "invalid Authorization header value"
-			logger.Error(logrus.Fields{"Event": "AuthorizationFailure", "Help": helpMsg})
+			ssas.SetCtxEntry(r, "Event", "AuthorizationFailure")
+			logger.Error(helpMsg)
 			next.ServeHTTP(w, r)
 			return
 		}
@@ -73,7 +74,8 @@ func parseToken(next http.Handler) http.Handler {
 		token, err := server.VerifyToken(tokenString)
 		if err != nil {
 			helpMsg := fmt.Sprintf("unable to decode authorization header value; %s", err)
-			logger.Error(logrus.Fields{"Event": "AuthorizationFailure", "Help": helpMsg})
+			ssas.SetCtxEntry(r, "Event", "AuthorizationFailure")
+			logger.Error(helpMsg)
 			next.ServeHTTP(w, r)
 			return
 		}
@@ -89,7 +91,7 @@ func parseToken(next http.Handler) http.Handler {
 		}
 		ctx := context.WithValue(r.Context(), "ts", tokenString)
 		ctx = context.WithValue(ctx, "rd", rd)
-		log.SetCtxEntry(r, "rd", rd)
+		ssas.SetCtxEntry(r, "rd", rd)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
