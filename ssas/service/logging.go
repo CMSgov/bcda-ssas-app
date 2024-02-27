@@ -11,14 +11,13 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/sirupsen/logrus"
 
-	"github.com/CMSgov/bcda-ssas-app/log"
 	"github.com/CMSgov/bcda-ssas-app/ssas"
 )
 
 //https://github.com/go-chi/chi/blob/master/_examples/logging/main.go
 
 func NewAPILogger() func(next http.Handler) http.Handler {
-	return middleware.RequestLogger(&APILogger{log.Logger})
+	return middleware.RequestLogger(&APILogger{ssas.Logger})
 }
 
 type APILogger struct {
@@ -26,7 +25,7 @@ type APILogger struct {
 }
 
 func (l *APILogger) NewLogEntry(r *http.Request) middleware.LogEntry {
-	entry := &log.APILoggerEntry{Logger: l.Logger}
+	entry := &ssas.APILoggerEntry{Logger: l.Logger}
 	logFields := logrus.Fields{}
 
 	logFields["ts"] = time.Now() // .UTC().Format(time.RFC1123)
@@ -74,8 +73,8 @@ func NewCtxLogger(next http.Handler) http.Handler {
 		if rd, ok := r.Context().Value("rd").(ssas.AuthRegData); ok {
 			logFields["okta_id"] = rd.OktaID
 		}
-		newLogEntry := &log.APILoggerEntry{Logger: log.Logger.WithFields(logFields)}
-		r = r.WithContext(context.WithValue(r.Context(), log.CtxLoggerKey, newLogEntry))
+		newLogEntry := &ssas.APILoggerEntry{Logger: ssas.Logger.WithFields(logFields)}
+		r = r.WithContext(context.WithValue(r.Context(), ssas.CtxLoggerKey, newLogEntry))
 		next.ServeHTTP(w, r)
 	})
 }
