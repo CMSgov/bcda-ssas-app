@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"regexp"
@@ -24,7 +25,7 @@ type APILogger struct {
 }
 
 func (l *APILogger) NewLogEntry(r *http.Request) middleware.LogEntry {
-	entry := &APILoggerEntry{Logger: l.Logger}
+	entry := &ssas.APILoggerEntry{Logger: l.Logger}
 	logFields := logrus.Fields{}
 
 	logFields["ts"] = time.Now() // .UTC().Format(time.RFC1123)
@@ -48,31 +49,15 @@ func (l *APILogger) NewLogEntry(r *http.Request) middleware.LogEntry {
 		logFields["okta_id"] = rd.OktaID
 	}
 
+	if tid, ok := r.Context().Value(CtxTransactionKey).(string); ok {
+		logFields["transaction_id"] = tid
+	}
+
 	entry.Logger = entry.Logger.WithFields(logFields)
 
 	entry.Logger.Infoln("request started")
 
 	return entry
-}
-
-type APILoggerEntry struct {
-	Logger logrus.FieldLogger
-}
-
-func (l *APILoggerEntry) Write(status int, bytes int, header http.Header, elapsed time.Duration, extra interface{}) {
-	l.Logger = l.Logger.WithFields(logrus.Fields{
-		"resp_status": status, "resp_bytes_length": bytes,
-		"resp_elapsed_ms": float64(elapsed.Nanoseconds()) / 1000000.0,
-	})
-
-	l.Logger.Infoln("request complete")
-}
-
-func (l *APILoggerEntry) Panic(v interface{}, stack []byte) {
-	l.Logger = l.Logger.WithFields(logrus.Fields{
-		"stack": string(stack),
-		"panic": fmt.Sprintf("%+v", v),
-	})
 }
 
 func Redact(uri string) string {
@@ -84,19 +69,27 @@ func Redact(uri string) string {
 	return uri
 }
 
-func GetLogEntry(r *http.Request) logrus.FieldLogger {
-	entry := middleware.GetLogEntry(r).(*APILoggerEntry)
-	return entry.Logger
+// NewCtxLogger adds new key value pair of {CtxLoggerKey: logrus.FieldLogger} to the requests context
+func NewCtxLogger(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		logFields := logrus.Fields{}
+		logFields["request_id"] = middleware.GetReqID(r.Context())
+		if rd, ok := r.Context().Value("rd").(ssas.AuthRegData); ok {
+			logFields["okta_id"] = rd.OktaID
+		}
+		if tid, ok := r.Context().Value(CtxTransactionKey).(string); ok {
+			logFields["transaction_id"] = tid
+		}
+		newLogEntry := &ssas.APILoggerEntry{Logger: ssas.Logger.WithFields(logFields)}
+		r = r.WithContext(context.WithValue(r.Context(), ssas.CtxLoggerKey, newLogEntry))
+		next.ServeHTTP(w, r)
+	})
 }
 
-func LogEntrySetField(r *http.Request, key string, value interface{}) {
-	if entry, ok := r.Context().Value(middleware.LogEntryCtxKey).(*APILoggerEntry); ok {
-		entry.Logger = entry.Logger.WithField(key, value)
-	}
-}
+// type to create context.Context key
+type CtxTransactionKeyType string
 
-func LogEntrySetFields(r *http.Request, fields map[string]interface{}) {
-	if entry, ok := r.Context().Value(middleware.LogEntryCtxKey).(*APILoggerEntry); ok {
-		entry.Logger = entry.Logger.WithFields(fields)
-	}
-}
+// context.Context key to get the transaction ID from the request context
+const CtxTransactionKey CtxTransactionKeyType = "ctxTransaction"
+
+const TransactionIDHeader = "TRANSACTIONID"
