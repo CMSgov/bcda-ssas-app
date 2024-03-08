@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"regexp"
 
+	"github.com/CMSgov/bcda-app/log"
 	"github.com/CMSgov/bcda-ssas-app/ssas"
 	"github.com/CMSgov/bcda-ssas-app/ssas/service"
 	"github.com/sirupsen/logrus"
@@ -110,27 +111,28 @@ func tokenAuth(next http.Handler, tokenType string) http.Handler {
 			ts string
 			ok bool
 		)
-		event := ssas.Event{Op: "TokenAuth"}
+		event := logrus.Fields{"Op": "TokenAuth"}
+		logger := log.GetCtxLogger(r.Context()).WithFields(event)
 
 		tsObj := r.Context().Value("ts")
 		if tsObj == nil {
-			event.Help = "no token string found"
-			ssas.AuthorizationFailure(event)
+			helpMsg := "no token string found"
+			logger.Error(ssas.AuthorizationFailure, logrus.WithField("Help", helpMsg))
 			respond(w, http.StatusUnauthorized)
 			return
 		}
 		ts, ok = tsObj.(string)
 		if !ok {
-			event.Help = "token string invalid"
-			ssas.AuthorizationFailure(event)
+			helpMsg := "token string invalid"
+			logger.Error(ssas.AuthorizationFailure, logrus.WithField("Help", helpMsg))
 			respond(w, http.StatusUnauthorized)
 			return
 		}
 
 		err := tokenValidity(ts, tokenType)
 		if err != nil {
-			event.Help = "token invalid"
-			ssas.AuthorizationFailure(event)
+			helpMsg := "token invalid"
+			logger.Error(ssas.AuthorizationFailure, logrus.WithField("Help", helpMsg))
 			respond(w, http.StatusUnauthorized)
 			return
 		}

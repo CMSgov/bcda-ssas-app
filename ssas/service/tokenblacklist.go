@@ -10,6 +10,7 @@ import (
 	"github.com/CMSgov/bcda-ssas-app/ssas/cfg"
 	"github.com/patrickmn/go-cache"
 	"github.com/pborman/uuid"
+	"github.com/sirupsen/logrus"
 )
 
 var (
@@ -35,26 +36,27 @@ func StartBlacklist() {
 	TokenBlacklist = NewBlacklist(context.Background(), defaultCacheTimeout, cacheCleanupInterval)
 }
 
-//	NewBlacklist allows for easy Blacklist{} creation and manipulation during testing, and, outside a test suite,
-//	should not be called
+// NewBlacklist allows for easy Blacklist{} creation and manipulation during testing, and, outside a test suite,
+// should not be called
 func NewBlacklist(ctx context.Context, cacheTimeout time.Duration, cleanupInterval time.Duration) *Blacklist {
 	// In case a Blacklist timer has already been started:
 	stopCacheRefreshTicker()
 
 	trackingID := uuid.NewRandom().String()
-	event := ssas.Event{Op: "InitBlacklist", TrackingID: trackingID}
-	ssas.OperationStarted(event)
+	event := logrus.Fields{"Op": "InitBlacklist", "TrackingID": trackingID}
+	logger := ssas.GetCtxLogger(ctx).WithFields(event)
+	logger.Info(ssas.OperationStarted)
 
 	bl := Blacklist{ID: trackingID}
 	bl.c = cache.New(cacheTimeout, cleanupInterval)
 
 	if err := bl.LoadFromDatabase(); err != nil {
-		event.Help = "unable to load blacklist from database: " + err.Error()
-		ssas.OperationFailed(event)
+		helpMsg := "unable to load blacklist from database: " + err.Error()
+		logger.Error(ssas.OperationFailed, logrus.WithField("Help", helpMsg))
 		// Log this failure, but allow the cache to operate.  It's conceivable the next cache refresh will work.
 		// Any alerts should be based on the error logged in BlackList.LoadFromDatabase().
 	} else {
-		ssas.OperationSucceeded(event)
+		logger.Info(ssas.OperationSucceeded)
 	}
 
 	cacheRefreshTicker, cancelFunc = bl.startCacheRefreshTicker(cacheRefreshFreq)
@@ -68,7 +70,7 @@ type Blacklist struct {
 	ID string
 }
 
-//	BlacklistToken invalidates the specified tokenID
+// BlacklistToken invalidates the specified tokenID
 func (t *Blacklist) BlacklistToken(ctx context.Context, tokenID string, blacklistExpiration time.Duration) error {
 	entryDate := time.Now()
 	expirationDate := entryDate.Add(blacklistExpiration)
@@ -77,30 +79,30 @@ func (t *Blacklist) BlacklistToken(ctx context.Context, tokenID string, blacklis
 	}
 
 	// Add to cache only after token is blacklisted in database
-	ssas.TokenBlacklisted(ssas.Event{Op: "TokenBlacklist", TrackingID: tokenID, TokenID: tokenID})
-	t.c.Set(tokenID, entryDate.Unix(), blacklistExpiration)
+	ssas.GetCtxLogger(ctx).Info(logrus.Fields{"Op": "TokenBlacklist", "TrackingID": tokenID, "TokenID": tokenID, "Event": "TokenBlacklisted"})
 
 	return nil
 }
 
-//	IsTokenBlacklisted tests whether this tokenID is in the blacklist cache.
-//	- Tokens should expire before blacklist entries, so a tokenID for a recently expired token may return "true."
-//	- This queries the cache only, so if a tokenID has been blacklisted on a different instance, it will return "false"
-//		until the cached blacklist is refreshed from the database.
+// IsTokenBlacklisted tests whether this tokenID is in the blacklist cache.
+//   - Tokens should expire before blacklist entries, so a tokenID for a recently expired token may return "true."
+//   - This queries the cache only, so if a tokenID has been blacklisted on a different instance, it will return "false"
+//     until the cached blacklist is refreshed from the database.
 func (t *Blacklist) IsTokenBlacklisted(tokenID string) bool {
 	// Ensure that we do not attempt to read when the cache is being rebuilt
 	t.RLock()
 	defer t.RUnlock()
 
-	bEvent := ssas.Event{Op: "TokenVerification", TrackingID: t.ID, TokenID: tokenID}
+	bEvent := logrus.Fields{"Op": "TokenVerification", "TrackingID": t.ID, "TokenID": tokenID}
+	logger := ssas.Logger.WithFields(bEvent)
 	if _, found := t.c.Get(tokenID); found {
-		ssas.BlacklistedTokenPresented(bEvent)
+		logger.Info(logrus.Fields{"Event": "BlacklistedTokenPresented"})
 		return true
 	}
 	return false
 }
 
-//	LoadFromDatabase refreshes unexpired blacklist entries from the database
+// LoadFromDatabase refreshes unexpired blacklist entries from the database
 func (t *Blacklist) LoadFromDatabase() error {
 	var (
 		entries []ssas.BlacklistEntry
@@ -110,9 +112,9 @@ func (t *Blacklist) LoadFromDatabase() error {
 	// TODO: pull from configurable setting for db timeout
 	timeoutCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-
+	logger := ssas.GetCtxLogger(timeoutCtx)
 	if entries, err = ssas.GetUnexpiredBlacklistEntries(timeoutCtx); err != nil {
-		ssas.CacheSyncFailure(ssas.Event{Op: "BlacklistLoadFromDatabase", TrackingID: t.ID, Help: err.Error()})
+		logger.Error(logrus.Fields{"Op": "BlacklistLoadFromDatabase", "TrackingID": t.ID, "Help": err.Error(), "Event": "CacheSyncFailure"})
 		return err
 	}
 

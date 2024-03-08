@@ -50,6 +50,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	gcmw "github.com/go-chi/chi/v5/middleware"
 	"github.com/newrelic/go-agent/v3/newrelic"
+	"github.com/sirupsen/logrus"
 	"gorm.io/gorm"
 )
 
@@ -274,7 +275,7 @@ func resetSecret(clientID string) {
 	if s, err = ssas.GetSystemByClientID(context.Background(), clientID); err != nil {
 		ssas.Logger.Warn(err)
 	}
-	ssas.OperationCalled(ssas.Event{Op: "ResetSecret", TrackingID: cliTrackingID(), Help: "calling from main.resetSecret()"})
+	ssas.Logger.Info(logrus.Fields{"Op": "ResetSecret", "TrackingID": cliTrackingID(), "Help": "calling from main.resetSecret()", "Event": "OperationCalled"})
 	if c, err = s.ResetSecret(context.Background(), clientID); err != nil {
 		ssas.Logger.Warn(err)
 	} else {
@@ -295,7 +296,7 @@ func newAdminSystem(name string) {
 	}
 
 	trackingID := cliTrackingID()
-	ssas.OperationCalled(ssas.Event{Op: "RegisterSystem", TrackingID: trackingID, Help: "calling from main.newAdminSystem()"})
+	ssas.Logger.Info(logrus.Fields{"Op": "RegisterSystem", "TrackingID": trackingID, "Help": "calling from main.newAdminSystem()", "Event": "OperationCalled"})
 	if c, err = ssas.RegisterSystem(context.Background(), name, "admin", "bcda-api", pk, []string{}, trackingID); err != nil {
 		ssas.Logger.Error(err)
 		return

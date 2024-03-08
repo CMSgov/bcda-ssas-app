@@ -6,6 +6,7 @@ import (
 
 	"github.com/CMSgov/bcda-ssas-app/ssas"
 	"github.com/golang-jwt/jwt/v4"
+	"github.com/sirupsen/logrus"
 )
 
 type TokenFlaw int
@@ -59,7 +60,7 @@ func BadToken(claims *CommonClaims, flaw TokenFlaw, keyPath string) (token *jwt.
 	token.Claims = claims
 	signedString, err = token.SignedString(signingKey)
 	if err != nil {
-		ssas.TokenMintingFailure(ssas.Event{TokenID: tokenID, Help: "token signing error " + err.Error()})
+		ssas.Logger.Error(logrus.Fields{"TokenID": tokenID, "Help": "token signing error " + err.Error(), "Event": "TokenMintingFailure"})
 	}
 	return
 }

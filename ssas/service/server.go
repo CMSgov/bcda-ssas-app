@@ -24,6 +24,7 @@ import (
 	"github.com/go-chi/render"
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/pborman/uuid"
+	"github.com/sirupsen/logrus"
 )
 
 // Server configures and provisions an SSAS server
@@ -377,7 +378,7 @@ func (s *Server) mintToken(claims *CommonClaims, issuedAt int64, expiresAt int64
 	token.Claims = claims
 	var signedString, err = token.SignedString(s.tokenSigningKey)
 	if err != nil {
-		ssas.TokenMintingFailure(ssas.Event{TokenID: tokenID})
+		ssas.Logger.Error(logrus.Fields{"Event": "TokenMintingFailure", "TokenID": tokenID})
 		ssas.Logger.Errorf("token signing error %s", err)
 		return nil, "", err
 	}

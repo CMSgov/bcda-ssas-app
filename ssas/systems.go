@@ -20,6 +20,7 @@ import (
 	"github.com/CMSgov/bcda-ssas-app/ssas/cfg"
 	"github.com/joho/godotenv"
 	"github.com/pborman/uuid"
+	"github.com/sirupsen/logrus"
 	"gorm.io/gorm"
 )
 
@@ -136,8 +137,9 @@ func (system *System) SaveClientToken(ctx context.Context, label string, groupXD
 }
 
 func (system *System) GetClientTokens(ctx context.Context, trackingID string) ([]ClientToken, error) {
-	getEvent := Event{Op: "GetClientToken", TrackingID: trackingID, Help: "calling from systems.GetClientTokens()"}
-	OperationStarted(getEvent)
+	event := logrus.Fields{"Op": "GetClientToken", "TrackingID": trackingID, "Help": "calling from systems.GetClientTokens()"}
+	logger := GetCtxLogger(ctx).WithFields(event)
+	logger.Info(OperationStarted)
 
 	var tokens []ClientToken
 	Connection.WithContext(ctx).Find(&tokens, "system_id=? AND deleted_at IS NULL", system.ID)
@@ -221,41 +223,40 @@ func (system *System) GetSecret(ctx context.Context) (Secret, error) {
 
 // SaveTokenTime puts the current time in systems.last_token_at
 func (system *System) SaveTokenTime(ctx context.Context) {
-	event := Event{Op: "UpdateLastTokenAt", TrackingID: system.GroupID, ClientID: system.ClientID}
-	OperationCalled(event)
+	event := logrus.Fields{"Op": "UpdateLastTokenAt", "TrackingID": system.GroupID, "ClientID": system.ClientID}
+	logger := GetCtxLogger(ctx).WithFields(event)
+	logger.Info(OperationCalled)
 
 	err := Connection.WithContext(ctx).Model(&system).UpdateColumn("last_token_at", time.Now()).Error
 	if err != nil {
-		event.Help = err.Error()
-		OperationFailed(event)
+		helpMsg := err.Error()
+		logger.Error(OperationFailed, logrus.WithField("Help", helpMsg))
 	}
 
-	OperationSucceeded(event)
+	logger.Info(OperationSucceeded)
 }
 
 /*
 RevokeSecret revokes a system's secret
 */
 func (system *System) RevokeSecret(ctx context.Context, trackingID string) error {
-	revokeCredentialsEvent := Event{Op: "RevokeCredentials", TrackingID: trackingID, ClientID: system.ClientID}
-	OperationStarted(revokeCredentialsEvent)
+	event := logrus.Fields{"Op": "RevokeCredentials", "TrackingID": trackingID, "ClientID": system.ClientID}
+	logger := GetCtxLogger(ctx).WithFields(event)
+	logger.Info(OperationStarted)
 
 	xdata, err := XDataFor(ctx, *system)
 	if err != nil {
-		revokeCredentialsEvent.Help = fmt.Sprintf("could not get group XData for clientID %s: %s", system.ClientID, err.Error())
-		OperationFailed(revokeCredentialsEvent)
+		logger.Error(OperationFailed, logrus.WithField("Help", fmt.Sprintf("could not get group XData for clientID %s: %s", system.ClientID, err.Error())))
 		return fmt.Errorf("unable to find group for clientID %s: %s", system.ClientID, err.Error())
 	}
 
 	err = system.deactivateSecrets(ctx)
 	if err != nil {
-		revokeCredentialsEvent.Help = "unable to revoke credentials for clientID " + system.ClientID
-		OperationFailed(revokeCredentialsEvent)
+		logger.Error(OperationFailed, logrus.WithField("Help", "unable to revoke credentials for clientID "+system.ClientID))
 		return fmt.Errorf("unable to revoke credentials for clientID %s: %s", system.ClientID, err.Error())
 	}
 
-	revokeCredentialsEvent.Help = fmt.Sprintf("secret revoked in group %s with XData: %s", system.GroupID, xdata)
-	OperationSucceeded(revokeCredentialsEvent)
+	logger.Info(OperationSucceeded, logrus.WithField("Help", fmt.Sprintf("secret revoked in group %s with XData: %s", system.GroupID, xdata)))
 	return nil
 }
 
@@ -274,17 +275,18 @@ func (system *System) deactivateSecrets(ctx context.Context) error {
 GetEncryptionKey retrieves the key associated with the current system.
 */
 func (system *System) GetEncryptionKey(ctx context.Context, trackingID string) (EncryptionKey, error) {
-	getKeyEvent := Event{Op: "GetEncryptionKey", TrackingID: trackingID, ClientID: system.ClientID}
-	OperationStarted(getKeyEvent)
+	event := logrus.Fields{"Op": "GetEncryptionKey", "TrackingID": trackingID, "ClientID": system.ClientID}
+	logger := GetCtxLogger(ctx).WithFields(event)
+	logger.Info(OperationStarted)
 
 	var encryptionKey EncryptionKey
 	err := Connection.WithContext(ctx).First(&encryptionKey, "system_id = ?", system.ID).Error
 	if err != nil {
-		OperationFailed(getKeyEvent)
+		logger.Error(OperationFailed)
 		return encryptionKey, fmt.Errorf("cannot find key for clientID %s: %s", system.ClientID, err.Error())
 	}
 
-	OperationSucceeded(getKeyEvent)
+	logger.Info(OperationSucceeded)
 	return encryptionKey, nil
 }
 
@@ -292,17 +294,18 @@ func (system *System) GetEncryptionKey(ctx context.Context, trackingID string) (
 FindEncryptionKey retrieves the key by id associated with the current system.
 */
 func (system *System) FindEncryptionKey(ctx context.Context, trackingID string, keyId string) (EncryptionKey, error) {
-	findKeyEvent := Event{Op: "FindEncryptionKey", TrackingID: trackingID, ClientID: system.ClientID}
-	OperationStarted(findKeyEvent)
+	event := logrus.Fields{"Op": "FindEncryptionKey", "TrackingID": trackingID, "ClientID": system.ClientID}
+	logger := GetCtxLogger(ctx).WithFields(event)
+	logger.Info(OperationSucceeded)
 
 	var encryptionKey EncryptionKey
 	err := Connection.WithContext(ctx).First(&encryptionKey, "system_id = ? AND uuid=?", system.ID, keyId).Error
 	if err != nil {
-		OperationFailed(findKeyEvent)
+		logger.Error(OperationFailed)
 		return encryptionKey, fmt.Errorf("cannot find key for systemId %d: and keyId: %s error: %s", system.ID, keyId, err.Error())
 	}
 
-	OperationSucceeded(findKeyEvent)
+	logger.Info(OperationSucceeded)
 	return encryptionKey, nil
 }
 
@@ -310,17 +313,18 @@ func (system *System) FindEncryptionKey(ctx context.Context, trackingID string, 
 GetEncryptionKeys retrieves the keys associated with the current system.
 */
 func (system *System) GetEncryptionKeys(ctx context.Context, trackingID string) ([]EncryptionKey, error) {
-	getKeyEvent := Event{Op: "GetEncryptionKey", TrackingID: trackingID, ClientID: system.ClientID}
-	OperationStarted(getKeyEvent)
+	event := logrus.Fields{"Op": "GetEncryptionKey", "TrackingID": trackingID, "ClientID": system.ClientID}
+	logger := GetCtxLogger(ctx).WithFields(event)
+	logger.Info(OperationStarted)
 
 	var encryptionKeys []EncryptionKey
 	err := Connection.WithContext(ctx).Where("system_id = ?", system.ID).Find(&encryptionKeys).Error
 	if err != nil {
-		OperationFailed(getKeyEvent)
+		logger.Error(OperationFailed)
 		return encryptionKeys, fmt.Errorf("cannot find key for clientID %s: %s", system.ClientID, err.Error())
 	}
 
-	OperationSucceeded(getKeyEvent)
+	logger.Info(OperationSucceeded)
 	return encryptionKeys, nil
 }
 
@@ -328,22 +332,23 @@ func (system *System) GetEncryptionKeys(ctx context.Context, trackingID string) 
 DeleteEncryptionKey deletes the key associated with the current system.
 */
 func (system *System) DeleteEncryptionKey(ctx context.Context, trackingID string, keyID string) error {
-	deleteKeyEvent := Event{Op: "DeleteEncryptionKey", TrackingID: trackingID, ClientID: system.ClientID}
-	OperationStarted(deleteKeyEvent)
+	event := logrus.Fields{"Op": "DeleteEncryptionKey", "TrackingID": trackingID, "ClientID": system.ClientID}
+	logger := GetCtxLogger(ctx).WithFields(event)
+	logger.Info(OperationStarted)
 
 	if keyID == "" {
-		OperationFailed(deleteKeyEvent)
+		logger.Error(OperationFailed)
 		return fmt.Errorf("requires keyID to delete key for clientID %s", system.ClientID)
 	}
 
 	var encryptionKey EncryptionKey
 	err := Connection.WithContext(ctx).Where("system_id = ? AND uuid = ?", system.ID, keyID).Delete(&encryptionKey).Error
 	if err != nil {
-		OperationFailed(deleteKeyEvent)
+		logger.Error(OperationFailed)
 		return fmt.Errorf("cannot find key to delete for clientID %s: %s", system.ClientID, err.Error())
 	}
 
-	OperationSucceeded(deleteKeyEvent)
+	logger.Info(OperationSucceeded)
 	return nil
 }
 
@@ -448,34 +453,35 @@ func registerSystem(ctx context.Context, input SystemInput, isV2 bool) (Credenti
 	clientID := uuid.NewRandom().String()
 
 	// The caller of this function should have logged OperationCalled() with the same trackingID
-	regEvent := Event{Op: "RegisterClient", TrackingID: input.TrackingID, ClientID: clientID}
-	OperationStarted(regEvent)
+	event := logrus.Fields{"Op": "RegisterClient", "TrackingID": input.TrackingID, "ClientID": clientID}
+	logger := GetCtxLogger(ctx).WithFields(event)
+	logger.Info(OperationStarted)
 
 	if input.ClientName == "" {
-		regEvent.Help = "clientName is required"
-		OperationFailed(regEvent)
-		return creds, errors.New(regEvent.Help)
+		helpMsg := "clientName is required"
+		logger.Error(OperationFailed, logrus.WithField("Help", helpMsg))
+		return creds, errors.New(helpMsg)
 	}
 
 	if isV2 && input.PublicKey == "" {
-		regEvent.Help = "public key is required"
-		OperationFailed(regEvent)
-		return creds, errors.New(regEvent.Help)
+		helpMsg := "public key is required"
+		logger.Error(OperationFailed, logrus.WithField("Help", helpMsg))
+		return creds, errors.New(helpMsg)
 	}
 
 	scope := input.Scope
 	if scope == "" {
 		scope = DefaultScope
 	} else if input.Scope != DefaultScope {
-		regEvent.Help = "scope must be: " + DefaultScope
-		OperationFailed(regEvent)
-		return creds, errors.New(regEvent.Help)
+		helpMsg := "scope must be: " + DefaultScope
+		logger.Error(OperationFailed, logrus.WithField("Help", helpMsg))
+		return creds, errors.New(helpMsg)
 	}
 
 	group, err := GetGroupByGroupID(ctx, input.GroupID)
 	if err != nil {
-		regEvent.Help = "unable to find group with id " + input.GroupID
-		OperationFailed(regEvent)
+		helpMsg := "unable to find group with id " + input.GroupID
+		logger.Error(OperationFailed, logrus.WithField("Help", helpMsg))
 		return creds, errors.New("no group found")
 	}
 
@@ -490,8 +496,8 @@ func registerSystem(ctx context.Context, input SystemInput, isV2 bool) (Credenti
 
 	err = tx.Create(&system).Error
 	if err != nil {
-		regEvent.Help = fmt.Sprintf("could not save system for clientID %s, groupID %s: %s", clientID, input.GroupID, err.Error())
-		OperationFailed(regEvent)
+		helpMsg := fmt.Sprintf("could not save system for clientID %s, groupID %s: %s", clientID, input.GroupID, err.Error())
+		logger.Error(OperationFailed, logrus.WithField("Help", helpMsg))
 		// Returned errors are passed to API callers, and should include enough information to correct invalid submissions
 		// without revealing implementation details.  CLI callers will be able to review logs for more information.
 		return creds, errors.New("internal system error")
@@ -499,8 +505,8 @@ func registerSystem(ctx context.Context, input SystemInput, isV2 bool) (Credenti
 
 	for _, address := range input.IPs {
 		if !ValidAddress(address) {
-			regEvent.Help = fmt.Sprintf("invalid IP %s", address)
-			OperationFailed(regEvent)
+			helpMsg := fmt.Sprintf("invalid IP %s", address)
+			logger.Error(OperationFailed, logrus.WithField("Help", helpMsg))
 			tx.Rollback()
 			return creds, errors.New("error in ip address(es)")
 		}
@@ -512,8 +518,8 @@ func registerSystem(ctx context.Context, input SystemInput, isV2 bool) (Credenti
 
 		err = tx.Create(&ip).Error
 		if err != nil {
-			regEvent.Help = fmt.Sprintf("could not save IP %s; %s", address, err.Error())
-			OperationFailed(regEvent)
+			helpMsg := fmt.Sprintf("could not save IP %s; %s", address, err.Error())
+			logger.Error(OperationFailed, logrus.WithField("Help", helpMsg))
 			tx.Rollback()
 			return creds, errors.New("error in ip address(es)")
 		}
@@ -522,8 +528,8 @@ func registerSystem(ctx context.Context, input SystemInput, isV2 bool) (Credenti
 	if input.PublicKey != "" {
 		key, err := system.SavePublicKeyDB(strings.NewReader(input.PublicKey), input.Signature, !isV2, tx)
 		if err != nil {
-			regEvent.Help = "error in saving public key: " + err.Error()
-			OperationFailed(regEvent)
+			helpMsg := "error in saving public key: " + err.Error()
+			logger.Error(OperationFailed, logrus.WithField("Help", helpMsg))
 			tx.Rollback()
 			return creds, errors.New("error in public key")
 		}
@@ -534,8 +540,8 @@ func registerSystem(ctx context.Context, input SystemInput, isV2 bool) (Credenti
 		expiration := time.Now().Add(MacaroonExpiration)
 		_, ct, err := system.SaveClientToken(ctx, "Initial Token", group.XData, expiration)
 		if err != nil {
-			regEvent.Help = fmt.Sprintf("could not save client token for clientID %s, groupID %s: %s", clientID, input.GroupID, err.Error())
-			OperationFailed(regEvent)
+			helpMsg := fmt.Sprintf("could not save client token for clientID %s, groupID %s: %s", clientID, input.GroupID, err.Error())
+			logger.Error(OperationFailed, logrus.WithField("Help", helpMsg))
 			tx.Rollback()
 			return creds, errors.New("internal system error")
 		}
@@ -545,16 +551,16 @@ func registerSystem(ctx context.Context, input SystemInput, isV2 bool) (Credenti
 	} else {
 		clientSecret, err := GenerateSecret()
 		if err != nil {
-			regEvent.Help = fmt.Sprintf("cannot generate secret for clientID %s: %s", system.ClientID, err.Error())
-			OperationFailed(regEvent)
+			helpMsg := fmt.Sprintf("cannot generate secret for clientID %s: %s", system.ClientID, err.Error())
+			logger.Error(OperationFailed, logrus.WithField("Help", helpMsg))
 			tx.Rollback()
 			return creds, errors.New("internal system error")
 		}
 
 		hashedSecret, err := NewHash(clientSecret)
 		if err != nil {
-			regEvent.Help = fmt.Sprintf("cannot generate hash of secret for clientID %s: %s", system.ClientID, err.Error())
-			OperationFailed(regEvent)
+			helpMsg := fmt.Sprintf("cannot generate hash of secret for clientID %s: %s", system.ClientID, err.Error())
+			logger.Error(OperationFailed, logrus.WithField("Help", helpMsg))
 			tx.Rollback()
 			return creds, errors.New("internal system error")
 		}
@@ -566,20 +572,20 @@ func registerSystem(ctx context.Context, input SystemInput, isV2 bool) (Credenti
 
 		err = tx.Create(&secret).Error
 		if err != nil {
-			regEvent.Help = fmt.Sprintf("cannot save secret for clientID %s: %s", system.ClientID, err.Error())
-			OperationFailed(regEvent)
+			helpMsg := fmt.Sprintf("cannot save secret for clientID %s: %s", system.ClientID, err.Error())
+			logger.Error(OperationFailed, logrus.WithField("Help", helpMsg))
 			tx.Rollback()
 			return creds, errors.New("internal system error")
 		}
-		SecretCreated(regEvent)
+		// SecretCreated(regEvent)
 		creds.ClientSecret = clientSecret
 		creds.ExpiresAt = time.Now().Add(CredentialExpiration)
 	}
 
 	err = tx.Commit().Error
 	if err != nil {
-		regEvent.Help = fmt.Sprintf("could not commit transaction for new system with groupID %s: %s", input.GroupID, err.Error())
-		OperationFailed(regEvent)
+		helpMsg := fmt.Sprintf("could not commit transaction for new system with groupID %s: %s", input.GroupID, err.Error())
+		logger.Error(OperationFailed, logrus.WithField("Help", helpMsg))
 		return creds, errors.New("internal system error")
 	}
 
@@ -588,8 +594,8 @@ func registerSystem(ctx context.Context, input SystemInput, isV2 bool) (Credenti
 	creds.ClientID = system.ClientID
 	creds.IPs = input.IPs
 
-	regEvent.Help = fmt.Sprintf("system registered in group %s with XData: %s", group.GroupID, group.XData)
-	OperationSucceeded(regEvent)
+	helpMsg := fmt.Sprintf("system registered in group %s with XData: %s", group.GroupID, group.XData)
+	logger.Info(OperationSucceeded, logrus.WithField("Help", helpMsg))
 	return creds, nil
 }
 
@@ -612,12 +618,13 @@ func VerifySignature(pubKey *rsa.PublicKey, signatureStr string) error {
 
 func (system *System) RegisterIP(ctx context.Context, address string, trackingID string) (IP, error) {
 	// The caller of this function should have logged OperationCalled() with the same trackingID
-	regEvent := Event{Op: "RegisterIP", TrackingID: trackingID, Help: "calling from admin.RegisterIP()"}
-	OperationStarted(regEvent)
+	event := logrus.Fields{"Op": "RegisterIP", "TrackingID": trackingID, "Help": "calling from admin.RegisterIP()"}
+	logger := GetCtxLogger(ctx).WithFields(event)
+	logger.Info(OperationStarted)
 
 	if !ValidAddress(address) {
-		regEvent.Help = fmt.Sprintf("invalid IP %s", address)
-		OperationFailed(regEvent)
+		helpMsg := fmt.Sprintf("invalid IP %s", address)
+		logger.Error(OperationFailed, logrus.WithField("Help", helpMsg))
 		return IP{}, errors.New("invalid ip address")
 	}
 
@@ -628,37 +635,38 @@ func (system *System) RegisterIP(ctx context.Context, address string, trackingID
 	count := int64(0)
 	Connection.WithContext(ctx).Model(&IP{}).Where("ips.system_id = ? AND ips.address = ? AND ips.deleted_at IS NULL", system.ID, address).Count(&count)
 	if count != 0 {
-		regEvent.Help = fmt.Sprintf("can not create duplicate IP address:  %s for system %d", address, system.ID)
-		OperationFailed(regEvent)
+		helpMsg := fmt.Sprintf("can not create duplicate IP address:  %s for system %d", address, system.ID)
+		logger.Error(OperationFailed, logrus.WithField("Help", helpMsg))
 		return IP{}, errors.New("duplicate ip address")
 	}
 
 	count = int64(0)
 	Connection.WithContext(ctx).Model(&IP{}).Where("ips.system_id = ? AND ips.deleted_at IS NULL", system.ID).Count(&count)
 	if count >= int64(MaxIPs) {
-		regEvent.Help = fmt.Sprintf("could not add ip, max number of ips reached. Max %d", count)
-		OperationFailed(regEvent)
+		helpMsg := fmt.Sprintf("could not add ip, max number of ips reached. Max %d", count)
+		logger.Error(OperationFailed, logrus.WithField("Help", helpMsg))
 		return IP{}, errors.New("max ip address reached")
 	}
 	err := Connection.WithContext(ctx).Create(&ip).Error
 	if err != nil {
-		regEvent.Help = fmt.Sprintf("could not save IP %s; %s", address, err.Error())
-		OperationFailed(regEvent)
+		helpMsg := fmt.Sprintf("could not save IP %s; %s", address, err.Error())
+		logger.Error(OperationFailed, logrus.WithField("Help", helpMsg))
 		return IP{}, errors.New("error in ip address")
 	}
 	return ip, nil
 }
 
 func UpdateSystem(ctx context.Context, id string, v map[string]string) (System, error) {
-	event := Event{Op: "UpdateSystem", TrackingID: id}
-	OperationStarted(event)
+	event := logrus.Fields{"Op": "UpdateSystem", "TrackingID": id}
+	logger := GetCtxLogger(ctx).WithFields(event)
+	logger.Info(OperationStarted)
 
 	sys, err := GetSystemByID(ctx, id)
 	if err != nil {
 		errString := fmt.Sprintf("record not found for id=%s", id)
-		event.Help = errString + ": " + err.Error()
+		helpMsg := errString + ": " + err.Error()
 		err := fmt.Errorf(errString)
-		OperationFailed(event)
+		logger.Error(OperationFailed, logrus.WithField("Help", helpMsg))
 		return System{}, err
 	}
 
@@ -679,18 +687,19 @@ func UpdateSystem(ctx context.Context, id string, v map[string]string) (System, 
 
 	err = Connection.WithContext(ctx).Save(&sys).Error
 	if err != nil {
-		event.Help = err.Error()
-		OperationFailed(event)
+		helpMsg := err.Error()
+		logger.Error(OperationFailed, logrus.WithField("Help", helpMsg))
 		return System{}, fmt.Errorf("system failed to meet database constraints")
 	}
 
-	OperationSucceeded(event)
+	logger.Info(OperationSucceeded)
 	return sys, nil
 }
 
 func (system *System) GetIps(ctx context.Context, trackingID string) ([]IP, error) {
-	getEvent := Event{Op: "GetIPs", TrackingID: trackingID, Help: "calling from systems.GetIps()"}
-	OperationStarted(getEvent)
+	event := logrus.Fields{"Op": "GetIPs", "TrackingID": trackingID, "Help": "calling from systems.GetIps()"}
+	logger := GetCtxLogger(ctx).WithFields(event)
+	logger.Info(OperationStarted)
 
 	var ips []IP
 	Connection.WithContext(ctx).Find(&ips, "system_id=? AND deleted_at IS NULL", system.ID)
@@ -704,14 +713,15 @@ func (system *System) DeleteIP(ctx context.Context, ipID string, trackingID stri
 		err error
 	)
 
-	regEvent := Event{Op: "DeleteIP", TrackingID: trackingID, Help: "calling from ssas.DeleteIP()"}
-	OperationStarted(regEvent)
+	event := logrus.Fields{"Op": "DeleteIP", "TrackingID": trackingID, "Help": "calling from ssas.DeleteIP()"}
+	logger := GetCtxLogger(ctx).WithFields(event)
+	logger.Info(OperationStarted)
 
 	// Find IP to delete
 	err = Connection.WithContext(ctx).First(&ip, "system_id = ? AND id = ?", system.ID, ipID).Error
 	if err != nil {
-		regEvent.Help = fmt.Sprintf("Unable to find IP address with ID %s: %s", ipID, err)
-		OperationFailed(regEvent)
+		helpMsg := fmt.Sprintf("Unable to find IP address with ID %s: %s", ipID, err)
+		logger.Error(OperationFailed, logrus.WithField("Help", helpMsg))
 		return fmt.Errorf("Unable to find IP address with ID %s: %s", ipID, err)
 	}
 
@@ -719,8 +729,8 @@ func (system *System) DeleteIP(ctx context.Context, ipID string, trackingID stri
 	// Note: db.Delete() soft-deletes by default because the DeletedAt field is set on the Gorm model that IP inherits
 	err = Connection.WithContext(ctx).Delete(&ip).Error
 	if err != nil {
-		regEvent.Help = fmt.Sprintf("Unable to delete IP address with ID %s: %s", ipID, err)
-		OperationFailed(regEvent)
+		helpMsg := fmt.Sprintf("Unable to delete IP address with ID %s: %s", ipID, err)
+		logger.Error(OperationFailed, logrus.WithField("Help", helpMsg))
 		return fmt.Errorf("Unable to delete IP address with ID %s: %s", ipID, err)
 	}
 
@@ -836,39 +846,40 @@ func (system *System) GetIPsData(ctx context.Context) ([]IP, error) {
 func (system *System) ResetSecret(ctx context.Context, trackingID string) (Credentials, error) {
 	creds := Credentials{}
 
-	newSecretEvent := Event{Op: "ResetSecret", TrackingID: trackingID, ClientID: system.ClientID}
-	OperationStarted(newSecretEvent)
+	event := logrus.Fields{"Op": "ResetSecret", "TrackingID": trackingID, "ClientID": system.ClientID}
+	logger := GetCtxLogger(ctx).WithFields(event)
+	logger.Info(OperationStarted)
 
 	xdata, err := XDataFor(ctx, *system)
 	if err != nil {
-		newSecretEvent.Help = fmt.Sprintf("could not get group XData for clientID %s: %s", system.ClientID, err.Error())
-		OperationFailed(newSecretEvent)
+		helpMsg := fmt.Sprintf("could not get group XData for clientID %s: %s", system.ClientID, err.Error())
+		logger.Error(OperationFailed, logrus.WithField("Help", helpMsg))
 		return creds, errors.New("internal system error")
 	}
 
 	secretString, err := GenerateSecret()
 	if err != nil {
-		newSecretEvent.Help = fmt.Sprintf("could not reset secret for clientID %s: %s", system.ClientID, err.Error())
-		OperationFailed(newSecretEvent)
+		helpMsg := fmt.Sprintf("could not reset secret for clientID %s: %s", system.ClientID, err.Error())
+		logger.Error(OperationFailed, logrus.WithField("Help", helpMsg))
 		return creds, errors.New("internal system error")
 	}
 
 	hashedSecret, err := NewHash(secretString)
 	if err != nil {
-		newSecretEvent.Help = fmt.Sprintf("could not reset secret for clientID %s: %s", system.ClientID, err.Error())
-		OperationFailed(newSecretEvent)
+		helpMsg := fmt.Sprintf("could not reset secret for clientID %s: %s", system.ClientID, err.Error())
+		logger.Error(OperationFailed, logrus.WithField("Help", helpMsg))
 		return creds, errors.New("internal system error")
 	}
 
 	hashedSecretString := hashedSecret.String()
 	if err = system.SaveSecret(ctx, hashedSecretString); err != nil {
-		newSecretEvent.Help = fmt.Sprintf("could not reset secret for clientID %s: %s", system.ClientID, err.Error())
-		OperationFailed(newSecretEvent)
+		helpMsg := fmt.Sprintf("could not reset secret for clientID %s: %s", system.ClientID, err.Error())
+		logger.Error(OperationFailed, logrus.WithField("Help", helpMsg))
 		return creds, errors.New("internal system error")
 	}
 
-	newSecretEvent.Help = fmt.Sprintf("secret reset in group %s with XData: %s", system.GroupID, xdata)
-	OperationSucceeded(newSecretEvent)
+	helpMsg := fmt.Sprintf("secret reset in group %s with XData: %s", system.GroupID, xdata)
+	logger.Info(OperationSucceeded, logrus.WithField("Help", helpMsg))
 
 	creds.SystemID = fmt.Sprint(system.ID)
 	creds.ClientID = system.ClientID
