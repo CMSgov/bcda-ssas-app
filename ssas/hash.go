@@ -14,6 +14,7 @@ import (
 	"golang.org/x/crypto/pbkdf2"
 
 	"github.com/CMSgov/bcda-ssas-app/ssas/cfg"
+	"github.com/sirupsen/logrus"
 )
 
 var (
@@ -40,8 +41,9 @@ func init() {
 	}
 
 	if hashIter == 0 || hashKeyLen == 0 || saltSize == 0 {
-		// ServiceHalted(Event{Help:"SSAS_HASH_ITERATIONS, SSAS_HASH_KEY_LENGTH and SSAS_HASH_SALT_SIZE environment values must be set"})
-		panic("SSAS_HASH_ITERATIONS, SSAS_HASH_KEY_LENGTH and SSAS_HASH_SALT_SIZE environment values must be set")
+		helpMsg := "SSAS_HASH_ITERATIONS, SSAS_HASH_KEY_LENGTH and SSAS_HASH_SALT_SIZE environment values must be set"
+		Logger.WithFields(logrus.Fields{"Help": helpMsg}).Info(logrus.WithField("Event", "ServiceHalted"))
+		panic(helpMsg)
 	}
 }
 
@@ -62,8 +64,7 @@ func NewHash(source string) (Hash, error) {
 	start := time.Now()
 	h := pbkdf2.Key([]byte(source), salt, hashIter, hashKeyLen, sha512.New)
 	hashCreationTime := time.Since(start)
-	hashEvent := Event{Elapsed: hashCreationTime}
-	SecureHashTime(hashEvent)
+	Logger.Info(logrus.Fields{"Elapsed": hashCreationTime, "Event": "SecureHashTime"})
 
 	hashValue := fmt.Sprintf("%s:%s:%d", base64.StdEncoding.EncodeToString(salt), base64.StdEncoding.EncodeToString(h), hashIter)
 	return Hash(hashValue), nil

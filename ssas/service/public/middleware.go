@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"regexp"
 
-	"github.com/CMSgov/bcda-app/log"
 	"github.com/CMSgov/bcda-ssas-app/ssas"
 	"github.com/CMSgov/bcda-ssas-app/ssas/service"
 	"github.com/sirupsen/logrus"
@@ -112,7 +111,7 @@ func tokenAuth(next http.Handler, tokenType string) http.Handler {
 			ok bool
 		)
 		event := logrus.Fields{"Op": "TokenAuth"}
-		logger := log.GetCtxLogger(r.Context()).WithFields(event)
+		logger := ssas.GetCtxLogger(r.Context()).WithFields(event)
 
 		tsObj := r.Context().Value("ts")
 		if tsObj == nil {

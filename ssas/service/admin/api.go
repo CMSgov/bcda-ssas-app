@@ -8,7 +8,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/CMSgov/bcda-app/log"
 	"github.com/CMSgov/bcda-ssas-app/ssas"
 	"github.com/CMSgov/bcda-ssas-app/ssas/service"
 	"github.com/go-chi/chi/v5"
@@ -153,7 +152,7 @@ func updateGroup(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 	trackingID := ssas.RandomHexID()
 	event := logrus.Fields{"Op": "UpdateGroup", "TrackingID": trackingID}
-	logger := log.GetCtxLogger(r.Context()).WithFields(event)
+	logger := ssas.GetCtxLogger(r.Context()).WithFields(event)
 
 	defer r.Body.Close()
 	body, _ := io.ReadAll(r.Body)
@@ -195,7 +194,7 @@ func getSystem(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 	trackingID := ssas.RandomHexID()
 	event := logrus.Fields{"Op": "UpdateSystem", "TrackingID": trackingID}
-	logger := log.GetCtxLogger(r.Context()).WithFields(event)
+	logger := ssas.GetCtxLogger(r.Context()).WithFields(event)
 
 	s, err := ssas.GetSystemByID(r.Context(), id)
 	if err != nil {
@@ -377,7 +376,7 @@ func createV2System(w http.ResponseWriter, r *http.Request) {
 		service.JSONError(w, http.StatusBadRequest, "invalid request body", "")
 		return
 	}
-	logger := log.GetCtxLogger(r.Context())
+	logger := ssas.GetCtxLogger(r.Context())
 	logger.Info(logrus.Fields{"Op": "RegisterClient", "TrackingID": sys.TrackingID, "Help": "calling from admin.createSystem()", "Event": "OperationCalled"})
 	creds, err := ssas.RegisterV2System(r.Context(), sys)
 	if err != nil {
@@ -428,7 +427,7 @@ func resetCredentials(w http.ResponseWriter, r *http.Request) {
 		service.JSONError(w, http.StatusNotFound, "Invalid system ID", "")
 		return
 	}
-	logger := log.GetCtxLogger(r.Context())
+	logger := ssas.GetCtxLogger(r.Context())
 	trackingID := ssas.RandomHexID()
 	logger.Info(logrus.Fields{"Op": "ResetSecret", "TrackingID": trackingID, "Help": "calling from admin.resetCredentials()", "Event": "OperationCalled"})
 	creds, err := system.ResetSecret(r.Context(), trackingID)
@@ -481,7 +480,7 @@ func getPublicKey(w http.ResponseWriter, r *http.Request) {
 	}
 
 	trackingID := ssas.RandomHexID()
-	logger := log.GetCtxLogger(r.Context())
+	logger := ssas.GetCtxLogger(r.Context())
 	logger.Info(logrus.Fields{"Op": "GetEncryptionKey", "TrackingID": trackingID, "Help": "calling from admin.getPublicKey()", "Event": "OperationCalled"})
 	key, _ := system.GetEncryptionKey(r.Context(), trackingID)
 
@@ -583,7 +582,7 @@ func registerIP(w http.ResponseWriter, r *http.Request) {
 		service.JSONError(w, http.StatusBadRequest, "invalid ip address", "")
 		return
 	}
-	logger := log.GetCtxLogger(r.Context())
+	logger := ssas.GetCtxLogger(r.Context())
 	logger.Info(logrus.Fields{"Op": "RegisterIP", "TrackingID": trackingID, "Help": "calling from admin.resetCredentials()", "Event": "OperationCalled"})
 	ip, err := system.RegisterIP(r.Context(), input.Address, trackingID)
 	if err != nil {
@@ -623,7 +622,7 @@ func getSystemIPs(w http.ResponseWriter, r *http.Request) {
 	}
 
 	trackingID := ssas.RandomHexID()
-	logger := log.GetCtxLogger(r.Context())
+	logger := ssas.GetCtxLogger(r.Context())
 	logger.Info(logrus.Fields{"Op": "GetSystemIPs", "TrackingID": trackingID, "Help": "calling from admin.getSystemIPs()", "Event": "OperationCalled"})
 	ips, err := system.GetIps(r.Context(), trackingID)
 	if err != nil {
@@ -698,7 +697,7 @@ func createToken(w http.ResponseWriter, r *http.Request) {
 	systemID := chi.URLParam(r, "systemID")
 	trackingID := ssas.RandomHexID()
 	event := logrus.Fields{"Op": "CreateToken", "TrackingID": trackingID, "Help": "calling from admin.createToken()"}
-	logger := log.GetCtxLogger(r.Context()).WithFields(event)
+	logger := ssas.GetCtxLogger(r.Context()).WithFields(event)
 
 	system, err := ssas.GetSystemByID(r.Context(), systemID)
 	if err != nil {
@@ -791,7 +790,7 @@ func createKey(w http.ResponseWriter, r *http.Request) {
 	systemID := chi.URLParam(r, "systemID")
 	trackingID := ssas.RandomHexID()
 	event := logrus.Fields{"Op": "CreateKey", "TrackingID": trackingID, "Help": "calling from admin.createKey()"}
-	logger := log.GetCtxLogger(r.Context()).WithFields(event)
+	logger := ssas.GetCtxLogger(r.Context()).WithFields(event)
 
 	system, err := ssas.GetSystemByID(r.Context(), systemID)
 	if err != nil {
@@ -825,7 +824,7 @@ func deleteKey(w http.ResponseWriter, r *http.Request) {
 
 	trackingID := ssas.RandomHexID()
 	event := logrus.Fields{"Op": "DeleteKey", "TrackingID": trackingID, "Help": "calling from admin.deleteKey()"}
-	logger := log.GetCtxLogger(r.Context()).WithFields(event)
+	logger := ssas.GetCtxLogger(r.Context()).WithFields(event)
 
 	system, err := ssas.GetSystemByID(r.Context(), systemID)
 	if err != nil {

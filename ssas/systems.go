@@ -50,8 +50,9 @@ func getEnvVars() {
 	err := godotenv.Load(envPath)
 
 	if err != nil {
-		ServiceHalted(Event{Help: fmt.Sprintf("Unable to load environment variables in env %s; message: %s", env, err.Error())})
-		panic(fmt.Sprintf("Unable to load environment variables in env %s; message: %s. Exiting.", env, err.Error()))
+		helpMsg := fmt.Sprintf("Unable to load environment variables in env %s; message: %s. Exiting.", env, err.Error())
+		Logger.Error(logrus.Fields{"Event": "ServiceHalted", "Help": helpMsg})
+		panic(helpMsg)
 	}
 	DefaultScope = os.Getenv("SSAS_DEFAULT_SYSTEM_SCOPE")
 	if DefaultScope == "" {
@@ -132,7 +133,7 @@ func (system *System) SaveClientToken(ctx context.Context, label string, groupXD
 	if err := Connection.WithContext(ctx).Create(&ct).Error; err != nil {
 		return nil, "", fmt.Errorf("could not save client token for clientID %s: %s", system.ClientID, err.Error())
 	}
-	ClientTokenCreated(Event{Op: "SaveClientToken", TrackingID: uuid.NewRandom().String(), ClientID: system.ClientID})
+	GetCtxLogger(ctx).Info(logrus.Fields{"Op": "SaveClientToken", "TrackingID": uuid.NewRandom().String(), "ClientID": system.ClientID, "Event": "ClientTokenCreated"})
 	return &ct, token, nil
 }
 
@@ -199,7 +200,7 @@ func (system *System) SaveSecret(ctx context.Context, hashedSecret string) error
 	if err := Connection.WithContext(ctx).Create(&secret).Error; err != nil {
 		return fmt.Errorf("could not save secret for clientID %s: %s", system.ClientID, err.Error())
 	}
-	SecretCreated(Event{Op: "SaveSecret", TrackingID: uuid.NewRandom().String(), ClientID: system.ClientID})
+	GetCtxLogger(ctx).Info(logrus.Fields{"Op": "SaveSecret", "TrackingID": uuid.NewRandom().String(), "ClientID": system.ClientID, "Event": "SecretCreated"})
 
 	return nil
 }
@@ -577,7 +578,7 @@ func registerSystem(ctx context.Context, input SystemInput, isV2 bool) (Credenti
 			tx.Rollback()
 			return creds, errors.New("internal system error")
 		}
-		// SecretCreated(regEvent)
+		logger.Info(logrus.WithField("Event", "SecretCreated"))
 		creds.ClientSecret = clientSecret
 		creds.ExpiresAt = time.Now().Add(CredentialExpiration)
 	}

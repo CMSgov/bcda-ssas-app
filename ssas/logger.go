@@ -112,35 +112,3 @@ var OperationFailed = logrus.WithField("Event", "OperationFailed")
 var OperationSucceeded = logrus.WithField("Event", "OperationSucceeded")
 
 var AccessTokenIssued = logrus.WithField("Event", "AccessTokenIssued")
-
-/*
-	The following logging functions should be passed an Event{} with at least the Op and TrackingID set, and
-	other general messages put in the Help field.  Successive logs for the same event should use the same
-	randomly generated TrackingID.
-*/
-
-// SecureHashTime should be called with the time taken to create a hash, logs of which can be used
-// to approximate the security provided by the hash
-func SecureHashTime(data Event) {
-	mergeNonEmpty(data).WithField("Event", "SecureHashTime").Print(data.Help)
-}
-
-// SecretCreated should be called every time a system's secret is generated
-func SecretCreated(data Event) {
-	mergeNonEmpty(data).WithField("Event", "SecretCreated").Print(data.Help)
-}
-
-// ClientTokenCreated should be called every time a system  client token is generated
-func ClientTokenCreated(data Event) {
-	mergeNonEmpty(data).WithField("Event", "ClientTokenCreated").Print(data.Help)
-}
-
-// ServiceHalted should be called to log an unexpected stop to the service
-func ServiceHalted(data Event) {
-	mergeNonEmpty(data).WithField("Event", "ServiceHalted").Print(data.Help)
-}
-
-// ServiceStarted should be called to log the starting of the service
-func ServiceStarted(data Event) {
-	mergeNonEmpty(data).WithField("Event", "ServiceStarted").Print(data.Help)
-}

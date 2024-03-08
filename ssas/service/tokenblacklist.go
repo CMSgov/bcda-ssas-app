@@ -133,9 +133,7 @@ func (t *Blacklist) LoadFromDatabase() error {
 }
 
 func (t *Blacklist) startCacheRefreshTicker(refreshFreq time.Duration) (*time.Ticker, context.CancelFunc) {
-	event := ssas.Event{Op: "CacheRefreshTicker", TrackingID: t.ID}
-	ssas.ServiceStarted(event)
-
+	ssas.Logger.Info(logrus.Fields{"Event": "ServiceStarted", "Op": "CacheRefreshTicker", "TrackingID": t.ID})
 	ticker := time.NewTicker(refreshFreq)
 
 	ctx, cancel := context.WithCancel(context.Background())
