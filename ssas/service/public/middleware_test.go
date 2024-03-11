@@ -210,6 +210,35 @@ func (s *PublicMiddlewareTestSuite) TestRequireRegTokenAuthEmptyToken() {
 	assert.Equal(s.T(), http.StatusUnauthorized, resp.StatusCode)
 }
 
+func (s *PublicMiddlewareTestSuite) TestGetTransactionID() {
+	s.server = httptest.NewServer(s.CreateRouter(GetTransactionID, service.NewCtxLogger, requireRegTokenAuth))
+	req, err := http.NewRequest("GET", s.server.URL, nil)
+	req.Header.Add(service.TransactionIDHeader, "1234")
+
+	if err != nil {
+		assert.FailNow(s.T(), err.Error())
+	}
+
+	handler := requireRegTokenAuth(mockHandler)
+
+	groupIDs := []string{"A0001", "A0002"}
+	token, ts, err := MintRegistrationToken("fake_okta_id", groupIDs)
+	assert.NotNil(s.T(), token)
+
+	ctx := req.Context()
+	ctx = context.WithValue(ctx, "ts", ts)
+
+	handler.ServeHTTP(s.rr, req.WithContext(ctx))
+	if err != nil {
+		assert.FailNow(s.T(), err.Error())
+	}
+	assert.Equal(s.T(), http.StatusOK, s.rr.Code)
+
+	if tid, ok := req.Context().Value(service.CtxTransactionKey).(string); ok {
+		assert.Equal(s.T(), tid, "1234")
+	}
+}
+
 func (s *PublicMiddlewareTestSuite) TestContains() {
 	list := []string{"abc", "def", "hij", "hij"}
 	assert.True(s.T(), contains(list, "abc"))

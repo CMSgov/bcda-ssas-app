@@ -152,3 +152,11 @@ func contains(list []string, target string) bool {
 	}
 	return false
 }
+
+// Adds a transaction ID to the request context
+func GetTransactionID(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		r = r.WithContext(context.WithValue(r.Context(), service.CtxTransactionKey, r.Header.Get(service.TransactionIDHeader)))
+		next.ServeHTTP(w, r)
+	})
+}

@@ -49,6 +49,10 @@ func (l *APILogger) NewLogEntry(r *http.Request) middleware.LogEntry {
 		logFields["okta_id"] = rd.OktaID
 	}
 
+	if tid, ok := r.Context().Value(CtxTransactionKey).(string); ok {
+		logFields["transaction_id"] = tid
+	}
+
 	entry.Logger = entry.Logger.WithFields(logFields)
 
 	entry.Logger.Infoln("request started")
@@ -73,8 +77,19 @@ func NewCtxLogger(next http.Handler) http.Handler {
 		if rd, ok := r.Context().Value("rd").(ssas.AuthRegData); ok {
 			logFields["okta_id"] = rd.OktaID
 		}
+		if tid, ok := r.Context().Value(CtxTransactionKey).(string); ok {
+			logFields["transaction_id"] = tid
+		}
 		newLogEntry := &ssas.APILoggerEntry{Logger: ssas.Logger.WithFields(logFields)}
 		r = r.WithContext(context.WithValue(r.Context(), ssas.CtxLoggerKey, newLogEntry))
 		next.ServeHTTP(w, r)
 	})
 }
+
+// type to create context.Context key
+type CtxTransactionKeyType string
+
+// context.Context key to get the transaction ID from the request context
+const CtxTransactionKey CtxTransactionKeyType = "ctxTransaction"
+
+const TransactionIDHeader = "TRANSACTIONID"

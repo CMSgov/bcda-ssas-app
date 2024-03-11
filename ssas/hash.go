@@ -11,10 +11,9 @@ import (
 	"strings"
 	"time"
 
-	"golang.org/x/crypto/pbkdf2"
-
 	"github.com/CMSgov/bcda-ssas-app/ssas/cfg"
 	"github.com/sirupsen/logrus"
+	"golang.org/x/crypto/pbkdf2"
 )
 
 var (
