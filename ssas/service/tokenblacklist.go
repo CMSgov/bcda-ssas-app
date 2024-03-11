@@ -96,7 +96,7 @@ func (t *Blacklist) IsTokenBlacklisted(tokenID string) bool {
 	bEvent := logrus.Fields{"Op": "TokenVerification", "TrackingID": t.ID, "TokenID": tokenID}
 	logger := ssas.Logger.WithFields(bEvent)
 	if _, found := t.c.Get(tokenID); found {
-		logger.Info(logrus.Fields{"Event": "BlacklistedTokenPresented"})
+		logger.Info(logrus.WithField("Event", "BlacklistedTokenPresented"))
 		return true
 	}
 	return false

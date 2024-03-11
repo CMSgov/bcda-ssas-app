@@ -626,14 +626,14 @@ func getSystemIPs(w http.ResponseWriter, r *http.Request) {
 	logger.Info(logrus.Fields{"Op": "GetSystemIPs", "TrackingID": trackingID, "Help": "calling from admin.getSystemIPs()", "Event": "OperationCalled"})
 	ips, err := system.GetIps(r.Context(), trackingID)
 	if err != nil {
-		ssas.Logger.Error("Could not retrieve system ips", err)
+		logger.Error("Could not retrieve system ips", err)
 		service.JSONError(w, http.StatusInternalServerError, "internal error", "")
 		return
 	}
 
 	ipJson, err := json.Marshal(ips)
 	if err != nil {
-		ssas.Logger.Error("Could not marshal system ips", err)
+		logger.Error("Could not marshal system ips", err)
 		service.JSONError(w, http.StatusInternalServerError, "internal error", "")
 		return
 	}
