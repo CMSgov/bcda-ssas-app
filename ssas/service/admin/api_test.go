@@ -16,6 +16,7 @@ import (
 	"github.com/CMSgov/bcda-ssas-app/ssas/service"
 	"github.com/pborman/uuid"
 	"github.com/sirupsen/logrus"
+	"github.com/sirupsen/logrus/hooks/test"
 
 	"github.com/CMSgov/bcda-ssas-app/ssas"
 	"github.com/go-chi/chi/v5"
@@ -80,13 +81,24 @@ func TestAPITestSuite(t *testing.T) {
 }
 
 func (s *APITestSuite) TestCreateGroup() {
+
 	gid := ssas.RandomBase64(16)
 	testInput := fmt.Sprintf(SampleGroup, gid, SampleXdata)
+
 	req := httptest.NewRequest("POST", "/group", strings.NewReader(testInput))
 	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry))
-	handler := http.HandlerFunc(createGroup)
+
+	logger := ssas.GetLogger(ssas.Logger)
+	logHook := test.NewLocal(logger)
+
+	handler := http.Handler(service.GetTransactionID(service.NewCtxLogger(http.HandlerFunc(createGroup))))
 	rr := httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
+	entries := logHook.AllEntries()
+
+	assert.Contains(s.T(), entries[0].Data, "Op")
+	assert.Contains(s.T(), entries[0].Data, "transaction_id")
+
 	assert.Equal(s.T(), http.StatusCreated, rr.Result().StatusCode)
 	assert.Equal(s.T(), "application/json", rr.Result().Header.Get("Content-Type"))
 	g := ssas.Group{}
@@ -140,12 +152,12 @@ func (s *APITestSuite) TestListGroups() {
 	gd := ssas.GroupData{}
 	err := json.Unmarshal([]byte(testInput1), &gd)
 	assert.Nil(s.T(), err)
-	g1, err := ssas.CreateGroup(context.Background(), gd, ssas.RandomHexID())
+	g1, err := ssas.CreateGroup(context.Background(), gd)
 	assert.Nil(s.T(), err)
 
 	gd.GroupID = g2ID
 	gd.Name = "another-fake-name"
-	g2, err := ssas.CreateGroup(context.Background(), gd, ssas.RandomHexID())
+	g2, err := ssas.CreateGroup(context.Background(), gd)
 	assert.Nil(s.T(), err)
 
 	req := httptest.NewRequest("GET", "/group", nil)
@@ -185,7 +197,7 @@ func (s *APITestSuite) TestUpdateGroup() {
 	gd := ssas.GroupData{}
 	err := json.Unmarshal([]byte(testInput), &gd)
 	assert.Nil(s.T(), err)
-	g, err := ssas.CreateGroup(context.Background(), gd, ssas.RandomHexID())
+	g, err := ssas.CreateGroup(context.Background(), gd)
 	assert.Nil(s.T(), err)
 
 	url := fmt.Sprintf("/group/%v", g.ID)
@@ -264,7 +276,7 @@ func (s *APITestSuite) TestDeleteGroup() {
 	gd := ssas.GroupData{}
 	err := json.Unmarshal(groupBytes, &gd)
 	assert.Nil(s.T(), err)
-	g, err := ssas.CreateGroup(context.Background(), gd, ssas.RandomHexID())
+	g, err := ssas.CreateGroup(context.Background(), gd)
 	assert.Nil(s.T(), err)
 
 	url := fmt.Sprintf("/group/%v", g.ID)

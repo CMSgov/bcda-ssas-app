@@ -36,9 +36,7 @@ Responses:
 	500: serverError
 */
 func createGroup(w http.ResponseWriter, r *http.Request) {
-	trackingID := ssas.RandomHexID()
 	ssas.SetCtxEntry(r, "Op", "CreateGroup")
-	ssas.SetCtxEntry(r, "TrackingID", trackingID)
 	logger := ssas.GetCtxLogger(r.Context())
 	defer r.Body.Close()
 	body, _ := io.ReadAll(r.Body)
@@ -51,7 +49,7 @@ func createGroup(w http.ResponseWriter, r *http.Request) {
 	}
 
 	logger.Infof("calling from admin.createGroup(), raw request: %v", string(body))
-	g, err := ssas.CreateGroup(r.Context(), gd, trackingID)
+	g, err := ssas.CreateGroup(r.Context(), gd)
 	if err != nil {
 		logger.WithField("resp_status", http.StatusBadRequest).Errorf("failed to create group; %s", err)
 		service.JSONError(w, http.StatusBadRequest, fmt.Sprintf("failed to create group; %s", err), "")
@@ -95,12 +93,10 @@ Responses:
 	500: serverError
 */
 func listGroups(w http.ResponseWriter, r *http.Request) {
-	trackingID := ssas.RandomHexID()
 	ssas.SetCtxEntry(r, "Op", "ListGroups")
-	ssas.SetCtxEntry(r, "TrackingID", trackingID)
 	logger := ssas.GetCtxLogger(r.Context())
 	logger.Info("calling from admin.listGroups()")
-	groups, err := ssas.ListGroups(r.Context(), trackingID)
+	groups, err := ssas.ListGroups(r.Context())
 	if err != nil {
 		logger.WithField("resp_status", http.StatusInternalServerError).Error(err.Error())
 		service.JSONError(w, http.StatusInternalServerError, "internal error", "")
@@ -146,9 +142,7 @@ Responses:
 */
 func updateGroup(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
-	trackingID := ssas.RandomHexID()
-	ssas.SetCtxEntry(r, "Op", "UistGroup")
-	ssas.SetCtxEntry(r, "TrackingID", trackingID)
+	ssas.SetCtxEntry(r, "Op", "ListGroup")
 	logger := ssas.GetCtxLogger(r.Context())
 	defer r.Body.Close()
 	body, _ := io.ReadAll(r.Body)
@@ -185,9 +179,7 @@ func updateGroup(w http.ResponseWriter, r *http.Request) {
 
 func getSystem(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
-	trackingID := ssas.RandomHexID()
 	ssas.SetCtxEntry(r, "Op", "GetSystem")
-	ssas.SetCtxEntry(r, "TrackingID", trackingID)
 	logger := ssas.GetCtxLogger(r.Context())
 
 	s, err := ssas.GetSystemByID(r.Context(), id)
@@ -199,8 +191,8 @@ func getSystem(w http.ResponseWriter, r *http.Request) {
 
 	// TODO: handle potential errors returned by these three functions
 	ips, _ := s.GetIPsData(r.Context())
-	cts, _ := s.GetClientTokens(r.Context(), trackingID)
-	eks, _ := s.GetEncryptionKeys(r.Context(), trackingID)
+	cts, _ := s.GetClientTokens(r.Context())
+	eks, _ := s.GetEncryptionKeys(r.Context())
 
 	o := ssas.SystemOutput{
 		GID:          fmt.Sprintf("%d", s.GID),
@@ -233,9 +225,7 @@ func getSystem(w http.ResponseWriter, r *http.Request) {
 
 func updateSystem(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
-	trackingID := ssas.RandomHexID()
 	ssas.SetCtxEntry(r, "Op", "UpdateSystem")
-	ssas.SetCtxEntry(r, "TrackingID", trackingID)
 	logger := ssas.GetCtxLogger(r.Context())
 	defer r.Body.Close()
 
@@ -297,12 +287,11 @@ Responses:
 	401: invalidCredentials
 */
 func deleteGroup(w http.ResponseWriter, r *http.Request) {
-	trackingID := chi.URLParam(r, "id")
+	id := chi.URLParam(r, "id")
 	ssas.SetCtxEntry(r, "Op", "DeleteGroup")
-	ssas.SetCtxEntry(r, "TrackingID", trackingID)
 	logger := ssas.GetCtxLogger(r.Context())
 	logger.Info("Operation Called: admin.deleteGroup()")
-	err := ssas.DeleteGroup(r.Context(), trackingID)
+	err := ssas.DeleteGroup(r.Context(), id)
 	if err != nil {
 		logger.WithField("resp_status", http.StatusBadRequest).Errorf("failed to delete group; %s", err)
 		service.JSONError(w, http.StatusBadRequest, http.StatusText(http.StatusBadRequest), fmt.Sprintf("failed to delete group; %s", err))
@@ -337,7 +326,6 @@ Responses:
 func createSystem(w http.ResponseWriter, r *http.Request) {
 	sys := ssas.SystemInput{}
 	ssas.SetCtxEntry(r, "Op", "CreateSystem")
-	ssas.SetCtxEntry(r, "TrackingID", sys.TrackingID)
 	logger := ssas.GetCtxLogger(r.Context())
 	if err := json.NewDecoder(r.Body).Decode(&sys); err != nil {
 		logger.WithField("resp_status", http.StatusBadRequest).Error()
@@ -372,7 +360,6 @@ func createSystem(w http.ResponseWriter, r *http.Request) {
 func createV2System(w http.ResponseWriter, r *http.Request) {
 	sys := ssas.SystemInput{}
 	ssas.SetCtxEntry(r, "Op", "CreateV2System")
-	ssas.SetCtxEntry(r, "TrackingID", sys.TrackingID)
 	logger := ssas.GetCtxLogger(r.Context())
 	if err := json.NewDecoder(r.Body).Decode(&sys); err != nil {
 		logger.WithField("resp_status", http.StatusBadRequest).Error()
@@ -380,7 +367,6 @@ func createV2System(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ssas.OperationCalled(ssas.Event{Op: "RegisterClient", TrackingID: sys.TrackingID, Help: "calling from admin.createSystem()"})
 	logger.Infof("Operation Called: admin.createV2System()")
 	creds, err := ssas.RegisterV2System(r.Context(), sys)
 	if err != nil {
@@ -428,9 +414,7 @@ Responses:
 */
 func resetCredentials(w http.ResponseWriter, r *http.Request) {
 	systemID := chi.URLParam(r, "systemID")
-	trackingID := ssas.RandomHexID()
 	ssas.SetCtxEntry(r, "Op", "ResetSecret")
-	ssas.SetCtxEntry(r, "TrackingID", trackingID)
 	logger := ssas.GetCtxLogger(r.Context())
 	system, err := ssas.GetSystemByID(r.Context(), systemID)
 	if err != nil {
@@ -440,7 +424,7 @@ func resetCredentials(w http.ResponseWriter, r *http.Request) {
 	}
 
 	logger.Infof("Operation Called: admin.resetCredentials()")
-	creds, err := system.ResetSecret(r.Context(), trackingID)
+	creds, err := system.ResetSecret(r.Context())
 	if err != nil {
 		logger.WithField("resp_status", http.StatusInternalServerError).Errorf("failed to reset secret: %s", err)
 		service.JSONError(w, http.StatusInternalServerError, "internal error", "")
@@ -485,9 +469,8 @@ Responses:
 */
 func getPublicKey(w http.ResponseWriter, r *http.Request) {
 	systemID := chi.URLParam(r, "systemID")
-	trackingID := ssas.RandomHexID()
 	ssas.SetCtxEntry(r, "Op", "GetPublicKey")
-	ssas.SetCtxEntry(r, "TrackingID", trackingID)
+
 	logger := ssas.GetCtxLogger(r.Context())
 	system, err := ssas.GetSystemByID(r.Context(), systemID)
 	if err != nil {
@@ -497,7 +480,7 @@ func getPublicKey(w http.ResponseWriter, r *http.Request) {
 	}
 
 	logger.Infof("Operation Called: admin.getPublicKey()")
-	key, _ := system.GetEncryptionKey(r.Context(), trackingID)
+	key, _ := system.GetEncryptionKey(r.Context())
 
 	w.Header().Set("Content-Type", "application/json")
 	keyStr := strings.Replace(key.Body, "\n", "\\n", -1)
@@ -579,9 +562,7 @@ func revokeToken(w http.ResponseWriter, r *http.Request) {
 
 func registerIP(w http.ResponseWriter, r *http.Request) {
 	systemID := chi.URLParam(r, "systemID")
-	trackingID := ssas.RandomHexID()
 	ssas.SetCtxEntry(r, "Op", "RegisterIP")
-	ssas.SetCtxEntry(r, "TrackingID", trackingID)
 	logger := ssas.GetCtxLogger(r.Context())
 	input := IPAddressInput{}
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
@@ -604,7 +585,7 @@ func registerIP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	logger.Infof("Operation Called: admin.registerIP()")
-	ip, err := system.RegisterIP(r.Context(), input.Address, trackingID)
+	ip, err := system.RegisterIP(r.Context(), input.Address)
 	if err != nil {
 		// TODO there is another case where the IP address may be invalid
 		if err.Error() == "duplicate ip address" {
@@ -640,9 +621,7 @@ func registerIP(w http.ResponseWriter, r *http.Request) {
 
 func getSystemIPs(w http.ResponseWriter, r *http.Request) {
 	systemID := chi.URLParam(r, "systemID")
-	trackingID := ssas.RandomHexID()
 	ssas.SetCtxEntry(r, "Op", "GetSystemIPs")
-	ssas.SetCtxEntry(r, "TrackingID", trackingID)
 	logger := ssas.GetCtxLogger(r.Context())
 	system, err := ssas.GetSystemByID(r.Context(), systemID)
 	if err != nil {
@@ -652,7 +631,7 @@ func getSystemIPs(w http.ResponseWriter, r *http.Request) {
 	}
 
 	logger.Infof("Operation Called: admin.getSystemIPs()")
-	ips, err := system.GetIps(r.Context(), trackingID)
+	ips, err := system.GetIps(r.Context())
 	if err != nil {
 		logger.WithField("resp_status", http.StatusBadRequest).Error("Could not retrieve system ips", err)
 		service.JSONError(w, http.StatusInternalServerError, "internal error", "")
@@ -699,9 +678,7 @@ Responses:
 func deleteSystemIP(w http.ResponseWriter, r *http.Request) {
 	systemID := chi.URLParam(r, "systemID")
 	ipID := chi.URLParam(r, "id")
-	trackingID := ssas.RandomHexID()
 	ssas.SetCtxEntry(r, "Op", "deleteSystemIPs")
-	ssas.SetCtxEntry(r, "TrackingID", trackingID)
 	logger := ssas.GetCtxLogger(r.Context())
 	logger.Infof("Operation Called: admin.deleteSystemIP()")
 
@@ -712,7 +689,7 @@ func deleteSystemIP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = system.DeleteIP(r.Context(), ipID, trackingID)
+	err = system.DeleteIP(r.Context(), ipID)
 	if err != nil {
 		logger.WithField("resp_status", http.StatusNotFound).Errorf("failed to delete IP: %s", err)
 		service.JSONError(w, http.StatusBadRequest, fmt.Sprintf("failed to delete IP: %s", err), "")
@@ -724,9 +701,7 @@ func deleteSystemIP(w http.ResponseWriter, r *http.Request) {
 
 func createToken(w http.ResponseWriter, r *http.Request) {
 	systemID := chi.URLParam(r, "systemID")
-	trackingID := ssas.RandomHexID()
 	ssas.SetCtxEntry(r, "Op", "CreateToken")
-	ssas.SetCtxEntry(r, "TrackingID", trackingID)
 	logger := ssas.GetCtxLogger(r.Context())
 	logger.Infof("Operation Called: admin.createToken()")
 
@@ -794,9 +769,7 @@ func createToken(w http.ResponseWriter, r *http.Request) {
 func deleteToken(w http.ResponseWriter, r *http.Request) {
 	systemID := chi.URLParam(r, "systemID")
 	tokenID := chi.URLParam(r, "id")
-	trackingID := ssas.RandomHexID()
 	ssas.SetCtxEntry(r, "Op", "GetSystemIPs")
-	ssas.SetCtxEntry(r, "TrackingID", trackingID)
 	logger := ssas.GetCtxLogger(r.Context())
 	logger.Infof("Operation Called: admin.getSystemIPs()")
 	system, err := ssas.GetSystemByID(r.Context(), systemID)
@@ -818,9 +791,7 @@ func deleteToken(w http.ResponseWriter, r *http.Request) {
 
 func createKey(w http.ResponseWriter, r *http.Request) {
 	systemID := chi.URLParam(r, "systemID")
-	trackingID := ssas.RandomHexID()
 	ssas.SetCtxEntry(r, "Op", "CreateKey")
-	ssas.SetCtxEntry(r, "TrackingID", trackingID)
 	logger := ssas.GetCtxLogger(r.Context())
 
 	logger.Infof("Operation Called: admin.CreateKey()")
@@ -853,9 +824,7 @@ func createKey(w http.ResponseWriter, r *http.Request) {
 func deleteKey(w http.ResponseWriter, r *http.Request) {
 	systemID := chi.URLParam(r, "systemID")
 	keyID := chi.URLParam(r, "id")
-	trackingID := ssas.RandomHexID()
 	ssas.SetCtxEntry(r, "Op", "DeleteKey")
-	ssas.SetCtxEntry(r, "TrackingID", trackingID)
 	logger := ssas.GetCtxLogger(r.Context())
 	logger.Infof("Operation Called: admin.DeleteKey()")
 	system, err := ssas.GetSystemByID(r.Context(), systemID)
@@ -865,7 +834,7 @@ func deleteKey(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := system.DeleteEncryptionKey(r.Context(), trackingID, keyID); err != nil {
+	if err := system.DeleteEncryptionKey(r.Context(), keyID); err != nil {
 		logger.WithField("resp_status", http.StatusInternalServerError).Error("failed to delete key: ", err)
 		service.JSONError(w, http.StatusInternalServerError, "Failed to delete key", "")
 		return
