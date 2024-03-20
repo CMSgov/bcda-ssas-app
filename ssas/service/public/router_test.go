@@ -36,7 +36,7 @@ func (s *PublicRouterTestSuite) SetupSuite() {
 	gd := ssas.GroupData{}
 	err := json.Unmarshal(groupBytes, &gd)
 	assert.Nil(s.T(), err)
-	s.group, err = ssas.CreateGroup(context.Background(), gd)
+	s.group, err = ssas.CreateGroup(context.Background(), gd, ssas.RandomHexID())
 	if err != nil {
 		s.FailNow("unable to create group: " + err.Error())
 	}
