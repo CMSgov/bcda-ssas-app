@@ -96,7 +96,7 @@ func ResetSecret(w http.ResponseWriter, r *http.Request) {
 
 	if sys, err = ssas.GetSystemByClientID(r.Context(), req.ClientID); err != nil {
 		logger.Error("failed to get retrieve system by client id: client not found")
-		service.JSONError(w, http.StatusNotFound, http.StatusText(http.StatusNotFound), "client not found")
+		service.JSONError(w, http.StatusBadRequest, http.StatusText(http.StatusNotFound), "client not found")
 		return
 	}
 
