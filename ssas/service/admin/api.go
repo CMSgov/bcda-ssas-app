@@ -189,9 +189,24 @@ func getSystem(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ips, _ := s.GetIPsData(r.Context())
-	cts, _ := s.GetClientTokens(r.Context())
-	eks, _ := s.GetEncryptionKeys(r.Context())
+	ips, err := s.GetIPsData(r.Context())
+	if err != nil {
+		logger.Errorf("failed to find system", err)
+		service.JSONError(w, http.StatusNotFound, http.StatusText(http.StatusNotFound), "")
+		return
+	}
+	cts, err := s.GetClientTokens(r.Context())
+	if err != nil {
+		logger.Errorf("failed to find token(s)", err)
+		service.JSONError(w, http.StatusNotFound, http.StatusText(http.StatusNotFound), "")
+		return
+	}
+	eks, err := s.GetEncryptionKeys(r.Context())
+	if err != nil {
+		logger.Errorf("failed to find encryption keys", err)
+		service.JSONError(w, http.StatusNotFound, http.StatusText(http.StatusNotFound), "")
+		return
+	}
 
 	o := ssas.SystemOutput{
 		GID:          fmt.Sprintf("%d", s.GID),
