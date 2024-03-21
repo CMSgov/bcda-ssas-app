@@ -1124,7 +1124,7 @@ func (s *APITestSuite) TestCreateV2SystemWithMissingPublicKey() {
 	var result map[string]interface{}
 	_ = json.Unmarshal(rr.Body.Bytes(), &result)
 	assert.Empty(s.T(), result["client_token"])
-	assert.Equal(s.T(), "could not create v2 system; public key is required", result["error_description"])
+	assert.Equal(s.T(), "could not create system", result["error_description"])
 
 	err = ssas.CleanDatabase(group)
 	assert.Nil(s.T(), err)
@@ -1203,7 +1203,7 @@ func (s *APITestSuite) TestCreateV2SystemEmptyKey() {
 	_ = json.Unmarshal(rr.Body.Bytes(), &result)
 
 	assert.Empty(s.T(), result["client_token"])
-	assert.Equal(s.T(), "could not create v2 system; public key is required", result["error_description"])
+	assert.Equal(s.T(), "could not create system", result["error_description"])
 
 	err = ssas.CleanDatabase(group)
 	assert.Nil(s.T(), err)

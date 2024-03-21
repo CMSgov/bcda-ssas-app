@@ -15,6 +15,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -25,11 +26,14 @@ import (
 
 type SystemsTestSuite struct {
 	suite.Suite
-	db *gorm.DB
+	db       *gorm.DB
+	logEntry *APILoggerEntry
 }
 
 func (s *SystemsTestSuite) SetupSuite() {
 	s.db = Connection
+	s.logEntry = MakeTestStructuredLoggerEntry(logrus.Fields{"cms_id": "A9999", "request_id": uuid.NewUUID().String()})
+
 }
 
 func (s *SystemsTestSuite) AfterTest() {
@@ -38,7 +42,7 @@ func (s *SystemsTestSuite) AfterTest() {
 func (s *SystemsTestSuite) TestGetEncryptionKey() {
 	sys, group, pubKey, _ := s.createSystemWithPubKey()
 
-	key, err := sys.GetEncryptionKey(context.Background(), "")
+	key, err := sys.GetEncryptionKey(context.Background())
 	assert.Nil(s.T(), err)
 	assert.Equal(s.T(), pubKey, key.Body)
 
@@ -166,7 +170,7 @@ func (s *SystemsTestSuite) TestSystemSavePublicKey() {
 		Bytes: publicKeyPKIX,
 	})
 	_, _ = system.SavePublicKey(bytes.NewReader(publicKeyBytes), "")
-	keys, _ := system.GetEncryptionKeys(context.Background(), "")
+	keys, _ := system.GetEncryptionKeys(context.Background())
 	assert.Len(keys, 1)
 
 	err = CleanDatabase(group)
@@ -244,17 +248,17 @@ func (s *SystemsTestSuite) TestSystemPublicKeyEmpty() {
 
 	_, err = system.SavePublicKey(strings.NewReader(""), "")
 	assert.EqualError(err, fmt.Sprintf("invalid public key for clientID %s: not able to decode PEM-formatted public key", clientID))
-	k, err := system.GetEncryptionKey(context.Background(), "")
+	k, err := system.GetEncryptionKey(context.Background())
 	assert.EqualError(err, fmt.Sprintf("cannot find key for clientID %s: record not found", clientID))
 	assert.Empty(k, "Empty string does not yield empty encryption key!")
 	_, err = system.SavePublicKey(strings.NewReader(emptyPEM), "")
 	assert.EqualError(err, fmt.Sprintf("invalid public key for clientID %s: not able to decode PEM-formatted public key", clientID))
-	k, err = system.GetEncryptionKey(context.Background(), "")
+	k, err = system.GetEncryptionKey(context.Background())
 	assert.EqualError(err, fmt.Sprintf("cannot find key for clientID %s: record not found", clientID))
 	assert.Empty(k, "Empty PEM key does not yield empty encryption key!")
 	_, err = system.SavePublicKey(strings.NewReader(validPEM), "")
 	assert.Nil(err)
-	k, err = system.GetEncryptionKey(context.Background(), "")
+	k, err = system.GetEncryptionKey(context.Background())
 	assert.Nil(err)
 	assert.NotEmpty(k, "Valid PEM key yields empty public key!")
 
@@ -359,7 +363,7 @@ func (s *SystemsTestSuite) TestRegisterSystemSuccess() {
 	pubKey, _, _, err := generatePublicKey(2048)
 	assert.Nil(err)
 
-	creds, err := RegisterSystem(context.Background(), "Create System Test", groupID, DefaultScope, pubKey, []string{}, trackingID)
+	creds, err := RegisterSystem(context.WithValue(context.Background(), CtxLoggerKey, s.logEntry), "Create System Test", groupID, DefaultScope, pubKey, []string{}, trackingID)
 	assert.Nil(err)
 	assert.Equal("Create System Test", creds.ClientName)
 	assert.NotEqual("", creds.ClientSecret)
@@ -382,7 +386,7 @@ func (s *SystemsTestSuite) TestUpdateSystemSuccess() {
 	pubKey, _, _, err := generatePublicKey(2048)
 	assert.Nil(err)
 
-	creds, err := RegisterSystem(context.Background(), "Create System Test", groupID, DefaultScope, pubKey, []string{}, trackingID)
+	creds, err := RegisterSystem(context.WithValue(context.Background(), CtxLoggerKey, s.logEntry), "Create System Test", groupID, DefaultScope, pubKey, []string{}, trackingID)
 	assert.Nil(err)
 	assert.Equal("Create System Test", creds.ClientName)
 	assert.NotEqual("", creds.ClientSecret)
@@ -436,17 +440,17 @@ func (s *SystemsTestSuite) TestRegisterSystemMissingData() {
 	assert.Nil(err)
 
 	// No clientName
-	creds, err := RegisterSystem(context.Background(), "", groupID, DefaultScope, pubKey, []string{}, trackingID)
+	creds, err := RegisterSystem(context.WithValue(context.Background(), CtxLoggerKey, s.logEntry), "", groupID, DefaultScope, pubKey, []string{}, trackingID)
 	assert.EqualError(err, "clientName is required")
 	assert.Empty(creds)
 
 	// No scope = success
-	creds, err = RegisterSystem(context.Background(), "Register System Success2", groupID, "", pubKey, []string{}, trackingID)
+	creds, err = RegisterSystem(context.WithValue(context.Background(), CtxLoggerKey, s.logEntry), "Register System Success2", groupID, "", pubKey, []string{}, trackingID)
 	assert.Nil(err)
 	assert.NotEmpty(creds)
 
 	// No scope = success
-	creds, err = RegisterSystem(context.Background(), "Register System Failure", groupID, "badScope", pubKey, []string{}, trackingID)
+	creds, err = RegisterSystem(context.WithValue(context.Background(), CtxLoggerKey, s.logEntry), "Register System Failure", groupID, "badScope", pubKey, []string{}, trackingID)
 	assert.NotNil(err)
 	assert.Empty(creds)
 
@@ -457,18 +461,27 @@ func (s *SystemsTestSuite) TestRegisterSystemMissingData() {
 func (s *SystemsTestSuite) TestRegisterSystemIps() {
 	assert := s.Assert()
 
+	type test struct {
+		ip     string
+		valid  bool
+		err    error
+		errmsg string
+	}
+
+	tests := []test{
+		{RandomIPv4(), true, nil, ""},
+		{RandomIPv6(), true, nil, ""},
+		{"", false, nil, ""},
+		{"asdf", false, nil, ""},
+		{"256.0.0.1", false, nil, ""},
+		{net.IPv4bcast.String(), false, nil, ""},
+		{net.IPv6loopback.String(), false, nil, ""},
+		{net.IPv4(8, 8, 8, 0).String() + "/24", false, nil, ""},
+	}
+
 	goodIps := []string{
 		RandomIPv4(), // Single addresses are OK
 		RandomIPv6(),
-	}
-
-	badIps := []string{
-		"",
-		"asdf",
-		"256.0.0.1", // Invalid
-		net.IPv4bcast.String(),
-		net.IPv6loopback.String(),
-		net.IPv4(8, 8, 8, 0).String() + "/24", // No ranges
 	}
 
 	trackingID := uuid.NewRandom().String()
@@ -482,34 +495,36 @@ func (s *SystemsTestSuite) TestRegisterSystemIps() {
 	pubKey, _, _, err := generatePublicKey(2048)
 	assert.Nil(err)
 
-	for _, address := range goodIps {
-		creds, err := RegisterSystem(context.Background(), "Test system with "+address, groupID, DefaultScope, pubKey, []string{address}, trackingID)
-		assert.Nil(err, fmt.Sprintf("%s should be a good IP, but was not allowed", address))
-		assert.NotEmpty(creds, address+"should have been a valid IP")
-		system, err := GetSystemByID(context.Background(), creds.SystemID)
-		assert.Nil(err)
-		ips, err := system.GetIPs()
-		assert.Nil(err)
-		assert.Equal([]string{address}, ips)
-		ips, err = GetAllIPs()
-		assert.Nil(err)
-		assert.Contains(ips, address)
+	for _, tc := range tests {
+		if tc.valid {
+			creds, err := RegisterSystem(context.WithValue(context.Background(), CtxLoggerKey, s.logEntry), "Test system with "+tc.ip, groupID, DefaultScope, pubKey, []string{tc.ip}, trackingID)
+			assert.Nil(err, fmt.Sprintf("%s should be a good IP, but was not allowed", tc.ip))
+			assert.NotEmpty(creds, tc.ip+"should have been a valid IP")
+			system, err := GetSystemByID(context.Background(), creds.SystemID)
+			assert.Nil(err)
+			ips, err := system.GetIPs()
+			assert.Nil(err)
+			assert.Equal([]string{tc.ip}, ips)
+			ips, err = GetAllIPs()
+			assert.Nil(err)
+			assert.Contains(ips, tc.ip)
+		} else {
+			creds, err := RegisterSystem(context.WithValue(context.Background(), CtxLoggerKey, s.logEntry), "Test system with "+tc.ip, groupID, DefaultScope, pubKey, []string{tc.ip}, trackingID)
+			if err == nil {
+				assert.Fail(fmt.Sprintf("%s should be a bad IP, but was allowed; creds: %v", tc.ip, creds))
+			} else {
+				assert.ErrorContains(err, "invalid IP ")
+			}
+			assert.Empty(creds)
+
+		}
+
 	}
 
-	// We have no limit on the number of IP addresses that can be registered with a system
-	creds, err := RegisterSystem(context.Background(), "Test system with all good IPs", groupID, DefaultScope, pubKey, goodIps, trackingID)
+	//We have no limit on the number of IP addresses that can be registered with a system
+	creds, err := RegisterSystem(context.WithValue(context.Background(), CtxLoggerKey, s.logEntry), "Test system with all good IPs", groupID, DefaultScope, pubKey, goodIps, trackingID)
 	assert.Nil(err, "An array of good IP's should be a allowed, but was not")
 	assert.NotEmpty(creds)
-
-	for _, address := range badIps {
-		creds, err = RegisterSystem(context.Background(), "Test system with "+address, groupID, DefaultScope, pubKey, []string{address}, trackingID)
-		if err == nil {
-			assert.Fail(fmt.Sprintf("%s should be a bad IP, but was allowed; creds: %v", address, creds))
-		} else {
-			assert.EqualError(err, "error in ip address(es)")
-		}
-		assert.Empty(creds)
-	}
 
 	err = CleanDatabase(group)
 	assert.Nil(err)
@@ -529,20 +544,32 @@ func (s *SystemsTestSuite) TestRegisterSystemBadKey() {
 	pubKey, _, _, err := generatePublicKey(1024)
 	assert.Nil(err)
 
-	// Blank key ok
-	creds, err := RegisterSystem(context.Background(), "Register System Failure", groupID, DefaultScope, "", []string{}, trackingID)
-	assert.Nil(err, "error in public key")
-	assert.NotEmpty(creds)
+	type test struct {
+		key   string
+		empty bool
+		err   bool
+	}
 
-	// Invalid key not ok
-	creds, err = RegisterSystem(context.Background(), "Register System Failure", groupID, DefaultScope, "NotAKey", []string{}, trackingID)
-	assert.EqualError(err, "error in public key")
-	assert.Empty(creds)
+	tests := []test{
+		{"", false, false},
+		{"notakey", true, true},
+		{pubKey, true, true},
+	}
 
-	// Low key length not ok
-	creds, err = RegisterSystem(context.Background(), "Register System Failure", groupID, DefaultScope, pubKey, []string{}, trackingID)
-	assert.EqualError(err, "error in public key")
-	assert.Empty(creds)
+	for _, tc := range tests {
+		creds, err := RegisterSystem(context.WithValue(context.Background(), CtxLoggerKey, s.logEntry), "Register System Failure", groupID, DefaultScope, tc.key, []string{}, trackingID)
+		if tc.empty {
+			assert.Empty(creds)
+		} else {
+			assert.NotEmpty(creds)
+		}
+		if tc.err {
+			assert.ErrorContains(err, "invalid public key for clientID")
+		} else {
+			assert.Nil(err)
+		}
+
+	}
 
 	assert.Nil(CleanDatabase(group))
 }
@@ -640,7 +667,7 @@ func (s *SystemsTestSuite) TestResetSecret() {
 	s.db.Where("system_id = ?", system.ID).First(&secret1)
 	assert.Equal(s.T(), secret1.Hash, secret.Hash)
 
-	credentials, err := system.ResetSecret(context.Background(), "tracking-id")
+	credentials, err := system.ResetSecret(context.Background())
 	if err != nil {
 		s.FailNow("Error from ResetSecret()", err.Error())
 		return
