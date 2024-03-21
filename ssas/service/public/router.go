@@ -53,7 +53,7 @@ func routes() *chi.Mux {
 	router := chi.NewRouter()
 	m := monitoring.GetMonitor()
 	//v1 Routes
-	router.Use(gcmw.RequestID, GetTransactionID, service.NewAPILogger(), service.ConnectionClose, service.NewCtxLogger)
+	router.Use(gcmw.RequestID, service.GetTransactionID, service.NewAPILogger(), service.ConnectionClose, service.NewCtxLogger)
 	router.Post(m.WrapHandler("/token", token))
 	router.Post(m.WrapHandler("/introspect", introspect))
 	router.With(parseToken, requireRegTokenAuth, readGroupID).Post(m.WrapHandler("/register", RegisterSystem))
