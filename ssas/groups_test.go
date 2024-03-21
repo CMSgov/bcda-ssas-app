@@ -149,7 +149,7 @@ func (s *GroupsTestSuite) TestUpdateGroup() {
 }
 
 func (s *GroupsTestSuite) TestDeleteGroup() {
-	gid := fmt.Sprintf("delete-group-%s")
+	gid := fmt.Sprintf("delete-group-%s", RandomHexID())
 	group := Group{GroupID: gid}
 	err := s.db.Create(&group).Error
 	require.Nil(s.T(), err, "unexpected error")
