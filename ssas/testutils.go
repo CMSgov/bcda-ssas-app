@@ -32,7 +32,7 @@ func ResetAdminCreds() (encSecret string, err error) {
 		return
 	}
 
-	creds, err := system.ResetSecret(context.Background(), id)
+	creds, err := system.ResetSecret(context.Background())
 	if err != nil {
 		return
 	}
@@ -150,7 +150,7 @@ func CreateTestXData(t *testing.T, db *gorm.DB) (creds Credentials, group Group)
 	pemString, err := ConvertPublicKeyToPEMString(&pubKey)
 	require.Nil(t, err)
 
-	creds, err = RegisterSystem(context.Background(), "Test Client Name", groupID, DefaultScope, pemString, []string{}, uuid.NewRandom().String())
+	creds, err = RegisterSystem(context.WithValue(context.Background(), CtxLoggerKey, MakeTestStructuredLoggerEntry(logrus.Fields{"cms_id": "A9999", "request_id": uuid.NewUUID().String()})), "Test Client Name", groupID, DefaultScope, pemString, []string{}, uuid.NewRandom().String())
 	assert.Nil(t, err)
 	assert.Equal(t, "Test Client Name", creds.ClientName)
 	assert.NotNil(t, creds.ClientSecret)
@@ -179,7 +179,7 @@ func CreateTestXDataV2(t *testing.T, db *gorm.DB) (creds Credentials, group Grou
 		TrackingID: uuid.NewRandom().String(),
 		XData:      `{"impl": "2"}`,
 	}
-	creds, err = RegisterV2System(context.Background(), s)
+	creds, err = RegisterV2System(context.WithValue(context.Background(), CtxLoggerKey, MakeTestStructuredLoggerEntry(logrus.Fields{"cms_id": "A9999", "request_id": uuid.NewUUID().String()})), s)
 	assert.Nil(t, err)
 	assert.Equal(t, "Test Client Name", creds.ClientName)
 	assert.NotNil(t, creds.ClientSecret)
@@ -241,4 +241,10 @@ func CleanDatabase(group Group) error {
 	}
 
 	return nil
+}
+
+func MakeTestStructuredLoggerEntry(logFields logrus.Fields) *APILoggerEntry {
+	var lggr logrus.Logger
+	newLogEntry := &APILoggerEntry{Logger: lggr.WithFields(logFields)}
+	return newLogEntry
 }

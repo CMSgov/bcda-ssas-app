@@ -65,7 +65,7 @@ func (s *GroupsTestSuite) TestCreateGroup() {
 	gd := GroupData{}
 	err := json.Unmarshal([]byte(fmt.Sprintf(SampleGroup, gid, SampleXdata)), &gd)
 	assert.Nil(s.T(), err)
-	g, err := CreateGroup(context.Background(), gd, RandomHexID())
+	g, err := CreateGroup(context.Background(), gd)
 
 	require.Nil(s.T(), err)
 	require.NotNil(s.T(), g)
@@ -90,7 +90,7 @@ func (s *GroupsTestSuite) TestCreateGroup() {
 	err = CleanDatabase(g)
 	assert.Nil(s.T(), err)
 	gd.GroupID = ""
-	_, err = CreateGroup(context.Background(), gd, RandomHexID())
+	_, err = CreateGroup(context.Background(), gd)
 	assert.EqualError(s.T(), err, "group_id cannot be blank")
 }
 
@@ -101,15 +101,15 @@ func (s *GroupsTestSuite) TestListGroups() {
 	gd := GroupData{}
 	err := json.Unmarshal(groupBytes, &gd)
 	require.Nil(s.T(), err)
-	g1, err := CreateGroup(context.Background(), gd, RandomHexID())
+	g1, err := CreateGroup(context.Background(), gd)
 	require.Nil(s.T(), err)
 
 	gd.GroupID = RandomHexID()
 	gd.Name = "some-fake-name"
-	g2, err := CreateGroup(context.Background(), gd, RandomHexID())
+	g2, err := CreateGroup(context.Background(), gd)
 	assert.Nil(s.T(), err)
 
-	groupList, err := ListGroups(context.Background(), "test-list-groups")
+	groupList, err := ListGroups(context.Background())
 	assert.Nil(s.T(), err)
 	assert.Len(s.T(), groupList.Groups, int(2+startingCount))
 
@@ -118,7 +118,7 @@ func (s *GroupsTestSuite) TestListGroups() {
 	err = CleanDatabase(g2)
 	assert.Nil(s.T(), err)
 
-	groupList, err = ListGroups(context.Background(), "test-list-groups")
+	groupList, err = ListGroups(context.Background())
 	assert.Nil(s.T(), err)
 	assert.Len(s.T(), groupList.Groups, int(startingCount))
 }
@@ -180,17 +180,17 @@ func (s *GroupsTestSuite) TestGetAuthorizedGroupsForOktaID() {
 	g1 := GroupData{}
 	err := json.Unmarshal(group1bytes, &g1)
 	assert.Nil(s.T(), err)
-	group1, _ := CreateGroup(context.Background(), g1, RandomHexID())
+	group1, _ := CreateGroup(context.Background(), g1)
 
 	g2 := GroupData{}
 	err = json.Unmarshal(group2bytes, &g2)
 	assert.Nil(s.T(), err)
-	group2, _ := CreateGroup(context.Background(), g2, RandomHexID())
+	group2, _ := CreateGroup(context.Background(), g2)
 
 	g3 := GroupData{}
 	err = json.Unmarshal(group3bytes, &g3)
 	assert.Nil(s.T(), err)
-	group3, _ := CreateGroup(context.Background(), g3, RandomHexID())
+	group3, _ := CreateGroup(context.Background(), g3)
 
 	defer s.db.Unscoped().Delete(&group1)
 	defer s.db.Unscoped().Delete(&group2)

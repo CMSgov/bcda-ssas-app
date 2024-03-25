@@ -51,17 +51,28 @@ type GroupList struct {
 	Groups     []GroupSummary `json:"groups"`
 }
 
-func CreateGroup(ctx context.Context, gd GroupData, trackingID string) (Group, error) {
-	event := Event{Op: "CreateGroup", TrackingID: trackingID}
-	OperationStarted(event)
+type GroupData struct {
+	GroupID   string     `json:"group_id"`
+	Name      string     `json:"name"`
+	XData     string     `json:"xdata"`
+	Users     []string   `json:"users,omitempty"`
+	Scopes    []string   `json:"scopes,omitempty"`
+	Systems   []System   `gorm:"-" json:"systems,omitempty"`
+	Resources []Resource `json:"resources,omitempty"`
+}
 
+type Resource struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+	// Example: ["bcda-api"]
+	Scopes []string `json:"scopes"`
+}
+
+func CreateGroup(ctx context.Context, gd GroupData) (Group, error) {
 	if gd.GroupID == "" {
 		err := fmt.Errorf("group_id cannot be blank")
-		event.Help = err.Error()
-		OperationFailed(event)
 		return Group{}, err
 	}
-
 	xd := gd.XData
 	if xd != "" {
 		if s, err := strconv.Unquote(xd); err == nil {
@@ -73,85 +84,51 @@ func CreateGroup(ctx context.Context, gd GroupData, trackingID string) (Group, e
 		XData:   xd,
 		Data:    gd,
 	}
-
 	err := Connection.WithContext(ctx).Save(&g).Error
 	if err != nil {
-		event.Help = err.Error()
-		OperationFailed(event)
-		return Group{}, fmt.Errorf("group violates uniqueness or other constraints")
+		return Group{}, err
 	}
-
-	OperationSucceeded(event)
 	return g, nil
 }
 
-func ListGroups(ctx context.Context, trackingID string) (list GroupList, err error) {
-	event := Event{Op: "ListGroups", TrackingID: trackingID}
-	OperationStarted(event)
-
+func ListGroups(ctx context.Context) (list GroupList, err error) {
 	groups := []GroupSummary{}
 	err = Connection.WithContext(ctx).Table("groups").Where("deleted_at IS NULL").Preload("Systems").Find(&groups).Error
 	if err != nil {
-		event.Help = err.Error()
-		OperationFailed(event)
-		return
+		return list, err
 	}
-
 	list.Count = len(groups)
 	list.ReportedAt = time.Now()
 	list.Groups = groups
-
-	OperationSucceeded(event)
 	return list, nil
 }
 
 func UpdateGroup(ctx context.Context, id string, gd GroupData) (Group, error) {
-	event := Event{Op: "UpdateGroup", TrackingID: id}
-	OperationStarted(event)
-
 	g, err := GetGroupByID(ctx, id)
 	if err != nil {
 		errString := fmt.Sprintf("record not found for id=%s", id)
-		event.Help = errString + ": " + err.Error()
 		err := fmt.Errorf(errString)
-		OperationFailed(event)
 		return Group{}, err
 	}
-
 	gd.GroupID = g.Data.GroupID
 	gd.Name = g.Data.Name
-
 	g.Data = gd
 	err = Connection.WithContext(ctx).Save(&g).Error
 	if err != nil {
-		event.Help = err.Error()
-		OperationFailed(event)
 		return Group{}, fmt.Errorf("group failed to meet database constraints")
 	}
-
-	OperationSucceeded(event)
 	return g, nil
 }
 
 func DeleteGroup(ctx context.Context, id string) error {
-	event := Event{Op: "DeleteGroup", TrackingID: id}
-	OperationStarted(event)
-
 	g, err := GetGroupByID(ctx, id)
 	if err != nil {
-		event.Help = err.Error()
-		OperationFailed(event)
 		return err
 	}
-
 	err = cascadeDeleteGroup(ctx, g)
 	if err != nil {
-		event.Help = err.Error()
-		OperationFailed(event)
-		return fmt.Errorf("database error")
+		return err
 	}
-
-	OperationSucceeded(event)
 	return nil
 }
 
@@ -208,16 +185,6 @@ func cascadeDeleteGroup(ctx context.Context, group Group) error {
 	return nil
 }
 
-type GroupData struct {
-	GroupID   string     `json:"group_id"`
-	Name      string     `json:"name"`
-	XData     string     `json:"xdata"`
-	Users     []string   `json:"users,omitempty"`
-	Scopes    []string   `json:"scopes,omitempty"`
-	Systems   []System   `gorm:"-" json:"systems,omitempty"`
-	Resources []Resource `json:"resources,omitempty"`
-}
-
 // Value implements the driver.Value interface for GroupData.
 func (gd GroupData) Value() (driver.Value, error) {
 	// TODO: pull from configurable setting for db timeout
@@ -249,13 +216,6 @@ func (gd *GroupData) Scan(value interface{}) error {
 	gd.Systems = systems
 
 	return nil
-}
-
-type Resource struct {
-	ID   string `json:"id"`
-	Name string `json:"name"`
-	// Example: ["bcda-api"]
-	Scopes []string `json:"scopes"`
 }
 
 func GetGroupByGroupID(ctx context.Context, groupID string) (Group, error) {
