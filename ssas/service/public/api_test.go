@@ -1165,7 +1165,6 @@ func mintClientAssertion(issuer, subject, aud string, issuedAt, expiresAt int64,
 	token.Header["kid"] = kid
 	var signedString, err = token.SignedString(privateKey)
 	if err != nil {
-		ssas.TokenMintingFailure(ssas.Event{TokenID: tokenID})
 		ssas.Logger.Errorf("token signing error %s", err)
 		return nil, "", err
 	}

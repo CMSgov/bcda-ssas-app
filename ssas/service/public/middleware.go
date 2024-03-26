@@ -110,27 +110,25 @@ func tokenAuth(next http.Handler, tokenType string) http.Handler {
 			ts string
 			ok bool
 		)
-		event := ssas.Event{Op: "TokenAuth"}
+
+		_, logger := ssas.SetCtxEntry(r, "op", "tokenauth")
 
 		tsObj := r.Context().Value("ts")
 		if tsObj == nil {
-			event.Help = "no token string found"
-			ssas.AuthorizationFailure(event)
+			logger.Error("no token string found")
 			respond(w, http.StatusUnauthorized)
 			return
 		}
 		ts, ok = tsObj.(string)
 		if !ok {
-			event.Help = "token string invalid"
-			ssas.AuthorizationFailure(event)
+			logger.Error("token string invalid")
 			respond(w, http.StatusUnauthorized)
 			return
 		}
 
 		err := tokenValidity(ts, tokenType)
 		if err != nil {
-			event.Help = "token invalid"
-			ssas.AuthorizationFailure(event)
+			logger.Error("token invalid")
 			respond(w, http.StatusUnauthorized)
 			return
 		}
