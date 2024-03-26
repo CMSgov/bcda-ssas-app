@@ -24,6 +24,7 @@ import (
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/pborman/uuid"
 	"github.com/sirupsen/logrus"
+	"github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
 	m "github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -175,6 +176,68 @@ func (s *APITestSuite) TestResetSecretNoSystem() {
 	http.HandlerFunc(ResetSecret).ServeHTTP(s.rr, req)
 	assert.Equal(s.T(), http.StatusBadRequest, s.rr.Code)
 	assert.Contains(s.T(), s.rr.Body.String(), "not found")
+
+	err = ssas.CleanDatabase(group)
+	assert.Nil(s.T(), err)
+}
+
+func (s *APITestSuite) TestResetSecretBadRegData() {
+
+	groupID := "T23234"
+	group := ssas.Group{GroupID: groupID}
+	if err := s.db.Create(&group).Error; err != nil {
+		s.FailNow("unable to create group: " + err.Error())
+	}
+
+	body := strings.NewReader(`{"client_id":"abcd1234"}`)
+	req, err := http.NewRequest("PUT", "/reset", body)
+	if err != nil {
+		s.T().Fail()
+	}
+	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry))
+
+	logger := ssas.GetLogger(ssas.Logger)
+	logHook := test.NewLocal(logger)
+
+	req = addRegDataContext(s, req, "", []string{groupID})
+	handler := http.Handler(service.GetTransactionID(service.NewCtxLogger(http.HandlerFunc(ResetSecret))))
+	handler.ServeHTTP(s.rr, req)
+	assert.Equal(s.T(), http.StatusUnauthorized, s.rr.Code)
+	assert.Contains(s.T(), s.rr.Body.String(), "Unauthorized")
+
+	entries := logHook.AllEntries()
+	assert.Contains(s.T(), entries[0].Data, "transaction_id")
+
+	err = ssas.CleanDatabase(group)
+	assert.Nil(s.T(), err)
+}
+
+func (s *APITestSuite) TestRegisterSystemBadReg() {
+
+	groupID := "T23234"
+	group := ssas.Group{GroupID: groupID}
+	if err := s.db.Create(&group).Error; err != nil {
+		s.FailNow("unable to create group: " + err.Error())
+	}
+
+	body := strings.NewReader(`{"client_id":"abcd1234"}`)
+	req, err := http.NewRequest("PUT", "/reset", body)
+	if err != nil {
+		s.T().Fail()
+	}
+	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry))
+
+	logger := ssas.GetLogger(ssas.Logger)
+	logHook := test.NewLocal(logger)
+
+	req = addRegDataContext(s, req, "", []string{groupID})
+	handler := http.Handler(service.GetTransactionID(service.NewCtxLogger(http.HandlerFunc(RegisterSystem))))
+	handler.ServeHTTP(s.rr, req)
+	assert.Equal(s.T(), http.StatusUnauthorized, s.rr.Code)
+	assert.Contains(s.T(), s.rr.Body.String(), "Unauthorized")
+
+	entries := logHook.AllEntries()
+	assert.Contains(s.T(), entries[0].Data, "transaction_id")
 
 	err = ssas.CleanDatabase(group)
 	assert.Nil(s.T(), err)

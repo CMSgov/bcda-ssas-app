@@ -101,7 +101,7 @@ func ResetSecret(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if !contains(rd.AllowedGroupIDs, rd.GroupID) || sys.GroupID != rd.GroupID {
-		logger.Error()
+		logger.Error("group id not allowed or does not match system group id")
 		service.JSONError(w, http.StatusUnauthorized, "invalid_client_metadata", "Invalid group")
 		return
 	}

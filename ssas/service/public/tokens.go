@@ -112,8 +112,6 @@ func tokenValidity(tokenString string, requiredTokenType string) error {
 
 	if service.TokenBlacklist.IsTokenBlacklisted(c.Id) {
 		err = fmt.Errorf("token has been revoked")
-		// tknEvent.Help = err.Error()
-		// ssas.OperationFailed(tknEvent)
 		ssas.Logger.Error(err)
 		return err
 	}
