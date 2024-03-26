@@ -35,26 +35,23 @@ func StartBlacklist() {
 	TokenBlacklist = NewBlacklist(context.Background(), defaultCacheTimeout, cacheCleanupInterval)
 }
 
-//	NewBlacklist allows for easy Blacklist{} creation and manipulation during testing, and, outside a test suite,
-//	should not be called
+// NewBlacklist allows for easy Blacklist{} creation and manipulation during testing, and, outside a test suite,
+// should not be called
 func NewBlacklist(ctx context.Context, cacheTimeout time.Duration, cleanupInterval time.Duration) *Blacklist {
 	// In case a Blacklist timer has already been started:
 	stopCacheRefreshTicker()
-
 	trackingID := uuid.NewRandom().String()
-	event := ssas.Event{Op: "InitBlacklist", TrackingID: trackingID}
-	ssas.OperationStarted(event)
+
+	ssas.Logger.WithField("op", "InitBlacklist").Info()
 
 	bl := Blacklist{ID: trackingID}
 	bl.c = cache.New(cacheTimeout, cleanupInterval)
 
 	if err := bl.LoadFromDatabase(); err != nil {
-		event.Help = "unable to load blacklist from database: " + err.Error()
-		ssas.OperationFailed(event)
+		ssas.Logger.Error("failed to load blacklist from database: ", err)
 		// Log this failure, but allow the cache to operate.  It's conceivable the next cache refresh will work.
-		// Any alerts should be based on the error logged in BlackList.LoadFromDatabase().
 	} else {
-		ssas.OperationSucceeded(event)
+		ssas.Logger.Info("successfully loaded blacklist from database")
 	}
 
 	cacheRefreshTicker, cancelFunc = bl.startCacheRefreshTicker(cacheRefreshFreq)
@@ -68,7 +65,7 @@ type Blacklist struct {
 	ID string
 }
 
-//	BlacklistToken invalidates the specified tokenID
+// BlacklistToken invalidates the specified tokenID
 func (t *Blacklist) BlacklistToken(ctx context.Context, tokenID string, blacklistExpiration time.Duration) error {
 	entryDate := time.Now()
 	expirationDate := entryDate.Add(blacklistExpiration)
@@ -77,30 +74,27 @@ func (t *Blacklist) BlacklistToken(ctx context.Context, tokenID string, blacklis
 	}
 
 	// Add to cache only after token is blacklisted in database
-	ssas.TokenBlacklisted(ssas.Event{Op: "TokenBlacklist", TrackingID: tokenID, TokenID: tokenID})
 	t.c.Set(tokenID, entryDate.Unix(), blacklistExpiration)
 
 	return nil
 }
 
-//	IsTokenBlacklisted tests whether this tokenID is in the blacklist cache.
-//	- Tokens should expire before blacklist entries, so a tokenID for a recently expired token may return "true."
-//	- This queries the cache only, so if a tokenID has been blacklisted on a different instance, it will return "false"
-//		until the cached blacklist is refreshed from the database.
+// IsTokenBlacklisted tests whether this tokenID is in the blacklist cache.
+//   - Tokens should expire before blacklist entries, so a tokenID for a recently expired token may return "true."
+//   - This queries the cache only, so if a tokenID has been blacklisted on a different instance, it will return "false"
+//     until the cached blacklist is refreshed from the database.
 func (t *Blacklist) IsTokenBlacklisted(tokenID string) bool {
 	// Ensure that we do not attempt to read when the cache is being rebuilt
 	t.RLock()
 	defer t.RUnlock()
 
-	bEvent := ssas.Event{Op: "TokenVerification", TrackingID: t.ID, TokenID: tokenID}
 	if _, found := t.c.Get(tokenID); found {
-		ssas.BlacklistedTokenPresented(bEvent)
 		return true
 	}
 	return false
 }
 
-//	LoadFromDatabase refreshes unexpired blacklist entries from the database
+// LoadFromDatabase refreshes unexpired blacklist entries from the database
 func (t *Blacklist) LoadFromDatabase() error {
 	var (
 		entries []ssas.BlacklistEntry
@@ -112,7 +106,6 @@ func (t *Blacklist) LoadFromDatabase() error {
 	defer cancel()
 
 	if entries, err = ssas.GetUnexpiredBlacklistEntries(timeoutCtx); err != nil {
-		ssas.CacheSyncFailure(ssas.Event{Op: "BlacklistLoadFromDatabase", TrackingID: t.ID, Help: err.Error()})
 		return err
 	}
 
@@ -131,9 +124,6 @@ func (t *Blacklist) LoadFromDatabase() error {
 }
 
 func (t *Blacklist) startCacheRefreshTicker(refreshFreq time.Duration) (*time.Ticker, context.CancelFunc) {
-	event := ssas.Event{Op: "CacheRefreshTicker", TrackingID: t.ID}
-	ssas.ServiceStarted(event)
-
 	ticker := time.NewTicker(refreshFreq)
 
 	ctx, cancel := context.WithCancel(context.Background())

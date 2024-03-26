@@ -59,7 +59,7 @@ func BadToken(claims *CommonClaims, flaw TokenFlaw, keyPath string) (token *jwt.
 	token.Claims = claims
 	signedString, err = token.SignedString(signingKey)
 	if err != nil {
-		ssas.TokenMintingFailure(ssas.Event{TokenID: tokenID, Help: "token signing error " + err.Error()})
+		ssas.Logger.Error("token signing error " + err.Error())
 	}
 	return
 }

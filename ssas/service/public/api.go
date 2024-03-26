@@ -283,7 +283,10 @@ func token(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	system.SaveTokenTime(r.Context())
+	err = system.SaveTokenTime(r.Context())
+	if err != nil {
+		logger.Error("failed to save token time for ", system.ClientID)
+	}
 	logger.Info("token created in group %s with XData: %s", system.GroupID, data)
 
 	// https://tools.ietf.org/html/rfc6749#section-5.1
@@ -377,7 +380,10 @@ func tokenV2(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	system.SaveTokenTime(r.Context())
+	err = system.SaveTokenTime(r.Context())
+	if err != nil {
+		logger.Error(err)
+	}
 
 	// https://tools.ietf.org/html/rfc6749#section-5.1
 	// expires_in is duration in seconds
@@ -481,14 +487,14 @@ func introspect(w http.ResponseWriter, r *http.Request) {
 }
 
 func validateAndParseToken(w http.ResponseWriter, r *http.Request) {
-	trackingID := uuid.NewRandom().String()
-	event := ssas.Event{Op: "V2-Token-Info", TrackingID: trackingID, Help: "calling from admin.validateAndParseToken()"}
-	ssas.OperationCalled(event)
+
+	logger := ssas.GetCtxLogger(r.Context())
 
 	defer r.Body.Close()
 
 	var reqV map[string]string
 	if err := json.NewDecoder(r.Body).Decode(&reqV); err != nil {
+		logger.Error("failed to decode json: ", err)
 		service.JSONError(w, http.StatusBadRequest, http.StatusText(http.StatusBadRequest), "invalid request body")
 		return
 	}
@@ -505,7 +511,7 @@ func validateAndParseToken(w http.ResponseWriter, r *http.Request) {
 	} else {
 		claims := jwt.MapClaims{}
 		if _, _, err := new(jwt.Parser).ParseUnverified(tokenS, claims); err != nil {
-			ssas.Logger.Infof("could not unmarshal access token")
+			ssas.Logger.Error("could not unmarshal access token")
 			service.JSONError(w, http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError), "internal server error")
 			return
 		}
@@ -514,7 +520,7 @@ func validateAndParseToken(w http.ResponseWriter, r *http.Request) {
 		response["system_data"] = claims["system_data"]
 		sys, err := ssas.GetSystemByID(r.Context(), claims["sys"].(string))
 		if err != nil {
-			ssas.Logger.Infof("could not get system id")
+			ssas.Logger.Error("could not get system id")
 			service.JSONError(w, http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError), "internal server error")
 			return
 		}

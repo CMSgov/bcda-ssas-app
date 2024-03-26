@@ -274,7 +274,7 @@ func resetSecret(clientID string) {
 	if s, err = ssas.GetSystemByClientID(context.Background(), clientID); err != nil {
 		ssas.Logger.Warn(err)
 	}
-	ssas.OperationCalled(ssas.Event{Op: "ResetSecret", TrackingID: cliTrackingID(), Help: "calling from main.resetSecret()"})
+	ssas.Logger.WithField("op", "ResetSecret").Info("calling from main.resetSecret()")
 	if c, err = s.ResetSecret(context.Background()); err != nil {
 		ssas.Logger.Warn(err)
 	} else {
@@ -295,7 +295,7 @@ func newAdminSystem(name string) {
 	}
 
 	trackingID := cliTrackingID()
-	ssas.OperationCalled(ssas.Event{Op: "RegisterSystem", TrackingID: trackingID, Help: "calling from main.newAdminSystem()"})
+	ssas.Logger.WithField("op", "RegisterSystem").Info("calling from main.newAdminSystem()")
 	if c, err = ssas.RegisterSystem(context.Background(), name, "admin", "bcda-api", pk, []string{}, trackingID); err != nil {
 		ssas.Logger.Error(err)
 		return
