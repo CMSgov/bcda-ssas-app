@@ -49,8 +49,9 @@ func getEnvVars() {
 	err := godotenv.Load(envPath)
 
 	if err != nil {
-		ServiceHalted(Event{Help: fmt.Sprintf("Unable to load environment variables in env %s; message: %s", env, err.Error())})
-		panic(fmt.Sprintf("Unable to load environment variables in env %s; message: %s. Exiting.", env, err.Error()))
+		msg := fmt.Sprintf("Unable to load environment variables in env %s; message: %s", env, err.Error())
+		Logger.Fatal(msg)
+		panic(msg)
 	}
 	DefaultScope = os.Getenv("SSAS_DEFAULT_SYSTEM_SCOPE")
 	if DefaultScope == "" {
@@ -131,7 +132,6 @@ func (system *System) SaveClientToken(ctx context.Context, label string, groupXD
 	if err := Connection.WithContext(ctx).Create(&ct).Error; err != nil {
 		return nil, "", fmt.Errorf("could not save client token for clientID %s: %s", system.ClientID, err.Error())
 	}
-	ClientTokenCreated(Event{Op: "SaveClientToken", TrackingID: uuid.NewRandom().String(), ClientID: system.ClientID})
 	return &ct, token, nil
 }
 
@@ -197,7 +197,6 @@ func (system *System) SaveSecret(ctx context.Context, hashedSecret string) error
 	if err := Connection.WithContext(ctx).Create(&secret).Error; err != nil {
 		return fmt.Errorf("could not save secret for clientID %s: %s", system.ClientID, err.Error())
 	}
-	SecretCreated(Event{Op: "SaveSecret", TrackingID: uuid.NewRandom().String(), ClientID: system.ClientID})
 
 	return nil
 }
@@ -220,42 +219,27 @@ func (system *System) GetSecret(ctx context.Context) (Secret, error) {
 }
 
 // SaveTokenTime puts the current time in systems.last_token_at
-func (system *System) SaveTokenTime(ctx context.Context) {
-	event := Event{Op: "UpdateLastTokenAt", TrackingID: system.GroupID, ClientID: system.ClientID}
-	OperationCalled(event)
-
-	err := Connection.WithContext(ctx).Model(&system).UpdateColumn("last_token_at", time.Now()).Error
+func (system *System) SaveTokenTime(ctx context.Context) (err error) {
+	err = Connection.WithContext(ctx).Model(&system).UpdateColumn("last_token_at", time.Now()).Error
 	if err != nil {
-		event.Help = err.Error()
-		OperationFailed(event)
+		return err
 	}
-
-	OperationSucceeded(event)
+	return nil
 }
 
 /*
 RevokeSecret revokes a system's secret
 */
-func (system *System) RevokeSecret(ctx context.Context, trackingID string) error {
-	revokeCredentialsEvent := Event{Op: "RevokeCredentials", TrackingID: trackingID, ClientID: system.ClientID}
-	OperationStarted(revokeCredentialsEvent)
-
-	xdata, err := XDataFor(ctx, *system)
+func (system *System) RevokeSecret(ctx context.Context, systemID string) error {
+	_, err := XDataFor(ctx, *system)
 	if err != nil {
-		revokeCredentialsEvent.Help = fmt.Sprintf("could not get group XData for clientID %s: %s", system.ClientID, err.Error())
-		OperationFailed(revokeCredentialsEvent)
-		return fmt.Errorf("unable to find group for clientID %s: %s", system.ClientID, err.Error())
+		return fmt.Errorf("could not get group XData for clientID %s: %s", system.ClientID, err.Error())
 	}
 
 	err = system.deactivateSecrets(ctx)
 	if err != nil {
-		revokeCredentialsEvent.Help = "unable to revoke credentials for clientID " + system.ClientID
-		OperationFailed(revokeCredentialsEvent)
-		return fmt.Errorf("unable to revoke credentials for clientID %s: %s", system.ClientID, err.Error())
+		return fmt.Errorf("unable to revoke credentials for clientID " + system.ClientID)
 	}
-
-	revokeCredentialsEvent.Help = fmt.Sprintf("secret revoked in group %s with XData: %s", system.GroupID, xdata)
-	OperationSucceeded(revokeCredentialsEvent)
 	return nil
 }
 
@@ -286,17 +270,12 @@ func (system *System) GetEncryptionKey(ctx context.Context) (EncryptionKey, erro
 FindEncryptionKey retrieves the key by id associated with the current system.
 */
 func (system *System) FindEncryptionKey(ctx context.Context, trackingID string, keyId string) (EncryptionKey, error) {
-	findKeyEvent := Event{Op: "FindEncryptionKey", TrackingID: trackingID, ClientID: system.ClientID}
-	OperationStarted(findKeyEvent)
-
 	var encryptionKey EncryptionKey
 	err := Connection.WithContext(ctx).First(&encryptionKey, "system_id = ? AND uuid=?", system.ID, keyId).Error
 	if err != nil {
-		OperationFailed(findKeyEvent)
 		return encryptionKey, fmt.Errorf("cannot find key for systemId %d: and keyId: %s error: %s", system.ID, keyId, err.Error())
 	}
 
-	OperationSucceeded(findKeyEvent)
 	return encryptionKey, nil
 }
 
@@ -317,22 +296,15 @@ func (system *System) GetEncryptionKeys(ctx context.Context) ([]EncryptionKey, e
 DeleteEncryptionKey deletes the key associated with the current system.
 */
 func (system *System) DeleteEncryptionKey(ctx context.Context, keyID string) error {
-	deleteKeyEvent := Event{Op: "DeleteEncryptionKey", ClientID: system.ClientID}
-	OperationStarted(deleteKeyEvent)
-
 	if keyID == "" {
-		OperationFailed(deleteKeyEvent)
 		return fmt.Errorf("requires keyID to delete key for clientID %s", system.ClientID)
 	}
-
 	var encryptionKey EncryptionKey
 	err := Connection.WithContext(ctx).Where("system_id = ? AND uuid = ?", system.ID, keyID).Delete(&encryptionKey).Error
 	if err != nil {
-		OperationFailed(deleteKeyEvent)
 		return fmt.Errorf("cannot find key to delete for clientID %s: %s", system.ClientID, err.Error())
 	}
 
-	OperationSucceeded(deleteKeyEvent)
 	return nil
 }
 
@@ -576,13 +548,7 @@ func VerifySignature(pubKey *rsa.PublicKey, signatureStr string) error {
 }
 
 func (system *System) RegisterIP(ctx context.Context, address string) (IP, error) {
-	// The caller of this function should have logged OperationCalled() with the same trackingID
-	regEvent := Event{Op: "RegisterIP", Help: "calling from admin.RegisterIP()"}
-	OperationStarted(regEvent)
-
 	if !ValidAddress(address) {
-		regEvent.Help = fmt.Sprintf("invalid IP %s", address)
-		OperationFailed(regEvent)
 		return IP{}, errors.New("invalid ip address")
 	}
 
@@ -593,38 +559,25 @@ func (system *System) RegisterIP(ctx context.Context, address string) (IP, error
 	count := int64(0)
 	Connection.WithContext(ctx).Model(&IP{}).Where("ips.system_id = ? AND ips.address = ? AND ips.deleted_at IS NULL", system.ID, address).Count(&count)
 	if count != 0 {
-		regEvent.Help = fmt.Sprintf("can not create duplicate IP address:  %s for system %d", address, system.ID)
-		OperationFailed(regEvent)
-		return IP{}, errors.New("duplicate ip address")
+		return IP{}, fmt.Errorf("can not create duplicate IP address:  %s for system %d", address, system.ID)
 	}
 
 	count = int64(0)
 	Connection.WithContext(ctx).Model(&IP{}).Where("ips.system_id = ? AND ips.deleted_at IS NULL", system.ID).Count(&count)
 	if count >= int64(MaxIPs) {
-		regEvent.Help = fmt.Sprintf("could not add ip, max number of ips reached. Max %d", count)
-		OperationFailed(regEvent)
-		return IP{}, errors.New("max ip address reached")
+		return IP{}, fmt.Errorf("could not add ip, max number of ips reached. Max %d", count)
 	}
 	err := Connection.WithContext(ctx).Create(&ip).Error
 	if err != nil {
-		regEvent.Help = fmt.Sprintf("could not save IP %s; %s", address, err.Error())
-		OperationFailed(regEvent)
-		return IP{}, errors.New("error in ip address")
+		return IP{}, fmt.Errorf("could not save IP %s; %s", address, err.Error())
 	}
 	return ip, nil
 }
 
 func UpdateSystem(ctx context.Context, id string, v map[string]string) (System, error) {
-	event := Event{Op: "UpdateSystem", TrackingID: id}
-	OperationStarted(event)
-
 	sys, err := GetSystemByID(ctx, id)
 	if err != nil {
-		errString := fmt.Sprintf("record not found for id=%s", id)
-		event.Help = errString + ": " + err.Error()
-		err := fmt.Errorf(errString)
-		OperationFailed(event)
-		return System{}, err
+		return System{}, fmt.Errorf("record not found for id=%s", id)
 	}
 
 	scope, ok := v["api_scope"]
@@ -644,21 +597,18 @@ func UpdateSystem(ctx context.Context, id string, v map[string]string) (System, 
 
 	err = Connection.WithContext(ctx).Save(&sys).Error
 	if err != nil {
-		event.Help = err.Error()
-		OperationFailed(event)
-		return System{}, fmt.Errorf("system failed to meet database constraints")
+		return System{}, fmt.Errorf("failed to update system: %s", err)
 	}
 
-	OperationSucceeded(event)
 	return sys, nil
 }
 
 func (system *System) GetIps(ctx context.Context) ([]IP, error) {
-	getEvent := Event{Op: "GetIPs", Help: "calling from systems.GetIps()"}
-	OperationStarted(getEvent)
-
 	var ips []IP
-	Connection.WithContext(ctx).Find(&ips, "system_id=? AND deleted_at IS NULL", system.ID)
+	err := Connection.WithContext(ctx).Find(&ips, "system_id=? AND deleted_at IS NULL", system.ID).Error
+	if err != nil {
+		return ips, err
+	}
 	return ips, nil
 }
 
@@ -669,24 +619,17 @@ func (system *System) DeleteIP(ctx context.Context, ipID string) error {
 		err error
 	)
 
-	regEvent := Event{Op: "DeleteIP", Help: "calling from ssas.DeleteIP()"}
-	OperationStarted(regEvent)
-
 	// Find IP to delete
 	err = Connection.WithContext(ctx).First(&ip, "system_id = ? AND id = ?", system.ID, ipID).Error
 	if err != nil {
-		regEvent.Help = fmt.Sprintf("Unable to find IP address with ID %s: %s", ipID, err)
-		OperationFailed(regEvent)
-		return fmt.Errorf("unable to find IP address with ID %s: %s", ipID, err)
+		return fmt.Errorf("failed to get ip address with ID %s: %s", ipID, err)
 	}
 
 	// Soft delete IP
 	// Note: db.Delete() soft-deletes by default because the DeletedAt field is set on the Gorm model that IP inherits
 	err = Connection.WithContext(ctx).Delete(&ip).Error
 	if err != nil {
-		regEvent.Help = fmt.Sprintf("Unable to delete IP address with ID %s: %s", ipID, err)
-		OperationFailed(regEvent)
-		return fmt.Errorf("unable to delete IP address with ID %s: %s", ipID, err)
+		return fmt.Errorf("failed to delete IP address with ID %s: %s", ipID, err)
 	}
 
 	return nil
@@ -801,39 +744,25 @@ func (system *System) GetIPsData(ctx context.Context) ([]IP, error) {
 func (system *System) ResetSecret(ctx context.Context) (Credentials, error) {
 	creds := Credentials{}
 
-	newSecretEvent := Event{Op: "ResetSecret", ClientID: system.ClientID}
-	OperationStarted(newSecretEvent)
-
-	xdata, err := XDataFor(ctx, *system)
+	_, err := XDataFor(ctx, *system)
 	if err != nil {
-		newSecretEvent.Help = fmt.Sprintf("could not get group XData for clientID %s: %s", system.ClientID, err.Error())
-		OperationFailed(newSecretEvent)
-		return creds, errors.New("internal system error")
+		return creds, fmt.Errorf("could not get group XData for clientID %s: %s", system.ClientID, err.Error())
 	}
 
 	secretString, err := GenerateSecret()
 	if err != nil {
-		newSecretEvent.Help = fmt.Sprintf("could not reset secret for clientID %s: %s", system.ClientID, err.Error())
-		OperationFailed(newSecretEvent)
-		return creds, errors.New("internal system error")
+		return creds, fmt.Errorf("could not reset secret for clientID %s: %s", system.ClientID, err.Error())
 	}
 
 	hashedSecret, err := NewHash(secretString)
 	if err != nil {
-		newSecretEvent.Help = fmt.Sprintf("could not reset secret for clientID %s: %s", system.ClientID, err.Error())
-		OperationFailed(newSecretEvent)
-		return creds, errors.New("internal system error")
+		return creds, fmt.Errorf("could not reset secret for clientID %s: %s", system.ClientID, err.Error())
 	}
 
 	hashedSecretString := hashedSecret.String()
 	if err = system.SaveSecret(ctx, hashedSecretString); err != nil {
-		newSecretEvent.Help = fmt.Sprintf("could not reset secret for clientID %s: %s", system.ClientID, err.Error())
-		OperationFailed(newSecretEvent)
-		return creds, errors.New("internal system error")
+		return creds, fmt.Errorf("could not reset secret for clientID %s: %s", system.ClientID, err.Error())
 	}
-
-	newSecretEvent.Help = fmt.Sprintf("secret reset in group %s with XData: %s", system.GroupID, xdata)
-	OperationSucceeded(newSecretEvent)
 
 	creds.SystemID = fmt.Sprint(system.ID)
 	creds.ClientID = system.ClientID

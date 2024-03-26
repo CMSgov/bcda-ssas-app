@@ -444,6 +444,7 @@ func resetCredentials(w http.ResponseWriter, r *http.Request) {
 		service.JSONError(w, http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError), "")
 		return
 	}
+	logger.Info("secret reset for system: ", system.ClientID)
 
 	credsJSON, err := json.Marshal(creds)
 	if err != nil {
@@ -539,6 +540,8 @@ func deactivateSystemCredentials(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	logger.Info("secret revoked for client: ", system.ClientID)
+
 	w.WriteHeader(http.StatusOK)
 }
 
@@ -571,6 +574,7 @@ func revokeToken(w http.ResponseWriter, r *http.Request) {
 		service.JSONError(w, http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError), "")
 	}
 
+	logger.Info("token revoked for: ", tokenID)
 	w.WriteHeader(http.StatusOK)
 }
 
@@ -602,12 +606,12 @@ func registerIP(w http.ResponseWriter, r *http.Request) {
 	ip, err := system.RegisterIP(r.Context(), input.Address)
 	if err != nil {
 		// TODO there is another case where the IP address may be invalid
-		if err.Error() == "duplicate ip address" {
+		if strings.Contains(err.Error(), "can not create duplicate IP address") {
 			logger.Errorf("duplicate ip address; %s", err)
 			service.JSONError(w, http.StatusConflict, http.StatusText(http.StatusConflict), "duplicate ip address")
 			return
 		}
-		if err.Error() == "max ip address reached" {
+		if strings.Contains(err.Error(), "max number of ips reached") {
 			logger.Errorf("max ip addresses reached; %s", err)
 			service.JSONError(w, http.StatusBadRequest, http.StatusText(http.StatusBadRequest), "max ip addresses reached")
 			return
@@ -616,6 +620,7 @@ func registerIP(w http.ResponseWriter, r *http.Request) {
 		service.JSONError(w, http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError), "")
 		return
 	}
+	logger.Info("token created for client: ", system.ClientID)
 
 	ipJson, err := json.Marshal(ip)
 	if err != nil {

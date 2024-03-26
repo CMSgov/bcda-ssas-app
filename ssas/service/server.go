@@ -377,7 +377,6 @@ func (s *Server) mintToken(claims *CommonClaims, issuedAt int64, expiresAt int64
 	token.Claims = claims
 	var signedString, err = token.SignedString(s.tokenSigningKey)
 	if err != nil {
-		ssas.TokenMintingFailure(ssas.Event{TokenID: tokenID})
 		ssas.Logger.Errorf("token signing error %s", err)
 		return nil, "", err
 	}
@@ -417,7 +416,6 @@ func (s *Server) VerifyClientSignedToken(ctx context.Context, tokenString string
 
 		system, err := ssas.GetSystemByID(ctx, systemID)
 		if err != nil {
-			ssas.Logger.Error(err)
 			return nil, fmt.Errorf("failed to retrieve system information")
 		}
 
@@ -428,12 +426,10 @@ func (s *Server) VerifyClientSignedToken(ctx context.Context, tokenString string
 
 		key, err := system.FindEncryptionKey(ctx, trackingId, kid.(string))
 		if err != nil {
-			ssas.Logger.Error(err)
 			return nil, fmt.Errorf("key not found for system: %v", claims.Issuer)
 		}
 		pubKey, err := ssas.ReadPublicKey(key.Body)
 		if err != nil {
-			ssas.Logger.Error(err)
 			return nil, fmt.Errorf("failed to read public key")
 
 		}

@@ -283,7 +283,10 @@ func token(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	system.SaveTokenTime(r.Context())
+	err = system.SaveTokenTime(r.Context())
+	if err != nil {
+		logger.Error("failed to save token time for ", system.ClientID)
+	}
 	logger.Info("token created in group %s with XData: %s", system.GroupID, data)
 
 	// https://tools.ietf.org/html/rfc6749#section-5.1

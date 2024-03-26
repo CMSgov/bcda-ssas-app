@@ -57,6 +57,8 @@ func (s *PublicRouterTestSuite) reqPublicRoute(verb string, route string, body i
 	if token != "" {
 		req.Header.Add("Authorization", "Bearer "+token)
 	}
+	ctx, _ := ssas.SetCtxEntry(req, "foo", "bar")
+	req = req.WithContext(ctx)
 	rr := httptest.NewRecorder()
 	s.publicRouter.ServeHTTP(rr, req)
 	return rr.Result()
