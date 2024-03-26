@@ -380,7 +380,10 @@ func tokenV2(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	system.SaveTokenTime(r.Context())
+	err = system.SaveTokenTime(r.Context())
+	if err != nil {
+		logger.Error(err)
+	}
 
 	// https://tools.ietf.org/html/rfc6749#section-5.1
 	// expires_in is duration in seconds

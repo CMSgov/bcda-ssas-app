@@ -583,13 +583,19 @@ func (s *APITestSuite) TestSaveTokenTime() {
 	assert.Nil(s.T(), err)
 	assert.True(s.T(), system.LastTokenAt.IsZero())
 
-	system.SaveTokenTime(context.Background())
+	err = system.SaveTokenTime(context.Background())
+	if err != nil {
+		s.T().Fail()
+	}
 	system, err = ssas.GetSystemByClientID(context.Background(), creds.ClientID)
 	assert.Nil(s.T(), err)
 	assert.False(s.T(), system.LastTokenAt.IsZero())
 
 	time1 := system.LastTokenAt
-	system.SaveTokenTime(context.Background())
+	err = system.SaveTokenTime(context.Background())
+	if err != nil {
+		s.T().Fail()
+	}
 	system, err = ssas.GetSystemByClientID(context.Background(), creds.ClientID)
 	assert.Nil(s.T(), err)
 	assert.NotEqual(s.T(), system.LastTokenAt, time1)
