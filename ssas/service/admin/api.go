@@ -354,6 +354,8 @@ func createSystem(w http.ResponseWriter, r *http.Request) {
 		service.JSONError(w, http.StatusBadRequest, http.StatusText(http.StatusBadRequest), "failed to create system")
 		return
 	}
+	// Used for alerting; update alert if this line changes
+	logger.Infof("system registered in group with XData: %s", creds.XData)
 
 	credsJSON, err := json.Marshal(creds)
 	if err != nil {
@@ -444,7 +446,8 @@ func resetCredentials(w http.ResponseWriter, r *http.Request) {
 		service.JSONError(w, http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError), "")
 		return
 	}
-	logger.Info("secret reset for system: ", system.ClientID)
+	// Used for alerting; update alert if this line changes
+	logger.Infof("secret reset in group %s with XData: %s", system.GroupID, creds.XData)
 
 	credsJSON, err := json.Marshal(creds)
 	if err != nil {
@@ -540,7 +543,8 @@ func deactivateSystemCredentials(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	logger.Info("secret revoked for client: ", system.ClientID)
+	// Used for alerting; update alert if this line changes
+	logger.Infof("secret revoked in group %s with XData: %s", system.GroupID, system.XData)
 
 	w.WriteHeader(http.StatusOK)
 }
