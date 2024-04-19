@@ -242,7 +242,7 @@ func (s *APITestSuite) TestRevokeTokenNoToken() {
 	handler.ServeHTTP(rr, req)
 
 	// TODO(BCDA-7212): Handle gracefully
-	assert.Equal(s.T(), http.StatusInternalServerError, rr.Result().StatusCode)
+	assert.Equal(s.T(), http.StatusBadRequest, rr.Result().StatusCode)
 }
 
 func (s *APITestSuite) TestDeleteGroup() {
@@ -1288,7 +1288,7 @@ func (s *APITestSuite) TestCreateV2SystemTokenNonJson() {
 	handler.ServeHTTP(rr, req)
 
 	// TODO(BCDA-7212): Handle gracefully
-	assert.Equal(s.T(), http.StatusInternalServerError, rr.Result().StatusCode)
+	assert.Equal(s.T(), http.StatusBadRequest, rr.Result().StatusCode)
 }
 
 func (s *APITestSuite) TestCreateV2SystemTokenMissingLabel() {
@@ -1415,12 +1415,12 @@ func (s *APITestSuite) TestCreatePublicKeyMissingFields() {
 	rctx := chi.NewRouteContext()
 	rctx.URLParams.Add("systemID", creds.SystemID)
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
-	handler := http.HandlerFunc(createKey)
+	handler := http.HandlerFunc(createKey) // might be this
 	rr := httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
 
 	// TODO(BCDA-7212): Handle gracefully
-	assert.Equal(s.T(), http.StatusInternalServerError, rr.Result().StatusCode)
+	assert.Equal(s.T(), http.StatusBadRequest, rr.Result().StatusCode)
 }
 
 func (s *APITestSuite) TestDeletePublicKeySystemNotFound() {

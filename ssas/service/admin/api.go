@@ -540,6 +540,11 @@ func deactivateSystemCredentials(w http.ResponseWriter, r *http.Request) {
 func revokeToken(w http.ResponseWriter, r *http.Request) {
 	tokenID := chi.URLParam(r, "tokenID")
 
+	if tokenID == "" {
+		service.JSONError(w, http.StatusBadRequest, "Missing tokenID", "")
+		return
+	}
+
 	event := ssas.Event{Op: "TokenBlacklist", TokenID: tokenID}
 	ssas.OperationCalled(event)
 
@@ -712,7 +717,7 @@ func createToken(w http.ResponseWriter, r *http.Request) {
 
 	if err := json.Unmarshal(b, &body); err != nil {
 		ssas.OperationFailed(tokenEvent)
-		service.JSONError(w, http.StatusInternalServerError, "Internal Error", "")
+		service.JSONError(w, http.StatusBadRequest, "Received invalid JSON", "")
 		return
 	}
 
@@ -788,6 +793,12 @@ func createKey(w http.ResponseWriter, r *http.Request) {
 	if err := json.NewDecoder(r.Body).Decode(&pk); err != nil {
 		ssas.OperationFailed(keyEvent)
 		service.JSONError(w, http.StatusBadRequest, "Failed to read body", "")
+		return
+	}
+
+	if pk.PublicKey == "" || pk.Signature == "" {
+		ssas.OperationFailed(keyEvent)
+		service.JSONError(w, http.StatusBadRequest, "PublicKey or Signature not provided", "")
 		return
 	}
 
