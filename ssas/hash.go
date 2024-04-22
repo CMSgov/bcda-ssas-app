@@ -61,8 +61,7 @@ func NewHash(source string) (Hash, error) {
 	start := time.Now()
 	h := pbkdf2.Key([]byte(source), salt, hashIter, hashKeyLen, sha512.New)
 	hashCreationTime := time.Since(start)
-	hashEvent := Event{Elapsed: hashCreationTime}
-	SecureHashTime(hashEvent)
+	Logger.Info("elapsed: ", hashCreationTime)
 
 	hashValue := fmt.Sprintf("%s:%s:%d", base64.StdEncoding.EncodeToString(salt), base64.StdEncoding.EncodeToString(h), hashIter)
 	return Hash(hashValue), nil

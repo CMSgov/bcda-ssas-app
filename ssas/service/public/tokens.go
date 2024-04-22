@@ -90,12 +90,9 @@ func empty(arr []string) bool {
 }
 
 func tokenValidity(tokenString string, requiredTokenType string) error {
-	tknEvent := ssas.Event{Op: "tokenValidity"}
-	ssas.OperationStarted(tknEvent)
 	t, err := server.VerifyToken(tokenString)
 	if err != nil {
-		tknEvent.Help = err.Error()
-		ssas.OperationFailed(tknEvent)
+		ssas.Logger.Error(err)
 		return err
 	}
 
@@ -103,26 +100,21 @@ func tokenValidity(tokenString string, requiredTokenType string) error {
 
 	err = checkAllClaims(c, requiredTokenType)
 	if err != nil {
-		tknEvent.Help = err.Error()
-		ssas.OperationFailed(tknEvent)
+		ssas.Logger.Error(err)
 		return err
 	}
 
 	err = c.Valid()
 	if err != nil {
-		tknEvent.Help = err.Error()
-		ssas.OperationFailed(tknEvent)
+		ssas.Logger.Error(err)
 		return err
 	}
 
 	if service.TokenBlacklist.IsTokenBlacklisted(c.Id) {
 		err = fmt.Errorf("token has been revoked")
-		tknEvent.Help = err.Error()
-		ssas.OperationFailed(tknEvent)
+		ssas.Logger.Error(err)
 		return err
 	}
-
-	ssas.OperationSucceeded(tknEvent)
 	return nil
 }
 

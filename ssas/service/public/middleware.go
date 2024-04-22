@@ -110,27 +110,25 @@ func tokenAuth(next http.Handler, tokenType string) http.Handler {
 			ts string
 			ok bool
 		)
-		event := ssas.Event{Op: "TokenAuth"}
+
+		_, logger := ssas.SetCtxEntry(r, "op", "tokenauth")
 
 		tsObj := r.Context().Value("ts")
 		if tsObj == nil {
-			event.Help = "no token string found"
-			ssas.AuthorizationFailure(event)
+			logger.Error("no token string found")
 			respond(w, http.StatusUnauthorized)
 			return
 		}
 		ts, ok = tsObj.(string)
 		if !ok {
-			event.Help = "token string invalid"
-			ssas.AuthorizationFailure(event)
+			logger.Error("token string invalid")
 			respond(w, http.StatusUnauthorized)
 			return
 		}
 
 		err := tokenValidity(ts, tokenType)
 		if err != nil {
-			event.Help = "token invalid"
-			ssas.AuthorizationFailure(event)
+			logger.Error("token invalid")
 			respond(w, http.StatusUnauthorized)
 			return
 		}
@@ -150,12 +148,4 @@ func contains(list []string, target string) bool {
 		}
 	}
 	return false
-}
-
-// Adds a transaction ID to the request context
-func GetTransactionID(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		r = r.WithContext(context.WithValue(r.Context(), service.CtxTransactionKey, r.Header.Get(service.TransactionIDHeader)))
-		next.ServeHTTP(w, r)
-	})
 }

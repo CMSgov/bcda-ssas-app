@@ -211,7 +211,7 @@ func (s *PublicMiddlewareTestSuite) TestRequireRegTokenAuthEmptyToken() {
 }
 
 func (s *PublicMiddlewareTestSuite) TestGetTransactionID() {
-	s.server = httptest.NewServer(s.CreateRouter(GetTransactionID, service.NewCtxLogger, requireRegTokenAuth))
+	s.server = httptest.NewServer(s.CreateRouter(service.GetTransactionID, service.NewCtxLogger, requireRegTokenAuth))
 	req, err := http.NewRequest("GET", s.server.URL, nil)
 	req.Header.Add(service.TransactionIDHeader, "1234")
 

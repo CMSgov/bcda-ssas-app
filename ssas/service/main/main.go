@@ -198,7 +198,7 @@ func start(ps *service.Server, as *service.Server, forwarder *http.Server) {
 
 func newForwardingRouter() http.Handler {
 	r := chi.NewRouter()
-	r.Use(gcmw.RequestID, service.NewAPILogger(), service.ConnectionClose, service.NewCtxLogger)
+	r.Use(gcmw.RequestID, service.GetTransactionID, service.NewAPILogger(), service.ConnectionClose, service.NewCtxLogger)
 	r.Get("/*", http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		// TODO only forward requests for paths in our own host or resource server
 		url := "https://" + req.Host + req.URL.String()
@@ -274,8 +274,8 @@ func resetSecret(clientID string) {
 	if s, err = ssas.GetSystemByClientID(context.Background(), clientID); err != nil {
 		ssas.Logger.Warn(err)
 	}
-	ssas.OperationCalled(ssas.Event{Op: "ResetSecret", TrackingID: cliTrackingID(), Help: "calling from main.resetSecret()"})
-	if c, err = s.ResetSecret(context.Background(), clientID); err != nil {
+	ssas.Logger.WithField("op", "ResetSecret").Info("calling from main.resetSecret()")
+	if c, err = s.ResetSecret(context.Background()); err != nil {
 		ssas.Logger.Warn(err)
 	} else {
 		_, _ = fmt.Fprintf(output, "%s\n", c.ClientSecret)
@@ -295,7 +295,7 @@ func newAdminSystem(name string) {
 	}
 
 	trackingID := cliTrackingID()
-	ssas.OperationCalled(ssas.Event{Op: "RegisterSystem", TrackingID: trackingID, Help: "calling from main.newAdminSystem()"})
+	ssas.Logger.WithField("op", "RegisterSystem").Info("calling from main.newAdminSystem()")
 	if c, err = ssas.RegisterSystem(context.Background(), name, "admin", "bcda-api", pk, []string{}, trackingID); err != nil {
 		ssas.Logger.Error(err)
 		return

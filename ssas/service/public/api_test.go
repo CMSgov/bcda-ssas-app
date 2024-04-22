@@ -23,6 +23,8 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/pborman/uuid"
+	"github.com/sirupsen/logrus"
+	"github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
 	m "github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -37,6 +39,7 @@ type APITestSuite struct {
 	server            *service.Server
 	badSigningKeyPath string
 	assertAud         string
+	logEntry          *ssas.APILoggerEntry
 }
 
 func (s *APITestSuite) SetupSuite() {
@@ -45,6 +48,8 @@ func (s *APITestSuite) SetupSuite() {
 	s.badSigningKeyPath = "../../../shared_files/ssas/admin_test_signing_key.pem"
 	s.assertAud = "http://local.testing.cms.gov/api/v2/Token/auth"
 	service.StartBlacklist()
+	s.logEntry = MakeTestStructuredLoggerEntry(logrus.Fields{"cms_id": "A9999", "request_id": uuid.NewUUID().String()})
+
 }
 
 func (s *APITestSuite) SetupTest() {
@@ -58,7 +63,7 @@ func (s *APITestSuite) TestAuthRegisterEmpty() {
 	req, err := http.NewRequest("GET", "/auth/register", regBody)
 	assert.Nil(s.T(), err)
 
-	req = addRegDataContext(req, "T12123", []string{"T12123"})
+	req = addRegDataContext(s, req, "T12123", []string{"T12123"})
 	http.HandlerFunc(RegisterSystem).ServeHTTP(s.rr, req)
 	assert.Equal(s.T(), http.StatusBadRequest, s.rr.Code)
 }
@@ -69,7 +74,7 @@ func (s *APITestSuite) TestAuthRegisterBadJSON() {
 	req, err := http.NewRequest("GET", "/auth/register", regBody)
 	assert.Nil(s.T(), err)
 
-	req = addRegDataContext(req, "T12123", []string{"T12123"})
+	req = addRegDataContext(s, req, "T12123", []string{"T12123"})
 	http.HandlerFunc(RegisterSystem).ServeHTTP(s.rr, req)
 	assert.Equal(s.T(), http.StatusBadRequest, s.rr.Code)
 }
@@ -88,7 +93,7 @@ func (s *APITestSuite) TestAuthRegisterSuccess() {
 	req, err := http.NewRequest("GET", "/auth/register", regBody)
 	assert.Nil(s.T(), err)
 
-	req = addRegDataContext(req, "T12123", []string{"T12123"})
+	req = addRegDataContext(s, req, "T12123", []string{"T12123"})
 	http.HandlerFunc(RegisterSystem).ServeHTTP(s.rr, req)
 	assert.Equal(s.T(), http.StatusCreated, s.rr.Code)
 
@@ -115,7 +120,7 @@ func (s *APITestSuite) TestAuthRegisterJSON() {
 	req, err := http.NewRequest("GET", "/auth/register", regBody)
 	assert.Nil(s.T(), err)
 
-	req = addRegDataContext(req, "T12123", []string{"T12123"})
+	req = addRegDataContext(s, req, "T12123", []string{"T12123"})
 	http.HandlerFunc(RegisterSystem).ServeHTTP(s.rr, req)
 	assert.Equal(s.T(), http.StatusCreated, s.rr.Code)
 
@@ -143,7 +148,7 @@ func (s *APITestSuite) TestAuthRegisterNoKey() {
 	req, err := http.NewRequest("GET", "/auth/register", regBody)
 	assert.Nil(s.T(), err)
 
-	req = addRegDataContext(req, "T12123", []string{"T12123"})
+	req = addRegDataContext(s, req, "T12123", []string{"T12123"})
 	http.HandlerFunc(RegisterSystem).ServeHTTP(s.rr, req)
 	assert.Equal(s.T(), http.StatusCreated, s.rr.Code)
 
@@ -167,10 +172,72 @@ func (s *APITestSuite) TestResetSecretNoSystem() {
 	req, err := http.NewRequest("PUT", "/reset", body)
 	assert.Nil(s.T(), err)
 
-	req = addRegDataContext(req, groupID, []string{groupID})
+	req = addRegDataContext(s, req, groupID, []string{groupID})
 	http.HandlerFunc(ResetSecret).ServeHTTP(s.rr, req)
 	assert.Equal(s.T(), http.StatusBadRequest, s.rr.Code)
 	assert.Contains(s.T(), s.rr.Body.String(), "not found")
+
+	err = ssas.CleanDatabase(group)
+	assert.Nil(s.T(), err)
+}
+
+func (s *APITestSuite) TestResetSecretBadRegData() {
+
+	groupID := "T23234"
+	group := ssas.Group{GroupID: groupID}
+	if err := s.db.Create(&group).Error; err != nil {
+		s.FailNow("unable to create group: " + err.Error())
+	}
+
+	body := strings.NewReader(`{"client_id":"abcd1234"}`)
+	req, err := http.NewRequest("PUT", "/reset", body)
+	if err != nil {
+		s.T().Fail()
+	}
+	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry))
+
+	logger := ssas.GetLogger(ssas.Logger)
+	logHook := test.NewLocal(logger)
+
+	req = addRegDataContext(s, req, "", []string{groupID})
+	handler := http.Handler(service.GetTransactionID(service.NewCtxLogger(http.HandlerFunc(ResetSecret))))
+	handler.ServeHTTP(s.rr, req)
+	assert.Equal(s.T(), http.StatusUnauthorized, s.rr.Code)
+	assert.Contains(s.T(), s.rr.Body.String(), "Unauthorized")
+
+	entries := logHook.AllEntries()
+	assert.Contains(s.T(), entries[0].Data, "transaction_id")
+
+	err = ssas.CleanDatabase(group)
+	assert.Nil(s.T(), err)
+}
+
+func (s *APITestSuite) TestRegisterSystemBadReg() {
+
+	groupID := "T23234"
+	group := ssas.Group{GroupID: groupID}
+	if err := s.db.Create(&group).Error; err != nil {
+		s.FailNow("unable to create group: " + err.Error())
+	}
+
+	body := strings.NewReader(`{"client_id":"abcd1234"}`)
+	req, err := http.NewRequest("PUT", "/reset", body)
+	if err != nil {
+		s.T().Fail()
+	}
+	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry))
+
+	logger := ssas.GetLogger(ssas.Logger)
+	logHook := test.NewLocal(logger)
+
+	req = addRegDataContext(s, req, "", []string{groupID})
+	handler := http.Handler(service.GetTransactionID(service.NewCtxLogger(http.HandlerFunc(RegisterSystem))))
+	handler.ServeHTTP(s.rr, req)
+	assert.Equal(s.T(), http.StatusUnauthorized, s.rr.Code)
+	assert.Contains(s.T(), s.rr.Body.String(), "Unauthorized")
+
+	entries := logHook.AllEntries()
+	assert.Contains(s.T(), entries[0].Data, "transaction_id")
 
 	err = ssas.CleanDatabase(group)
 	assert.Nil(s.T(), err)
@@ -183,7 +250,7 @@ func (s *APITestSuite) TestResetSecretEmpty() {
 	req, err := http.NewRequest("PUT", "/reset", body)
 	assert.Nil(s.T(), err)
 
-	req = addRegDataContext(req, groupID, []string{groupID})
+	req = addRegDataContext(s, req, groupID, []string{groupID})
 	http.HandlerFunc(ResetSecret).ServeHTTP(s.rr, req)
 	assert.Equal(s.T(), http.StatusBadRequest, s.rr.Code)
 }
@@ -195,7 +262,7 @@ func (s *APITestSuite) TestResetSecretBadJSON() {
 	req, err := http.NewRequest("PUT", "/reset", body)
 	assert.Nil(s.T(), err)
 
-	req = addRegDataContext(req, groupID, []string{groupID})
+	req = addRegDataContext(s, req, groupID, []string{groupID})
 	http.HandlerFunc(ResetSecret).ServeHTTP(s.rr, req)
 	assert.Equal(s.T(), http.StatusBadRequest, s.rr.Code)
 }
@@ -221,7 +288,7 @@ func (s *APITestSuite) TestResetSecretSuccess() {
 	req, err := http.NewRequest("PUT", "/reset", body)
 	assert.Nil(s.T(), err)
 
-	req = addRegDataContext(req, groupID, []string{groupID})
+	req = addRegDataContext(s, req, groupID, []string{groupID})
 	http.HandlerFunc(ResetSecret).ServeHTTP(s.rr, req)
 	assert.Equal(s.T(), http.StatusOK, s.rr.Code)
 
@@ -261,7 +328,7 @@ func (s *APITestSuite) TestResetSecretJSON() {
 	req, err := http.NewRequest("PUT", "/reset", body)
 	assert.Nil(s.T(), err)
 
-	req = addRegDataContext(req, groupID, []string{groupID})
+	req = addRegDataContext(s, req, groupID, []string{groupID})
 	http.HandlerFunc(ResetSecret).ServeHTTP(s.rr, req)
 	assert.Equal(s.T(), http.StatusOK, s.rr.Code)
 
@@ -281,9 +348,10 @@ func (s *APITestSuite) TestResetSecretJSON() {
 	assert.Nil(s.T(), err)
 }
 
-func addRegDataContext(req *http.Request, groupID string, groupIDs []string) *http.Request {
+func addRegDataContext(s *APITestSuite, req *http.Request, groupID string, groupIDs []string) *http.Request {
 	rctx := chi.NewRouteContext()
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry))
 	rd := ssas.AuthRegData{GroupID: groupID, AllowedGroupIDs: groupIDs}
 	req = req.WithContext(context.WithValue(req.Context(), "rd", rd))
 	return req
@@ -300,8 +368,9 @@ func (s *APITestSuite) TestTokenSuccess() {
 
 	pemString, err := ssas.ConvertPublicKeyToPEMString(&pubKey)
 	require.Nil(s.T(), err)
+	loggerctx := context.WithValue(context.Background(), ssas.CtxLoggerKey, s.logEntry)
 
-	creds, err := ssas.RegisterSystem(context.Background(), constants.TestSystemName, groupID, ssas.DefaultScope, pemString, []string{}, uuid.NewRandom().String())
+	creds, err := ssas.RegisterSystem(loggerctx, constants.TestSystemName, groupID, ssas.DefaultScope, pemString, []string{}, uuid.NewRandom().String())
 	assert.Nil(s.T(), err)
 	assert.Equal(s.T(), constants.TestSystemName, creds.ClientName)
 	assert.NotNil(s.T(), creds.ClientSecret)
@@ -310,7 +379,9 @@ func (s *APITestSuite) TestTokenSuccess() {
 	req := httptest.NewRequest("POST", constants.TokenEndpoint, nil)
 	req.SetBasicAuth(creds.ClientID, creds.ClientSecret)
 	req.Header.Add("Accept", constants.HeaderApplicationJSON)
-	handler := http.HandlerFunc(token)
+
+	handler := service.NewCtxLogger(http.HandlerFunc(token))
+	//handler := http.HandlerFunc(token)
 	handler.ServeHTTP(s.rr, req)
 	assert.Equal(s.T(), http.StatusOK, s.rr.Code)
 	t := TokenResponse{}
@@ -333,8 +404,8 @@ func (s *APITestSuite) TestTokenErrAtGenerateTokenReturn401() {
 
 	pemString, err := ssas.ConvertPublicKeyToPEMString(&pubKey)
 	require.Nil(s.T(), err)
-
-	creds, err := ssas.RegisterSystem(context.Background(), constants.TestSystemName, groupID, ssas.DefaultScope, pemString, []string{}, uuid.NewRandom().String())
+	loggerctx := context.WithValue(context.Background(), ssas.CtxLoggerKey, s.logEntry)
+	creds, err := ssas.RegisterSystem(loggerctx, constants.TestSystemName, groupID, ssas.DefaultScope, pemString, []string{}, uuid.NewRandom().String())
 	assert.Nil(s.T(), err)
 	assert.Equal(s.T(), constants.TestSystemName, creds.ClientName)
 	assert.NotNil(s.T(), creds.ClientSecret)
@@ -348,8 +419,7 @@ func (s *APITestSuite) TestTokenErrAtGenerateTokenReturn401() {
 	req := httptest.NewRequest("POST", constants.TokenEndpoint, nil)
 	req.SetBasicAuth(creds.ClientID, creds.ClientSecret)
 	req.Header.Add("Accept", constants.HeaderApplicationJSON)
-
-	handler := http.HandlerFunc(token)
+	handler := service.NewCtxLogger(http.HandlerFunc(token))
 
 	//call
 	handler.ServeHTTP(s.rr, req)
@@ -375,8 +445,8 @@ func (s *APITestSuite) TestTokenEmptySecretProduces401() {
 
 	pemString, err := ssas.ConvertPublicKeyToPEMString(&pubKey)
 	require.Nil(s.T(), err)
-
-	creds, err := ssas.RegisterSystem(context.Background(), constants.TestSystemName, groupID, ssas.DefaultScope, pemString, []string{}, uuid.NewRandom().String())
+	loggerctx := context.WithValue(context.Background(), ssas.CtxLoggerKey, s.logEntry)
+	creds, err := ssas.RegisterSystem(loggerctx, constants.TestSystemName, groupID, ssas.DefaultScope, pemString, []string{}, uuid.NewRandom().String())
 	assert.Nil(s.T(), err)
 	assert.Equal(s.T(), constants.TestSystemName, creds.ClientName)
 	assert.NotNil(s.T(), creds.ClientSecret)
@@ -384,7 +454,7 @@ func (s *APITestSuite) TestTokenEmptySecretProduces401() {
 	req := httptest.NewRequest("POST", constants.TokenEndpoint, nil)
 	req.SetBasicAuth(creds.ClientID, "")
 	req.Header.Add("Accept", constants.HeaderApplicationJSON)
-	handler := http.HandlerFunc(token)
+	handler := service.NewCtxLogger(http.HandlerFunc(token))
 
 	handler.ServeHTTP(s.rr, req)
 
@@ -407,8 +477,8 @@ func (s *APITestSuite) TestTokenWrongSecretProduces401() {
 
 	pemString, err := ssas.ConvertPublicKeyToPEMString(&pubKey)
 	require.Nil(s.T(), err)
-
-	creds, err := ssas.RegisterSystem(context.Background(), constants.TestSystemName, groupID, ssas.DefaultScope, pemString, []string{}, uuid.NewRandom().String())
+	loggerctx := context.WithValue(context.Background(), ssas.CtxLoggerKey, s.logEntry)
+	creds, err := ssas.RegisterSystem(loggerctx, constants.TestSystemName, groupID, ssas.DefaultScope, pemString, []string{}, uuid.NewRandom().String())
 	assert.Nil(s.T(), err)
 	assert.Equal(s.T(), constants.TestSystemName, creds.ClientName)
 	assert.NotNil(s.T(), creds.ClientSecret)
@@ -416,7 +486,7 @@ func (s *APITestSuite) TestTokenWrongSecretProduces401() {
 	req := httptest.NewRequest("POST", constants.TokenEndpoint, nil)
 	req.SetBasicAuth(creds.ClientID, "eogihfogihegoihego")
 	req.Header.Add("Accept", constants.HeaderApplicationJSON)
-	handler := http.HandlerFunc(token)
+	handler := service.NewCtxLogger(http.HandlerFunc(token))
 
 	handler.ServeHTTP(s.rr, req)
 
@@ -439,8 +509,8 @@ func (s *APITestSuite) TestTokenEmptyClientIdProduces401() {
 
 	pemString, err := ssas.ConvertPublicKeyToPEMString(&pubKey)
 	require.Nil(s.T(), err)
-
-	creds, err := ssas.RegisterSystem(context.Background(), constants.TestSystemName, groupID, ssas.DefaultScope, pemString, []string{}, uuid.NewRandom().String())
+	loggerctx := context.WithValue(context.Background(), ssas.CtxLoggerKey, s.logEntry)
+	creds, err := ssas.RegisterSystem(loggerctx, constants.TestSystemName, groupID, ssas.DefaultScope, pemString, []string{}, uuid.NewRandom().String())
 	assert.Nil(s.T(), err)
 	assert.Equal(s.T(), constants.TestSystemName, creds.ClientName)
 	assert.NotNil(s.T(), creds.ClientSecret)
@@ -448,7 +518,7 @@ func (s *APITestSuite) TestTokenEmptyClientIdProduces401() {
 	req := httptest.NewRequest("POST", constants.TokenEndpoint, nil)
 	req.SetBasicAuth("", creds.ClientSecret)
 	req.Header.Add("Accept", constants.HeaderApplicationJSON)
-	handler := http.HandlerFunc(token)
+	handler := service.NewCtxLogger(http.HandlerFunc(token))
 
 	handler.ServeHTTP(s.rr, req)
 
@@ -532,7 +602,8 @@ func (s *APITestSuite) TestIntrospectSuccess() {
 	req := httptest.NewRequest("POST", constants.TokenEndpoint, nil)
 	req.SetBasicAuth(creds.ClientID, creds.ClientSecret)
 	req.Header.Add("Accept", constants.HeaderApplicationJSON)
-	handler := http.HandlerFunc(token)
+
+	handler := service.NewCtxLogger(http.HandlerFunc(token))
 	handler.ServeHTTP(s.rr, req)
 	assert.Equal(s.T(), http.StatusOK, s.rr.Code)
 	t := TokenResponse{}
@@ -566,7 +637,7 @@ func (s *APITestSuite) TestSaveTokenTime() {
 	err := s.db.Create(&group).Error
 	require.Nil(s.T(), err)
 
-	creds, err := ssas.RegisterSystem(context.Background(), "Introspect Test", groupID, ssas.DefaultScope, "", []string{}, uuid.NewRandom().String())
+	creds, err := ssas.RegisterSystem(context.WithValue(context.Background(), ssas.CtxLoggerKey, s.logEntry), "Introspect Test", groupID, ssas.DefaultScope, "", []string{}, uuid.NewRandom().String())
 	assert.Nil(s.T(), err)
 	assert.Equal(s.T(), "Introspect Test", creds.ClientName)
 	assert.NotNil(s.T(), creds.ClientSecret)
@@ -575,13 +646,19 @@ func (s *APITestSuite) TestSaveTokenTime() {
 	assert.Nil(s.T(), err)
 	assert.True(s.T(), system.LastTokenAt.IsZero())
 
-	system.SaveTokenTime(context.Background())
+	err = system.SaveTokenTime(context.Background())
+	if err != nil {
+		s.T().Fail()
+	}
 	system, err = ssas.GetSystemByClientID(context.Background(), creds.ClientID)
 	assert.Nil(s.T(), err)
 	assert.False(s.T(), system.LastTokenAt.IsZero())
 
 	time1 := system.LastTokenAt
-	system.SaveTokenTime(context.Background())
+	err = system.SaveTokenTime(context.Background())
+	if err != nil {
+		s.T().Fail()
+	}
 	system, err = ssas.GetSystemByClientID(context.Background(), creds.ClientID)
 	assert.Nil(s.T(), err)
 	assert.NotEqual(s.T(), system.LastTokenAt, time1)
@@ -627,7 +704,7 @@ func (s *APITestSuite) SetupClientAssertionTest() (ssas.Credentials, ssas.Group,
 		TrackingID: uuid.NewRandom().String(),
 		XData:      `{"impl": "blah"}`,
 	}
-	creds, err := ssas.RegisterV2System(context.Background(), si)
+	creds, err := ssas.RegisterV2System(context.WithValue(context.Background(), ssas.CtxLoggerKey, s.logEntry), si)
 	assert.Nil(s.T(), err)
 	assert.Equal(s.T(), constants.TestSystemName, creds.ClientName)
 	assert.NotNil(s.T(), creds.ClientSecret)
@@ -651,7 +728,7 @@ func (s *APITestSuite) TestAuthenticatingWithJWT() {
 	req.Header.Add("Accept", constants.HeaderApplicationJSON)
 	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 
-	handler := http.HandlerFunc(tokenV2)
+	handler := service.NewCtxLogger(http.HandlerFunc(tokenV2))
 	handler.ServeHTTP(s.rr, req)
 	assert.Equal(s.T(), http.StatusOK, s.rr.Code)
 	t := TokenResponse{}
@@ -678,7 +755,8 @@ func (s *APITestSuite) TestAuthenticatingWithJWTUsingSecondPublicKey() {
 	form := buildClientAssertionForm(clientAssertion)
 	req := buildClientAssertionRequest(form)
 
-	handler := http.HandlerFunc(tokenV2)
+	//handler := http.HandlerFunc(tokenV2)
+	handler := service.NewCtxLogger(http.HandlerFunc(tokenV2))
 	handler.ServeHTTP(s.rr, req)
 	assert.Equal(s.T(), http.StatusOK, s.rr.Code)
 	t := TokenResponse{}
@@ -704,7 +782,8 @@ func (s *APITestSuite) TestAuthenticatingWithJWTUsingWrongPrivateKey() {
 	form := buildClientAssertionForm(clientAssertion)
 	req := buildClientAssertionRequest(form)
 
-	handler := http.HandlerFunc(tokenV2)
+	//handler := http.HandlerFunc(tokenV2)
+	handler := service.NewCtxLogger(http.HandlerFunc(tokenV2))
 	handler.ServeHTTP(s.rr, req)
 
 	s.verifyErrorResponse(http.StatusBadRequest, "crypto/rsa: verification error")
@@ -730,7 +809,8 @@ func (s *APITestSuite) TestAuthenticatingWithMismatchLocation() {
 	req.Header.Add("Accept", constants.HeaderApplicationJSON)
 	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 
-	handler := http.HandlerFunc(tokenV2)
+	handler := service.NewCtxLogger(http.HandlerFunc(tokenV2))
+	//handler := http.HandlerFunc(tokenV2)
 	handler.ServeHTTP(s.rr, req)
 	assert.Equal(s.T(), http.StatusBadRequest, s.rr.Code)
 	err := ssas.CleanDatabase(group)
@@ -754,7 +834,8 @@ func (s *APITestSuite) TestAuthenticatingWithJWTWithExpBeforeIssuedTime() {
 	req.Header.Add("Accept", constants.HeaderApplicationJSON)
 	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 
-	handler := http.HandlerFunc(tokenV2)
+	//handler := http.HandlerFunc(tokenV2)
+	handler := service.NewCtxLogger(http.HandlerFunc(tokenV2))
 	handler.ServeHTTP(s.rr, req)
 
 	s.verifyErrorResponse(http.StatusBadRequest, "token used before issued")
@@ -780,7 +861,8 @@ func (s *APITestSuite) TestAuthenticatingWithJWTWithMoreThan5MinutesExpTime() {
 	req.Header.Add("Accept", constants.HeaderApplicationJSON)
 	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 
-	handler := http.HandlerFunc(tokenV2)
+	//handler := http.HandlerFunc(tokenV2)
+	handler := service.NewCtxLogger(http.HandlerFunc(tokenV2))
 	handler.ServeHTTP(s.rr, req)
 
 	s.verifyErrorResponse(http.StatusBadRequest, "IssuedAt (iat) and ExpiresAt (exp) claims are more than 5 minutes apart")
@@ -805,8 +887,8 @@ func (s *APITestSuite) TestAuthenticatingWithJWTWithExpiredToken() {
 	req := httptest.NewRequest("POST", "/v2/token", strings.NewReader(form.Encode()))
 	req.Header.Add("Accept", constants.HeaderApplicationJSON)
 	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
-
-	handler := http.HandlerFunc(tokenV2)
+	handler := service.NewCtxLogger(http.HandlerFunc(tokenV2))
+	//handler := http.HandlerFunc(tokenV2)
 	handler.ServeHTTP(s.rr, req)
 
 	s.verifyErrorResponse(http.StatusBadRequest, "token is expired")
@@ -835,7 +917,8 @@ func (s *APITestSuite) TestAuthenticatingWithJWTSignedWithWrongKey() {
 	req.Header.Add("Accept", constants.HeaderApplicationJSON)
 	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 
-	handler := http.HandlerFunc(tokenV2)
+	//handler := http.HandlerFunc(tokenV2)
+	handler := service.NewCtxLogger(http.HandlerFunc(tokenV2))
 	handler.ServeHTTP(s.rr, req)
 
 	s.verifyErrorResponse(http.StatusBadRequest, "crypto/rsa: verification error")
@@ -863,7 +946,7 @@ func (s *APITestSuite) TestAuthenticatingWithJWTWithSoftDeletedPublicKey() {
 
 	system, err := ssas.GetSystemByID(context.Background(), creds.SystemID)
 	assert.Nil(s.T(), err)
-	key, err := system.GetEncryptionKey(req.Context(), uuid.NewRandom().String())
+	key, err := system.GetEncryptionKey(req.Context())
 	assert.Nil(s.T(), err)
 
 	//Soft delete public key
@@ -871,7 +954,7 @@ func (s *APITestSuite) TestAuthenticatingWithJWTWithSoftDeletedPublicKey() {
 	assert.Nil(s.T(), s.db.Delete(&key).Error)
 
 	//Ensure record was soft deleted, and not permanently deleted.
-	key, err = system.GetEncryptionKey(req.Context(), uuid.NewRandom().String())
+	key, err = system.GetEncryptionKey(req.Context())
 	assert.NotNil(s.T(), err)
 	assert.Empty(s.T(), key)
 	var encryptionKey ssas.EncryptionKey
@@ -879,7 +962,8 @@ func (s *APITestSuite) TestAuthenticatingWithJWTWithSoftDeletedPublicKey() {
 	assert.Nil(s.T(), err)
 	assert.NotEmpty(s.T(), encryptionKey)
 
-	handler := http.HandlerFunc(tokenV2)
+	//handler := http.HandlerFunc(tokenV2)
+	handler := service.NewCtxLogger(http.HandlerFunc(tokenV2))
 	handler.ServeHTTP(s.rr, req)
 
 	s.verifyErrorResponse(http.StatusBadRequest, "key not found for system: "+creds.ClientToken)
@@ -902,7 +986,8 @@ func (s *APITestSuite) TestAuthenticatingWithJWTWithMissingIssuerClaim() {
 	req.Header.Add("Accept", constants.HeaderApplicationJSON)
 	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 
-	handler := http.HandlerFunc(tokenV2)
+	//handler := http.HandlerFunc(tokenV2)
+	handler := service.NewCtxLogger(http.HandlerFunc(tokenV2))
 	handler.ServeHTTP(s.rr, req)
 
 	s.verifyErrorResponse(http.StatusBadRequest, "missing issuer (iss) in jwt claims")
@@ -925,7 +1010,8 @@ func (s *APITestSuite) TestAuthenticatingWithJWTWithBadAudienceClaim() {
 	req.Header.Add("Accept", constants.HeaderApplicationJSON)
 	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 
-	handler := http.HandlerFunc(tokenV2)
+	//handler := http.HandlerFunc(tokenV2)
+	handler := service.NewCtxLogger(http.HandlerFunc(tokenV2))
 	handler.ServeHTTP(s.rr, req)
 
 	s.verifyErrorResponse(http.StatusBadRequest, "invalid audience (aud) claim")
@@ -958,7 +1044,8 @@ func (s *APITestSuite) TestAuthenticatingWithJWTWithMissingKID() {
 	req.Header.Add("Accept", constants.HeaderApplicationJSON)
 	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 
-	handler := http.HandlerFunc(tokenV2)
+	//handler := http.HandlerFunc(tokenV2)
+	handler := service.NewCtxLogger(http.HandlerFunc(tokenV2))
 	handler.ServeHTTP(s.rr, req)
 
 	s.verifyErrorResponse(http.StatusBadRequest, "missing public key id (kid) in jwt header")
@@ -985,7 +1072,8 @@ func (s *APITestSuite) TestAuthenticatingWithJWTWithMissingJTI() {
 	form := buildClientAssertionForm(signedString)
 	req := buildClientAssertionRequest(form)
 
-	handler := http.HandlerFunc(tokenV2)
+	//handler := http.HandlerFunc(tokenV2)
+	handler := service.NewCtxLogger(http.HandlerFunc(tokenV2))
 	handler.ServeHTTP(s.rr, req)
 
 	s.verifyErrorResponse(http.StatusBadRequest, "missing Token ID (jti) claim")
@@ -1001,7 +1089,8 @@ func (s *APITestSuite) TestAuthenticatingWithJWTWithMissingSubjectClaim() {
 	form := buildClientAssertionForm(clientAssertion)
 	req := buildClientAssertionRequest(form)
 
-	handler := http.HandlerFunc(tokenV2)
+	//handler := http.HandlerFunc(tokenV2)
+	handler := service.NewCtxLogger(http.HandlerFunc(tokenV2))
 	handler.ServeHTTP(s.rr, req)
 
 	s.verifyErrorResponse(http.StatusBadRequest, "subject (sub) and issuer (iss) claims do not match")
@@ -1031,7 +1120,8 @@ func (s *APITestSuite) TestClientAssertionAuthWithBadScopeParam() {
 	form.Set("grant_type", "client_credentials")
 	form.Set("client_assertion_type", "urn:ietf:params:oauth:client-assertion-type:jwt-bearer")
 	form.Set("client_assertion", "value_does_not_matter_for_this_test")
-	handler := http.HandlerFunc(tokenV2)
+	handler := service.NewCtxLogger(http.HandlerFunc(tokenV2))
+	//handler := http.HandlerFunc(tokenV2)
 
 	//Invalid scope value
 	form.Set("scope", "system/invalid")
@@ -1045,7 +1135,8 @@ func (s *APITestSuite) TestClientAssertionAuthWithBadScopeParam() {
 func (s *APITestSuite) TestClientAssertionAuthWithBadAcceptHeader() {
 	//System does not need to be created for this test since header and param checks are done before assertion is parsed/looked up.
 	form := buildClientAssertionForm("value_does_not_matter_for_this_test")
-	handler := http.HandlerFunc(tokenV2)
+	//handler := http.HandlerFunc(tokenV2)
+	handler := service.NewCtxLogger(http.HandlerFunc(tokenV2))
 
 	//Invalid accept header value
 	req := httptest.NewRequest("POST", "/v2/token", strings.NewReader(form.Encode()))
@@ -1058,8 +1149,8 @@ func (s *APITestSuite) TestClientAssertionAuthWithBadAcceptHeader() {
 func (s *APITestSuite) TestClientAssertionAuthWithBadContentTypeHeader() {
 	//System does not need to be created for this test since header and param checks are done before assertion is parsed/looked up.
 	form := buildClientAssertionForm("value_does_not_matter_for_this_test")
-	handler := http.HandlerFunc(tokenV2)
-
+	//handler := http.HandlerFunc(tokenV2)
+	handler := service.NewCtxLogger(http.HandlerFunc(tokenV2))
 	//Missing Content-Type header
 	req := httptest.NewRequest("POST", "/v2/token", strings.NewReader(form.Encode()))
 	req.Header.Set("Accept", constants.HeaderApplicationJSON)
@@ -1078,7 +1169,8 @@ func (s *APITestSuite) TestClientAssertionAuthWithBadGrantTypeParam() {
 	//System does not need to be created for this test since header and param checks are done before assertion is parsed/looked up.
 	form := buildClientAssertionForm("value_does_not_matter_for_this_test")
 	form.Set("grant_type", "invalid_grant_type")
-	handler := http.HandlerFunc(tokenV2)
+	//handler := http.HandlerFunc(tokenV2)
+	handler := service.NewCtxLogger(http.HandlerFunc(tokenV2))
 
 	//Invalid grant_type param
 	req := httptest.NewRequest("POST", "/v2/token", strings.NewReader(form.Encode()))
@@ -1091,7 +1183,8 @@ func (s *APITestSuite) TestClientAssertionAuthWithBadGrantTypeParam() {
 func (s *APITestSuite) TestClientAssertionAuthWithBadClientAssertionTypeParam() {
 	//System does not need to be created for this test since header and param checks are done before assertion is parsed/looked up.
 	form := buildClientAssertionForm("value_does_not_matter_for_this_test")
-	handler := http.HandlerFunc(tokenV2)
+	//handler := http.HandlerFunc(tokenV2)
+	handler := service.NewCtxLogger(http.HandlerFunc(tokenV2))
 
 	//Invalid client_assertion_type param
 	form.Set("client_assertion_type", "invalid_client_assertion_type")
@@ -1106,7 +1199,8 @@ func (s *APITestSuite) TestClientAssertionAuthWithMissingClientAssertionParam() 
 	//Create system and valid client assertion token
 	form := buildClientAssertionForm("value_does_not_matter_for_this_test")
 	form.Del("client_assertion")
-	handler := http.HandlerFunc(tokenV2)
+	//handler := http.HandlerFunc(tokenV2)
+	handler := service.NewCtxLogger(http.HandlerFunc(tokenV2))
 
 	//Missing client_assertion param
 	req := httptest.NewRequest("POST", "/v2/token", strings.NewReader(form.Encode()))
@@ -1140,7 +1234,6 @@ func mintClientAssertion(issuer, subject, aud string, issuedAt, expiresAt int64,
 	token.Header["kid"] = kid
 	var signedString, err = token.SignedString(privateKey)
 	if err != nil {
-		ssas.TokenMintingFailure(ssas.Event{TokenID: tokenID})
 		ssas.Logger.Errorf("token signing error %s", err)
 		return nil, "", err
 	}
@@ -1156,6 +1249,7 @@ func (s *APITestSuite) TestGetTokenInfo() {
 	req := httptest.NewRequest("POST", "/token_info", strings.NewReader(body))
 	rctx := chi.NewRouteContext()
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry))
 	handler := http.HandlerFunc(validateAndParseToken)
 	rr := httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
@@ -1174,6 +1268,7 @@ func (s *APITestSuite) TestGetTokenInfoWithMissingToken() {
 	req := httptest.NewRequest("POST", "/token_info", strings.NewReader(body))
 	rCtx := chi.NewRouteContext()
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rCtx))
+	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry))
 	handler := http.HandlerFunc(validateAndParseToken)
 	rr := httptest.NewRecorder()
 
@@ -1191,6 +1286,7 @@ func (s *APITestSuite) TestGetTokenInfoWithEmptyToken() {
 	req := httptest.NewRequest("POST", "/token_info", strings.NewReader(body))
 	rCtx := chi.NewRouteContext()
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rCtx))
+	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry))
 	handler := http.HandlerFunc(validateAndParseToken)
 	rr := httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
@@ -1208,6 +1304,7 @@ func (s *APITestSuite) TestGetTokenInfoWithCorruptToken() {
 	req := httptest.NewRequest("POST", "/token_info", strings.NewReader(body))
 	rCtx := chi.NewRouteContext()
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rCtx))
+	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry))
 	handler := http.HandlerFunc(validateAndParseToken)
 	rr := httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
@@ -1224,6 +1321,7 @@ func (s *APITestSuite) TestGetTokenInfoWithExpiredToken() {
 	req := httptest.NewRequest("POST", "/token_info", strings.NewReader(body))
 	rCtx := chi.NewRouteContext()
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rCtx))
+	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry))
 	handler := http.HandlerFunc(validateAndParseToken)
 	rr := httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
@@ -1250,4 +1348,10 @@ func (s *APITestSuite) MintTestAccessTokenWithDuration(duration time.Duration) (
 
 func (s *APITestSuite) MintTestAccessToken() (*jwt.Token, string, error) {
 	return s.MintTestAccessTokenWithDuration(time.Minute * 10)
+}
+
+func MakeTestStructuredLoggerEntry(logFields logrus.Fields) *ssas.APILoggerEntry {
+	var lggr logrus.Logger
+	newLogEntry := &ssas.APILoggerEntry{Logger: lggr.WithFields(logFields)}
+	return newLogEntry
 }

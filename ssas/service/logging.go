@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/pborman/uuid"
 	"github.com/sirupsen/logrus"
 
 	"github.com/CMSgov/bcda-ssas-app/ssas"
@@ -86,10 +87,23 @@ func NewCtxLogger(next http.Handler) http.Handler {
 	})
 }
 
+const TransactionIDHeader = "TRANSACTIONID"
+
 // type to create context.Context key
 type CtxTransactionKeyType string
 
 // context.Context key to get the transaction ID from the request context
 const CtxTransactionKey CtxTransactionKeyType = "ctxTransaction"
 
-const TransactionIDHeader = "TRANSACTIONID"
+// Adds a transaction ID to the request context from the incoming request's header.
+// If one doesn't exist, it will generate one.
+func GetTransactionID(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		tid := r.Header.Get(TransactionIDHeader)
+		if tid == "" {
+			tid = uuid.New()
+		}
+		r = r.WithContext(context.WithValue(r.Context(), CtxTransactionKey, tid))
+		next.ServeHTTP(w, r)
+	})
+}

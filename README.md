@@ -172,7 +172,7 @@ To get postgres dump of schema (replace PASSHERE with password)
 docker run --rm --network bcda-ssas-app_default -e PGPASSWORD=PASSHERE -it postgres pg_dump -s -h bcda-ssas-app_db_1 -d bcda -U postgres > schema.sql
 ```
 
-To reset a secret by client id:
+To reset a secret by client id (can be found in Makefile):
 
 ```
 docker-compose run --rm ssas sh -c 'ssas --reset-secret --client-id=[client_id]'
