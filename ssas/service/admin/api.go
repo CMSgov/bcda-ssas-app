@@ -308,7 +308,7 @@ func deleteGroup(w http.ResponseWriter, r *http.Request) {
 	err := ssas.DeleteGroup(r.Context(), id)
 	if err != nil {
 		logger.Errorf("failed to delete group; %s", err)
-		service.JSONError(w, http.StatusNoContent, http.StatusText(http.StatusNoContent), "failed to delete group")
+		service.JSONError(w, http.StatusNotFound, http.StatusText(http.StatusNotFound), "failed to delete group")
 		return
 	}
 

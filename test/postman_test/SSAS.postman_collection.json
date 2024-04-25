@@ -293,16 +293,16 @@
 			"response": []
 		},
 		{
-			"name": "admin delete group, 204",
+			"name": "admin delete group, 404",
 			"event": [
 				{
 					"listen": "test",
 					"script": {
 						"id": "95ce3470-8202-4e9f-b4f6-4fe36a09cb0d",
 						"exec": [
-							"pm.test(\"response is 204 and no content\", function () {",
-							"    pm.response.to.have.status(204);",
-							"    pm.response.to.have.body('{\"error\":\"No Content\",\"error_description\":\"failed to delete group\"}',)",
+							"pm.test(\"response is 404 and not found\", function () {",
+							"    pm.response.to.have.status(404);",
+							"    pm.response.to.have.body('{\"error\":\"Not Found\",\"error_description\":\"failed to delete group\"}',)",
 							"});"
 						],
 						"type": "text/javascript"

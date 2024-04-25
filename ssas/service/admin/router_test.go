@@ -109,7 +109,7 @@ func (s *RouterTestSuite) TestDeleteGroup() {
 	rr := httptest.NewRecorder()
 	s.router.ServeHTTP(rr, req)
 	res := rr.Result()
-	assert.Equal(s.T(), http.StatusNoContent, res.StatusCode)
+	assert.Equal(s.T(), http.StatusNotFound, res.StatusCode)
 }
 
 func (s *RouterTestSuite) TestPostSystem() {
