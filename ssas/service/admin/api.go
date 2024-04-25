@@ -149,7 +149,7 @@ func updateGroup(w http.ResponseWriter, r *http.Request) {
 	gd := ssas.GroupData{}
 	err := json.Unmarshal(body, &gd)
 	if err != nil {
-		logger.Error("failed to marshal JSON: ", err)
+		logger.Error("failed to unmarshal JSON: ", err)
 		service.JSONError(w, http.StatusBadRequest, "invalid request body", "")
 		return
 	}
@@ -272,7 +272,7 @@ func updateSystem(w http.ResponseWriter, r *http.Request) {
 	_, err = ssas.UpdateSystem(r.Context(), id, v)
 	if err != nil {
 		logger.Errorf("failed to update system; %s", err)
-		service.JSONError(w, http.StatusBadRequest, http.StatusText(http.StatusBadRequest), "failed to update system")
+		service.JSONError(w, http.StatusNotFound, http.StatusText(http.StatusNotFound), "failed to update system")
 		return
 	}
 
@@ -308,7 +308,7 @@ func deleteGroup(w http.ResponseWriter, r *http.Request) {
 	err := ssas.DeleteGroup(r.Context(), id)
 	if err != nil {
 		logger.Errorf("failed to delete group; %s", err)
-		service.JSONError(w, http.StatusBadRequest, http.StatusText(http.StatusBadRequest), "failed to delete group")
+		service.JSONError(w, http.StatusNoContent, http.StatusText(http.StatusNoContent), "failed to delete group")
 		return
 	}
 
@@ -598,7 +598,7 @@ func registerIP(w http.ResponseWriter, r *http.Request) {
 	system, err := ssas.GetSystemByID(r.Context(), systemID)
 	if err != nil {
 		logger.Errorf("failed to retrieve system; %s", err)
-		service.JSONError(w, http.StatusNotFound, http.StatusText(http.StatusBadRequest), "Invalid system ID")
+		service.JSONError(w, http.StatusNotFound, http.StatusText(http.StatusNotFound), "Invalid system ID")
 		return
 	}
 
@@ -659,7 +659,7 @@ func getSystemIPs(w http.ResponseWriter, r *http.Request) {
 	ips, err := system.GetIps(r.Context())
 	if err != nil {
 		logger.Error("Could not retrieve system ips", err)
-		service.JSONError(w, http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError), "")
+		service.JSONError(w, http.StatusNotFound, http.StatusText(http.StatusNotFound), "")
 		return
 	}
 
@@ -717,7 +717,7 @@ func deleteSystemIP(w http.ResponseWriter, r *http.Request) {
 	err = system.DeleteIP(r.Context(), ipID)
 	if err != nil {
 		logger.Errorf("failed to delete IP: %s", err)
-		service.JSONError(w, http.StatusBadRequest, http.StatusText(http.StatusBadRequest), "failed to delete IP")
+		service.JSONError(w, http.StatusNotFound, http.StatusText(http.StatusNotFound), "failed to delete IP")
 		return
 	}
 
@@ -748,7 +748,7 @@ func createToken(w http.ResponseWriter, r *http.Request) {
 	b, err := io.ReadAll(r.Body)
 	if err != nil {
 		logger.Error(err)
-		service.JSONError(w, http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError), "")
+		service.JSONError(w, http.StatusBadRequest, http.StatusText(http.StatusBadRequest), "")
 		return
 	}
 
@@ -861,7 +861,7 @@ func deleteKey(w http.ResponseWriter, r *http.Request) {
 	system, err := ssas.GetSystemByID(r.Context(), systemID)
 	if err != nil {
 		logger.Error("failed to get system: ", err)
-		service.JSONError(w, http.StatusNotFound, http.StatusText(http.StatusInternalServerError), "Invalid system ID")
+		service.JSONError(w, http.StatusNotFound, http.StatusText(http.StatusNotFound), "Invalid system ID")
 		return
 	}
 

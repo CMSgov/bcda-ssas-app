@@ -949,7 +949,7 @@ func (s *APITestSuite) TestDeleteIPIPNotFound() {
 
 	rr := httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
-	assert.Equal(s.T(), http.StatusBadRequest, rr.Result().StatusCode)
+	assert.Equal(s.T(), http.StatusNotFound, rr.Result().StatusCode)
 	_ = ssas.CleanDatabase(group)
 }
 
@@ -1064,7 +1064,7 @@ func (s *APITestSuite) TestUpdateNonExistingSystem() {
 	handler := http.HandlerFunc(updateSystem)
 	rr := httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
-	assert.Equal(s.T(), http.StatusBadRequest, rr.Result().StatusCode)
+	assert.Equal(s.T(), http.StatusNotFound, rr.Result().StatusCode)
 	assert.Contains(s.T(), rr.Body.String(), "failed to update system")
 }
 
