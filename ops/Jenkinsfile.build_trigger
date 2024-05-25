@@ -41,7 +41,7 @@ pipeline {
           ]]
         ])
         script {
-          if (env.BRANCH_NAME == "master") {
+          if (env.BRANCH_NAME == "main") {
             DEPLOY='dev'
           }
         } 
@@ -51,7 +51,7 @@ pipeline {
     stage('Build and Package') {
      steps {
         build job: 'BCDA - Build and Package',
-        // Since this is being triggered by a code delivery to SSAS repo, it should always be built with BCDA master
+        // Since this is being triggered by a code delivery to SSAS repo, it should always be built with BCDA main
         parameters: [string(name: 'SSAS_GIT_VERSION', value: "${env.BRANCH_NAME}"), string(name: 'DEPLOY', value: "${DEPLOY}")], 
         wait: true,
         propagate: true

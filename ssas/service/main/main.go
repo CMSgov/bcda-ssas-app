@@ -5,13 +5,13 @@
 
  For more details see our repository readme and Postman tests:
  - https://github.com/CMSgov/bcda-ssas-app
- - https://github.com/CMSgov/bcda-ssas-app/tree/master/test/postman_test
+ - https://github.com/CMSgov/bcda-ssas-app/tree/main/test/postman_test
 
  If you have a Client ID and Secret you can use this page to explore the API.  To do this, click the green "Authorize" button below and enter your Client ID and secret in the Basic Authentication username and password boxes.
 Until you click logout your token will be presented with every request made.  To make requests click on the "Try it out" button for the desired endpoint.
 
      Version: 1.0.0
-     License: Public Domain https://github.com/CMSgov/bcda-ssas-app/blob/master/LICENSE.md
+     License: Public Domain https://github.com/CMSgov/bcda-ssas-app/blob/main/LICENSE.md
      Contact: bcapi@cms.hhs.gov
 
      Produces:
