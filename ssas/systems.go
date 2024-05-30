@@ -9,7 +9,6 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
-	"go/build"
 	"io"
 	"net"
 	"os"
@@ -34,18 +33,8 @@ func init() {
 
 func getEnvVars() {
 	env := os.Getenv("DEPLOYMENT_TARGET")
-	gopath := os.Getenv("GOPATH")
 
-	if gopath == "" {
-		gopath = build.Default.GOPATH
-		//when GOROOT==gopath, it'll still be empty. Thus, we specify what's in our Dockerfile.
-		if gopath == "" {
-			gopath = "/go"
-		}
-
-	}
-
-	envPath := fmt.Sprintf(gopath+"/src/github.com/CMSgov/bcda-ssas-app/ssas/cfg/configs/%s.env", env)
+	envPath := fmt.Sprintf("/go/src/github.com/CMSgov/bcda-ssas-app/ssas/cfg/configs/%s.env", env)
 	err := godotenv.Load(envPath)
 
 	if err != nil {
