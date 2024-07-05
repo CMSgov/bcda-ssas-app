@@ -266,7 +266,7 @@ func (s *APITestSuite) TestRevokeTokenNoToken() {
 	handler.ServeHTTP(rr, req)
 
 	// TODO(BCDA-7212): Handle gracefully
-	assert.Equal(s.T(), http.StatusInternalServerError, rr.Result().StatusCode)
+	assert.Equal(s.T(), http.StatusBadRequest, rr.Result().StatusCode)
 }
 
 func (s *APITestSuite) TestDeleteGroup() {
@@ -949,7 +949,7 @@ func (s *APITestSuite) TestDeleteIPIPNotFound() {
 
 	rr := httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
-	assert.Equal(s.T(), http.StatusBadRequest, rr.Result().StatusCode)
+	assert.Equal(s.T(), http.StatusNotFound, rr.Result().StatusCode)
 	_ = ssas.CleanDatabase(group)
 }
 
@@ -1064,7 +1064,7 @@ func (s *APITestSuite) TestUpdateNonExistingSystem() {
 	handler := http.HandlerFunc(updateSystem)
 	rr := httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
-	assert.Equal(s.T(), http.StatusBadRequest, rr.Result().StatusCode)
+	assert.Equal(s.T(), http.StatusNotFound, rr.Result().StatusCode)
 	assert.Contains(s.T(), rr.Body.String(), "failed to update system")
 }
 
@@ -1363,7 +1363,7 @@ func (s *APITestSuite) TestCreateV2SystemTokenNonJson() {
 	handler.ServeHTTP(rr, req)
 
 	// TODO(BCDA-7212): Handle gracefully
-	assert.Equal(s.T(), http.StatusInternalServerError, rr.Result().StatusCode)
+	assert.Equal(s.T(), http.StatusBadRequest, rr.Result().StatusCode)
 }
 
 func (s *APITestSuite) TestCreateV2SystemTokenMissingLabel() {
@@ -1504,7 +1504,7 @@ func (s *APITestSuite) TestCreatePublicKeyMissingFields() {
 	handler.ServeHTTP(rr, req)
 
 	// TODO(BCDA-7212): Handle gracefully
-	assert.Equal(s.T(), http.StatusInternalServerError, rr.Result().StatusCode)
+	assert.Equal(s.T(), http.StatusBadRequest, rr.Result().StatusCode)
 }
 
 func (s *APITestSuite) TestDeletePublicKeySystemNotFound() {
