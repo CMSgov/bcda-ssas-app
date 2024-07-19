@@ -1,4 +1,4 @@
-FROM golang:1.19-alpine3.18
+FROM golang:1.22-alpine3.20
 
 RUN apk update upgrade
 
@@ -6,7 +6,7 @@ RUN apk add bash build-base curl
 
 RUN curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin
 
-RUN GO111MODULE=on go install github.com/xo/usql@v0.11.0
+RUN GO111MODULE=on go install github.com/xo/usql@v0.19.3
 RUN go install github.com/securego/gosec/v2/cmd/gosec@v2.12.0
 RUN go install gotest.tools/gotestsum@v1.8.1
 RUN go install -tags 'postgres' github.com/golang-migrate/migrate/v4/cmd/migrate@v4.15.2
