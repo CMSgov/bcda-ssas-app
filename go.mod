@@ -1,6 +1,6 @@
 module github.com/CMSgov/bcda-ssas-app
 
-go 1.21.1
+go 1.21.12
 
 require (
 	github.com/go-chi/chi/v5 v5.1.0
