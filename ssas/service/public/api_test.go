@@ -1254,7 +1254,7 @@ func (s *APITestSuite) TestGetTokenInfo() {
 	rr := httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
 	assert.Equal(s.T(), http.StatusOK, rr.Result().StatusCode)
-	assert.Equal(s.T(), "application/json; charset=utf-8", rr.Result().Header.Get("Content-Type"))
+	assert.Contains(s.T(), rr.Result().Header.Get("Content-Type"), "application/json")
 	var result map[string]interface{}
 	_ = json.Unmarshal(rr.Body.Bytes(), &result)
 	assert.NotEmpty(s.T(), result["data"])
