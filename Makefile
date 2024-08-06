@@ -1,7 +1,7 @@
 package:
 	# This target should be executed by passing in an argument representing the version of the artifacts we are packaging
 	# For example: make package version=r1
-	docker-compose run --rm documentation swagger generate spec -i ../../swaggerui/tags.yml -o ../../swaggerui/swagger.json -m
+	docker compose run --rm documentation swagger generate spec -i ../../swaggerui/tags.yml -o ../../swaggerui/swagger.json -m
 	docker build -t packaging -f Dockerfiles/Dockerfile.package .
 	docker run --rm \
 	-e BCDA_GPG_RPM_PASSPHRASE='${BCDA_GPG_RPM_PASSPHRASE}' \
@@ -12,26 +12,26 @@ package:
 	-v ${PWD}:/go/src/github.com/CMSgov/bcda-ssas-app packaging $(version)
 
 lint:
-	docker-compose -f docker-compose.test.yml run --rm tests golangci-lint -e SA1029 --timeout 10m0s -v run ./...
-	docker-compose -f docker-compose.test.yml run --rm tests gosec ./...
+	docker compose -f docker compose.test.yml run --rm tests golangci-lint -e SA1029 --timeout 10m0s -v run ./...
+	docker compose -f docker compose.test.yml run --rm tests gosec ./...
 
 # The following vars are available to tests needing SSAS admin credentials; currently they are used in smoke-test-ssas, postman-ssas, and unit-test-ssas
 # Note that these variables should only be used for smoke tests, must be set before the api starts, and cannot be changed after the api starts
 SSAS_ADMIN_CLIENT_ID ?= 31e029ef-0e97-47f8-873c-0e8b7e7f99bf
-SSAS_ADMIN_CLIENT_SECRET := $(shell docker-compose run --rm ssas sh -c 'ssas --reset-secret --client-id=$(SSAS_ADMIN_CLIENT_ID)'|tail -n1)
+SSAS_ADMIN_CLIENT_SECRET := $(shell docker compose run --rm ssas sh -c 'ssas --reset-secret --client-id=$(SSAS_ADMIN_CLIENT_ID)'|tail -n1)
 
 smoke-test:
-	docker-compose -f docker-compose.test.yml run --rm postman_test test/postman_test/SSAS_Smoke_Test.postman_collection.json -e test/postman_test/local.postman_environment.json --global-var "token=$(token)" --global-var adminClientId=$(SSAS_ADMIN_CLIENT_ID) --global-var adminClientSecret=$(SSAS_ADMIN_CLIENT_SECRET) --global-var ssas_client_assertion_aud=$(SASS_CLIENT_ASSERTION_AUD)
+	docker compose -f docker compose.test.yml run --rm postman_test test/postman_test/SSAS_Smoke_Test.postman_collection.json -e test/postman_test/local.postman_environment.json --global-var "token=$(token)" --global-var adminClientId=$(SSAS_ADMIN_CLIENT_ID) --global-var adminClientSecret=$(SSAS_ADMIN_CLIENT_SECRET) --global-var ssas_client_assertion_aud=$(SASS_CLIENT_ASSERTION_AUD)
 
 postman:
-	docker-compose -f docker-compose.test.yml run --rm postman_test test/postman_test/SSAS.postman_collection.json -e test/postman_test/local.postman_environment.json --global-var adminClientId=$(SSAS_ADMIN_CLIENT_ID) --global-var adminClientSecret=$(SSAS_ADMIN_CLIENT_SECRET) --global-var ssas_client_assertion_aud=$(SASS_CLIENT_ASSERTION_AUD)
+	docker compose -f docker compose.test.yml run --rm postman_test test/postman_test/SSAS.postman_collection.json -e test/postman_test/local.postman_environment.json --global-var adminClientId=$(SSAS_ADMIN_CLIENT_ID) --global-var adminClientSecret=$(SSAS_ADMIN_CLIENT_SECRET) --global-var ssas_client_assertion_aud=$(SASS_CLIENT_ASSERTION_AUD)
 
 migrations-test:
-	docker-compose -f docker-compose.test.yml run --rm tests bash ops/migrations_test.sh
+	docker compose -f docker compose.test.yml run --rm tests bash ops/migrations_test.sh
 
 unit-test:
-	docker-compose up -d db
-	docker-compose -f docker-compose.test.yml run --rm tests bash unit_test.sh
+	docker compose up -d db
+	docker compose -f docker compose.test.yml run --rm tests bash unit_test.sh
 
 test:
 	$(MAKE) lint
@@ -41,16 +41,16 @@ test:
 	$(MAKE) migrations-test
 
 load-fixtures:
-	docker-compose -f docker-compose.migrate.yml run --rm migrate  -database "postgres://postgres:toor@db:5432/bcda?sslmode=disable" -path /go/src/github.com/CMSgov/bcda-ssas-app/db/migrations up
-	docker-compose -f docker-compose.yml run ssas sh -c 'ssas --add-fixture-data'
+	docker compose -f docker compose.migrate.yml run --rm migrate  -database "postgres://postgres:toor@db:5432/bcda?sslmode=disable" -path /go/src/github.com/CMSgov/bcda-ssas-app/db/migrations up
+	docker compose -f docker compose.yml run ssas sh -c 'ssas --add-fixture-data'
 
 docker-build:
-	docker-compose build --force-rm
-	docker-compose -f docker-compose.test.yml build --force-rm
+	docker compose build --force-rm
+	docker compose -f docker compose.test.yml build --force-rm
 
 docker-bootstrap:
 	$(MAKE) docker-build
-	docker-compose up -d
+	docker compose up -d
 	sleep 40
 	$(MAKE) load-fixtures
 
