@@ -23,7 +23,7 @@ Imports always go up the directory tree from leaves; that is, parents do not imp
 
 Values below are either indicated by Required, SSAS, BCDA, or a combination.
 
-- Required values must be present in the docker compose.\*.yml files.
+- Required values must be present in the docker-compose.\*.yml files.
 - Some values are primarily for the use of the BCDA API, and are only used by SSAS for testing purposes.
 - Some values are only used by the BCDA API; they are listed for reference.
 
