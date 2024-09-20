@@ -238,7 +238,7 @@ func (system *System) RevokeSecret(ctx context.Context, systemID string) error {
 
 	err = system.deactivateSecrets(ctx)
 	if err != nil {
-		return fmt.Errorf("unable to revoke credentials for clientID " + system.ClientID)
+		return fmt.Errorf("unable to revoke credentials for clientID %s", system.ClientID)
 	}
 	return nil
 }
