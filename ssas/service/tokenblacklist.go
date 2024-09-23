@@ -70,7 +70,7 @@ func (t *Blacklist) BlacklistToken(ctx context.Context, tokenID string, blacklis
 	entryDate := time.Now()
 	expirationDate := entryDate.Add(blacklistExpiration)
 	if _, err := ssas.CreateBlacklistEntry(ctx, tokenID, entryDate, expirationDate); err != nil {
-		return fmt.Errorf(fmt.Sprintf("unable to blacklist token id %s: %s", tokenID, err.Error()))
+		return fmt.Errorf("unable to blacklist token id %s: %s", tokenID, err.Error())
 	}
 
 	// Add to cache only after token is blacklisted in database

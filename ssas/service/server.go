@@ -58,7 +58,7 @@ func ChooseSigningKey(signingKeyPath, signingKey string) (*rsa.PrivateKey, error
 		if err != nil {
 			msg := fmt.Sprintf("bad signing key; path %s; %v", signingKeyPath, err)
 			ssas.Logger.Error(msg)
-			error = fmt.Errorf(msg)
+			error = errors.New(msg)
 		}
 		key = sk
 	} else if signingKey != "" && signingKeyPath == "" {
@@ -66,17 +66,17 @@ func ChooseSigningKey(signingKeyPath, signingKey string) (*rsa.PrivateKey, error
 		if err != nil {
 			msg := fmt.Sprintf("bad inline signing key; %v", err)
 			ssas.Logger.Error(msg)
-			error = fmt.Errorf(msg)
+			error = errors.New(msg)
 		}
 		key = sk
 	} else if signingKey == "" && signingKeyPath == "" {
 		msg := "inline key and path are both empty strings"
 		ssas.Logger.Error(msg)
-		error = fmt.Errorf(msg)
+		error = errors.New(msg)
 	} else {
 		msg := "inline key or path must be set, but not both"
 		ssas.Logger.Error(msg)
-		error = fmt.Errorf(msg)
+		error = errors.New(msg)
 	}
 
 	return key, error
@@ -481,7 +481,7 @@ func (s *Server) CheckRequiredClaims(claims *CommonClaims, requiredTokenType str
 	}
 
 	if requiredTokenType != claims.TokenType {
-		return fmt.Errorf(fmt.Sprintf("wrong token type: %s; required type: %s", claims.TokenType, requiredTokenType))
+		return fmt.Errorf("wrong token type: %s; required type: %s", claims.TokenType, requiredTokenType)
 	}
 	return nil
 }
