@@ -17,10 +17,6 @@ jobs:
           fetch-depth: 0
           ref: ${{ github.event.pull_request.head.ref }}
 
-      - name: "Build the stack"
-        run: |
-          make docker-bootstrap
-
       - name: Generate DB docs
         run: make dbdocs
 
