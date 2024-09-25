@@ -29,8 +29,10 @@ postman:
 migrations-test:
 	docker compose -f docker-compose.test.yml run --rm tests bash ops/migrations_test.sh
 
-unit-test:
+start-db:
 	docker compose up -d db
+
+unit-test: start-db
 	docker compose -f docker-compose.test.yml run --rm tests bash unit_test.sh
 
 test:
@@ -54,4 +56,7 @@ docker-bootstrap:
 	sleep 40
 	$(MAKE) load-fixtures
 
-.PHONY: docker-build docker-bootstrap load-fixtures test package release smoke-test postman unit-test lint migrations-test
+dbdocs: start-db load-fixtures
+	docker run --rm -v $PWD:/work -w /work --network bcda-ssas-app_default ghcr.io/k1low/tbls doc --rm-dist "postgres://postgres:toor@db:5432/bcda?sslmode=disable" dbdocs/bcda
+
+.PHONY: docker-build docker-bootstrap load-fixtures test package release smoke-test postman unit-test lint migrations-test start-db dbdocs
