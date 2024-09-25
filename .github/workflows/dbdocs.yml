@@ -8,9 +8,6 @@ on:
       - .github/workflows/dbdocs.yml
       - db/migrations
 
-env:
-  VAULT_PW: ${{ secrets.VAULT_PW }}
-
 jobs:
   generate-docs:
     runs-on: ubuntu-latest
