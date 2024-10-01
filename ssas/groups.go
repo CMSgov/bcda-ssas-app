@@ -106,8 +106,7 @@ func ListGroups(ctx context.Context) (list GroupList, err error) {
 func UpdateGroup(ctx context.Context, id string, gd GroupData) (Group, error) {
 	g, err := GetGroupByID(ctx, id)
 	if err != nil {
-		errString := fmt.Sprintf("record not found for id=%s", id)
-		err := fmt.Errorf(errString)
+		err := fmt.Errorf("record not found for id=%s", id)
 		return Group{}, err
 	}
 	gd.GroupID = g.Data.GroupID
