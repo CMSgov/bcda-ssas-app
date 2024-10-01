@@ -104,7 +104,7 @@ The project uses [Go Modules](https://golang.org/ref/mod) allowing you to clone 
 
 # Build
 
-Build all the code and containers with `make docker-bootstrap`. Alternatively, `docker-compose up ssas` will build and run the SSAS by itself. Note that SSAS needs the db container to be running as well.
+Build all the code and containers with `make docker-bootstrap`. Alternatively, `docker compose up ssas` will build and run the SSAS by itself. Note that SSAS needs the db container to be running as well.
 
 ## Bootstrapping CLI
 
@@ -129,7 +129,7 @@ one of these test suites, follow the instructions at the top of the test file.
 
 ### **Running Single / Single-file Unit Tests**
 
-This step assumes that the user has installed VSCode, the Go language extension available [here](https://marketplace.visualstudio.com/items?itemName=golang.Go), and has successfully imported test data to their local database. 
+This step assumes that the user has installed VSCode, the Go language extension available [here](https://marketplace.visualstudio.com/items?itemName=golang.Go), and has successfully imported test data to their local database.
 
 To run tests from within VSCode:
 In a FILENAME_test.go file, there will be a green arrow to the left of the method name, and clicking this arrow will run a single test locally. Tests should not be dependent upon other tests, but if a known-good test is failing, the user can run all tests in a given file by going to View -> Command Palette -> Go: Test Package, which will run all tests in a given file. Alternatively, in some instances, the init() method can be commented out to enable testing of single functions.
@@ -138,13 +138,13 @@ In a FILENAME_test.go file, there will be a green arrow to the left of the metho
 
 To run postman tests locally:
 
-Build and startup the required containers. Building with docker-compose up first will significantly improve the performance of the following steps.
+Build and startup the required containers. Building with docker compose up first will significantly improve the performance of the following steps.
 
 ```
-docker-compose up
-docker-compose stop
-docker-compose up -d db
-docker-compose up ssas
+docker compose up
+docker compose stop
+docker compose up -d db
+docker compose up ssas
 ```
 
 If this is the first time you've started the containers, set up your database tables and seed them with sample group and systems:
@@ -175,13 +175,13 @@ docker run --rm --network bcda-ssas-app_default -e PGPASSWORD=PASSHERE -it postg
 To reset a secret by client id (can be found in Makefile):
 
 ```
-docker-compose run --rm ssas sh -c 'ssas --reset-secret --client-id=[client_id]'
+docker compose run --rm ssas sh -c 'ssas --reset-secret --client-id=[client_id]'
 ```
 
 To list all active IPs from the connected database:
 
 ```
-docker-compose run --rm ssas sh -c 'ssas --list-ips'
+docker compose run --rm ssas sh -c 'ssas --list-ips'
 ```
 
 # Swagger Documentation
@@ -190,11 +190,11 @@ The admin server has Swagger documentation. To access:
 
 1. Make sure it's been built (the container will stop after a few seconds when the documentation is ready)
 
-   `docker-compose up documentation`
+   `docker compose up documentation`
 
 1. Make sure the `ssas` container is running
 
-   `docker-compose up ssas`
+   `docker compose up ssas`
 
 1. Access Swagger in your browser:
    http://localhost:3104/swagger
