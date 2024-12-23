@@ -60,3 +60,16 @@ dbdocs: start-db load-fixtures
 	docker run --rm -v $PWD:/work -w /work --network bcda-ssas-app_default ghcr.io/k1low/tbls doc --rm-dist "postgres://postgres:toor@db:5432/bcda?sslmode=disable" dbdocs/bcda
 
 .PHONY: docker-build docker-bootstrap load-fixtures test package release smoke-test postman unit-test lint migrations-test start-db dbdocs
+
+# Build and publish images to ECR
+build-ssas:
+	$(eval ACCOUNT_ID =$(shell aws sts get-caller-identity --output text --query Account))
+	$(eval CURRENT_COMMIT=$(shell git log -n 1 --pretty=format:'%h'))
+	$(eval DOCKER_REGISTRY_URL=${ACCOUNT_ID}.dkr.ecr.us-east-1.amazonaws.com/bcda-ssas)
+	docker build -t ${DOCKER_REGISTRY_URL}:latest -t '${DOCKER_REGISTRY_URL}:${CURRENT_COMMIT}' -f Dockerfiles/Dockerfile.ssas .
+
+publish-ssas:
+	$(eval ACCOUNT_ID =$(shell aws sts get-caller-identity --output text --query Account))
+	$(eval DOCKER_REGISTRY_URL=${ACCOUNT_ID}.dkr.ecr.us-east-1.amazonaws.com/bcda-ssas)
+	aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin '${DOCKER_REGISTRY_URL}'
+	docker image push ${DOCKER_REGISTRY_URL} -a
