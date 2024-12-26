@@ -1,0 +1,4 @@
+Get short-term AWS credentials through CloudTamer. If not available in your quick access dashboard, you can find these credentials in CloudTamer by selecting your project, navigating to Cloud Management > Cloud Access Roles, choosing the relevant application role, selecting the IAM role, and clicking on "Short-Term Access Keys".
+You can run from the base dir (bcda-app) `make test-path TEST_PATH="bcda/lambda/wafsync/*.go"`.  (You might have to `make load-fixtures` first).
+Note: the test updates the live IP address set `bcda-test-api-customers`. If it fails midway (unlikely), it's possible that the IP set has been altered and not reset to the original set, so watch for that.
+Note: This code is more or less copy-pasted from DPC: https://github.com/CMSgov/dpc-app/blob/main/lambda/api-waf-sync
