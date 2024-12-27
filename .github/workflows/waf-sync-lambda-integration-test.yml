@@ -6,7 +6,6 @@ on:
       - .github/workflows/waf-sync-lambda-integration-test.yml
       - .github/workflows/waf-sync-lambda-dev-deploy.yml
       - .github/workflows/waf-sync-lambda-test-deploy.yml
-      - .github/workflows/waf-sync-lambda-opensbx-deploy.yml
       - .github/workflows/waf-sync-lambda-prod-deploy.yml
       - lambda/wafsync/**
   workflow_dispatch:
