@@ -7,6 +7,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/wafv2"
+	"github.com/aws/aws-sdk-go/service/wafv2/wafv2iface"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -39,23 +40,15 @@ var createSession = func() (*session.Session, error) {
 	return sess, nil
 }
 
-func updateIpAddresses(ipAddresses []string) ([]string, error) {
+func updateIpAddresses(waf wafv2iface.WAFV2API, ipAddresses []string) ([]string, error) {
 	ipSetName := fmt.Sprintf("bcda-%s-api-customers", os.Getenv("ENV"))
 
-	sess, err := createSession()
-	if err != nil {
-		return nil, fmt.Errorf("failed creating session to update ip set, %+v", err)
-	}
-
-	wafsvc := wafv2.New(sess, &aws.Config{
-		Region: aws.String("us-east-1"),
-	})
 	listParams := &wafv2.ListIPSetsInput{
 		Scope: aws.String("REGIONAL"),
 	}
-	ipSetList, listErr := wafsvc.ListIPSets(listParams)
-	if listErr != nil {
-		return nil, fmt.Errorf("failed to fetch ip address sets, %v", listErr)
+	ipSetList, err := waf.ListIPSets(listParams)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch ip address sets, %v", err)
 	}
 
 	log.WithField("name", ipSetName).Info("Fetching IP set")
@@ -69,7 +62,7 @@ func updateIpAddresses(ipAddresses []string) ([]string, error) {
 			break
 		}
 	}
-	ipSet, err := wafsvc.GetIPSet(getParams)
+	ipSet, err := waf.GetIPSet(getParams)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get expected ip address set, %+v", err)
 	}
@@ -82,13 +75,13 @@ func updateIpAddresses(ipAddresses []string) ([]string, error) {
 		Addresses:   aws.StringSlice(ipAddresses),
 		Description: aws.String("IP ranges for customers of this API"),
 	}
-	_, err = wafsvc.UpdateIPSet(updateParams)
+	_, err = waf.UpdateIPSet(updateParams)
 	if err != nil {
 		return nil, fmt.Errorf("failed to update ip address set, %+v", err)
 	}
 
 	addrs := []string{}
-	ipSet, err = wafsvc.GetIPSet(getParams)
+	ipSet, err = waf.GetIPSet(getParams)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get expected ip address set, %+v", err)
 	}

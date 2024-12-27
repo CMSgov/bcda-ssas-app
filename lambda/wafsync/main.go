@@ -7,7 +7,10 @@ import (
 
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
-	_ "github.com/lib/pq"
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/service/wafv2"
+	"github.com/jackc/pgx/v5"
+
 	log "github.com/sirupsen/logrus"
 )
 
@@ -15,7 +18,7 @@ var isTesting = os.Getenv("IS_TESTING") == "true"
 
 func main() {
 	if isTesting {
-		var addresses, err = updateIpSet()
+		var addresses, err = updateIpSet(context.Background())
 		if err != nil {
 			log.Error(err)
 		} else {
@@ -34,7 +37,7 @@ func handler(ctx context.Context, event events.S3Event) ([]string, error) {
 		TimestampFormat:   time.RFC3339Nano,
 	})
 
-	var addrs, err = updateIpSet()
+	var addrs, err = updateIpSet(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -44,15 +47,31 @@ func handler(ctx context.Context, event events.S3Event) ([]string, error) {
 	return addrs, nil
 }
 
-func updateIpSet() ([]string, error) {
+func updateIpSet(ctx context.Context) ([]string, error) {
 	dbURL := os.Getenv("DATABASE_URL")
-	ipAddresses, err := getValidIPAddresses(dbURL)
+	conn, err := pgx.Connect(ctx, dbURL)
+	if err != nil {
+		log.Errorf("Unable to connect to database: %+v", err)
+		return nil, err
+	}
+
+	ipAddresses, err := getValidIPAddresses(ctx, conn)
 	if err != nil {
 		log.Errorf("Error getting valid IP addresses: %+v", err)
 		return nil, err
 	}
 
-	addresses, err := updateIpAddresses(ipAddresses)
+	sess, err := createSession()
+	if err != nil {
+		log.Errorf("Failed creating session to update ip set, %+v", err)
+		return nil, err
+	}
+
+	wafsvc := wafv2.New(sess, &aws.Config{
+		Region: aws.String("us-east-1"),
+	})
+
+	addresses, err := updateIpAddresses(wafsvc, ipAddresses)
 	if err != nil {
 		log.Errorf("Error updating IP addresses: %+v", err)
 		return nil, err

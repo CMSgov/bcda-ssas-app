@@ -6,32 +6,36 @@ import (
 	"net"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	log "github.com/sirupsen/logrus"
 )
 
-func getValidIPAddresses(dbURL string) ([]string, error) {
-	ctx := context.Background()
+type PgxConnection interface {
+	Begin(context.Context) (pgx.Tx, error)
+	Exec(context.Context, string, ...interface{}) (pgconn.CommandTag, error)
+	QueryRow(context.Context, string, ...interface{}) pgx.Row
+	Query(context.Context, string, ...interface{}) (pgx.Rows, error)
+	Ping(context.Context) error
+	Prepare(context.Context, string, string) (*pgconn.StatementDescription, error)
+	Close(context.Context) error
+}
 
-	conn, err := pgx.Connect(ctx, dbURL)
-	if err != nil {
-		log.Errorf("Unable to connect to database: %+v", err)
-		return nil, err
-	}
+func getValidIPAddresses(ctx context.Context, conn PgxConnection) ([]string, error) {
 	defer conn.Close(ctx)
 
 	query := `
-	SELECT DISTINCT ips.address FROM ips
-	WHERE deleted_at IS NULL
-	AND system_id IN (
-		SELECT systems.id
-		FROM secrets
-		JOIN systems ON secrets.system_id = systems.id
-		JOIN groups ON systems.g_id = groups.id
-		WHERE secrets.deleted_at IS NULL AND
-			systems.deleted_at IS NULL AND
-			groups.deleted_at IS NULL AND
-			secrets.updated_at > (current_date - interval '90' day)
-    )
+		SELECT DISTINCT ips.address FROM ips
+		WHERE deleted_at IS NULL
+		AND system_id IN (
+			SELECT systems.id
+			FROM secrets
+			JOIN systems ON secrets.system_id = systems.id
+			JOIN groups ON systems.g_id = groups.id
+			WHERE secrets.deleted_at IS NULL AND
+				systems.deleted_at IS NULL AND
+				groups.deleted_at IS NULL AND
+				secrets.updated_at > (current_date - interval '90' day)
+		)
 	`
 	rows, err := conn.Query(ctx, query)
 	if err != nil {
@@ -57,8 +61,6 @@ func getValidIPAddresses(dbURL string) ([]string, error) {
 		if count%10000 == 0 {
 			log.Infof("Read %d rows", count)
 		}
-
-		fmt.Printf("\nRow found in function!: %+v\n", ip)
 
 		ipAddresses = append(ipAddresses, fmt.Sprintf("%s/32", ip))
 	}
