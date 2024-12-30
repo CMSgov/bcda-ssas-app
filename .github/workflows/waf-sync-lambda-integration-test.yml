@@ -43,4 +43,4 @@ jobs:
         id: invoke-lambda
         run: |
           echo "STARTTIME=`date +%s`" >> "$GITHUB_OUTPUT"
-          aws lambda invoke --function-name bcda-dev-waf-sync-function test-result.txt
+          aws lambda invoke --function-name bcda-dev-api-waf-sync-function test-result.txt
