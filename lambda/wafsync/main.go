@@ -48,7 +48,12 @@ func handler(ctx context.Context, event events.S3Event) ([]string, error) {
 }
 
 func updateIpSet(ctx context.Context) ([]string, error) {
-	dbURL := os.Getenv("DATABASE_URL")
+	dbURL, err := getDBURL()
+	if err != nil {
+		log.Errorf("Unable to extract DB URL from parameter store: %+v", err)
+		return nil, err
+	}
+
 	conn, err := pgx.Connect(ctx, dbURL)
 	if err != nil {
 		log.Errorf("Unable to connect to database: %+v", err)

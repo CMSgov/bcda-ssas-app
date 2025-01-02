@@ -4,10 +4,14 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"os"
 
+	"github.com/CMSgov/bcda-app/conf"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	log "github.com/sirupsen/logrus"
+
+	bcdaaws "github.com/CMSgov/bcda-app/bcda/aws"
 )
 
 type PgxConnection interface {
@@ -68,4 +72,20 @@ func getValidIPAddresses(ctx context.Context, conn PgxConnection) ([]string, err
 	log.WithField("num_rows_scanned", count).Info("Successfully retrieved valid IP addresses")
 
 	return ipAddresses, nil
+}
+
+func getDBURL() (string, error) {
+	env := conf.GetEnv("ENV")
+
+	bcdaSession, err := bcdaaws.NewSession("", os.Getenv("LOCAL_STACK_ENDPOINT"))
+	if err != nil {
+		return "", err
+	}
+
+	param, err := bcdaaws.GetParameter(bcdaSession, fmt.Sprintf("/bcda/%s/api/DATABASE_URL", env))
+	if err != nil {
+		return "", err
+	}
+
+	return param, nil
 }

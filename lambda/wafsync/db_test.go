@@ -33,7 +33,9 @@ func TestGetValidIPAddresses_Integration(t *testing.T) {
 	// only run actual DB testing in lower envs
 	if slices.Contains([]string{"local", "dev", "test"}, os.Getenv("ENV")) {
 		// insert valid and invalid ip addresses into actual DB
-		dbURL := os.Getenv("DATABASE_URL")
+		dbURL, err := getDBURL()
+		assert.Nil(t, err)
+
 		ctx := context.Background()
 
 		conn, err := pgx.Connect(ctx, dbURL)
