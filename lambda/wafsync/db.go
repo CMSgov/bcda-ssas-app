@@ -47,6 +47,7 @@ func getValidIPAddresses(ctx context.Context, conn PgxConnection) ([]string, err
 		return nil, err
 	}
 
+	// count seems to only be used to log num of rows for debugging
 	count := 0
 	ipAddresses := []string{}
 	defer rows.Close()
@@ -60,13 +61,12 @@ func getValidIPAddresses(ctx context.Context, conn PgxConnection) ([]string, err
 			return nil, err
 		}
 
-		// Not sure why we need this
 		count += 1
 		if count%10000 == 0 {
 			log.Infof("Read %d rows", count)
 		}
 
-		ipAddresses = append(ipAddresses, fmt.Sprintf("%s/32", ip))
+		ipAddresses = append(ipAddresses, ip.String()+"/32")
 	}
 
 	log.WithField("num_rows_scanned", count).Info("Successfully retrieved valid IP addresses")

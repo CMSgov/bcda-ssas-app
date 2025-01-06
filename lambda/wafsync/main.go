@@ -76,7 +76,7 @@ func updateIpSet(ctx context.Context) ([]string, error) {
 		Region: aws.String("us-east-1"),
 	})
 
-	addresses, err := updateIpAddresses(wafsvc, ipAddresses)
+	addresses, err := fetchAndUpdateIpAddresses(wafsvc, ipAddresses)
 	if err != nil {
 		log.Errorf("Error updating IP addresses: %+v", err)
 		return nil, err

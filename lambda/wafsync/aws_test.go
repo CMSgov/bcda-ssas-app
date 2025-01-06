@@ -90,10 +90,10 @@ func TestNewLocalSession(t *testing.T) {
 }
 
 // happy path testing only due to business logic flow
-func TestUpdateIpAddresses(t *testing.T) {
+func TestFetchAndUpdateIpAddresses(t *testing.T) {
 	mock := &mockWAFV2Client{}
 
-	addresses, err := updateIpAddresses(mock, []string{"127.0.0.1/32", "127.0.0.2/32"})
+	addresses, err := fetchAndUpdateIpAddresses(mock, []string{"127.0.0.1/32", "127.0.0.2/32"})
 
 	assert.Nil(t, err)
 	assert.Contains(t, addresses, "127.0.0.1/32")

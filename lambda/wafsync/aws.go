@@ -40,7 +40,7 @@ var createSession = func() (*session.Session, error) {
 	return sess, nil
 }
 
-func updateIpAddresses(waf wafv2iface.WAFV2API, ipAddresses []string) ([]string, error) {
+func fetchAndUpdateIpAddresses(waf wafv2iface.WAFV2API, ipAddresses []string) ([]string, error) {
 	ipSetName := fmt.Sprintf("bcda-%s-api-customers", os.Getenv("ENV"))
 
 	listParams := &wafv2.ListIPSetsInput{
