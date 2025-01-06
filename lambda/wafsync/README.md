@@ -1,6 +1,6 @@
 Get short-term AWS credentials through CloudTamer:
-You can run from the base dir (bcda-app) using the following command:
-- `make test-path TEST_PATH="bcda/lambda/wafsync/*.go"`.  (You might have to `make load-fixtures` first).
+You can run from the base dir (bcda-ssas-app) using the following command:
+- `make test-path TEST_PATH="lambda/wafsync/*.go"`.  (You might have to `make load-fixtures` first).
 - If not available in your quick access dashboard, you can find these credentials in CloudTamer by:
   1. Selecting your project
   2. Navigating to Cloud Management > Cloud Access Roles
