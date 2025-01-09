@@ -57,7 +57,7 @@ func getValidIPAddresses(ctx context.Context, conn PgxConnection) ([]string, err
 
 		err = rows.Scan(&ip)
 		if err != nil {
-			log.Warningf("Scan error: %+v", err)
+			log.Errorf("Scan error: %+v", err)
 			return nil, err
 		}
 
