@@ -44,8 +44,7 @@ jobs:
         run: |
           echo "STARTTIME=`date +%s`" >> "$GITHUB_OUTPUT"
           aws lambda invoke --function-name bcda-dev-api-waf-sync test-result.txt
-          echo $?
       - name: Verify result
         run: |
-          cat test-result.txt
-          if [ -e test-result.txt ]; then echo "Success"; else exit 1; fi
+          cat test-result.txt | grep "errorType"
+          if [ $? -eq 0 ]; then cat test-result.txt; exit 1; else exit 1; fi
