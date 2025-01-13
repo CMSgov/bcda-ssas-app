@@ -47,4 +47,4 @@ jobs:
       - name: Verify result
         run: |
           cat test-result.txt | grep "errorType"
-          if [ $? -eq 0 ]; then cat test-result.txt; exit 1; fi
+          if [[ $? -eq 0 ]]; then cat test-result.txt; exit 1; else echo "Success"; fi
