@@ -43,4 +43,8 @@ jobs:
         id: invoke-lambda
         run: |
           echo "STARTTIME=`date +%s`" >> "$GITHUB_OUTPUT"
-          aws lambda invoke --function-name bcda-dev-api-waf-sync test-result.txt
+          aws lambda invoke --function-name bcda-dev-api-waf-sync test-result.json
+      - name: Verify result
+        run: |
+          cat test-result.json | grep "\"StatusCode\": 200"
+          if [ $? -eq 0 ]; then echo "Success"; else exit 1; fi
