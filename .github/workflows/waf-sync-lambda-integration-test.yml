@@ -46,5 +46,6 @@ jobs:
           aws lambda invoke --function-name bcda-dev-api-waf-sync test-result.txt
       - name: Verify result
         run: |
+          cat test-result.txt
           cat test-result.txt | grep "errorType"
           if [ $? -eq 0 ]; then cat test-result.txt; exit 1; else exit 1; fi
