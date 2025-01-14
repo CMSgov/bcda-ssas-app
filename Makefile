@@ -42,6 +42,15 @@ test:
 	$(MAKE) smoke-test
 	$(MAKE) migrations-test
 
+setup-tests:
+	# Clean up any existing data to ensure we spin up container in a known state.
+	docker compose -f docker-compose.test.yml rm -fsv tests
+	docker compose -f docker-compose.test.yml build tests
+
+# make test-path TEST_PATH="bcdaworker/worker/*.go"
+test-path: setup-tests
+	@docker compose -f docker-compose.test.yml run --rm tests go test -v $(TEST_PATH)
+
 load-fixtures:
 	docker compose -f docker-compose.migrate.yml run --rm migrate  -database "postgres://postgres:toor@db:5432/bcda?sslmode=disable" -path /go/src/github.com/CMSgov/bcda-ssas-app/db/migrations up
 	docker compose -f docker-compose.yml run ssas sh -c 'ssas --add-fixture-data'
