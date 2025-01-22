@@ -2,10 +2,8 @@ package main
 
 import (
 	"fmt"
-	"os"
 
 	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/wafv2"
 	"github.com/aws/aws-sdk-go/service/wafv2/wafv2iface"
 	log "github.com/sirupsen/logrus"
@@ -19,30 +17,7 @@ type Parameters struct {
 	Addresses []string
 }
 
-var createSession = func() (*session.Session, error) {
-	sess := session.Must(session.NewSession())
-
-	var err error
-	if isTesting {
-		sess, err = session.NewSessionWithOptions(session.Options{
-			Profile: "default",
-			Config: aws.Config{
-				Region:           aws.String("us-east-1"),
-				S3ForcePathStyle: aws.Bool(true),
-				Endpoint:         aws.String("http://localhost:4566"),
-			},
-		})
-	}
-	if err != nil {
-		return nil, err
-	}
-
-	return sess, nil
-}
-
-func fetchAndUpdateIpAddresses(waf wafv2iface.WAFV2API, ipAddresses []string) ([]string, error) {
-	ipSetName := fmt.Sprintf("bcda-%s-api-customers", os.Getenv("ENV"))
-
+func fetchAndUpdateIpAddresses(waf wafv2iface.WAFV2API, ipSetName string, ipAddresses []string) ([]string, error) {
 	listParams := &wafv2.ListIPSetsInput{
 		Scope: aws.String("REGIONAL"),
 	}
