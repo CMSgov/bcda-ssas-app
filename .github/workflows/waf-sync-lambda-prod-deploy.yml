@@ -1,4 +1,4 @@
-name: WAFSync Lambda prod deploy
+name: WAF Sync Lambda prod deploy
 
 on:
   workflow_dispatch:

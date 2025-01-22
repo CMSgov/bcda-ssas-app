@@ -1,4 +1,4 @@
-name: WAFSync Lambda test deploy
+name: WAF Sync Lambda test deploy
 
 on:
   workflow_call:
