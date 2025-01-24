@@ -9,9 +9,6 @@ jobs:
       contents: read
       id-token: write
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: ./lambda/wafsync
     environment: prod
     steps:
       - uses: aws-actions/configure-aws-credentials@v4
