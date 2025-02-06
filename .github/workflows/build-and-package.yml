@@ -1,6 +1,8 @@
 name: Build and Package
 
 on:
+  push: # TEMP
+    branches: carl/BCDA-8633-build-bcda-on-ami
   workflow_call:
     inputs:
       release_version:
@@ -49,11 +51,13 @@ jobs:
       - name: Quality Checks
         uses: ./.github/workflows/quality-checks.yml
         with:
-          release_version: ${{ inputs.release_version }}
+          # release_version: ${{ inputs.release_version }}
+          release_version: carl/BCDA-8633-build-bcda-on-ami
       - name: Package BCDA and Worker RPMs
         uses: ./.github/workflows/package-rpm.yml
         with:
-          release_version: ${{ inputs.release_version }}
+          # release_version: ${{ inputs.release_version }}
+          release_version: carl/BCDA-8633-build-bcda-on-ami
       # TODO: junit 'bcda-ssas-app/test_results/latest/junit.xml'
       # TODO: Do we need all/any of the following 3 steps (create docker version, upload, clean up)?
       - name: Log created docker images as build artifacts
@@ -86,7 +90,7 @@ jobs:
             channel: "C03S23MJFJS"
             attachments:
               - color: good
-                text: "SUCCESS: Build and Package BCDA/Worker (run: <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|${{ github.run_id }})>"
+                text: "SUCCESS: Build and Package SSAS (run: <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|${{ github.run_id }})>"
                 mrkdown_in:
                   - text
       - name: Failure Alert
@@ -100,7 +104,7 @@ jobs:
             channel: "C034CFU945C"
             attachments:
               - color: danger
-                text: "FAILURE: Build and Package BCDA/Worker (run: <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|${{ github.run_id }})>"
+                text: "FAILURE: Build and Package SSAS (run: <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|${{ github.run_id }})>"
                 mrkdown_in:
                   - text
       - name: Cleanup secrets
