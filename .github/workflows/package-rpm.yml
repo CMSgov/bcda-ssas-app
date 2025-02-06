@@ -1,0 +1,64 @@
+name: Package BCDA SSAS
+
+on:
+  workflow_call:
+    inputs:
+      release_version:
+        description: 'Release version (or branch name)'
+        required: true
+        type: string
+  workflow_dispatch:
+    inputs:
+      release_version:
+        description: 'Release version (or branch name)'
+        required: true
+        type: string
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  package_rpm:
+    name: Package BCDA SSAS
+    runs-on: self-hosted
+    steps:
+      # - name: Clear working dir
+    #   - name: Checkout SSAS
+    #     uses: actions/checkout@v4
+    #     with:
+    #       repository: CMSgov/bcda-ssas-app
+    #       ref: ${{ inputs.release_version }}
+      # - name: Checkout BCDA-OPS
+      # - name: Decrypt secrets
+      #   env:
+      #     VAULT_PW: ${{ secrets.VAULT_PW }}
+      #   run: |
+      #     echo $VAULT_PW > .vault_password
+      #     bash ops/secrets --decrypt
+      #     mv -fv shared_files/encrypted/* shared_files/decrypted/
+      - name: Build and package RPMs
+        run: |
+          SLIM_VERSION = echo ${{ inputs.release_version }} | sed 's/.*\\///'`
+          cp $BCDA_GPG_PUB_KEY ops/$GPG_PUB_KEY_FILE
+          cp $BCDA_GPG_SEC_KEY ops/$GPG_SEC_KEY_FILE
+          # Remove any slashes - we don't want RPM to contain slash
+          BCDA_GPG_RPM_PASSPHRASE=$BCDA_GPG_RPM_PASSPHRASE GPG_RPM_USER="$GPG_RPM_USER" GPG_RPM_EMAIL=$GPG_RPM_EMAIL GPG_PUB_KEY_FILE=$GPG_PUB_KEY_FILE GPG_SEC_KEY_FILE=$GPG_SEC_KEY_FILE make package version=$SLIM_VERSION
+      # - name: SonarQube Quality Gate
+        # continue-on-error: true
+      - name: Upload BCDA RPM to s3 releases
+        # TODO: should we be checking blank release_version or should we be checking inputs.release_env == 'dev' ?
+        if: ${{ inputs.release_version != '' }}
+        working-directory: ./bcda-ssas-app/ssas
+        run: |
+          SSAS_RPM = ls ssas-*.rpm | tr '\n' ' '
+          aws s3 cp --only-show-errors $SSAS_RPM s3://ssas-rpms/ssas-releases/ssas-release-${{ inputs.release_version }}.rpm
+          aws s3 cp --only-show-errors $SSAS_RPM s3://ssas-rpms/ssas-release-latest.rpm
+      - name: Upload BCDA RPM to s3 dev
+        if: ${{ inputs.release_version == '' }}
+        working-directory: ./bcda-ssas-app/ssas
+        run: |
+          SSAS_RPM = ls ssas-*.rpm | tr '\n' ' '
+          NEW_SSAS_RPM_NAME = echo $SSAS_RPM | sed -e 's/-1.x86_64.rpm/-'build'${{ github.sha }}''.rpm/g'
+          aws s3 cp --only-show-errors $SSAS_RPM s3://ssas-rpms/ssas-dev/$NEW_SSAS_RPM_NAME
+          aws s3 cp --only-show-errors $SSAS_RPM s3://ssas-rpms/ssas-dev-latest.rpm

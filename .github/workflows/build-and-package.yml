@@ -1,0 +1,108 @@
+name: Build and Package
+
+on:
+  workflow_call:
+    inputs:
+      release_version:
+        description: 'Release version (or branch name)'
+        required: true
+        type: string
+  workflow_dispatch:
+    inputs:
+      release_version:
+        description: 'Release version (or branch name)'
+        required: true
+        type: string
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  # i think we could parallelize (linting, testing, sonarqube) and (build and package)
+  build_and_package:
+    name: Build and package
+    runs-on: self-hosted
+    # timeout-minutes: 120 # this mimics the 2 hour SonarQube Quality Gate
+    steps:
+      # - name: Clear working dir
+      # - name: Checkout BCDA
+      #   uses: actions/checkout@v4
+      #   with:
+      #     repository: CMSgov/bcda-app
+      #     ref: ${{ inputs.release_version }}
+      # - name: Checkout BCDA-OPS
+      # - name: Decrypt secrets
+      #   env:
+      #     VAULT_PW: ${{ secrets.VAULT_PW }}
+      #   run: |
+      #     echo $VAULT_PW > .vault_password
+      #     bash ops/secrets --decrypt
+      #     mv -fv shared_files/encrypted/* shared_files/decrypted/
+      # Doing the above basic repo checkout in Quality Checks, does that make sense?
+      # script {
+      #       dir('bcda-ssas-app') {
+      #        SSAS_GIT_TAG = sh(returnStdout: true, script: """git tag -l ${params.SSAS_GIT_VERSION}""")
+      #        COMMIT_SHA = sh(returnStdout: true, script: """git rev-parse HEAD""")
+      #        SLIM_VERSION = sh(returnStdout: true, script: """echo ${params.SSAS_GIT_VERSION} | sed 's/.*\\///'""").trim()
+      #    }
+      - name: Quality Checks
+        uses: ./.github/workflows/quality-checks.yml
+        with:
+          release_version: ${{ inputs.release_version }}
+      - name: Package BCDA and Worker RPMs
+        uses: ./.github/workflows/package-rpm.yml
+        with:
+          release_version: ${{ inputs.release_version }}
+      # TODO: junit 'bcda-ssas-app/test_results/latest/junit.xml'
+      # TODO: Do we need all/any of the following 3 steps (create docker version, upload, clean up)?
+      - name: Log created docker images as build artifacts
+        run: |
+          DATE_TAG = date +"%Y%m%d%H%M"
+          VERSION_TAG = "build-rls-${DATE_TAG}-${{ github.run_id }}"
+          DOCKER_ECR = "${{ secrets.ACCOUNT_ID }}.dkr.ecr.${{ vars.AWS_REGION }}.amazonaws.com"
+          mkdir -p output
+          docker images --filter=reference='${DOCKER_ECR}/*:${VERSION_TAG}' --format \"{{.Repository}}:{{.Tag}}\" > output/docker-images-created-${VERSION_TAG}.txt
+          docker images --filter=reference='${DOCKER_ECR}/*:${SLIM_VERSION}' --format \"{{.Repository}}:{{.Tag}}\" >> output/docker-images-created-${VERSION_TAG}.txt
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: docker-image-versions
+          path: output/*.txt
+      - name: Cleanup Docker Images
+        run: |
+          docker images -qa --filter=reference='${DOCKER_ECR}/*:${VERSION_TAG}'
+          docker images -qa --filter=reference='${DOCKER_ECR}/*:${SLIM_VERSION}'
+          docker rmi \$(docker images --filter=reference='${DOCKER_ECR}/*:${VERSION_TAG}' --format \"{{.Repository}}:{{.Tag}}\")
+          docker rmi \$(docker images --filter=reference='${DOCKER_ECR}/*:${SLIM_VERSION}' --format \"{{.Repository}}:{{.Tag}}\")
+      - name: Success Alert
+        if: ${{ success() }}
+        uses: slackapi/slack-github-action@v2.0.0
+        with:
+          method: chat.postMessage
+          token: ${{ secrets.SLACK_BOT_TOKEN }}
+          # Sends to bcda-deploy
+          payload: |
+            channel: "C03S23MJFJS"
+            attachments:
+              - color: good
+                text: "SUCCESS: Build and Package BCDA/Worker (run: <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|${{ github.run_id }})>"
+                mrkdown_in:
+                  - text
+      - name: Failure Alert
+        if: ${{ failure() }}
+        uses: slackapi/slack-github-action@v2.0.0
+        with:
+          method: chat.postMessage
+          token: ${{ secrets.SLACK_BOT_TOKEN }}
+          # Sends to bcda-alerts
+          payload: |
+            channel: "C034CFU945C"
+            attachments:
+              - color: danger
+                text: "FAILURE: Build and Package BCDA/Worker (run: <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|${{ github.run_id }})>"
+                mrkdown_in:
+                  - text
+      - name: Cleanup secrets
+        if: ${{ always() }}
+        run: rm -r shared_files/decrypted shared_files/encrypted .vault_password
