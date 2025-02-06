@@ -25,20 +25,11 @@ jobs:
     runs-on: self-hosted
     # timeout-minutes: 120 # this mimics the 2 hour SonarQube Quality Gate
     steps:
-      # - name: Clear working dir
       - name: Checkout BCDA SSAS
         uses: actions/checkout@v4
         with:
           repository: CMSgov/bcda-ssas-app
           ref: ${{ inputs.release_version }}
-      # - name: Checkout BCDA-OPS
-    #   - name: Decrypt secrets
-    #     env:
-    #       VAULT_PW: ${{ secrets.VAULT_PW }}
-    #     run: |
-    #       echo $VAULT_PW > .vault_password
-    #       bash ops/secrets --decrypt
-    #       mv -fv shared_files/encrypted/* shared_files/decrypted/
       - name: Linting
         run: make lint
       - name: Unit Tests
