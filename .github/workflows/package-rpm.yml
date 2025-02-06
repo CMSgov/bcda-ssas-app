@@ -30,7 +30,8 @@ jobs:
           ref: ${{ inputs.release_version }}
       - name: Build and package RPMs
         run: |
-          SLIM_VERSION = echo ${{ inputs.release_version }} | sed 's/.*\\///'`
+          export SLIM_VERSION=`echo ${{ inputs.release_version }} | sed 's/.*\///'`
+          echo $SLIM_VERSION
           cp $BCDA_GPG_PUB_KEY ops/$GPG_PUB_KEY_FILE
           cp $BCDA_GPG_SEC_KEY ops/$GPG_SEC_KEY_FILE
           # Remove any slashes - we don't want RPM to contain slash
