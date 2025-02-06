@@ -1,14 +1,32 @@
 name: "SSAS CI Workflow"
 
-on: [push]
+on:
+  push:
+  workflow_call:
+    inputs:
+      release_version:
+        description: 'Release version (or branch name)'
+        required: true
+        type: string
+  workflow_dispatch:
+    inputs:
+      release_version:
+        description: 'Release version (or branch name)'
+        required: true
+        type: string
+
+env:
+  RELEASE_VERSION: ${{ inputs.release_version || github.sha }}
 
 jobs:
-  lint:
+  go_mod_tidy:
     name: Modules Lint
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.RELEASE_VERSION }}
       - name: Tidy modules
         run: |
           go mod tidy -v
@@ -19,18 +37,18 @@ jobs:
             exit 1
           fi
 
-  build:
-    name: "Build and Test"
-    runs-on: ubuntu-latest
+  lint_and_test:
+    name: Lint and Test
+    runs-on: self-hosted
     steps:
       - name: "Checkout code"
-        uses: actions/checkout@v1
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.RELEASE_VERSION }}
       - name: "Build the stack"
-        run: |
-          make docker-bootstrap
+        run: make docker-bootstrap
       - name: "Run all tests"
-        run: |
-          make test
+        run: make test
       - name: Archive code coverage results
         uses: actions/upload-artifact@v4
         with:
@@ -39,7 +57,7 @@ jobs:
 
   sonar-quality-gate:
     name: Sonarqube Quality Gate
-    needs: build
+    needs: lint_and_test
     runs-on: self-hosted
     steps:
       - name: Download code coverage
@@ -57,7 +75,11 @@ jobs:
       - name: Run quality gate scan
         uses: sonarsource/sonarqube-scan-action@master
         with:
-          args: -Dsonar.projectKey=bcda-ssas-api
-            -Dsonar.sources=. -Dsonar.go.coverage.reportPaths=./test_results/latest/testcoverage.out
-            -Dsonar.coverage.exclusions=**/*test.go,**/test/**/*,**/testUtils/*,**/scripts/*,**/ops/*,**/mock*.go
-            -Dsonar.branch.name=${{ github.event.pull_request.head.ref }} -Dsonar.projectVersion=${{ github.event.pull_request.head.sha }}
+          args: |
+            -Dsonar.projectKey=bcda-ssas-api
+            -Dsonar.sources=.
+            -Dsonar.go.coverage.reportPaths=./test_results/latest/testcoverage.out
+            -Dsonar.coverage.exclusions=**/*test.go,**/test/**/*,**/testUtils/*,**/scripts/*,**/ops/*,**/mock*.go,**/mock/**/*
+            -Dsonar.branch.name=${{ github.event.pull_request.head.ref }}
+            -Dsonar.projectVersion=${{ github.event.pull_request.head.sha }}
+            -Dsonar.qualitygate.wait=true

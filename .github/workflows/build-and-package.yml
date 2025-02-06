@@ -21,8 +21,8 @@ permissions:
   contents: read
 
 jobs:
-  quality_checks:
-    uses: ./.github/workflows/quality-checks.yml
+  ci_checks:
+    uses: ./.github/workflows/ci-checks.yml
     with:
       # release_version: ${{ inputs.release_version }}
       release_version: carl/BCDA-8633-build-bcda-on-ami
@@ -35,7 +35,7 @@ jobs:
   
   post_build:
     name: Build and package
-    needs: [quality_checks, build_and_package]
+    needs: [ci_checks, build_and_package]
     runs-on: self-hosted
     steps:
       # - name: Clear working dir
@@ -64,9 +64,14 @@ jobs:
       # TODO: Do we need all/any of the following 3 steps (create docker version, upload, clean up)?
       - name: Log created docker images as build artifacts
         run: |
-          DATE_TAG = date +"%Y%m%d%H%M"
-          VERSION_TAG = "build-rls-${DATE_TAG}-${{ github.run_id }}"
-          DOCKER_ECR = "${{ secrets.ACCOUNT_ID }}.dkr.ecr.${{ vars.AWS_REGION }}.amazonaws.com"
+          export DATE_TAG=`date +"%Y%m%d%H%M"`
+          export VERSION_TAG="build-rls-${DATE_TAG}-${{ github.run_id }}"
+          export DOCKER_ECR="${{ secrets.ACCOUNT_ID }}.dkr.ecr.${{ vars.AWS_REGION }}.amazonaws.com"
+          export SLIM_VERSION=`echo ${{ inputs.release_version }} | sed 's/.*\///'`
+          echo $DATE_TAG
+          echo $VERSION_TAG
+          echo $DOCKER_ECR
+          echo $SLIM_VERSION
           mkdir -p output
           docker images --filter=reference='${DOCKER_ECR}/*:${VERSION_TAG}' --format \"{{.Repository}}:{{.Tag}}\" > output/docker-images-created-${VERSION_TAG}.txt
           docker images --filter=reference='${DOCKER_ECR}/*:${SLIM_VERSION}' --format \"{{.Repository}}:{{.Tag}}\" >> output/docker-images-created-${VERSION_TAG}.txt
@@ -77,6 +82,10 @@ jobs:
           path: output/*.txt
       - name: Cleanup Docker Images
         run: |
+          echo $DATE_TAG
+          echo $VERSION_TAG
+          echo $DOCKER_ECR
+          echo $SLIM_VERSION
           docker images -qa --filter=reference='${DOCKER_ECR}/*:${VERSION_TAG}'
           docker images -qa --filter=reference='${DOCKER_ECR}/*:${SLIM_VERSION}'
           docker rmi \$(docker images --filter=reference='${DOCKER_ECR}/*:${VERSION_TAG}' --format \"{{.Repository}}:{{.Tag}}\")
