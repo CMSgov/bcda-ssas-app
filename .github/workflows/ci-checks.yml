@@ -29,6 +29,8 @@ jobs:
           ref: ${{ env.RELEASE_VERSION }}
       - name: Get Go # TEMP
         uses: actions/setup-go@v5
+        with:
+          go-version: '>=1.23.1'
       - name: Tidy modules
         run: |
           go mod tidy -v
@@ -49,6 +51,8 @@ jobs:
           ref: ${{ env.RELEASE_VERSION }}
       - name: Get Go # TEMP
         uses: actions/setup-go@v5
+        with:
+          go-version: '>=1.23.1'
       - name: Build the stack
         run: make docker-bootstrap
       - name: "Run all tests"
