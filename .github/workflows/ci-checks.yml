@@ -1,4 +1,4 @@
-name: "SSAS CI Workflow"
+name: CI Checks
 
 on:
   push:

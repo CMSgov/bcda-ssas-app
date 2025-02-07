@@ -34,7 +34,8 @@ jobs:
       release_version: carl/BCDA-8633-build-bcda-on-ami
   
   post_build:
-    name: Build and package
+    if: ${{ always() }}
+    name: Post Build (Cleanup, Alerts)
     needs: [ci_checks, build_and_package]
     runs-on: self-hosted
     steps:
