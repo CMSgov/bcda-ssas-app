@@ -1,8 +1,6 @@
 name: Build and Package
 
 on:
-  push: # TEMP
-    branches: carl/BCDA-8633-build-bcda-on-ami
   workflow_call:
     inputs:
       release_version:
@@ -21,48 +19,22 @@ permissions:
   contents: read
 
 jobs:
-  # TODO: TEMP speed up workflow runs
-  # ci_checks:
-  #   uses: ./.github/workflows/ci-checks.yml
-  #   with:
-  #     # release_version: ${{ inputs.release_version }}
-  #     release_version: carl/BCDA-8633-build-bcda-on-ami
+  ci_checks:
+    uses: ./.github/workflows/ci-checks.yml
+    with:
+      release_version: ${{ inputs.release_version }}
 
   build_and_package:
     uses: ./.github/workflows/package-rpm.yml
     with:
-      # release_version: ${{ inputs.release_version }}
-      release_version: carl/BCDA-8633-build-bcda-on-ami
+      release_version: ${{ inputs.release_version }}
   
   post_build:
     if: ${{ always() }}
     name: Post Build (Cleanup, Alerts)
-    # needs: [ci_checks, build_and_package]
-    needs: [build_and_package]
+    needs: [ci_checks, build_and_package]
     runs-on: self-hosted
     steps:
-      # - name: Clear working dir
-      # - name: Checkout BCDA
-      #   uses: actions/checkout@v4
-      #   with:
-      #     repository: CMSgov/bcda-app
-      #     ref: ${{ inputs.release_version }}
-      # - name: Checkout BCDA-OPS
-      # - name: Decrypt secrets
-      #   env:
-      #     VAULT_PW: ${{ secrets.VAULT_PW }}
-      #   run: |
-      #     echo $VAULT_PW > .vault_password
-      #     bash ops/secrets --decrypt
-      #     mv -fv shared_files/encrypted/* shared_files/decrypted/
-      # Doing the above basic repo checkout in Quality Checks, does that make sense?
-      # script {
-      #       dir('bcda-ssas-app') {
-      #        SSAS_GIT_TAG = sh(returnStdout: true, script: """git tag -l ${params.SSAS_GIT_VERSION}""")
-      #        COMMIT_SHA = sh(returnStdout: true, script: """git rev-parse HEAD""")
-      #        SLIM_VERSION = sh(returnStdout: true, script: """echo ${params.SSAS_GIT_VERSION} | sed 's/.*\\///'""").trim()
-      #    }
-
       # TODO: junit 'bcda-ssas-app/test_results/latest/junit.xml'
       # TODO: Do we need all/any of the following 3 steps (create docker version, upload, clean up)?
       # when/where are we creating these tagged docker images?
@@ -71,7 +43,7 @@ jobs:
           export DATE_TAG=`date +"%Y%m%d%H%M"`
           export VERSION_TAG="build-rls-${DATE_TAG}-${{ github.run_id }}"
           export DOCKER_ECR_SUFFIX=".dkr.ecr.${{ vars.AWS_REGION }}.amazonaws.com"
-          export SLIM_VERSION=`echo carl/BCDA-8633-build-bcda-on-ami | sed 's/.*\///'`
+          export SLIM_VERSION=`echo ${{ inputs.release_version }} | sed 's/.*\///'`
           echo "VERSION_TAG=$VERSION_TAG" >> $GITHUB_ENV
           echo "DOCKER_ECR_SUFFIX=$DOCKER_ECR_SUFFIX" >> $GITHUB_ENV
           echo "SLIM_VERSION=$SLIM_VERSION" >> $GITHUB_ENV
@@ -105,17 +77,17 @@ jobs:
                 text: "SUCCESS: Build and Package SSAS (run: <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|${{ github.run_id }})>"
                 mrkdown_in:
                   - text
-      # - name: Failure Alert
-      #   if: ${{ failure() }}
-      #   uses: slackapi/slack-github-action@v2.0.0
-      #   with:
-      #     method: chat.postMessage
-      #     token: ${{ secrets.SLACK_BOT_TOKEN }}
-      #     # Sends to bcda-alerts
-      #     payload: |
-      #       channel: "C034CFU945C"
-      #       attachments:
-      #         - color: danger
-      #           text: "SUCCESS: Build and Package SSAS (run: <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|${{ github.run_id }})>"
-      #           mrkdown_in:
-      #             - text
+      - name: Failure Alert
+        if: ${{ failure() }}
+        uses: slackapi/slack-github-action@v2.0.0
+        with:
+          method: chat.postMessage
+          token: ${{ secrets.SLACK_BOT_TOKEN }}
+          # Sends to bcda-alerts
+          payload: |
+            channel: "C034CFU945C"
+            attachments:
+              - color: danger
+                text: "SUCCESS: Build and Package SSAS (run: <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|${{ github.run_id }})>"
+                mrkdown_in:
+                  - text
