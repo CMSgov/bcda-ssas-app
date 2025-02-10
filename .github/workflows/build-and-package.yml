@@ -79,8 +79,8 @@ jobs:
           echo $SLIM_VERSION
           echo "SLIM_VERSION=$SLIM_VERSION" >> $GITHUB_ENV
           mkdir -p output
-          docker images --filter reference="${{ secrets.ACCOUNT_ID }}${DOCKER_ECR_SUFFIX}/*:${VERSION_TAG}" --format "${{ github.repository }}:${{ github.ref_name }}" > output/docker-images-created-${VERSION_TAG}.txt
-          docker images --filter reference="${{ secrets.ACCOUNT_ID }}${DOCKER_ECR_SUFFIX}/*:${SLIM_VERSION}" --format "${{ github.repository }}:${{ github.ref_name }}" >> output/docker-images-created-${VERSION_TAG}.txt
+          docker images --filter reference="${{ secrets.ACCOUNT_ID }}${DOCKER_ECR_SUFFIX}/*:${VERSION_TAG}" --format "{{.Repository}}:{{.Tag}}" > output/docker-images-created-${VERSION_TAG}.txt
+          docker images --filter reference="${{ secrets.ACCOUNT_ID }}${DOCKER_ECR_SUFFIX}/*:${SLIM_VERSION}" --format "{{.Repository}}:{{.Tag}}" >> output/docker-images-created-${VERSION_TAG}.txt
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -92,11 +92,10 @@ jobs:
           echo $VERSION_TAG
           echo $DOCKER_ECR_SUFFIX
           echo $SLIM_VERSION
-          echo "${{ github.repository }}:${{ github.ref_name }}"
           docker images -qa --filter reference="${{ secrets.ACCOUNT_ID }}${DOCKER_ECR_SUFFIX}/*:${VERSION_TAG}"
           docker images -qa --filter reference="${{ secrets.ACCOUNT_ID }}${DOCKER_ECR_SUFFIX}/*:${SLIM_VERSION}"
-          docker rmi $(docker images --filter reference="${{ secrets.ACCOUNT_ID }}${DOCKER_ECR_SUFFIX}/*:${VERSION_TAG}" --format "${{ github.repository }}:${{ github.ref_name }}")
-          docker rmi $(docker images --filter reference="${{ secrets.ACCOUNT_ID }}${DOCKER_ECR_SUFFIX}/*:${SLIM_VERSION}" --format "${{ github.repository }}:${{ github.ref_name }}")
+          docker rmi $(docker images --filter reference="${{ secrets.ACCOUNT_ID }}${DOCKER_ECR_SUFFIX}/*:${VERSION_TAG}" --format "{{.Repository}}:{{.Tag}}")
+          docker rmi $(docker images --filter reference="${{ secrets.ACCOUNT_ID }}${DOCKER_ECR_SUFFIX}/*:${SLIM_VERSION}" --format "{{.Repository}}:{{.Tag}}")
       - name: Success Alert
         if: ${{ success() }}
         uses: slackapi/slack-github-action@v2.0.0
@@ -122,6 +121,6 @@ jobs:
       #       channel: "C034CFU945C"
       #       attachments:
       #         - color: danger
-      #           text: "FAILURE: Build and Package SSAS (run: <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|${{ github.run_id }})>"
+      #           text: "SUCCESS: Build and Package SSAS (run: <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|${{ github.run_id }})>"
       #           mrkdown_in:
       #             - text
