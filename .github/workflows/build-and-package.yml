@@ -71,14 +71,14 @@ jobs:
           export SLIM_VERSION=`echo carl/BCDA-8633-build-bcda-on-ami | sed 's/.*\///'`
           echo $DATE_TAG
           echo $VERSION_TAG
-          echo "$VERSION_TAG" >> $GITHUB_ENV
+          echo "VERSION_TAG=$VERSION_TAG" >> $GITHUB_ENV
           echo $DOCKER_ECR_SUFFIX
-          echo "$DOCKER_ECR_SUFFIX" >> $GITHUB_ENV
+          echo "DOCKER_ECR_SUFFIX=$DOCKER_ECR_SUFFIX" >> $GITHUB_ENV
           echo $SLIM_VERSION
-          echo "$SLIM_VERSION" >> $GITHUB_ENV
+          echo "SLIM_VERSION=$SLIM_VERSION" >> $GITHUB_ENV
           mkdir -p output
-          docker images --filter reference="${{ secrets.ACCOUNT_ID }}${{ env.DOCKER_ECR_SUFFIX }}/*:${{ env.VERSION_TAG }}" --format "${{ github.repository }}:${{ github.ref_name }}" > output/docker-images-created-${{ env.VERSION_TAG }}.txt
-          docker images --filter reference="${{ secrets.ACCOUNT_ID }}${{ env.DOCKER_ECR_SUFFIX }}/*:${{ env.SLIM_VERSION }}" --format "${{ github.repository }}:${{ github.ref_name }}" >> output/docker-images-created-${{ env.VERSION_TAG }}.txt
+          docker images --filter reference="${{ secrets.ACCOUNT_ID }}$DOCKER_ECR_SUFFIX/*:$VERSION_TAG" --format "${{ github.repository }}:${{ github.ref_name }}" > output/docker-images-created-$VERSION_TAG.txt
+          docker images --filter reference="${{ secrets.ACCOUNT_ID }}$DOCKER_ECR_SUFFIX/*:$SLIM_VERSION" --format "${{ github.repository }}:${{ github.ref_name }}" >> output/docker-images-created-$VERSION_TAG.txt
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -87,14 +87,14 @@ jobs:
       - name: Cleanup Docker Images
         run: |
           cat output/*.txt
-          echo ${{ env.VERSION_TAG }}
-          echo ${{ env.DOCKER_ECR_SUFFIX }}
-          echo ${{ env.SLIM_VERSION }}
+          echo $VERSION_TAG
+          echo $DOCKER_ECR_SUFFIX
+          echo $SLIM_VERSION
           echo "${{ github.repository }}:${{ github.ref_name }}"
-          docker images -qa --filter reference="${{ secrets.ACCOUNT_ID }}${{ env.DOCKER_ECR_SUFFIX }}/*:${{ env.VERSION_TAG }}"
-          docker images -qa --filter reference="${{ secrets.ACCOUNT_ID }}${{ env.DOCKER_ECR_SUFFIX }}/*:${{ env.SLIM_VERSION }}"
-          docker rmi $(docker images --filter reference="${{ secrets.ACCOUNT_ID }}${{ env.DOCKER_ECR_SUFFIX }}/*:${{ env.VERSION_TAG }}" --format "${{ github.repository }}:${{ github.ref_name }}")
-          docker rmi $(docker images --filter reference="${{ secrets.ACCOUNT_ID }}${{ env.DOCKER_ECR_SUFFIX }}/*:${{ env.SLIM_VERSION }}" --format "${{ github.repository }}:${{ github.ref_name }}")
+          docker images -qa --filter reference="${{ secrets.ACCOUNT_ID }}$DOCKER_ECR_SUFFIX/*:$VERSION_TAG"
+          docker images -qa --filter reference="${{ secrets.ACCOUNT_ID }}$DOCKER_ECR_SUFFIX/*:$SLIM_VERSION"
+          docker rmi $(docker images --filter reference="${{ secrets.ACCOUNT_ID }}$DOCKER_ECR_SUFFIX/*:$VERSION_TAG" --format "${{ github.repository }}:${{ github.ref_name }}")
+          docker rmi $(docker images --filter reference="${{ secrets.ACCOUNT_ID }}$DOCKER_ECR_SUFFIX/*:$SLIM_VERSION" --format "${{ github.repository }}:${{ github.ref_name }}")
       - name: Success Alert
         if: ${{ success() }}
         uses: slackapi/slack-github-action@v2.0.0
