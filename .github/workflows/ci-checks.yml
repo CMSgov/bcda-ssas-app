@@ -1,7 +1,7 @@
 name: CI Checks
 
 on:
-  push:
+  # push: # TODO: TEMP turn this off as we are calling it from build and package
   workflow_call:
     inputs:
       release_version:
@@ -90,7 +90,7 @@ jobs:
       - name: Run quality gate scan
         uses: sonarsource/sonarqube-scan-action@master
         with:
-          args: |
+          args:
             -Dsonar.projectKey=bcda-ssas-api
             -Dsonar.sources=.
             -Dsonar.working.directory=./sonar_workspace
