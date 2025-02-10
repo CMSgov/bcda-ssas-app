@@ -85,10 +85,10 @@ jobs:
           path: output/*.txt
       - name: Cleanup Docker Images
         run: |
-          if [[ $(cat output/docker-images-created-${VERSION_TAG}.txt | wc -c | xargs) -nq "0" ]]; then
+          if [[ $(cat output/docker-images-created-${VERSION_TAG}.txt | wc -c | xargs) != "0" ]]; then
             docker rmi $(docker images --filter reference="${{ secrets.ACCOUNT_ID }}${DOCKER_ECR_SUFFIX}/*:${VERSION_TAG}" --format "{{.Repository}}:{{.Tag}}")
           fi
-          if [[ $(cat output/docker-images-created-${SLIM_VERSION}.txt | wc -c | xargs) -nq "0" ]]; then
+          if [[ $(cat output/docker-images-created-${SLIM_VERSION}.txt | wc -c | xargs) != "0" ]]; then
             docker rmi $(docker images --filter reference="${{ secrets.ACCOUNT_ID }}${DOCKER_ECR_SUFFIX}/*:${SLIM_VERSION}" --format "{{.Repository}}:{{.Tag}}")
           fi
       - name: Success Alert
