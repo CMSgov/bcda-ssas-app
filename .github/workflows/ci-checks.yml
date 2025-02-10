@@ -93,6 +93,7 @@ jobs:
           args: |
             -Dsonar.projectKey=bcda-ssas-api
             -Dsonar.sources=.
+            -Dsonar.working.directory=./sonar_workspace
             -Dsonar.go.coverage.reportPaths=./test_results/latest/testcoverage.out
             -Dsonar.coverage.exclusions=**/*test.go,**/test/**/*,**/testUtils/*,**/scripts/*,**/ops/*,**/mock*.go,**/mock/**/*
             -Dsonar.branch.name=${{ github.event.pull_request.head.ref }}
