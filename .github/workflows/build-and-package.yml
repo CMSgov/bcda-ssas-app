@@ -71,7 +71,7 @@ jobs:
           export SLIM_VERSION=`echo carl/BCDA-8633-build-bcda-on-ami | sed 's/.*\///'`
           echo $DATE_TAG
           echo $VERSION_TAG
-          echo "$VERSTION_TAG" >> $GITHUB_ENV
+          echo "$VERSION_TAG" >> $GITHUB_ENV
           echo $DOCKER_ECR_SUFFIX
           echo "$DOCKER_ECR_SUFFIX" >> $GITHUB_ENV
           echo $SLIM_VERSION
