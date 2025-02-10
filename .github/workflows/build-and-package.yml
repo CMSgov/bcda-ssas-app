@@ -68,14 +68,17 @@ jobs:
           export DATE_TAG=`date +"%Y%m%d%H%M"`
           export VERSION_TAG="build-rls-${DATE_TAG}-${{ github.run_id }}"
           export DOCKER_ECR="${{ secrets.ACCOUNT_ID }}.dkr.ecr.${{ vars.AWS_REGION }}.amazonaws.com"
-          export SLIM_VERSION=`echo ${{ inputs.release_version }} | sed 's/.*\///'`
+          export SLIM_VERSION=`echo carl/BCDA-8633-build-bcda-on-ami | sed 's/.*\///'`
           echo $DATE_TAG
           echo $VERSION_TAG
+          echo $VERSTION_TAG >> $GITHUB_ENV
           echo $DOCKER_ECR
+          echo $DOCKER_ECR >> $GITHUB_ENV
           echo $SLIM_VERSION
+          echo $SLIM_VERSION >> $GITHUB_ENV
           mkdir -p output
-          docker images --filter=reference='${DOCKER_ECR}/*:${VERSION_TAG}' --format \"{{.Repository}}:{{.Tag}}\" > output/docker-images-created-${VERSION_TAG}.txt
-          docker images --filter=reference='${DOCKER_ECR}/*:${SLIM_VERSION}' --format \"{{.Repository}}:{{.Tag}}\" >> output/docker-images-created-${VERSION_TAG}.txt
+          docker images --filter=reference='${{ env.DOCKER_ECR }}/*:${{ env.VERSION_TAG }}' --format "${{ github.repository }}:${{ github.ref }}" > output/docker-images-created-${{ env.VERSION_TAG }}.txt
+          docker images --filter=reference='${{ env.DOCKER_ECR }}/*:${{ env.SLIM_VERSION }}' --format "${{ github.repository }}:${{ github.ref }}" >> output/docker-images-created-${{ env.VERSION_TAG }}.txt
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -83,14 +86,15 @@ jobs:
           path: output/*.txt
       - name: Cleanup Docker Images
         run: |
-          echo $DATE_TAG
-          echo $VERSION_TAG
-          echo $DOCKER_ECR
-          echo $SLIM_VERSION
-          docker images -qa --filter=reference='${DOCKER_ECR}/*:${VERSION_TAG}'
-          docker images -qa --filter=reference='${DOCKER_ECR}/*:${SLIM_VERSION}'
-          docker rmi \$(docker images --filter=reference='${DOCKER_ECR}/*:${VERSION_TAG}' --format \"{{.Repository}}:{{.Tag}}\")
-          docker rmi \$(docker images --filter=reference='${DOCKER_ECR}/*:${SLIM_VERSION}' --format \"{{.Repository}}:{{.Tag}}\")
+          cat output/*.txt
+          echo ${{ env.VERSION_TAG }}
+          echo ${{ env.DOCKER_ECR }}
+          echo ${{ env.SLIM_VERSION }}
+          echo "${{ github.repository }}:${{ github.ref }}"
+          docker images -qa --filter=reference='${{ env.DOCKER_ECR }}/*:${{ env.VERSION_TAG }}'
+          docker images -qa --filter=reference='${{ env.DOCKER_ECR }}/*:${{ env.SLIM_VERSION }}'
+          docker rmi $(docker images --filter=reference='${{ env.DOCKER_ECR }}/*:${{ env.VERSION_TAG }}' --format "${{ github.repository }}:${{ github.ref }}")
+          docker rmi $(docker images --filter=reference='${{ env.DOCKER_ECR }}/*:${{ env.SLIM_VERSION }}' --format "${{ github.repository }}:${{ github.ref }}")
       - name: Success Alert
         if: ${{ success() }}
         uses: slackapi/slack-github-action@v2.0.0
@@ -105,17 +109,17 @@ jobs:
                 text: "SUCCESS: Build and Package SSAS (run: <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|${{ github.run_id }})>"
                 mrkdown_in:
                   - text
-      - name: Failure Alert
-        if: ${{ failure() }}
-        uses: slackapi/slack-github-action@v2.0.0
-        with:
-          method: chat.postMessage
-          token: ${{ secrets.SLACK_BOT_TOKEN }}
-          # Sends to bcda-alerts
-          payload: |
-            channel: "C034CFU945C"
-            attachments:
-              - color: danger
-                text: "FAILURE: Build and Package SSAS (run: <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|${{ github.run_id }})>"
-                mrkdown_in:
-                  - text
+      # - name: Failure Alert
+      #   if: ${{ failure() }}
+      #   uses: slackapi/slack-github-action@v2.0.0
+      #   with:
+      #     method: chat.postMessage
+      #     token: ${{ secrets.SLACK_BOT_TOKEN }}
+      #     # Sends to bcda-alerts
+      #     payload: |
+      #       channel: "C034CFU945C"
+      #       attachments:
+      #         - color: danger
+      #           text: "FAILURE: Build and Package SSAS (run: <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|${{ github.run_id }})>"
+      #           mrkdown_in:
+      #             - text
