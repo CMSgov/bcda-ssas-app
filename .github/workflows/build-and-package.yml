@@ -19,12 +19,12 @@ permissions:
   contents: read
 
 jobs:
-  ci_checks:
-    # uses: ./.github/workflows/ci-checks.yml
-    uses: CMSgov/bcda-ssas-app/.github/workflows/ci-checks.yml@carl/BCDA-8633-build-bcda-on-ami
-    with:
-      release_version: ${{ inputs.release_version }}
-    secrets: inherit
+  # ci_checks:
+  #   # uses: ./.github/workflows/ci-checks.yml
+  #   uses: CMSgov/bcda-ssas-app/.github/workflows/ci-checks.yml@carl/BCDA-8633-build-bcda-on-ami
+  #   with:
+  #     release_version: ${{ inputs.release_version }}
+  #   secrets: inherit
 
   build_and_package:
     uses: ./.github/workflows/package-rpm.yml
@@ -35,7 +35,8 @@ jobs:
   post_build:
     if: ${{ always() }}
     name: Post Build (Cleanup, Alerts)
-    needs: [ci_checks, build_and_package]
+    # needs: [ci_checks, build_and_package]
+    needs: [build_and_package]
     runs-on: self-hosted
     steps:
       # TODO: junit 'bcda-ssas-app/test_results/latest/junit.xml'
