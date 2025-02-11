@@ -20,7 +20,8 @@ permissions:
 
 jobs:
   ci_checks:
-    uses: ./.github/workflows/ci-checks.yml
+    # uses: ./.github/workflows/ci-checks.yml
+    uses: CMSgov/bcda-ssas-app/.github/workflows/ci-checks.yml@carl/BCDA-8633-build-bcda-on-ami
     with:
       release_version: ${{ inputs.release_version }}
 
