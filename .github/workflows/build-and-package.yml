@@ -24,11 +24,13 @@ jobs:
     uses: CMSgov/bcda-ssas-app/.github/workflows/ci-checks.yml@carl/BCDA-8633-build-bcda-on-ami
     with:
       release_version: ${{ inputs.release_version }}
+    secrets: inherit
 
   build_and_package:
     uses: ./.github/workflows/package-rpm.yml
     with:
       release_version: ${{ inputs.release_version }}
+    secrets: inherit
   
   post_build:
     if: ${{ always() }}
