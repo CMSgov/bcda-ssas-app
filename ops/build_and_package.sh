@@ -39,6 +39,7 @@ fpm -v $VERSION -s dir -t rpm -n ssas ssas=/usr/local/bin/ssas swaggerui=/etc/sv
 
 #Sign RPMs
 echo "Importing GPG Key files"
+/usr/bin/gpg --version
 /usr/bin/gpg --batch --import $GPG_PUB_KEY_FILE
 /usr/bin/gpg --batch --import $GPG_SEC_KEY_FILE
 /usr/bin/rpm --import $GPG_PUB_KEY_FILE
