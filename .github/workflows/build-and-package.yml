@@ -68,7 +68,7 @@ jobs:
             docker rmi $(docker images --filter reference="${{ secrets.ACCOUNT_ID }}${DOCKER_ECR_SUFFIX}/*:${SLIM_VERSION}" --format "{{.Repository}}:{{.Tag}}")
           fi
       # - name: Success Alert
-      #   if: ${{ success() }}
+      #   if: ${{ success() && needs.ci_checks.result == 'success' && needs.build_and_package.result == 'success' }}
       #   uses: slackapi/slack-github-action@v2.0.0
       #   with:
       #     method: chat.postMessage
@@ -82,7 +82,7 @@ jobs:
       #           mrkdown_in:
       #             - text
       # - name: Failure Alert
-      #   if: ${{ failure() }}
+      #   if: ${{ failure() || needs.ci_checks.result != 'success' || needs.build_and_package.result != 'success' }}
       #   uses: slackapi/slack-github-action@v2.0.0
       #   with:
       #     method: chat.postMessage
