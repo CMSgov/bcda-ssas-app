@@ -23,6 +23,8 @@ jobs:
     name: Package BCDA SSAS
     runs-on: self-hosted
     steps:
+      - name: Verify we are here
+        run: echo "We are in SSAS workflow package-rpm"
       - name: Checkout SSAS
         uses: actions/checkout@v4
         with:
@@ -35,8 +37,8 @@ jobs:
         with:
           params: |
             BCDA_GPG_PUB_KEY=/bcda/gpg/pub-key
-            BCDA_GPG_RPM_PASSPHRASE=/bcda/gpg/sec-key
-            BCDA_GPG_SEC_KEY=/bcda/gpg/passphrase
+            BCDA_GPG_SEC_KEY=/bcda/gpg/sec-key
+            BCDA_GPG_RPM_PASSPHRASE=/bcda/gpg/passphrase
       - name: Build and package RPMs
         env: 
             GPG_RPM_USER: Beneficiary Claims Data API
@@ -46,8 +48,8 @@ jobs:
         run: |
           export SLIM_VERSION=`echo ${{ inputs.release_version }} | sed 's/.*\///'`
           echo $SLIM_VERSION
-          cp ${{ env.BCDA_GPG_PUB_KEY }} ops/${{ env.GPG_PUB_KEY_FILE }}
-          cp ${{ env.BCDA_GPG_SEC_KEY }} ops/${{ env.GPG_SEC_KEY_FILE }}
+          echo ${{ env.BCDA_GPG_PUB_KEY }} > ops/${{ env.GPG_PUB_KEY_FILE }}
+          echo ${{ env.BCDA_GPG_SEC_KEY }} > ops/${{ env.GPG_SEC_KEY_FILE }}
           # Remove any slashes - we don't want RPM to contain slash
           BCDA_GPG_RPM_PASSPHRASE=${{ env.BCDA_GPG_RPM_PASSPHRASE }} GPG_RPM_USER="${{ env.GPG_RPM_USER }}" GPG_RPM_EMAIL=${{ env.GPG_RPM_EMAIL }} GPG_PUB_KEY_FILE=${{ env.GPG_PUB_KEY_FILE }} GPG_SEC_KEY_FILE=${{ env.GPG_SEC_KEY_FILE }} make package version=$SLIM_VERSION
       - name: Upload BCDA RPM to s3 releases
