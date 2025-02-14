@@ -6,7 +6,6 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/base64"
-	b64 "encoding/base64"
 	"errors"
 	"fmt"
 	"log"
@@ -192,12 +191,12 @@ func (s *Server) Serve() {
 }
 
 func getServerCertificates() (*x509.CertPool, tls.Certificate, error) {
-	crtB, err := b64.StdEncoding.DecodeString(os.Getenv("BCDA_TLS_CERT_B64"))
+	crtB, err := base64.StdEncoding.DecodeString(os.Getenv("BCDA_TLS_CERT_B64"))
 	if err != nil {
 		ssas.Logger.Error(err)
 		return nil, tls.Certificate{}, errors.New("could not base64 decode BCDA_TLS_CERT_B64")
 	}
-	keyB, err := b64.StdEncoding.DecodeString(os.Getenv("BCDA_TLS_KEY_B64"))
+	keyB, err := base64.StdEncoding.DecodeString(os.Getenv("BCDA_TLS_KEY_B64"))
 	if err != nil {
 		ssas.Logger.Error(err)
 		return nil, tls.Certificate{}, errors.New("could not base64 decode BCDA_TLS_KEY_B64")
