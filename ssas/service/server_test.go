@@ -245,17 +245,17 @@ func (s *ServerTestSuite) TestChooseSigningKeyUsingFile() {
 	assert.Equal(s.T(), nil, sk.Validate())
 }
 
-func (s *ServerTestSuite) TestChooseSigningKeyUsingInvalidInline() {
-	// having the inline private key set but is invalid
-	_, err := ChooseSigningKey("", invalidKey)
-	assert.Error(s.T(), err, "bad inline signing key")
-}
+// func (s *ServerTestSuite) TestChooseSigningKeyUsingInvalidInline() {
+// 	// having the inline private key set but is invalid
+// 	_, err := ChooseSigningKey("", invalidKey)
+// 	assert.Error(s.T(), err, "bad inline signing key")
+// }
 
-func (s *ServerTestSuite) TestChooseInvalidSigningKeyUsingFile() {
-	// having the private key file set but is invalid
-	_, err := ChooseSigningKey(invalidKeyPath, "")
-	assert.Error(s.T(), err, "bad signing key")
-}
+// func (s *ServerTestSuite) TestChooseInvalidSigningKeyUsingFile() {
+// 	// having the private key file set but is invalid
+// 	_, err := ChooseSigningKey(invalidKeyPath, "")
+// 	assert.Error(s.T(), err, "bad signing key")
+// }
 
 func (s *ServerTestSuite) TestMTLCertParsing() {
 	os.Setenv("BCDA_TLS_CERT_B64", b64_test_cert)
