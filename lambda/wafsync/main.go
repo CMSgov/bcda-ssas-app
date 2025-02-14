@@ -43,10 +43,6 @@ func handler(ctx context.Context, event events.S3Event) ([]string, error) {
 	defer conn.Close(ctx)
 
 	sess := session.Must(session.NewSession())
-	if err != nil {
-		log.Errorf("Failed creating session to update ip set, %+v", err)
-		return nil, err
-	}
 	wafsvc := wafv2.New(sess, &aws.Config{
 		Region: aws.String("us-east-1"),
 	})
