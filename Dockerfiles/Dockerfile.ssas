@@ -1,4 +1,4 @@
-FROM golang:alpine3.20 AS documentation
+FROM golang:1.23-alpine3.20 AS documentation
 RUN apk update upgrade
 RUN apk add git build-base gcc binutils-gold
 WORKDIR /go/src/github.com/CMSgov/bcda-ssas-app
