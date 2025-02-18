@@ -23,8 +23,10 @@ jobs:
     name: Package BCDA SSAS
     runs-on: self-hosted
     steps:
-      - name: Verify we are here
-        run: echo "We are in SSAS workflow package-rpm"
+      - uses: aws-actions/configure-aws-credentials@v3
+        with:
+          aws-region: ${{ vars.AWS_REGION }}
+          role-to-assume: arn:aws:iam::${{ secrets.ACCOUNT_ID }}:role/delegatedadmin/developer/bcda-prod-github-actions
       # TODO: TEMP (can remove this step once PLT-905 is implemented)
       - name: Install docker compose manually
         run: |
@@ -64,16 +66,21 @@ jobs:
       - name: Upload BCDA RPM to s3 releases
         # TODO: should we be checking blank release_version or should we be checking inputs.release_env == 'dev' ?
         if: ${{ inputs.release_version != '' }}
-        working-directory: ./bcda-ssas-app/ssas
+        working-directory: ./ssas
         run: |
-          SSAS_RPM = ls ssas-*.rpm | tr '\n' ' '
+          ls -als
+          export SSAS_RPM=`ls ssas-*.rpm | tr '\n' ' '`
+          echo $SSAS_RPM
           aws s3 cp --only-show-errors $SSAS_RPM s3://ssas-rpms/ssas-releases/ssas-release-${{ inputs.release_version }}.rpm
           aws s3 cp --only-show-errors $SSAS_RPM s3://ssas-rpms/ssas-release-latest.rpm
       - name: Upload BCDA RPM to s3 dev
         if: ${{ inputs.release_version == '' }}
-        working-directory: ./bcda-ssas-app/ssas
+        working-directory: ./ssas
         run: |
-          SSAS_RPM = ls ssas-*.rpm | tr '\n' ' '
-          NEW_SSAS_RPM_NAME = echo $SSAS_RPM | sed -e 's/-1.x86_64.rpm/-'build'${{ github.sha }}''.rpm/g'
-          aws s3 cp --only-show-errors $SSAS_RPM s3://ssas-rpms/ssas-dev/$NEW_SSAS_RPM_NAME
+          ls -als
+          export SSAS_RPM=`ls ssas-*.rpm | tr '\n' ' '`
+          echo $SSAS_RPM
+          export NEW_SSAS_RPM_NAME=`echo $SSAS_RPM | sed -e 's/-1.x86_64.rpm/-'build'${{ github.run_id }}''.rpm/g'`
+          echo $NEW_SSAS_RPM_NAME
+          aws s3 cp --only-show-errors $SSAS_RPM s3://ssas-rpms/ssas-dev/${NEW_SSAS_RPM_NAME}
           aws s3 cp --only-show-errors $SSAS_RPM s3://ssas-rpms/ssas-dev-latest.rpm

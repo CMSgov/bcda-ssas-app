@@ -23,8 +23,6 @@ jobs:
     name: Modules Lint
     runs-on: self-hosted
     steps:
-      - name: Verify we are here
-        run: echo "We are in SSAS workflow ci-checks"
       - name: Checkout code
         uses: actions/checkout@v4
         with:
