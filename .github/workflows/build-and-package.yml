@@ -89,6 +89,6 @@ jobs:
             channel: "C034CFU945C"
             attachments:
               - color: danger
-                text: "SUCCESS: Build and Package SSAS (run: <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|${{ github.run_id }})>"
+                text: "FAILED: Build and Package SSAS (run: <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|${{ github.run_id }})>"
                 mrkdown_in:
                   - text
