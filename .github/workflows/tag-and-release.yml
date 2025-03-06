@@ -17,11 +17,9 @@ on:
         type: string
       next_release_version:
         description: 'Next version (tag or branch name) (OPTIONAL - If not set tag versions will be automatically figured out)'
-        required: true
         type: string
       previous_release_version:
         description: 'Previous version (tag or branch name) (OPTIONAL - If not set tag versions will be automatically figured out)'
-        required: true
         type: string
 
 permissions:
@@ -88,33 +86,33 @@ jobs:
         run: |
           echo "${{ env.BCDA_GPG_PUB_KEY }}" > ./${{ env.GPG_KEY_FILE_NAME }}
           GITHUB_REPO_PATH='/CMSgov/bcda-ssas-ops' GITHUB_ACCESS_TOKEN=${{ env.OPS_GITHUB_TOKEN }} GITHUB_USER='${{ env.RELEASE_GITHUB_USER }}' GITHUB_EMAIL='${{ env.RELEASE_GITHUB_EMAIL }}' GITHUB_GPG_KEY_FILE=${{ env.GPG_KEY_FILE_NAME }} bash ops/release.sh ${{ env.MANUAL_TAG_ARGS }}
-      # - name: Success Alert
-      #   if: ${{ success() }}
-      #   uses: slackapi/slack-github-action@v2.0.0
-      #   with:
-      #     method: chat.postMessage
-      #     token: ${{ secrets.SLACK_BOT_TOKEN }}
-      #     # Sends to bcda-deploy
-      #     payload: |
-      #       channel: "C03S23MJFJS"
-      #       attachments:
-      #         - color: good
-      #           text: "SUCCESS: Tag and Release SSAS (${{ env.RELEASE_VERSION }}) and SSAS-OPS (${{ env.OPS_RELEASE_VERSION }}).  Run: <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|${{ github.run_id }}>"
-      #           mrkdown_in:
-      #             - text
-      # - name: Failure Alert
-      #   if: ${{ failure() }}
-      #   uses: slackapi/slack-github-action@v2.0.0
-      #   with:
-      #     method: chat.postMessage
-      #     token: ${{ secrets.SLACK_BOT_TOKEN }}
-      #     # Sends to bcda-alerts
-      #     payload: |
-      #       channel: "C034CFU945C"
-      #       attachments:
-      #         - color: danger
-      #           text: "FAILED: Tag and Release SSAS (${{ env.RELEASE_VERSION }}) and SSAS-OPS (${{ env.OPS_RELEASE_VERSION }}).  Run: <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|${{ github.run_id }}>"
-      #           mrkdown_in:
-      #             - text
+      - name: Success Alert
+        if: ${{ success() }}
+        uses: slackapi/slack-github-action@v2.0.0
+        with:
+          method: chat.postMessage
+          token: ${{ secrets.SLACK_BOT_TOKEN }}
+          # Sends to bcda-deploy
+          payload: |
+            channel: "C03S23MJFJS"
+            attachments:
+              - color: good
+                text: "SUCCESS: Tag and Release SSAS (${{ env.RELEASE_VERSION }}) and SSAS-OPS (${{ env.OPS_RELEASE_VERSION }}).  Run: <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|${{ github.run_id }}>"
+                mrkdown_in:
+                  - text
+      - name: Failure Alert
+        if: ${{ failure() }}
+        uses: slackapi/slack-github-action@v2.0.0
+        with:
+          method: chat.postMessage
+          token: ${{ secrets.SLACK_BOT_TOKEN }}
+          # Sends to bcda-alerts
+          payload: |
+            channel: "C034CFU945C"
+            attachments:
+              - color: danger
+                text: "FAILED: Tag and Release SSAS (${{ env.RELEASE_VERSION }}) and SSAS-OPS (${{ env.OPS_RELEASE_VERSION }}).  Run: <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|${{ github.run_id }}>"
+                mrkdown_in:
+                  - text
 
 
