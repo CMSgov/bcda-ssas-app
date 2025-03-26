@@ -11,8 +11,9 @@ package:
 	-e GPG_SEC_KEY_FILE='${GPG_SEC_KEY_FILE}' \
 	-v ${PWD}:/go/src/github.com/CMSgov/bcda-ssas-app packaging $(version)
 
+# -D(isabling) errcheck and staticcheck linters for now due to v2 upgrade, see: https://jira.cms.gov/browse/BCDA-8911
 lint:
-	docker compose -f docker-compose.test.yml run --rm tests golangci-lint -e SA1029 --timeout 10m0s -v run ./...
+	docker compose -f docker-compose.test.yml run --rm tests golangci-lint -D errcheck,staticcheck --timeout 10m0s -v run ./...
 	docker compose -f docker-compose.test.yml run --rm tests gosec ./...
 
 # The following vars are available to tests needing SSAS admin credentials; currently they are used in smoke-test-ssas, postman-ssas, and unit-test-ssas
