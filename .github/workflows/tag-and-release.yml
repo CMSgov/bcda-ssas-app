@@ -5,11 +5,11 @@ on:
   workflow_dispatch:
     inputs:
       release_version:
-        description: 'Release version (or branch name)'
+        description: 'Release version/tag (or branch name)'
         required: true
         type: string
       ops_release_version:
-        description: 'Release version for bcda-ops (or branch name)'
+        description: 'Release version/tag for bcda-ssas-ops (or branch name)'
         required: true
         type: string
       next_release_version:
@@ -107,7 +107,7 @@ jobs:
             channel: "C034CFU945C"
             attachments:
               - color: danger
-                text: "FAILED: Tag and Release SSAS (${{ env.RELEASE_VERSION }}) and SSAS-OPS (${{ env.OPS_RELEASE_VERSION }}).  Run: <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|${{ github.run_id }}>"
+                text: "FAILURE: Tag and Release SSAS (${{ env.RELEASE_VERSION }}) and SSAS-OPS (${{ env.OPS_RELEASE_VERSION }}).  Run: <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|${{ github.run_id }}>"
                 mrkdown_in:
                   - text
 
