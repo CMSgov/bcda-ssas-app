@@ -81,8 +81,6 @@ func updateIpSet(ctx context.Context, conn PgxConnection, wafsvc wafv2iface.WAFV
 		return nil, err
 	}
 
-	fmt.Printf("\nreturning WAF addresses: %+v, %+v", ipv4Addrs, ipv6Addrs)
-
 	// set up return of all addresses
 	var addresses []string
 	addresses = append(addresses, ipv4Addrs...)

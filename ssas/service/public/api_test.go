@@ -353,7 +353,7 @@ func addRegDataContext(s *APITestSuite, req *http.Request, groupID string, group
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
 	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry))
 	rd := ssas.AuthRegData{GroupID: groupID, AllowedGroupIDs: groupIDs}
-	req = req.WithContext(context.WithValue(req.Context(), "rd", rd))
+	req = req.WithContext(context.WithValue(req.Context(), "rd", rd)) //nolint:staticcheck
 	return req
 }
 

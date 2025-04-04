@@ -5,7 +5,6 @@ import (
 	"crypto/rsa"
 	"crypto/tls"
 	"crypto/x509"
-	"encoding/base64"
 	b64 "encoding/base64"
 	"errors"
 	"fmt"
@@ -443,7 +442,7 @@ func (s *Server) GetSystemIDFromMacaroon(issuer string) (string, error) {
 	db := ssas.Connection
 
 	var um macaroon.Macaroon
-	b, _ := base64.StdEncoding.DecodeString(issuer)
+	b, _ := b64.StdEncoding.DecodeString(issuer)
 	_ = um.UnmarshalBinary(b)
 
 	location := cfg.FromEnv("SSAS_MACAROON_LOCATION", "localhost")

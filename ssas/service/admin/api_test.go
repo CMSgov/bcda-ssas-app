@@ -703,7 +703,7 @@ func (s *APITestSuite) TestGetSystemIPsBadSystem() {
 	//Should not exist
 	badSysId := 42
 
-	systemID := strconv.FormatUint(uint64(badSysId), 10)
+	systemID := strconv.FormatUint(uint64(badSysId), 10) // #nosec G115
 	req := httptest.NewRequest("GET", "/system/"+systemID+"/ip", nil)
 	rctx := chi.NewRouteContext()
 	rctx.URLParams.Add("systemID", systemID)
@@ -1397,7 +1397,7 @@ func (s *APITestSuite) TestCreateAndDeletePublicKey() {
 	creds, _ := ssas.CreateTestXDataV2(s.T(), s.db)
 
 	key, sig, _, _ := ssas.GeneratePublicKey(2048)
-	keyStr := strings.Replace(key, "\n", "\\n", -1)
+	keyStr := strings.ReplaceAll(key, "\n", "\\n")
 	req := httptest.NewRequest("POST", fmt.Sprintf("/v2/system/%s/key", creds.SystemID), strings.NewReader(fmt.Sprintf(`{"public_key":"%s", "signature":"%s"}`, keyStr, sig)))
 	rctx := chi.NewRouteContext()
 	rctx.URLParams.Add("systemID", creds.SystemID)
@@ -1461,7 +1461,7 @@ func (s *APITestSuite) TestCreateAndDeletePublicKey() {
 
 func (s *APITestSuite) TestCreatePublicKeySystemNotFound() {
 	key, sig, _, _ := ssas.GeneratePublicKey(2048)
-	keyStr := strings.Replace(key, "\n", "\\n", -1)
+	keyStr := strings.ReplaceAll(key, "\n", "\\n")
 	req := httptest.NewRequest("POST", fmt.Sprintf("/v2/system/%s/key", "fake-token"), strings.NewReader(fmt.Sprintf(`{"public_key":"%s", "signature":"%s"}`, keyStr, sig)))
 	rctx := chi.NewRouteContext()
 	rctx.URLParams.Add("systemID", "fake-token")
@@ -1477,7 +1477,7 @@ func (s *APITestSuite) TestCreatePublicKeyNonJson() {
 	creds, _ := ssas.CreateTestXDataV2(s.T(), s.db)
 
 	key, sig, _, _ := ssas.GeneratePublicKey(2048)
-	keyStr := strings.Replace(key, "\n", "\\n", -1)
+	keyStr := strings.ReplaceAll(key, "\n", "\\n")
 	req := httptest.NewRequest("POST", fmt.Sprintf("/v2/system/%s/key", creds.SystemID), strings.NewReader(fmt.Sprintf(`"public_abcd":"%s", "signature":"%s"}`, keyStr, sig)))
 	rctx := chi.NewRouteContext()
 	rctx.URLParams.Add("systemID", creds.SystemID)
@@ -1493,7 +1493,7 @@ func (s *APITestSuite) TestCreatePublicKeyMissingFields() {
 	creds, _ := ssas.CreateTestXDataV2(s.T(), s.db)
 
 	key, sig, _, _ := ssas.GeneratePublicKey(2048)
-	keyStr := strings.Replace(key, "\n", "\\n", -1)
+	keyStr := strings.ReplaceAll(key, "\n", "\\n")
 	req := httptest.NewRequest("POST", fmt.Sprintf("/v2/system/%s/key", creds.SystemID), strings.NewReader(fmt.Sprintf(`{"public_abcd":"%s", "signature":"%s"}`, keyStr, sig)))
 	rctx := chi.NewRouteContext()
 	rctx.URLParams.Add("systemID", creds.SystemID)

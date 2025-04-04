@@ -498,7 +498,7 @@ func getPublicKey(w http.ResponseWriter, r *http.Request) {
 	key, _ := system.GetEncryptionKey(r.Context())
 
 	w.Header().Set("Content-Type", "application/json")
-	keyStr := strings.Replace(key.Body, "\n", "\\n", -1)
+	keyStr := strings.ReplaceAll(key.Body, "\n", "\\n")
 	fmt.Fprintf(w, `{ "client_id": "%s", "public_key": "%s" }`, system.ClientID, keyStr)
 }
 
@@ -848,7 +848,7 @@ func createKey(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	keyStr := strings.Replace(key.Body, "\n", "\\n", -1)
+	keyStr := strings.ReplaceAll(key.Body, "\n", "\\n")
 	fmt.Fprintf(w, `{ "client_id": "%s", "public_key": "%s", "id": "%s"}`, system.ClientID, keyStr, key.UUID)
 }
 
