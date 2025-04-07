@@ -202,7 +202,7 @@ lgjvcjwaQZ7pLGrIA/BQcm+KnCIYOHaDH15eVDKQ+M2qE4FHRwLec/DTqlwg8TkT
 IYjBnXgN1Sg18y+SkSYYklO4cxlvMO3V8gaot9amPmt4YbpgG7CyZ+BOUHuoGBTh
 OwIDAQAB
 -----END RSA PUBLIC KEY-----`
-	keyPair, err := rsa.GenerateKey(rand.Reader, 2048)
+	keyPair, err := rsa.GenerateKey(rand.Reader, 512) //nolint:gosec
 	assert.Nil(err, "unable to generate key pair")
 	publicKeyPKIX, err := x509.MarshalPKIXPublicKey(&keyPair.PublicKey)
 	assert.Nil(err, "unable to marshal public key")
