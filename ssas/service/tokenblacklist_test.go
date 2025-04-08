@@ -2,7 +2,8 @@ package service
 
 import (
 	"context"
-	"math/rand"
+	"crypto/rand"
+	"math/big"
 	"strconv"
 	"testing"
 	"time"
@@ -26,6 +27,8 @@ type TokenCacheTestSuite struct {
 	t  *Blacklist
 	db *gorm.DB
 }
+
+var maxInt = big.NewInt(100)
 
 func (s *TokenCacheTestSuite) SetupSuite() {
 	s.db = ssas.Connection
@@ -140,8 +143,10 @@ func (s *TokenCacheTestSuite) TestLoadFromDatabase() {
 }
 
 func (s *TokenCacheTestSuite) TestIsTokenBlacklistedTrue() {
-	key := strconv.Itoa(rand.Int())
-	err := s.t.c.Add(key, "value does not matter", expiration)
+	randInt, err := rand.Int(rand.Reader, maxInt)
+	assert.Nil(s.T(), err)
+	key := strconv.Itoa(int(randInt.Int64()))
+	err = s.t.c.Add(key, "value does not matter", expiration)
 	if err != nil {
 		assert.FailNow(s.T(), "unable to set cache value: "+err.Error())
 	}
@@ -150,8 +155,10 @@ func (s *TokenCacheTestSuite) TestIsTokenBlacklistedTrue() {
 
 func (s *TokenCacheTestSuite) TestIsTokenBlacklistedExpired() {
 	minimalDuration := 1 * time.Nanosecond
-	key := strconv.Itoa(rand.Int())
-	err := s.t.c.Add(key, "value does not matter", minimalDuration)
+	randInt, err := rand.Int(rand.Reader, maxInt)
+	assert.Nil(s.T(), err)
+	key := strconv.Itoa(int(randInt.Int64()))
+	err = s.t.c.Add(key, "value does not matter", minimalDuration)
 	if err != nil {
 		assert.FailNow(s.T(), "unable to set cache value: "+err.Error())
 	}
@@ -160,12 +167,16 @@ func (s *TokenCacheTestSuite) TestIsTokenBlacklistedExpired() {
 }
 
 func (s *TokenCacheTestSuite) TestIsTokenBlacklistedFalse() {
-	key := strconv.Itoa(rand.Int())
+	randInt, err := rand.Int(rand.Reader, maxInt)
+	assert.Nil(s.T(), err)
+	key := strconv.Itoa(int(randInt.Int64()))
 	assert.False(s.T(), s.t.IsTokenBlacklisted(key))
 }
 
 func (s *TokenCacheTestSuite) TestBlacklistToken() {
-	key := strconv.Itoa(rand.Int())
+	randInt, err := rand.Int(rand.Reader, maxInt)
+	assert.Nil(s.T(), err)
+	key := strconv.Itoa(int(randInt.Int64()))
 	if err := s.t.BlacklistToken(context.Background(), key, expiration); err != nil {
 		assert.FailNow(s.T(), err.Error())
 	}
@@ -217,7 +228,9 @@ func (s *TokenCacheTestSuite) TestStartCacheRefreshTicker() {
 }
 
 func (s *TokenCacheTestSuite) TestBlacklistTokenKeyExists() {
-	key := strconv.Itoa(rand.Int())
+	randInt, err := rand.Int(rand.Reader, maxInt)
+	assert.Nil(s.T(), err)
+	key := strconv.Itoa(int(randInt.Int64()))
 
 	// Place key in blacklist
 	if err := s.t.BlacklistToken(context.Background(), key, expiration); err != nil {

@@ -38,7 +38,7 @@ func readGroupID(next http.Handler) http.Handler {
 			return
 		}
 
-		ctx := context.WithValue(r.Context(), "rd", rd)
+		ctx := context.WithValue(r.Context(), "rd", rd) //nolint:staticcheck
 		ssas.SetCtxEntry(r, "rd", rd)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
@@ -89,8 +89,8 @@ func parseToken(next http.Handler) http.Handler {
 			rd.AllowedGroupIDs = claims.GroupIDs
 			rd.OktaID = claims.OktaID
 		}
-		ctx := context.WithValue(r.Context(), "ts", tokenString)
-		ctx = context.WithValue(ctx, "rd", rd)
+		ctx := context.WithValue(r.Context(), "ts", tokenString) //nolint:staticcheck
+		ctx = context.WithValue(ctx, "rd", rd)                   //nolint:staticcheck
 		ssas.SetCtxEntry(r, "rd", rd)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})

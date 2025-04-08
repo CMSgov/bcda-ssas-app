@@ -48,7 +48,7 @@ func (rk *RootKey) IsExpired() bool {
 
 // Generate - Generate a Macaroon from the Token configuration
 func (rk *RootKey) Generate(caveats []Caveats, location string) (string, error) {
-	m, err := macaroon.New([]byte(rk.Key), []byte(rk.UUID), location, macaroon.Version(cfg.GetEnvInt("SSAS_MACAROON_VERSION", 1)))
+	m, err := macaroon.New([]byte(rk.Key), []byte(rk.UUID), location, macaroon.Version(cfg.GetEnvInt("SSAS_MACAROON_VERSION", 1))) // #nosec G115
 	if err != nil {
 		return "", fmt.Errorf("error creating new macaroon: %s", err.Error())
 	}

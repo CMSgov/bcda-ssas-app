@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"go/build"
 	"io"
+	"math"
 	"net"
 	"os"
 	"strconv"
@@ -637,6 +638,9 @@ func (system *System) DeleteIP(ctx context.Context, ipID string) error {
 
 // DataForSystem returns the group extra data associated with this system
 func XDataFor(ctx context.Context, system System) (string, error) {
+	if system.GID > math.MaxInt {
+		return "", fmt.Errorf("group id uint overflow converting to int")
+	}
 	group, err := GetGroupByID(ctx, strconv.Itoa(int(system.GID)))
 	if err != nil {
 		return "", fmt.Errorf("no group for system %d; %s", system.ID, err)

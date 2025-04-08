@@ -38,7 +38,7 @@ func (s *PublicMiddlewareTestSuite) SetupTest() {
 }
 
 func (s *PublicMiddlewareTestSuite) TestRequireTokenAuthWithInvalidSignature() {
-	badToken := "eyJhbGciOiJFUzM4NCIsInR5cCI6IkpXVCIsImtpZCI6ImlUcVhYSTB6YkFuSkNLRGFvYmZoa00xZi02ck1TcFRmeVpNUnBfMnRLSTgifQ.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiYWRtaW4iOnRydWUsImlhdCI6MTUxNjIzOTAyMn0.cJOP_w-hBqnyTsBm3T6lOE5WpcHaAkLuQGAs1QO-lg2eWs8yyGW8p9WagGjxgvx7h9X72H7pXmXqej3GdlVbFmhuzj45A9SXDOAHZ7bJXwM1VidcPi7ZcrsMSCtP1hiN"
+	badToken := "eyJhbGciOiJFUzM4NCIsInR5cCI6IkpXVCIsImtpZCI6ImlUcVhYSTB6YkFuSkNLRGFvYmZoa00xZi02ck1TcFRmeVpNUnBfMnRLSTgifQ.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiYWRtaW4iOnRydWUsImlhdCI6MTUxNjIzOTAyMn0.cJOP_w-hBqnyTsBm3T6lOE5WpcHaAkLuQGAs1QO-lg2eWs8yyGW8p9WagGjxgvx7h9X72H7pXmXqej3GdlVbFmhuzj45A9SXDOAHZ7bJXwM1VidcPi7ZcrsMSCtP1hiN" // #nosec G101 // gitleaks:allow
 
 	testForToken :=
 		func(next http.Handler) http.Handler {
@@ -148,7 +148,7 @@ func (s *PublicMiddlewareTestSuite) TestRequireRegTokenAuthValidToken() {
 	assert.NotNil(s.T(), ts)
 
 	ctx := req.Context()
-	ctx = context.WithValue(ctx, "ts", ts)
+	ctx = context.WithValue(ctx, "ts", ts) //nolint:staticcheck
 	req = req.WithContext(ctx)
 
 	handler.ServeHTTP(s.rr, req)
@@ -181,7 +181,7 @@ func (s *PublicMiddlewareTestSuite) TestRequireRegTokenAuthRevoked() {
 	assert.NotNil(s.T(), token)
 
 	ctx := req.Context()
-	ctx = context.WithValue(ctx, "ts", ts)
+	ctx = context.WithValue(ctx, "ts", ts) //nolint:staticcheck
 	req = req.WithContext(ctx)
 
 	handler.ServeHTTP(s.rr, req)
@@ -201,7 +201,7 @@ func (s *PublicMiddlewareTestSuite) TestRequireRegTokenAuthEmptyToken() {
 		assert.FailNow(s.T(), err.Error())
 	}
 
-	ctx := context.WithValue(context.Background(), "ts", nil)
+	ctx := context.WithValue(context.Background(), "ts", nil) //nolint:staticcheck
 
 	resp, err := client.Do(req.WithContext(ctx))
 	if err != nil {
@@ -226,7 +226,7 @@ func (s *PublicMiddlewareTestSuite) TestGetTransactionID() {
 	assert.NotNil(s.T(), token)
 
 	ctx := req.Context()
-	ctx = context.WithValue(ctx, "ts", ts)
+	ctx = context.WithValue(ctx, "ts", ts) //nolint:staticcheck
 
 	handler.ServeHTTP(s.rr, req.WithContext(ctx))
 	if err != nil {
