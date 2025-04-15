@@ -776,6 +776,11 @@ func (system *System) ResetSecret(ctx context.Context) (Credentials, error) {
 	return creds, nil
 }
 
+// The following code is a bit confusing.  It first checks a valid IP address, if fails, returns false.
+// It then checks if the found IP address is in a reserved range.  If it is return false.
+// At a glance this code seems like it allows for an IP address OR a CIDR range to be passed in
+// but that is not the case.  We actually do NOT want SGAs to be able
+// to send us CIDR ranges.  They could accidentally open up huge ranges of IP addresses.
 func ValidAddress(address string) bool {
 	ip := net.ParseIP(address)
 	if ip == nil {
