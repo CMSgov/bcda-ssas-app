@@ -81,6 +81,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: code-coverage-report-ssas
+          path: ./test_results/latest/testcoverage-ssas.out
       - name: Set env vars from AWS params
         uses: cmsgov/ab2d-bcda-dpc-platform/actions/aws-params-env-action@main
         env:
@@ -89,6 +90,12 @@ jobs:
           params: |
             SONAR_HOST_URL=/sonarqube/url
             SONAR_TOKEN=/sonarqube/token
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          repository: CMSgov/bcda-ssas-app 
+          ref: ${{ env.RELEASE_VERSION }}
+          fetch-depth: 0
       - name: Run quality gate scan
         uses: sonarsource/sonarqube-scan-action@master
         with:
