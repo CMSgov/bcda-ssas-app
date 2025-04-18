@@ -93,8 +93,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          repository: CMSgov/bcda-ssas-app 
-          ref: main
+          repository: CMSgov/bcda-ssas-app
           fetch-depth: 0
       - name: Run quality gate scan
         uses: sonarsource/sonarqube-scan-action@master
