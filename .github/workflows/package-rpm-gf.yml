@@ -1,9 +1,6 @@
 name: Package BCDA SSAS GF
 
 on:
-  push:
-    branches:
-      - "jscott/PLT-1052"
   workflow_call:
     inputs:
       ssas_release_version:
