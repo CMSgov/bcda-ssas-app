@@ -41,7 +41,7 @@ jobs:
           repository: CMSgov/bcda-ssas-app
           # ref: ${{ inputs.ssas_release_version }}
           ref: jscott/PLT-1052
-          - name: Get AWS params
+      - name: Get AWS params
         uses: cmsgov/ab2d-bcda-dpc-platform/actions/aws-params-env-action@main
         env:
           AWS_REGION: ${{ vars.AWS_REGION }}
