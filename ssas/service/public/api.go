@@ -243,6 +243,7 @@ func setHeaders(w http.ResponseWriter) {
 
 func token(w http.ResponseWriter, r *http.Request) {
 	logger := ssas.GetCtxLogger(r.Context())
+
 	clientID, secret, ok := r.BasicAuth()
 	if !ok {
 		logger.Error("basic auth failed")
@@ -365,7 +366,7 @@ func tokenV2(w http.ResponseWriter, r *http.Request) {
 	}
 
 	data, err := ssas.XDataFor(r.Context(), system)
-	ssas.Logger.Infof("public.api.token: XDataFor(%d) returned '%s'", system.ID, data)
+	logger.Infof("public.api.token: XDataFor(%d) returned '%s'", system.ID, data)
 	if err != nil {
 		service.JSONError(w, http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized), "no group for system")
 		return
@@ -435,6 +436,8 @@ func parseClientSignedToken(ctx context.Context, jwt string, trackingID string) 
 }
 
 func introspect(w http.ResponseWriter, r *http.Request) {
+	logger := ssas.GetCtxLogger(r.Context())
+
 	clientID, secret, ok := r.BasicAuth()
 
 	if !ok {
@@ -474,8 +477,8 @@ func introspect(w http.ResponseWriter, r *http.Request) {
 	}
 	var answer = make(map[string]bool)
 	answer["active"] = true
-	if err = tokenValidity(reqV["token"], "AccessToken"); err != nil {
-		ssas.Logger.Infof("token failed tokenValidity")
+	if err = tokenValidity(r.Context(), reqV["token"], "AccessToken"); err != nil {
+		logger.Infof("token failed tokenValidity, err: %+v", err)
 		answer["active"] = false
 	}
 
@@ -487,9 +490,7 @@ func introspect(w http.ResponseWriter, r *http.Request) {
 }
 
 func validateAndParseToken(w http.ResponseWriter, r *http.Request) {
-
 	logger := ssas.GetCtxLogger(r.Context())
-
 	defer r.Body.Close()
 
 	var reqV map[string]string
@@ -505,13 +506,13 @@ func validateAndParseToken(w http.ResponseWriter, r *http.Request) {
 	}
 	var response = make(map[string]interface{})
 
-	if err := tokenValidity(tokenS, "AccessToken"); err != nil {
-		ssas.Logger.Infof("token failed tokenValidity")
+	if err := tokenValidity(r.Context(), tokenS, "AccessToken"); err != nil {
+		logger.Infof("token failed tokenValidity")
 		response["valid"] = false
 	} else {
 		claims := jwt.MapClaims{}
 		if _, _, err := new(jwt.Parser).ParseUnverified(tokenS, claims); err != nil {
-			ssas.Logger.Error("could not unmarshal access token")
+			logger.Error("could not unmarshal access token")
 			service.JSONError(w, http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError), "internal server error")
 			return
 		}
@@ -520,7 +521,7 @@ func validateAndParseToken(w http.ResponseWriter, r *http.Request) {
 		response["system_data"] = claims["system_data"]
 		sys, err := ssas.GetSystemByID(r.Context(), claims["sys"].(string))
 		if err != nil {
-			ssas.Logger.Error("could not get system id")
+			logger.Error("could not get system id")
 			service.JSONError(w, http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError), "internal server error")
 			return
 		}
