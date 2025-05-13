@@ -111,7 +111,7 @@ func tokenAuth(next http.Handler, tokenType string) http.Handler {
 			ok bool
 		)
 
-		_, logger := ssas.SetCtxEntry(r, "op", "tokenauth")
+		ctx, logger := ssas.SetCtxEntry(r, "op", "tokenauth")
 
 		tsObj := r.Context().Value("ts")
 		if tsObj == nil {
@@ -126,7 +126,7 @@ func tokenAuth(next http.Handler, tokenType string) http.Handler {
 			return
 		}
 
-		err := tokenValidity(ts, tokenType)
+		err := tokenValidity(ctx, ts, tokenType)
 		if err != nil {
 			logger.Error("token invalid")
 			respond(w, http.StatusUnauthorized)

@@ -69,8 +69,11 @@ const CtxLoggerKey CtxLoggerKeyType = "ctxLogger"
 
 // Gets the logrus.FieldLogger from a context
 func GetCtxLogger(ctx context.Context) logrus.FieldLogger {
-	entry := ctx.Value(CtxLoggerKey).(*APILoggerEntry)
-	return entry.Logger
+	entry := ctx.Value(CtxLoggerKey)
+	if entry != nil {
+		return entry.(*APILoggerEntry).Logger
+	}
+	return Logger
 }
 
 // Gets the logrus.APILoggerEntry from a context

@@ -1,6 +1,7 @@
 package public
 
 import (
+	"context"
 	"fmt"
 	"time"
 
@@ -89,10 +90,12 @@ func empty(arr []string) bool {
 	return empty
 }
 
-func tokenValidity(tokenString string, requiredTokenType string) error {
+func tokenValidity(ctx context.Context, tokenString string, requiredTokenType string) error {
+	logger := ssas.GetCtxLogger(ctx)
+
 	t, err := server.VerifyToken(tokenString)
 	if err != nil {
-		ssas.Logger.Error(err)
+		logger.Error(err)
 		return err
 	}
 
@@ -100,19 +103,19 @@ func tokenValidity(tokenString string, requiredTokenType string) error {
 
 	err = checkAllClaims(c, requiredTokenType)
 	if err != nil {
-		ssas.Logger.Error(err)
+		logger.Error(err)
 		return err
 	}
 
 	err = c.Valid()
 	if err != nil {
-		ssas.Logger.Error(err)
+		logger.Error(err)
 		return err
 	}
 
 	if service.TokenBlacklist.IsTokenBlacklisted(c.Id) {
 		err = fmt.Errorf("token has been revoked")
-		ssas.Logger.Error(err)
+		logger.Error(err)
 		return err
 	}
 	return nil
