@@ -63,16 +63,19 @@ jobs:
           echo "${{ env.BCDA_GPG_SEC_KEY }}" > ops/${{ env.GPG_SEC_KEY_FILE }}
           # Remove any slashes - we don't want RPM to contain slash
           BCDA_GPG_RPM_PASSPHRASE=${{ env.BCDA_GPG_RPM_PASSPHRASE }} GPG_RPM_USER="${{ env.GPG_RPM_USER }}" GPG_RPM_EMAIL="${{ env.GPG_RPM_EMAIL }}" GPG_PUB_KEY_FILE=${{ env.GPG_PUB_KEY_FILE }} GPG_SEC_KEY_FILE=${{ env.GPG_SEC_KEY_FILE }} make package version=$SLIM_VERSION
-      - name: Upload BCDA RPM to s3 releases
-        # TODO: should we be checking blank release_version or should we be checking inputs.ssas_release_env == 'dev' ?
-        if: ${{ inputs.ssas_release_version != '' }}
-        working-directory: ./ssas
-        run: |
-          export SSAS_RPM=`ls ssas-*.rpm | tr '\n' ' '`
-          aws s3 cp --only-show-errors $SSAS_RPM s3://${{ env.BCDA_RPMS_BUCKET }}/ssas-releases/ssas-release-${{ inputs.ssas_release_version }}.rpm
-          aws s3 cp --only-show-errors $SSAS_RPM s3://${{ env.BCDA_RPMS_BUCKET }}/ssas-release-latest.rpm
+
+      # TODO: Commenting out for initial GF migration; figure out how to deal with dev and release with prod and non-prod accounts.    
+      # - name: Upload BCDA RPM to s3 releases
+      #   # TODO: should we be checking blank release_version or should we be checking inputs.ssas_release_env == 'dev' ?
+      #   if: ${{ inputs.ssas_release_version != '' }}
+      #   working-directory: ./ssas
+      #   run: |
+      #     export SSAS_RPM=`ls ssas-*.rpm | tr '\n' ' '`
+      #     aws s3 cp --only-show-errors $SSAS_RPM s3://${{ env.BCDA_RPMS_BUCKET }}/ssas-releases/ssas-release-${{ inputs.ssas_release_version }}.rpm
+      #     aws s3 cp --only-show-errors $SSAS_RPM s3://${{ env.BCDA_RPMS_BUCKET }}/ssas-release-latest.rpm
+      
       - name: Upload BCDA RPM to s3 dev
-        if: ${{ inputs.ssas_release_version == '' }}
+        # if: ${{ inputs.ssas_release_version == '' }}
         working-directory: ./ssas
         run: |
           export SSAS_RPM=`ls ssas-*.rpm | tr '\n' ' '`
