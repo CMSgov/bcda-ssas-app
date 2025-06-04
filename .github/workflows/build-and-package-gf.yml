@@ -19,11 +19,11 @@ permissions:
   contents: read
 
 jobs:
-  # ci_checks:
-  #   uses: ./.github/workflows/ci-checks-gf.yml
-  #   with:
-  #     ssas_release_version: ${{ inputs.ssas_release_version }}
-  #   secrets: inherit
+  ci_checks:
+    uses: ./.github/workflows/ci-checks-gf.yml
+    with:
+      ssas_release_version: ${{ inputs.ssas_release_version }}
+    secrets: inherit
 
   build_and_package:
     uses: ./.github/workflows/package-rpm-gf.yml
