@@ -1,0 +1,80 @@
+name: Build and Package GF
+
+on:
+  workflow_call:
+    inputs:
+      ssas_release_version:
+        description: 'Release version (or branch name)'
+        required: true
+        type: string
+  workflow_dispatch:
+    inputs:
+      ssas_release_version:
+        description: 'Release version (or branch name)'
+        required: true
+        type: string
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  ci_checks:
+    uses: ./.github/workflows/ci-checks-gf.yml
+    with:
+      ssas_release_version: ${{ inputs.ssas_release_version }}
+    secrets: inherit
+
+  build_and_package:
+    uses: ./.github/workflows/package-rpm-gf.yml
+    with:
+      ssas_release_version: ${{ inputs.ssas_release_version }}
+    secrets: inherit
+  
+  post_build:
+    if: ${{ always() }}
+    name: Post Build (Cleanup, Alerts)
+    needs: [ci_checks, build_and_package]
+    runs-on: codebuild-bcda-app-${{github.run_id}}-${{github.run_attempt}}
+    steps:
+      # TODO: Do we need all/any of the following 3 steps (create docker version, upload, clean up)?
+      # when/where are we creating these tagged docker images?
+      # - name: Log created docker images as build artifacts
+      #   run: |
+      #     export DATE_TAG=`date +"%Y%m%d%H%M"`
+      #     export VERSION_TAG="build-rls-${DATE_TAG}-${{ github.run_id }}"
+      #     export DOCKER_ECR_SUFFIX=".dkr.ecr.${{ vars.AWS_REGION }}.amazonaws.com"
+      #     export SLIM_VERSION=`echo ${{ inputs.release_version }} | sed 's/.*\///'`
+      #     echo "VERSION_TAG=$VERSION_TAG" >> $GITHUB_ENV
+      #     echo "DOCKER_ECR_SUFFIX=$DOCKER_ECR_SUFFIX" >> $GITHUB_ENV
+      #     echo "SLIM_VERSION=$SLIM_VERSION" >> $GITHUB_ENV
+      #     mkdir -p output
+      #     docker images --filter reference="${{ secrets.ACCOUNT_ID }}${DOCKER_ECR_SUFFIX}/*:${VERSION_TAG}" --format "{{.Repository}}:{{.Tag}}" > output/docker-images-created-${VERSION_TAG}.txt
+      #     docker images --filter reference="${{ secrets.ACCOUNT_ID }}${DOCKER_ECR_SUFFIX}/*:${SLIM_VERSION}" --format "{{.Repository}}:{{.Tag}}" >> output/docker-images-created-${SLIM_VERSION}.txt
+      # - name: Upload artifacts
+      #   uses: actions/upload-artifact@v4
+      #   with:
+      #     name: docker-image-versions
+      #     path: output/*.txt
+      # - name: Cleanup Docker Images
+      #   run: |
+      #     if [[ $(cat output/docker-images-created-${VERSION_TAG}.txt | wc -c | xargs) != "0" ]]; then
+      #       docker rmi $(docker images --filter reference="${{ secrets.ACCOUNT_ID }}${DOCKER_ECR_SUFFIX}/*:${VERSION_TAG}" --format "{{.Repository}}:{{.Tag}}")
+      #     fi
+      #     if [[ $(cat output/docker-images-created-${SLIM_VERSION}.txt | wc -c | xargs) != "0" ]]; then
+      #       docker rmi $(docker images --filter reference="${{ secrets.ACCOUNT_ID }}${DOCKER_ECR_SUFFIX}/*:${SLIM_VERSION}" --format "{{.Repository}}:{{.Tag}}")
+      #     fi
+      - name: Failure Alert
+        if: ${{ failure() || needs.ci_checks.result != 'success' || needs.build_and_package.result != 'success' }}
+        uses: slackapi/slack-github-action@v2.0.0
+        with:
+          method: chat.postMessage
+          token: ${{ secrets.SLACK_BOT_TOKEN }}
+          # Sends to bcda-alerts
+          payload: |
+            channel: "C034CFU945C"
+            attachments:
+              - color: danger
+                text: "FAILURE: Build and Package SSAS (run: <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|${{ github.run_id }})>"
+                mrkdown_in:
+                  - text
