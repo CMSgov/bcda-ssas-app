@@ -21,25 +21,25 @@ on:
         default: dev
         type: string
   push:
-    branches: [carl/BCDA-9036-add-waf-sync-gf]
-    #   - main
-    # paths:
-    #   - lambda/wafsync/**
-    #   - .github/workflows/waf-sync-lambda-deploy-gf.yml
+    branches:
+      - main
+    paths:
+      - lambda/wafsync/**
+      - .github/workflows/waf-sync-lambda-deploy-gf.yml
 
 env:
-  DEPLOY_ENV: ${{ inputs.deploy_env || 'prod' }}
+  DEPLOY_ENV: ${{ inputs.deploy_env || 'dev' }}
 
 jobs:
   deploy-to-dev:
     permissions:
       contents: read
       id-token: write
-    runs-on: ubuntu-latest
+    runs-on: codebuild-bcda-ssas-app-${{github.run_id}}-${{github.run_attempt}}
     defaults:
       run:
         working-directory: ./lambda/wafsync
-    environment: ${{ inputs.deploy_env || 'prod' }}
+    environment: ${{ inputs.deploy_env || 'dev' }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
