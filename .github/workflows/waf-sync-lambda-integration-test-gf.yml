@@ -9,8 +9,8 @@ on:
   workflow_dispatch:
 
 # Ensure we have only one integration test running at a time
-concurrency:
-  group: waf-sync-lambda-integration-test-gf
+# concurrency:
+#   group: waf-sync-lambda-integration-test-gf
 
 jobs:
   # Deploy first if triggered by pull_request
