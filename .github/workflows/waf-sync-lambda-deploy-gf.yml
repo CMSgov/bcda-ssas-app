@@ -60,7 +60,7 @@ jobs:
           AWS_REGION: ${{ vars.AWS_REGION }}
         with:
           params: |
-            S3_BUCKET=/bcda/prod/bcda-prod-api-waf-sync-bucket
+            S3_BUCKET=/bcda/${{ env.DEPLOY_ENV }}/bcda-${{ env.DEPLOY_ENV }}-api-waf-sync-bucket
       - name: Upload and reload
         run: |
           aws s3 cp --no-progress function.zip \
