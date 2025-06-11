@@ -4,19 +4,18 @@ on:
   workflow_dispatch:
     inputs:
       deploy_env:
-        description: 'Environment you want to deploy to (dev, test, sandbox, prod)'
+        description: 'Environment you want to deploy to (dev, test, prod)'
         required: true
         default: dev
         type: choice
         options:
           - dev
           - test
-          - sandbox
           - prod
   workflow_call:
     inputs:
       deploy_env:
-        description: 'Environment you want to deploy to (dev, test, sandbox, prod)'
+        description: 'Environment you want to deploy to (dev, test, prod)'
         required: true
         default: dev
         type: string
@@ -43,6 +42,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
+        with:
+            go-version: '1.23.1'
       - name: Build WAF Sync Lambda zip file
         env:
           CGO_ENABLED: 0

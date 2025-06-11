@@ -10,7 +10,7 @@ on:
 
 # Ensure we have only one integration test running at a time
 concurrency:
-  group: waf-sync-lambda-integration-test
+  group: waf-sync-lambda-integration-test-gf
 
 jobs:
   # Deploy first if triggered by pull_request
@@ -23,6 +23,7 @@ jobs:
 
   trigger:
     if: ${{ always() }}
+    environment: dev
     needs: deploy
     permissions:
       contents: read
