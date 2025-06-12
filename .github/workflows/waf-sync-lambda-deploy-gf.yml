@@ -1,0 +1,69 @@
+name: WAF Sync Lambda Deploy GF
+
+on:
+  workflow_dispatch:
+    inputs:
+      deploy_env:
+        description: 'Environment you want to deploy to (dev, test, prod)'
+        required: true
+        default: dev
+        type: choice
+        options:
+          - dev
+          - test
+          - prod
+  workflow_call:
+    inputs:
+      deploy_env:
+        description: 'Environment you want to deploy to (dev, test, prod)'
+        required: true
+        default: dev
+        type: string
+  push:
+    branches:
+      - main
+    paths:
+      - lambda/wafsync/**
+      - .github/workflows/waf-sync-lambda-deploy-gf.yml
+
+env:
+  DEPLOY_ENV: ${{ inputs.deploy_env || 'dev' }}
+
+jobs:
+  deploy-to-dev:
+    permissions:
+      contents: read
+      id-token: write
+    runs-on: codebuild-bcda-ssas-app-${{github.run_id}}-${{github.run_attempt}}
+    defaults:
+      run:
+        working-directory: ./lambda/wafsync
+    environment: ${{ inputs.deploy_env || 'dev' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+            go-version: '1.23.1'
+      - name: Build WAF Sync Lambda zip file
+        env:
+          CGO_ENABLED: 0
+        run: |
+          go build -o bootstrap main.go db.go aws.go
+          zip function.zip bootstrap
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region: ${{ vars.AWS_REGION }}
+          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/delegatedadmin/developer/bcda-${{ env.DEPLOY_ENV }}-github-actions
+      - name: Get AWS params
+        uses: cmsgov/ab2d-bcda-dpc-platform/actions/aws-params-env-action@main
+        env:
+          AWS_REGION: ${{ vars.AWS_REGION }}
+        with:
+          params: |
+            S3_BUCKET=/bcda/${{ env.DEPLOY_ENV }}/bcda-${{ env.DEPLOY_ENV }}-api-waf-sync-bucket
+      - name: Upload and reload
+        run: |
+          aws s3 cp --no-progress function.zip \
+            s3://${{ env.S3_BUCKET }}/function-${{ github.sha }}.zip
+          aws lambda update-function-code --function-name bcda-${{ env.DEPLOY_ENV }}-api-waf-sync \
+            --s3-bucket ${{ env.S3_BUCKET }} --s3-key function-${{ github.sha }}.zip

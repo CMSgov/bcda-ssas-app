@@ -1,0 +1,50 @@
+name: WAF Sync Lambda Integration Tests GF
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/waf-sync-lambda-integration-test-gf.yml
+      - .github/workflows/waf-sync-lambda-deploy-gf.yml
+      - lambda/wafsync/**
+  workflow_dispatch:
+
+# Ensure we have only one integration test running at a time
+concurrency:
+  group: waf-sync-lambda-integration-test-gf
+
+jobs:
+  # Deploy first if triggered by pull_request
+  deploy:
+    if: ${{ github.event_name == 'pull_request' }}
+    uses: ./.github/workflows/waf-sync-lambda-deploy-gf.yml
+    secrets: inherit
+    with:
+      deploy_env: dev
+
+  trigger:
+    if: ${{ always() }}
+    environment: dev
+    needs: deploy
+    permissions:
+      contents: read
+      id-token: write
+    runs-on: codebuild-bcda-app-${{github.run_id}}-${{github.run_attempt}}
+    defaults:
+      run:
+        working-directory: ./lambda/wafsync
+    outputs:
+      start_time: ${{ steps.invoke-lambda.outputs.STARTTIME }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region: ${{ vars.AWS_REGION }}
+          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/delegatedadmin/developer/bcda-dev-github-actions
+      - name: Send event to trigger lambda function
+        id: invoke-lambda
+        run: |
+          echo "STARTTIME=`date +%s`" >> "$GITHUB_OUTPUT"
+          aws lambda invoke --function-name bcda-dev-api-waf-sync test-result.txt
+      - name: Verify result
+        run: |
+          if grep -q "errorType" test-result.txt; then cat test-result.txt; exit 1; else echo "Success"; fi
