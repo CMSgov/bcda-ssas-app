@@ -440,7 +440,10 @@ func (s *APITestSuite) TestCreateSystemMissingRequiredParam() {
 }
 
 func (s *APITestSuite) TestResetCredentials() {
-	group := ssas.Group{GroupID: "test-reset-creds-group"}
+	logger := ssas.GetLogger(ssas.Logger)
+	logHook := test.NewLocal(logger)
+
+	group := ssas.Group{GroupID: "test-reset-creds-group", XData: string(`{"cms_ids":["A9999"]}`)}
 	s.db.Create(&group)
 	system := ssas.System{GID: group.ID, ClientID: "test-reset-creds-client"}
 	s.db.Create(&system)
@@ -451,9 +454,11 @@ func (s *APITestSuite) TestResetCredentials() {
 	req := httptest.NewRequest("PUT", "/system/"+systemID+"/credentials", nil)
 	rctx := chi.NewRouteContext()
 	rctx.URLParams.Add("systemID", systemID)
+
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
-	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry))
-	handler := http.HandlerFunc(resetCredentials)
+	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry.Logger))
+	handler := http.Handler(service.NewCtxLogger(http.HandlerFunc(resetCredentials)))
+
 	rr := httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
 
@@ -464,6 +469,10 @@ func (s *APITestSuite) TestResetCredentials() {
 	newSecret := result["client_secret"]
 	assert.NotEmpty(s.T(), newSecret)
 	assert.NotEqual(s.T(), secret.Hash, newSecret)
+
+	logs := logHook.AllEntries()
+
+	assert.Contains(s.T(), logs[2].Message, "A9999")
 
 	_ = ssas.CleanDatabase(group)
 }

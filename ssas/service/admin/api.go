@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -442,14 +444,23 @@ func resetCredentials(w http.ResponseWriter, r *http.Request) {
 
 	logger.Infof("Operation Called: admin.resetCredentials()")
 	creds, err := system.ResetSecret(r.Context())
+
 	if err != nil {
 		logger.Errorf("failed to reset secret: %s", err)
 		service.JSONError(w, http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError), "")
 		return
 	}
 
-	// Used for alerting; update alert if this line changes
-	logger.Infof("secret reset in group %s with XData: %s", system.GroupID, creds.XData)
+	g, err := ssas.GetGroupByID(r.Context(), strconv.FormatUint(uint64(system.GID), 10))
+	if err != nil {
+		logger.Error()
+		service.JSONError(w, http.StatusNotFound, http.StatusText(http.StatusNotFound), "failed to get group")
+	}
+
+	exp := regexp.MustCompile(`(?:\[")(\w+)(?:"\])`)
+	cms_id := exp.FindStringSubmatch(g.XData)
+
+	logger.Infof("secret reset in group %s with XData: %s", cms_id[1], creds.XData)
 
 	credsJSON, err := json.Marshal(creds)
 	if err != nil {

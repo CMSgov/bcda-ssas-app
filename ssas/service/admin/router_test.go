@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/CMSgov/bcda-ssas-app/ssas"
+	"github.com/sirupsen/logrus/hooks/test"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
@@ -141,8 +142,11 @@ func (s *RouterTestSuite) TestDeactivateSystemCredentials() {
 }
 
 func (s *RouterTestSuite) TestPutSystemCredentials() {
+	logger := ssas.GetLogger(ssas.Logger)
+	logHook := test.NewLocal(logger)
+
 	db := ssas.Connection
-	group := ssas.Group{GroupID: "put-system-credentials-test-group"}
+	group := ssas.Group{GroupID: "put-system-credentials-test-group", XData: string(`{"cms_ids":["A9999"]}`)}
 	db.Create(&group)
 	system := ssas.System{GID: group.ID, ClientID: "put-system-credentials-test-system"}
 	db.Create(&system)
@@ -154,6 +158,9 @@ func (s *RouterTestSuite) TestPutSystemCredentials() {
 	s.router.ServeHTTP(rr, req)
 	res := rr.Result()
 	assert.Equal(s.T(), http.StatusCreated, res.StatusCode)
+
+	logs := logHook.AllEntries()
+	assert.Contains(s.T(), logs[3].Message, "A9999")
 
 	err := ssas.CleanDatabase(group)
 	assert.Nil(s.T(), err)
