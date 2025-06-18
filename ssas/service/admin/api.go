@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"regexp"
-	"strconv"
 	"strings"
 	"time"
 
@@ -357,8 +355,15 @@ func createSystem(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	group, err := ssas.GetGroupByGroupID(r.Context(), sys.GroupID)
+	if err != nil {
+		logger.Errorf("could not get group XData for clientID %s: %s", creds.ClientID, err.Error())
+		service.JSONError(w, http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError), "")
+		return
+	}
+
 	// Used for alerting; update alert if this line changes
-	logger.Infof("system registered in group with XData: %s", creds.XData)
+	logger.Infof("system registered in group %s with XData: %s", group.GroupID, group.XData)
 
 	credsJSON, err := json.Marshal(creds)
 	if err != nil {
@@ -441,7 +446,12 @@ func resetCredentials(w http.ResponseWriter, r *http.Request) {
 		service.JSONError(w, http.StatusNotFound, http.StatusText(http.StatusNotFound), "Invalid system ID")
 		return
 	}
-
+	xdata, err := ssas.XDataFor(r.Context(), system)
+	if err != nil {
+		logger.Errorf("could not get group XData for clientID %s: %s", system.ClientID, err.Error())
+		service.JSONError(w, http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError), "")
+		return
+	}
 	logger.Infof("Operation Called: admin.resetCredentials()")
 	creds, err := system.ResetSecret(r.Context())
 
@@ -451,16 +461,7 @@ func resetCredentials(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	g, err := ssas.GetGroupByID(r.Context(), strconv.FormatUint(uint64(system.GID), 10))
-	if err != nil {
-		logger.Error()
-		service.JSONError(w, http.StatusNotFound, http.StatusText(http.StatusNotFound), "failed to get group")
-	}
-
-	exp := regexp.MustCompile(`(?:\[")(\w+)(?:"\])`)
-	cms_id := exp.FindStringSubmatch(g.XData)
-
-	logger.Infof("secret reset in group %s with XData: %s", cms_id[1], creds.XData)
+	logger.Infof("secret reset in group %s with XData: %s", system.GroupID, xdata)
 
 	credsJSON, err := json.Marshal(creds)
 	if err != nil {
@@ -548,6 +549,12 @@ func deactivateSystemCredentials(w http.ResponseWriter, r *http.Request) {
 		service.JSONError(w, http.StatusNotFound, http.StatusText(http.StatusNotFound), "invalid system ID")
 		return
 	}
+	xdata, err := ssas.XDataFor(r.Context(), system)
+	if err != nil {
+		logger.Errorf("could not get group XData for clientID %s: %s", system.ClientID, err.Error())
+		service.JSONError(w, http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError), "")
+		return
+	}
 	err = system.RevokeSecret(r.Context(), systemID)
 
 	if err != nil {
@@ -557,7 +564,7 @@ func deactivateSystemCredentials(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Used for alerting; update alert if this line changes
-	logger.Infof("secret revoked in group %s with XData: %s", system.GroupID, system.XData)
+	logger.Infof("secret revoked in group %s with XData: %s", system.GroupID, xdata)
 
 	w.WriteHeader(http.StatusOK)
 }

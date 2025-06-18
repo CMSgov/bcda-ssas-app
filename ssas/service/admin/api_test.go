@@ -295,7 +295,9 @@ func (s *APITestSuite) TestDeleteGroup() {
 }
 
 func (s *APITestSuite) TestCreateSystem() {
-	group := ssas.Group{GroupID: "test-group-id"}
+	logger := ssas.GetLogger(ssas.Logger)
+	logHook := test.NewLocal(logger)
+	group := ssas.Group{GroupID: "test-group-id", XData: string(`{"cms_ids":["A9999"]}`)}
 	err := s.db.Save(&group).Error
 	if err != nil {
 		s.FailNow("Error creating test data", err.Error())
@@ -303,7 +305,7 @@ func (s *APITestSuite) TestCreateSystem() {
 
 	req := httptest.NewRequest("POST", "/system", strings.NewReader(`{"client_name": "Test Client", "group_id": "test-group-id", "scope": "bcda-api", "public_key": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEArhxobShmNifzW3xznB+L\nI8+hgaePpSGIFCtFz2IXGU6EMLdeufhADaGPLft9xjwdN1ts276iXQiaChKPA2CK\n/CBpuKcnU3LhU8JEi7u/db7J4lJlh6evjdKVKlMuhPcljnIKAiGcWln3zwYrFCeL\ncN0aTOt4xnQpm8OqHawJ18y0WhsWT+hf1DeBDWvdfRuAPlfuVtl3KkrNYn1yqCgQ\nlT6v/WyzptJhSR1jxdR7XLOhDGTZUzlHXh2bM7sav2n1+sLsuCkzTJqWZ8K7k7cI\nXK354CNpCdyRYUAUvr4rORIAUmcIFjaR3J4y/Dh2JIyDToOHg7vjpCtNnNoS+ON2\nHwIDAQAB\n-----END PUBLIC KEY-----", "tracking_id": "T00000"}`))
 	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry))
-	handler := http.HandlerFunc(createSystem)
+	handler := http.Handler(service.NewCtxLogger(http.HandlerFunc(createSystem)))
 	rr := httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
 	assert.Equal(s.T(), http.StatusCreated, rr.Result().StatusCode)
@@ -314,6 +316,17 @@ func (s *APITestSuite) TestCreateSystem() {
 	assert.NotEmpty(s.T(), result["client_secret"])
 	assert.Empty(s.T(), result["client_token"])
 	assert.Equal(s.T(), "Test Client", result["client_name"])
+
+	logs := logHook.AllEntries()
+	alertLog := false
+	for _, v := range logs {
+		if strings.Contains(v.Message, "A9999") {
+			alertLog = true
+		}
+	}
+
+	// verify the logging used for aco alerts
+	assert.True(s.T(), alertLog)
 
 	err = ssas.CleanDatabase(group)
 	assert.Nil(s.T(), err)
@@ -471,8 +484,15 @@ func (s *APITestSuite) TestResetCredentials() {
 	assert.NotEqual(s.T(), secret.Hash, newSecret)
 
 	logs := logHook.AllEntries()
+	alertLog := false
+	for _, v := range logs {
+		if strings.Contains(v.Message, "A9999") {
+			alertLog = true
+		}
+	}
 
-	assert.Contains(s.T(), logs[2].Message, "A9999")
+	// verify the logging used for aco alerts
+	assert.True(s.T(), alertLog)
 
 	_ = ssas.CleanDatabase(group)
 }
@@ -624,7 +644,9 @@ func (s *APITestSuite) TestDeactivateSystemCredentialsNotFound() {
 }
 
 func (s *APITestSuite) TestDeactivateSystemCredentials() {
-	group := ssas.Group{GroupID: "test-deactivate-creds-group"}
+	logger := ssas.GetLogger(ssas.Logger)
+	logHook := test.NewLocal(logger)
+	group := ssas.Group{GroupID: "test-deactivate-creds-group", XData: string(`{"cms_ids":["A9999"]}`)}
 	s.db.Create(&group)
 	system := ssas.System{GID: group.ID, ClientID: "test-deactivate-creds-client"}
 	s.db.Create(&system)
@@ -637,10 +659,21 @@ func (s *APITestSuite) TestDeactivateSystemCredentials() {
 	rctx.URLParams.Add("systemID", systemID)
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
 	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry))
-	handler := http.HandlerFunc(deactivateSystemCredentials)
+	handler := http.Handler(service.NewCtxLogger(http.HandlerFunc(deactivateSystemCredentials)))
 	rr := httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
 	assert.Equal(s.T(), http.StatusOK, rr.Result().StatusCode)
+
+	logs := logHook.AllEntries()
+	alertLog := false
+	for _, v := range logs {
+		if strings.Contains(v.Message, "A9999") {
+			alertLog = true
+		}
+	}
+
+	// verify the logging used for aco alerts
+	assert.True(s.T(), alertLog)
 
 	_ = ssas.CleanDatabase(group)
 }
