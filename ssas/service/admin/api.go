@@ -355,8 +355,15 @@ func createSystem(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	group, err := ssas.GetGroupByGroupID(r.Context(), sys.GroupID)
+	if err != nil {
+		logger.Errorf("could not get group XData for clientID %s: %s", creds.ClientID, err.Error())
+		service.JSONError(w, http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError), "")
+		return
+	}
+
 	// Used for alerting; update alert if this line changes
-	logger.Infof("system registered in group with XData: %s", creds.XData)
+	logger.Infof("system registered in group %s with XData: %s", group.GroupID, group.XData)
 
 	credsJSON, err := json.Marshal(creds)
 	if err != nil {
@@ -439,17 +446,22 @@ func resetCredentials(w http.ResponseWriter, r *http.Request) {
 		service.JSONError(w, http.StatusNotFound, http.StatusText(http.StatusNotFound), "Invalid system ID")
 		return
 	}
-
+	xdata, err := ssas.XDataFor(r.Context(), system)
+	if err != nil {
+		logger.Errorf("could not get group XData for clientID %s: %s", system.ClientID, err.Error())
+		service.JSONError(w, http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError), "")
+		return
+	}
 	logger.Infof("Operation Called: admin.resetCredentials()")
 	creds, err := system.ResetSecret(r.Context())
+
 	if err != nil {
 		logger.Errorf("failed to reset secret: %s", err)
 		service.JSONError(w, http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError), "")
 		return
 	}
 
-	// Used for alerting; update alert if this line changes
-	logger.Infof("secret reset in group %s with XData: %s", system.GroupID, creds.XData)
+	logger.Infof("secret reset in group %s with XData: %s", system.GroupID, xdata)
 
 	credsJSON, err := json.Marshal(creds)
 	if err != nil {
@@ -537,6 +549,12 @@ func deactivateSystemCredentials(w http.ResponseWriter, r *http.Request) {
 		service.JSONError(w, http.StatusNotFound, http.StatusText(http.StatusNotFound), "invalid system ID")
 		return
 	}
+	xdata, err := ssas.XDataFor(r.Context(), system)
+	if err != nil {
+		logger.Errorf("could not get group XData for clientID %s: %s", system.ClientID, err.Error())
+		service.JSONError(w, http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError), "")
+		return
+	}
 	err = system.RevokeSecret(r.Context(), systemID)
 
 	if err != nil {
@@ -546,7 +564,7 @@ func deactivateSystemCredentials(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Used for alerting; update alert if this line changes
-	logger.Infof("secret revoked in group %s with XData: %s", system.GroupID, system.XData)
+	logger.Infof("secret revoked in group %s with XData: %s", system.GroupID, xdata)
 
 	w.WriteHeader(http.StatusOK)
 }
