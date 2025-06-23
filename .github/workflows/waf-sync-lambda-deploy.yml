@@ -1,4 +1,4 @@
-name: WAF Sync Lambda Deploy GF
+name: WAF Sync Lambda Deploy
 
 on:
   workflow_dispatch:

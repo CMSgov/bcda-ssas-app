@@ -1,4 +1,4 @@
-name: Package BCDA SSAS GF
+name: Package BCDA SSAS
 
 on:
   workflow_call:

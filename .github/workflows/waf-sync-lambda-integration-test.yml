@@ -1,4 +1,4 @@
-name: WAF Sync Lambda Integration Tests GF
+name: WAF Sync Lambda Integration Tests
 
 on:
   pull_request:
