@@ -36,7 +36,7 @@ env:
 jobs:
   tag_and_release:
     name: Tag and Release
-    runs-on: self-hosted
+    runs-on: codebuild-bcda-ssas-app-${{github.run_id}}-${{github.run_attempt}}
     steps:
       - name: Checkout SSAS
         uses: actions/checkout@v4
