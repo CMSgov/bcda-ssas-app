@@ -3,20 +3,20 @@ name: WAF Sync Lambda Integration Tests GF
 on:
   pull_request:
     paths:
-      - .github/workflows/waf-sync-lambda-integration-test-gf.yml
-      - .github/workflows/waf-sync-lambda-deploy-gf.yml
+      - .github/workflows/waf-sync-lambda-integration-test.yml
+      - .github/workflows/waf-sync-lambda-deploy.yml
       - lambda/wafsync/**
   workflow_dispatch:
 
 # Ensure we have only one integration test running at a time
 concurrency:
-  group: waf-sync-lambda-integration-test-gf
+  group: waf-sync-lambda-integration-test
 
 jobs:
   # Deploy first if triggered by pull_request
   deploy:
     if: ${{ github.event_name == 'pull_request' }}
-    uses: ./.github/workflows/waf-sync-lambda-deploy-gf.yml
+    uses: ./.github/workflows/waf-sync-lambda-deploy.yml
     secrets: inherit
     with:
       deploy_env: dev

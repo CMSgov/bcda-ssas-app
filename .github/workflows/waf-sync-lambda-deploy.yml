@@ -24,7 +24,7 @@ on:
       - main
     paths:
       - lambda/wafsync/**
-      - .github/workflows/waf-sync-lambda-deploy-gf.yml
+      - .github/workflows/waf-sync-lambda-deploy.yml
 
 env:
   DEPLOY_ENV: ${{ inputs.deploy_env || 'dev' }}

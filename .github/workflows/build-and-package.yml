@@ -20,13 +20,13 @@ permissions:
 
 jobs:
   ci_checks:
-    uses: ./.github/workflows/ci-checks-gf.yml
+    uses: ./.github/workflows/ci-checks.yml
     with:
       ssas_release_version: ${{ inputs.ssas_release_version }}
     secrets: inherit
 
   build_and_package:
-    uses: ./.github/workflows/package-rpm-gf.yml
+    uses: ./.github/workflows/package-rpm.yml
     with:
       ssas_release_version: ${{ inputs.ssas_release_version }}
     secrets: inherit
