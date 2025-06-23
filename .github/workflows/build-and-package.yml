@@ -35,7 +35,7 @@ jobs:
     if: ${{ always() }}
     name: Post Build (Cleanup, Alerts)
     needs: [ci_checks, build_and_package]
-    runs-on: codebuild-bcda-app-${{github.run_id}}-${{github.run_attempt}}
+    runs-on: codebuild-bcda-ssas-app-${{github.run_id}}-${{github.run_attempt}}
     steps:
       # TODO: Do we need all/any of the following 3 steps (create docker version, upload, clean up)?
       # when/where are we creating these tagged docker images?

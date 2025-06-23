@@ -21,7 +21,7 @@ permissions:
 jobs:
   package_rpm:
     name: Package BCDA SSAS
-    runs-on: codebuild-bcda-app-${{github.run_id}}-${{github.run_attempt}}
+    runs-on: codebuild-bcda-ssas-app-${{github.run_id}}-${{github.run_attempt}}
     strategy:
       matrix:
         vars:
