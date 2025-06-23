@@ -30,7 +30,7 @@ jobs:
           - account_id: PROD_ACCOUNT_ID
             role_to_assume: bcda-prod-github-actions
     steps:
-      - uses: aws-actions/configure-aws-credentials@v3
+      - uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-region: ${{ vars.AWS_REGION }}
           role-to-assume: arn:aws:iam::${{ secrets[matrix.vars.account_id] }}:role/delegatedadmin/developer/${{ matrix.vars.role_to_assume }}
