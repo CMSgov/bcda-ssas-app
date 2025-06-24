@@ -21,7 +21,7 @@ env:
 jobs:
   go_mod_tidy:
     name: Modules Lint
-    runs-on: codebuild-bcda-ssas-app-${{github.run_id}}-${{github.run_attempt}}
+    runs-on: codebuild-bcda-app-${{github.run_id}}-${{github.run_attempt}}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -44,7 +44,7 @@ jobs:
 
   lint_and_test:
     name: Lint and Test
-    runs-on: codebuild-bcda-ssas-app-${{github.run_id}}-${{github.run_attempt}}
+    runs-on: codebuild-bcda-app-${{github.run_id}}-${{github.run_attempt}}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -74,7 +74,7 @@ jobs:
   sonar-quality-gate:
     name: Sonarqube Quality Gate
     needs: lint_and_test
-    runs-on: codebuild-bcda-ssas-app-${{github.run_id}}-${{github.run_attempt}}
+    runs-on: codebuild-bcda-app-${{github.run_id}}-${{github.run_attempt}}
     steps:
       - name: Set env vars from AWS params
         uses: cmsgov/ab2d-bcda-dpc-platform/actions/aws-params-env-action@main
