@@ -20,7 +20,7 @@ permissions:
 
 jobs:
   ci_checks:
-    uses: ./.github/workflows/ci-checks.yml
+    uses: CMSgov/bcda-ssas-app/.github/workflows/ci-checks.yml@main
     with:
       ssas_release_version: ${{ inputs.ssas_release_version }}
     secrets: inherit
