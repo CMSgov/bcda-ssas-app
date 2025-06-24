@@ -76,11 +76,6 @@ jobs:
     needs: lint_and_test
     runs-on: codebuild-bcda-ssas-app-${{github.run_id}}-${{github.run_attempt}}
     steps:
-      - name: Download code coverage
-        uses: actions/download-artifact@v4
-        with:
-          name: code-coverage-report-ssas
-          path: testcoverage-ssas.out
       - name: Set env vars from AWS params
         uses: cmsgov/ab2d-bcda-dpc-platform/actions/aws-params-env-action@main
         env:
@@ -94,6 +89,11 @@ jobs:
         with:
           repository: CMSgov/bcda-ssas-app
           fetch-depth: 0
+      - name: Download code coverage
+        uses: actions/download-artifact@v4
+        with:
+          name: code-coverage-report-ssas
+          path: testcoverage-ssas.out
       - name: Run quality gate scan
         uses: sonarsource/sonarqube-scan-action@master
         with:
