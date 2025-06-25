@@ -1,4 +1,4 @@
-name: WAF Sync Lambda Deploy GF
+name: WAF Sync Lambda Deploy
 
 on:
   workflow_dispatch:
@@ -24,7 +24,7 @@ on:
       - main
     paths:
       - lambda/wafsync/**
-      - .github/workflows/waf-sync-lambda-deploy-gf.yml
+      - .github/workflows/waf-sync-lambda-deploy.yml
 
 env:
   DEPLOY_ENV: ${{ inputs.deploy_env || 'dev' }}

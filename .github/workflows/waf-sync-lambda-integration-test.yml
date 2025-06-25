@@ -4,9 +4,7 @@ on:
   pull_request:
     paths:
       - .github/workflows/waf-sync-lambda-integration-test.yml
-      - .github/workflows/waf-sync-lambda-dev-deploy.yml
-      - .github/workflows/waf-sync-lambda-test-deploy.yml
-      - .github/workflows/waf-sync-lambda-prod-deploy.yml
+      - .github/workflows/waf-sync-lambda-deploy.yml
       - lambda/wafsync/**
   workflow_dispatch:
 
@@ -18,16 +16,19 @@ jobs:
   # Deploy first if triggered by pull_request
   deploy:
     if: ${{ github.event_name == 'pull_request' }}
-    uses: ./.github/workflows/waf-sync-lambda-dev-deploy.yml
+    uses: ./.github/workflows/waf-sync-lambda-deploy.yml
     secrets: inherit
+    with:
+      deploy_env: dev
 
   trigger:
     if: ${{ always() }}
+    environment: dev
     needs: deploy
     permissions:
       contents: read
       id-token: write
-    runs-on: ubuntu-latest
+    runs-on: codebuild-bcda-ssas-app-${{github.run_id}}-${{github.run_attempt}}
     defaults:
       run:
         working-directory: ./lambda/wafsync
@@ -38,7 +39,7 @@ jobs:
       - uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-region: ${{ vars.AWS_REGION }}
-          role-to-assume: arn:aws:iam::${{ secrets.ACCOUNT_ID }}:role/delegatedadmin/developer/bcda-dev-github-actions
+          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/delegatedadmin/developer/bcda-dev-github-actions
       - name: Send event to trigger lambda function
         id: invoke-lambda
         run: |
