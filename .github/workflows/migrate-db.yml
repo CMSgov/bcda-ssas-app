@@ -41,7 +41,7 @@ jobs:
   migrate_db:
     environment: ${{ inputs.env || 'dev' }}
     name: Migrate DB
-    runs-on: codebuild-bcda-ssas-app-${{github.run_id}}-${{github.run_attempt}} # This is called from bcda-app deploy-all workflow
+    runs-on: codebuild-bcda-app-${{github.run_id}}-${{github.run_attempt}} # This is called from bcda-app deploy-all workflow
     steps:
       - name: Checkout BCDA SSAS
         uses: actions/checkout@v4
