@@ -1,8 +1,6 @@
 name: Migrate DB
 
 on:
-  push:
-    branches: [carl/BCDA-8912-add-sga-key-migration]
   workflow_call:
     inputs:
       ssas_release_version:
