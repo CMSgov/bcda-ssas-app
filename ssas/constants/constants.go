@@ -14,3 +14,7 @@ const TokenEndpoint = "/token"
 const HeaderApplicationJSON = "application/json"
 
 const Application = "ssas"
+
+type CtxSGAKeyType string
+
+const CtxSGAKey CtxSGAKeyType = "CtxSGAKey"

@@ -7,9 +7,11 @@ import (
 	"log"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"testing"
 
 	"github.com/CMSgov/bcda-ssas-app/ssas"
+	"github.com/CMSgov/bcda-ssas-app/ssas/constants"
 	"github.com/go-chi/chi/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
@@ -23,9 +25,9 @@ type AdminMiddlewareTestSuite struct {
 	badAuth   string
 }
 
-func (s *AdminMiddlewareTestSuite) CreateRouter(handler ...func(http.Handler) http.Handler) http.Handler {
+func (s *AdminMiddlewareTestSuite) CreateRouter(handlers ...func(http.Handler) http.Handler) http.Handler {
 	router := chi.NewRouter()
-	router.With(handler...).Get("/", func(w http.ResponseWriter, r *http.Request) {
+	router.With(handlers...).Get("/", func(w http.ResponseWriter, r *http.Request) {
 		_, err := w.Write([]byte("Test router"))
 		if err != nil {
 			log.Fatal(err)
@@ -74,8 +76,9 @@ func (s *AdminMiddlewareTestSuite) TestRequireBasicAuthExpired() {
 	assert.Equal(s.T(), "credentials expired", result["error_description"])
 }
 
-func testAuth(base64Creds string, statusCode int, s *AdminMiddlewareTestSuite) *http.Response {
-	s.server = httptest.NewServer(s.CreateRouter(requireBasicAuth))
+func testAuth(base64Creds string, statusCode int, s *AdminMiddlewareTestSuite, customHandlers ...func(http.Handler) http.Handler) *http.Response {
+	handlers := append([]func(http.Handler) http.Handler{requireBasicAuth}, customHandlers...)
+	s.server = httptest.NewServer(s.CreateRouter(handlers...))
 	client := s.server.Client()
 
 	// Valid credentials should return a 200 response
@@ -97,4 +100,27 @@ func testAuth(base64Creds string, statusCode int, s *AdminMiddlewareTestSuite) *
 
 func TestAdminMiddlewareTestSuite(t *testing.T) {
 	suite.Run(t, new(AdminMiddlewareTestSuite))
+}
+
+func (s *AdminMiddlewareTestSuite) TestRequireBasicAuthContext() {
+	oldFFVal := os.Getenv("SGA_ADMIN_FEATURE")
+	os.Setenv("SGA_ADMIN_FEATURE", "true")
+
+	testAuth(s.basicAuth, http.StatusOK, s, verifyContext)
+
+	err := os.Setenv("SGA_ADMIN_FEATURE", oldFFVal)
+	assert.Nil(s.T(), err)
+}
+
+func verifyContext(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		SGAKey := r.Context().Value(constants.CtxSGAKey)
+
+		// set in service/main#addFixtureData()
+		if SGAKey != "bcda" {
+			w.WriteHeader(http.StatusNotFound)
+		}
+
+		next.ServeHTTP(w, r)
+	})
 }

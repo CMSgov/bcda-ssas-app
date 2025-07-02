@@ -78,6 +78,7 @@ type System struct {
 	Secrets        []Secret        `json:"secrets,omitempty"`
 	LastTokenAt    time.Time       `json:"last_token_at"`
 	XData          string          `json:"xdata"`
+	SGAKey         string          `json:"sga_key"`
 }
 
 type EncryptionKey struct {
