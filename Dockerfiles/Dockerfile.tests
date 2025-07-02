@@ -4,7 +4,7 @@ RUN apk update upgrade
 
 RUN apk add bash build-base curl
 
-RUN curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin
+RUN curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/HEAD/install.sh | sh -s -- -b $(go env GOPATH)/bin v2.2.1
 
 RUN GO111MODULE=on go install github.com/xo/usql@v0.17.5
 RUN go install github.com/securego/gosec/v2/cmd/gosec@v2.20.0
