@@ -5,10 +5,9 @@
 <!-- Basic instructions about where to send patches, check out source code, and get development support.-->
 
 We're so thankful you're considering contributing to an [open source project of
-the U.S. government](https://code.gov/)! If you're unsure about anything, just
-ask -- or submit the issue or pull request anyway. The worst that can happen is
-you'll be politely asked to change something. We appreciate all friendly
-contributions.
+the U.S. government](https://code.gov/)! 
+
+This project is not accepting external contributions at this time. However, feedback and questions are welcome and may be submitted via the [Beneficiary Claims Data API Google Group](https://groups.google.com/forum/#!forum/bc-api).
 
 We encourage you to read this project's CONTRIBUTING policy (you are here), its
 [LICENSE](LICENSE.md), and its [README](README.md).
