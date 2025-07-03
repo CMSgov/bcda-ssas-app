@@ -54,6 +54,7 @@ func routes() *chi.Mux {
 	m := monitoring.GetMonitor()
 
 	r.Use(gcmw.RequestID, service.GetTransactionID, service.NewAPILogger(), service.ConnectionClose, service.NewCtxLogger)
+
 	r.With(requireBasicAuth).Post(m.WrapHandler("/group", createGroup))
 	r.With(requireBasicAuth).Get(m.WrapHandler("/group", listGroups))
 	r.With(requireBasicAuth).Put(m.WrapHandler("/group/{id}", updateGroup))
@@ -78,7 +79,6 @@ func routes() *chi.Mux {
 		r.With(requireBasicAuth).Delete(m.WrapHandler("/system/{systemID}/token/{id}", deleteToken))
 		r.With(requireBasicAuth).Post(m.WrapHandler("/system/{systemID}/key", createKey))
 		r.With(requireBasicAuth).Delete(m.WrapHandler("/system/{systemID}/key/{id}", deleteKey))
-
 	})
 
 	swaggerPath := "./swaggerui"
