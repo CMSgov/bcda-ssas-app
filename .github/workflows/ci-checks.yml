@@ -1,19 +1,22 @@
 name: CI Checks
 
 on:
+  # TEMPORARILY using two different CI checks workflows due to where runner is called from.
+  # If called from a bcda-app workflow, it needs to run on codebuild-bcda-app-... however if called
+  # from bcda-ssas-app it needs to be run on codebuild-bcda-ssas-app-...
   # push:
-  # workflow_call:
-  #   inputs:
-  #     ssas_release_version:
-  #       description: 'Release version (or branch name)'
-  #       required: true
-  #       type: string
-  workflow_dispatch:
+  workflow_call:
     inputs:
       ssas_release_version:
         description: 'Release version (or branch name)'
         required: true
         type: string
+  # workflow_dispatch:
+  #   inputs:
+  #     ssas_release_version:
+  #       description: 'Release version (or branch name)'
+  #       required: true
+  #       type: string
 
 env:
   RELEASE_VERSION: ${{ inputs.ssas_release_version || github.sha }}
