@@ -1,4 +1,4 @@
-The WAF Sync lambda keeps our AWS WAF synced to our IP addresses DB table.  It should be running roughly every 15m and fetching/updating each env's WAF IP set.  See https://github.com/CMSgov/ab2d-bcda-dpc-platform/tree/main/terraform/services/api-waf-sync for related terraform infrastructure support.
+The WAF Sync lambda keeps our AWS WAF synced to our IP addresses DB table.  It should be running roughly every 15m and fetching/updating each env's WAF IP set.  See https://github.com/CMSgov/cdap/tree/main/terraform/services/api-waf-sync for related terraform infrastructure support.
 
 You can run the unit test suite from the base dir (bcda-ssas-app) using the following command:
 - `make test-path TEST_PATH="lambda/wafsync/*.go"`.  (You might have to `make load-fixtures` first).  It also has an integration test run via github actions (see .github/workflows/waf-sync-lambda-integration-test.yml).
