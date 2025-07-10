@@ -6,7 +6,6 @@ import (
 	"net"
 	"os"
 
-	"github.com/CMSgov/bcda-app/conf"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	log "github.com/sirupsen/logrus"
@@ -78,10 +77,10 @@ func getValidIPAddresses(ctx context.Context, conn PgxConnection) ([]string, []s
 }
 
 func getDBURL() (string, error) {
-	env := conf.GetEnv("ENV")
+	env := os.Getenv("ENV")
 
 	if env == "local" {
-		return conf.GetEnv("DATABASE_URL"), nil
+		return os.Getenv("DATABASE_URL"), nil
 	}
 
 	bcdaSession, err := bcdaaws.NewSession("", os.Getenv("LOCAL_STACK_ENDPOINT"))
