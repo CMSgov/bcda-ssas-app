@@ -86,6 +86,10 @@ const b64_test_cert = "LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSURVVENDQWptZ0F3S
 // fake cert key used for testing
 const b64_test_cert_key = "LS0tLS1CRUdJTiBSU0EgUFJJVkFURSBLRVktLS0tLQpNSUlFcFFJQkFBS0NBUUVBN2w1eGV2NUFLUEtxOUV2NXBpZk5sNXdVYVZxRkREM2FOMmx0bzFqbkpFRkFvTWIvCmRibm90bWtEeDdOcjRJSFBNTDAwK3pJcFQvYUEwUzRRZ3oyMjJZSVROZFZwenNDcTBpMXBDWm11Vm8yRkZQb3AKQU16c055WnNGUmtRV0JLd3Q5cHN4NUJJTUxaV1BzbnR5bHRQekcwMlZlb3BmVFI3VG9CSGQ1Smk0NnZWUFJSUwpxOWtVRE96NExDQ3hJb2F5S09LMEoyNXVlTDVZc09tOU9ROWJFRThSZDBIM3U3bjdrTURyNEVGeTdhZE0raEpJCjhiek5Id2k0dUVBRDlwdHR5N3pRbnQ3YmJRQjJzUTBIaEQzOVVQaU55aktKTHdFaHdPbnVlN1BVcmQrT2VpV3IKOWF5OU1oejZaU2VncTlVRkF6VTN6cVpTMmhNQlVOK2RTS3grd3dJREFRQUJBb0lCQVFDNnVuczFPVFR6bnQyeQowRTE2RHRZc1BSVjBUbmZKVmk2Nmw3bE9hOWR0L0R2dmR0UXAyZi9sM1RBYjRYN1JlWDdnRkdnTG00am5YaGdkClJYT2tDOVZRWUdoQ0ZMTjFSbExLb000V3VpL3JGNk80QWh2YXg2MEhxdTZpUEdja1IwZnVUb3BHYnMxT2M1ZnUKU2VzZ1NSV2k4NjdMOE1xZGpWNUc2WkNTcDdjVjEwUGZDNmdzbjkvbXV0MVdYY0l2L3RhenJuYXpMbHk2N1NxNwpLei9RSlM2ZjR2WGE1TXMyMmc5aXJ1dmNFNnZ3SjUyMjYxdGdOS0hObE5mK1hDakozbkthV3ZPZlg0N1ZiTEJ0ClN4MDY3K083QjZOTHQ5bmI3TjcrUHcrR3hpVUc1bEd4aklJdzVZOElBKzdDWndzckcxWFFwblZ1TXhuTUdKdTkKYS8yRUt1aWhBb0dCQVA0UGg2VGNFMGJWaWhWYnBjd2hoVjQ0cS80N2NLZEpiSXJKcjZsaVFTUjZmZ0l4aHJQLwpOcFFWS1NJRG9Hb0lGK1FuUzRGSmIrSEhDSDFuYXNLeFI2ZVZnaWJSVlZWQU9EbUdEYS9Va3RuY2tGS3c3YzhyCm93Mm1PcXRsRDB5bEhEbjd2ZVI3QjBQRGNoWmkzTkpZc0FVODVXdllmOW1JMUF5Y1l0bWJDbjV4QW9HQkFQQXcKUCtMbXJOeVl1U0x4c2NTTzZPa2l2RmlPblZDOWJlUElPeW9saEZDam53bG90cG9KOGx0WTFmTzVJMExacWlyZgp0TDRPUU82TFEzVFJrVms4VU1acGlzVmJRR2JQWnpBckdDNjJVZUhwdmVSRWhUTGR2YkhCY2xWbmtJMDNCcE1VClczYkZhMjFqR3FkREgwZ0E4ZmFMZHhDUkpaZGY4YWxhdk1RVGpkSnpBb0dCQU93MWZDUG5DWFVlTEpmVzhidHMKbnhjUEVibjVnYS9ITUVlSlpPelRFVVhkTFRMVTRTeVE2Q21kMHZSdzhzQWlialFONU1GN2lhNGM0dVBWTndsMAowZTRacnp4di9DcWEzcXQ4MjFUVEN3WExiOU94OUNoZHBlZVcyWTFwRkdScVRtZ0tpbTdYZzlXWTdZV3F2U3hFCmtNTU43eS9weGxSMlJ0REN4WlVUOVJuQkFvR0FLenBUMVM5MC93TFJsek51cmhTV1lKY3ExTGxlSU5EbS9TN2wKVHhHUGZiL2srSm1LKzdBOG1Tb2szNGQ3akNXR2xjN0xSY1ZrOUVuR0t6a29jcW9EVTZKZEltWG84bGZ6bDF5NgpMbllMeUovNzJDQm81SjI1N1VzR204NVcyc09EZ0djU2l3Nis1ZUlIUXdFMm1RdnFnRmZiWnZUb2toVG5kblpwCk1OVGdHbmNDZ1lFQXI3SlNJa0g4ZndNNUhnSGRUSXZMTEExWGZXaU1rNGJPMGcvbEFSV08vY04xUVhFVkFXemIKWDR6djNPYWh5L0RCNERBWk5NN1JnQVhnNUdxbFhpTHlVQk5mMFVwU2s4cElDZEZkbGtLUnlJZTI4S1pHb3NNdQpmbzVxbHJMSndmdjBtZHV2U2RBVVNtTWlkZVdlQnVhNzdaZFlqVVBZVlA5dFNRVjhlbFhCUXJNPQotLS0tLUVORCBSU0EgUFJJVkFURSBLRVktLS0tLQo="
 
+const port = ":9999"
+const version = "9.99.999"
+const serverName = "test-server"
+
 type ServerTestSuite struct {
 	suite.Suite
 	server     *Server
@@ -100,7 +104,7 @@ func (s *ServerTestSuite) SetupSuite() {
 }
 
 func (s *ServerTestSuite) SetupTest() {
-	s.server = NewServer("test-server", ":9999", "9.99.999", s.info, nil, true, false, s.privateKey, 37*time.Minute, "")
+	s.server = NewServer(serverName, port, version, s.info, nil, true, false, s.privateKey, 37*time.Minute, "")
 }
 
 func (s *ServerTestSuite) TestNewServer() {
@@ -119,7 +123,7 @@ func (s *ServerTestSuite) TestNewServer() {
 	r.Get("/test", func(w http.ResponseWriter, r *http.Request) {
 		_, _ = w.Write([]byte("test"))
 	})
-	ts := NewServer("test-server", ":9999", "9.99.999", s.info, r, true, false, s.privateKey, 37*time.Minute, "")
+	ts := NewServer(serverName, port, version, s.info, r, true, false, s.privateKey, 37*time.Minute, "")
 	assert.NotEmpty(s.T(), ts.router)
 	routes, err := ts.ListRoutes()
 	assert.Nil(s.T(), err)
@@ -144,7 +148,7 @@ func (s *ServerTestSuite) TestNewServerNilPrivateKey() {
 	r.Get("/test", func(w http.ResponseWriter, r *http.Request) {
 		_, _ = w.Write([]byte("test"))
 	})
-	ts := NewServer("test-server", ":9999", "9.99.999", s.info, r, true, false, nil, 37*time.Minute, "")
+	ts := NewServer(serverName, port, version, s.info, r, true, false, nil, 37*time.Minute, "")
 	assert.Nil(s.T(), ts)
 }
 
@@ -168,7 +172,7 @@ func (s *ServerTestSuite) TestNewServerInvalidPrivateKey() {
 	// invalid key because it has len(Primes < 2)
 	invalidPrivateKey := rsa.PrivateKey{}
 
-	ts := NewServer("test-server", ":9999", "9.99.999", s.info, r, true, false, &invalidPrivateKey, 37*time.Minute, "")
+	ts := NewServer(serverName, port, version, s.info, r, true, false, &invalidPrivateKey, 37*time.Minute, "")
 	assert.Nil(s.T(), ts)
 }
 
@@ -349,7 +353,7 @@ func (s *ServerTestSuite) TestMTLCertParsingWithInvalidCertKeyValue() {
 // MintToken(), MintTokenWithDuration()
 
 func (s *ServerTestSuite) TestNewServerWithBadSigningKey() {
-	ts := NewServer("test-server", ":9999", "9.99.999", s.info, nil, true, false, nil, 37*time.Minute, "")
+	ts := NewServer(serverName, port, version, s.info, nil, true, false, nil, 37*time.Minute, "")
 	assert.Nil(s.T(), ts)
 }
 
