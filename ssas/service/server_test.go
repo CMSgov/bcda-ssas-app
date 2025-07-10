@@ -4,7 +4,6 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 	"io"
-	"math/big"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -77,7 +76,7 @@ RJiwlT/7jjP0po551I2sdRXtEa539YF68vmRqrTPhJ4iW5wUfTefApldFRpCft9h
 rDLG1FMUEtiEjZjUpTE7h/lf2H4jRMFkq4sCPc41K/PyBn/84/FfTOZ0ryeUam/B
 id4+im0CgYBWNojHUhucKK1z+LCZHy5pcvC4GGAX4gGOjZNvAXayicx/IZPYrzfk
 Xm02FAag9/6ZHIetBAStHVlwSApXd74FlCdeqWPpN6aY4MbIlA4hDm1PGzm/Esho
-gQyVVpMFC4AdUlq5wZmXEGq3chOILurZS3B5BbICQJCDan/6a3YVPQ==
+gQyVVpMFC4AdUlq5wZmXEGq3chOILurZS3B5BbICQJCDan/6a3YVPZQ==
 -----END RSA PRIVATE KEY-----
 ` // #nosec G101
 
@@ -166,16 +165,12 @@ func (s *ServerTestSuite) TestNewServerInvalidPrivateKey() {
 		_, _ = w.Write([]byte("test"))
 	})
 
-	invalidPrivateKey, _ := rsa.GenerateKey(rand.Reader, 2048)
+	// invalid key because it has len(Primes < 2)
+	invalidPrivateKey := rsa.PrivateKey{}
 
-	// mess with the key to invalidate it
-	invalidPrivateKey.D = big.NewInt(2)
-
-	ts := NewServer("test-server", ":9999", "9.99.999", s.info, r, true, false, invalidPrivateKey, 37*time.Minute, "")
+	ts := NewServer("test-server", ":9999", "9.99.999", s.info, r, true, false, &invalidPrivateKey, 37*time.Minute, "")
 	assert.Nil(s.T(), ts)
 }
-
-// test Server() ? how????
 
 func (s *ServerTestSuite) TestGetInfo() {
 	req := httptest.NewRequest("GET", "/_info", nil)
