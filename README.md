@@ -4,7 +4,7 @@ The SSAS can be run as a standalone web service or embedded as a library.
 
 ## About the Project
 
-A static Jekyll site for the Beneficiary Claims Data API (BCDA) which contains an overview of the API, how to connect to production and sandbox environments, and other documentation for the API.
+SSAS (System-to-System Authentication Service) is a component in the CMS ecosystem, providing secure authentication and authorization for third-party systems to access protected APIs like BCDA (Beneficiary Claims Data API).
 
 ## Core Team
 
