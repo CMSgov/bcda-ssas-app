@@ -17,18 +17,19 @@ Roles to include, but not limited to: Project Owner, Technical Lead, Developers/
 See [CODEOWNERS.md](.github/CODEOWNERS.md) for a list of those responsible for the code and documentation in this repository.
 -->
 
-See [Community Guidelines](#bcda-static-site-open-source-community-guidelines) on principles and guidelines for participating in this open source project.
+See [Community Guidelines](#bcda-ssas-app-open-source-community-guidelines) on principles and guidelines for participating in this open source project.
 
 ## Roles & Responsibilities
 
-The members of bcda-static-site community are responsible for guiding its development, ensuring quality standards, and fostering a collaborative environment. They play a vital role in making decisions about code contributions, handling releases, and ensuring the project meets its goals and objectives. Below is a list of the key members and their specific roles and responsibilities. We are eagerly seeking individuals who are interested in joining the community and helping shape and support these roles.
+The members of bcda-ssas-app community are responsible for guiding its development, ensuring quality standards, and fostering a collaborative environment. They play a vital role in making decisions about code contributions, handling releases, and ensuring the project meets its goals and objectives. Below is a list of the key members and their specific roles and responsibilities. We are eagerly seeking individuals who are interested in joining the community and helping shape and support these roles.
 
 ### Maintainers List
-[@thurstkd](https://github.com/thurstkd)
-- [@bcda-admins](https://github.com/orgs/CMSgov/teams/bcda-admins)
+- @CMSgov/bcda-admins
+
 
 ### Approvers List
-- [@bcda-devs](https://github.com/orgs/CMSgov/teams/bcda-devs)
+- @CMSgov/bcda-team
+
 
 ### Reviewers List
 - [CMSgov org](https://github.com/orgs/CMSgov/people)
