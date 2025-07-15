@@ -24,6 +24,7 @@ See [Community Guidelines](#bcda-ssas-app-open-source-community-guidelines) on p
 The members of bcda-ssas-app community are responsible for guiding its development, ensuring quality standards, and fostering a collaborative environment. They play a vital role in making decisions about code contributions, handling releases, and ensuring the project meets its goals and objectives. Below is a list of the key members and their specific roles and responsibilities. We are eagerly seeking individuals who are interested in joining the community and helping shape and support these roles.
 
 ### Maintainers List
+- @thurstkd <!-- CMS Product Manager -->
 - @CMSgov/bcda-admins
 
 
