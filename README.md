@@ -2,7 +2,15 @@
 
 The SSAS can be run as a standalone web service or embedded as a library.
 
-# Code Organization
+## About the Project
+
+SSAS (System-to-System Authentication Service) is a component in the CMS ecosystem, providing secure authentication and authorization for third-party systems to access protected APIs like BCDA (Beneficiary Claims Data API).
+
+## Core Team
+
+A list of core team members responsible for the code and documentation in this repository can be found in [COMMUNITY.md](COMMUNITY.md).
+
+## Repository Structure
 
 The outline below shows the physical directory structure of the code, with package names highlighted. The service package contains a standalone http service that presents the authorization library via two http servers, one for admin tasks and one for authorization tasks.
 
@@ -66,47 +74,19 @@ Some variables below have a note indicating their name should be changed. These 
 | SSAS_CRED_EXPIRATION_DAYS                                            |    No    |  X   |      | Setting for expiration of SSAS Credentials. Utilized in (1) setting ExpiresAt value during inital token creation, (2) app logic checks to see if a presented token is expired, and (3) in CLI command —list-exp-creds to show credentials about to timeout or expire. Defaults to 90 days. |
 | SSAS_CRED_WARNING_DAYS                                               |    No    |  X   |      | Setting for warning of SSAS Credentials. Utilized in CLI command —list-exp-creds to show credentials about to timeout or expire. Defaults to 7 days.                                                                                                                                       |
 
-# Development Setup
+# Development and Software Delivery Lifecycle
 
-## Install and Use Pre-commit
+## Local Development
 
-Anyone committing to this repo must use the pre-commit hook to lower the likelihood that secrets will be exposed.
-
-### Step 1: Install pre-commit
-
-You can install pre-commit using the MacOS package manager Homebrew:
-
-```sh
-brew install pre-commit
-```
-
-Other installation options can be found in the [pre-commit documentation](https://pre-commit.com/#install).
-
-### Step 2: Install the hooks
-
-You will need to manually install `goimports` for the following commands to function:
-
-```
-go install golang.org/x/tools/cmd/goimports@latest
-```
-
-Run the following command to install the hook:
-
-```sh
-pre-commit install
-```
-
-This will download and install the pre-commit hooks specified in `.pre-commit-config.yaml`, which includes gitleaks for secret scanning and go-imports to ensure that any added, copied, or modified go files are formatted properly.
-
-## Go Modules
+### Go Modules
 
 The project uses [Go Modules](https://golang.org/ref/mod) allowing you to clone the repo outside of the `$GOPATH`. This also means that running `go get` inside the repo will add the dependency to the project, not globally.
 
-# Build
+### Build
 
 Build all the code and containers with `make docker-bootstrap`. Alternatively, `docker compose up ssas` will build and run the SSAS by itself. Note that SSAS needs the db container to be running as well.
 
-## Bootstrapping CLI
+#### Bootstrapping CLI
 
 SSAS currently has a simple CLI intended to make bootstrapping tasks and manual testing easier to accomplish. The CLI will only run one command at a time; commands do not chain.
 
@@ -122,19 +102,19 @@ You will need the admin client_id and secret to use the service's admin endpoint
 
 Note that to initialize our docker container, we use migrate-and-start, which combines the first three of the steps above with some conditional logic to make sure we're running in a development environment. This command should most likely not be used elsewhere.
 
-# Test
+### Test
 
 The SSAS can be tested by running `make unit-test`. You can also use the repo-wide command `make test`, which will run tests against the entire repo, including the SSAS code. Some tests are designed to be only run as needed, and are excluded from `make` by a build tag. To include
 one of these test suites, follow the instructions at the top of the test file.
 
-### **Running Single / Single-file Unit Tests**
+#### **Running Single / Single-file Unit Tests**
 
 This step assumes that the user has installed VSCode, the Go language extension available [here](https://marketplace.visualstudio.com/items?itemName=golang.Go), and has successfully imported test data to their local database.
 
 To run tests from within VSCode:
 In a FILENAME_test.go file, there will be a green arrow to the left of the method name, and clicking this arrow will run a single test locally. Tests should not be dependent upon other tests, but if a known-good test is failing, the user can run all tests in a given file by going to View -> Command Palette -> Go: Test Package, which will run all tests in a given file. Alternatively, in some instances, the init() method can be commented out to enable testing of single functions.
 
-# Integration Testing
+#### Integration Testing
 
 To run postman tests locally:
 
@@ -159,12 +139,12 @@ point your browser at one of the following ports, or use the postman test collec
 - admin server: 3104
 - forwarding server: 3105
 
-# Goland IDE
+### Goland IDE
 
 To run a test suite inside of Goland IDE, edit its configuration from the `Run` menu and add values for all necessary
 environmental variables. It is also possible to run individual tests, but that may require configurations for each test.
 
-# Docker Fun
+### Docker Fun
 
 To get postgres dump of schema (replace PASSHERE with password)
 
@@ -184,7 +164,7 @@ To list all active IPs from the connected database:
 docker compose run --rm ssas sh -c 'ssas --list-ips'
 ```
 
-# Swagger Documentation
+### Swagger Documentation
 
 The admin server has Swagger documentation. To access:
 
@@ -198,3 +178,84 @@ The admin server has Swagger documentation. To access:
 
 1. Access Swagger in your browser:
    http://localhost:3104/swagger
+
+
+## Coding Style and Linters
+
+<!-- TODO - Add the repo's linting and code style guidelines -->
+
+## Branching Model
+
+<!--- TODO - Add the repo's branching model -->
+
+## Contributing
+
+Thank you for considering contributing to an Open Source project of the US Government! For more information about our contribution guidelines, see [CONTRIBUTING.md](CONTRIBUTING.md).
+
+### Installing and Using Pre-commit
+
+Anyone committing to this repo must use the pre-commit hook to lower the likelihood that secrets will be exposed.
+
+#### Step 1: Install pre-commit
+
+You can install pre-commit using the MacOS package manager Homebrew:
+
+```sh
+brew install pre-commit
+```
+
+Other installation options can be found in the [pre-commit documentation](https://pre-commit.com/#install).
+
+#### Step 2: Install the hooks
+
+Run the following command to install the gitleaks hook:
+
+```sh
+pre-commit install
+```
+
+This will download and install the pre-commit hooks specified in `.pre-commit-config.yaml`.
+
+## Community
+
+The BCDA team is taking a community-first and open source approach to the product development of this tool. We believe government software should be made in the open and be built and licensed such that anyone can download the code, run it themselves without paying money to third parties or using proprietary software, and use it as they will.
+
+We know that we can learn from a wide variety of communities, including those who will use or will be impacted by the tool, who are experts in technology, or who have experience with similar technologies deployed in other spaces. We are dedicated to creating forums for continuous conversation and feedback to help shape the design and development of the tool.
+
+We also recognize capacity building as a key part of involving a diverse open source community. We are doing our best to use accessible language, provide technical and process documents, and offer support to community members with a wide variety of backgrounds and skillsets.
+
+### Community Guidelines
+
+Principles and guidelines for participating in our open source community are can be found in [COMMUNITY.md](COMMUNITY.md). Please read them before joining or starting a conversation in this repo or one of the channels listed below. All community members and participants are expected to adhere to the community guidelines and code of conduct when participating in community spaces including: code repositories, communication channels and venues, and events.
+
+## Feedback
+
+If you have ideas for how we can improve or add to our capacity building efforts and methods for welcoming people into our community, please let us know at **bcapi@cms.hhs.gov**. If you would like to comment on the tool itself, please let us know by filing an **issue on our GitHub repository.**
+
+## Policies
+
+### Open Source Policy
+
+We adhere to the [CMS Open Source
+Policy](https://github.com/CMSGov/cms-open-source-policy). If you have any
+questions, just [shoot us an email](mailto:opensource@cms.hhs.gov).
+
+### Security and Responsible Disclosure Policy
+
+_Submit a vulnerability:_ Vulnerability reports can be submitted through [Bugcrowd](https://bugcrowd.com/cms-vdp). Reports may be submitted anonymously. If you share contact information, we will acknowledge receipt of your report within 3 business days.
+
+For more information about our Security, Vulnerability, and Responsible Disclosure Policies, see [SECURITY.md](SECURITY.md).
+
+### Software Bill of Materials (SBOM)
+
+A Software Bill of Materials (SBOM) is a formal record containing the details and supply chain relationships of various components used in building software.
+
+In the spirit of [Executive Order 14028 - Improving the Nation’s Cyber Security](https://www.gsa.gov/technology/it-contract-vehicles-and-purchasing-programs/information-technology-category/it-security/executive-order-14028), a SBOM for this repository is provided here: https://github.com/{{ cookiecutter.project_org }}/{{ cookiecutter.project_repo_name }}/network/dependencies.
+
+For more information and resources about SBOMs, visit: https://www.cisa.gov/sbom.
+
+## Public domain
+
+This project is in the public domain within the United States, and copyright and related rights in the work worldwide are waived through the [CC0 1.0 Universal public domain dedication](https://creativecommons.org/publicdomain/zero/1.0/) as indicated in [LICENSE](LICENSE).
+
+All contributions to this project will be released under the CC0 dedication. By submitting a pull request or issue, you are agreeing to comply with this waiver of copyright interest.

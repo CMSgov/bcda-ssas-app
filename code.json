@@ -1,0 +1,79 @@
+{
+  "name": "bcda-ssas-app",
+  "description": "System-to-System Authentication Service (SSAS) component of BCDA application",
+  "longDescription": "SSAS (System-to-System Authentication Service) is a component in the CMS ecosystem, providing secure authentication and authorization for third-party systems to access protected APIs like BCDA (Beneficiary Claims Data API).",
+  "status": "production",
+  "permissions": {
+    "licenses": [
+      {
+        "URL": "LICENSE",
+        "name": "CC0-1.0"
+      }
+    ],
+    "usageType": "openSource"
+  },
+  "organization": "Centers for Medicare & Medicaid Services",
+  "repositoryURL": "https://github.com/CMSgov/bcda-ssas-app",
+  "repositoryHost": "github.com/CMSgov",
+  "repositoryVisibility": "public",
+  "vcs": "git",
+  "laborHours": null,
+  "reuseFrequency": {
+    "forks": 1
+  },
+  "platforms": [
+    "web",
+    "windows",
+    "mac",
+    "linux",
+    "ios",
+    "android",
+    "other"
+  ],
+  "categories": [
+    "healthcare"
+  ],
+  "softwareType": "standalone/backend",
+  "languages": [
+    "go"
+  ],
+  "maintenance": "contract",
+  "contractNumber": "47QTCA18D008M:75FCMC23F0009",
+  "date": {
+    "created": "2019-09-29T13:31:02-04:00",
+    "lastModified": "2025-07-03T19:41:37+0000",
+    "metadataLastUpdated": "2025-07-03T19:41:37+0000"
+  },
+  "tags": [
+    "BCDA",
+    "beneficiary claims data",
+    "ssas",
+    "authentication"
+  ],
+  "contact": {
+    "email": "bcapi@cms.hhs.gov",
+    "name": "BCDA Team"
+  },
+  "feedbackMechanisms": [
+    "bcapi@cms.hhs.gov"
+  ],
+  "localisation": "false",
+  "repositoryType": "APIs",
+  "userInput": "Yes",
+  "fismaLevel": "Moderate",
+  "group": "CMS/OEDA/DASG",
+  "projects": [
+    "Beneficary Claims Data API (BCDA)"
+  ],
+  "systems": [],
+  "upstream": [
+    "https://github.com/CMSgov/bcda-ssas-app/network/dependencies"
+  ],
+  "subsetInHealthcare": [
+    "Medicare"
+  ],
+  "userType": [
+    "Providers"
+  ],
+  "maturityModelTier": 3
+}
