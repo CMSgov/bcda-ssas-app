@@ -791,7 +791,6 @@ func createToken(w http.ResponseWriter, r *http.Request) {
 	expiration := time.Now().Add(ssas.MacaroonExpiration)
 	ct, m, err := system.SaveClientToken(r.Context(), body["label"], group.XData, expiration)
 	if err != nil {
-
 		logger.Error("failed to save client token: ", err)
 		service.JSONError(w, http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError), "")
 	}

@@ -15,6 +15,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/CMSgov/bcda-ssas-app/ssas/constants"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -367,6 +368,34 @@ func (s *SystemsTestSuite) TestRegisterSystemSuccess() {
 	assert.Nil(err)
 	assert.Equal("Create System Test", creds.ClientName)
 	assert.NotEqual("", creds.ClientSecret)
+
+	err = CleanDatabase(group)
+	assert.Nil(err)
+}
+
+func (s *SystemsTestSuite) TestRegisterSystem_SetsSGAKey() {
+	assert := s.Assert()
+
+	ctx := context.Background()
+	ctx = context.WithValue(ctx, constants.CtxSGAKey, "test-sga")
+
+	trackingID := uuid.NewRandom().String()
+	groupID := "T54321"
+	group := Group{GroupID: groupID}
+	err := s.db.Create(&group).Error
+	if err != nil {
+		s.FailNow(err.Error())
+	}
+
+	pubKey, _, _, err := generatePublicKey(2048)
+	assert.Nil(err)
+
+	creds, err := RegisterSystem(context.WithValue(ctx, CtxLoggerKey, s.logEntry), "Create System Test", groupID, DefaultScope, pubKey, []string{}, trackingID)
+	assert.Nil(err)
+
+	gotSystem, err := GetSystemByID(ctx, creds.SystemID)
+	assert.Nil(err)
+	assert.Equal("test-sga", gotSystem.SGAKey)
 
 	err = CleanDatabase(group)
 	assert.Nil(err)
@@ -725,7 +754,7 @@ func makeTestSystem(db *gorm.DB) (Group, System, error) {
 	if err := db.Save(&group).Error; err != nil {
 		return Group{}, System{}, err
 	}
-	system := System{GID: group.ID, GroupID: groupID, ClientID: "system-for-test-group-" + groupID}
+	system := System{GID: group.ID, GroupID: groupID, ClientID: "system-for-test-group-" + groupID, SGAKey: "test-sga"}
 	if err := db.Save(&system).Error; err != nil {
 		return Group{}, System{}, err
 	}
@@ -761,7 +790,7 @@ func (s *SystemsTestSuite) TestGetSystemByIDWithEmptyID() {
 	require.NotNil(s.T(), err, "found system for empty id")
 }
 
-func (s *SystemsTestSuite) TestGetSystemBySystemIDWithNonNumberID() {
+func (s *SystemsTestSuite) TestGetSystemByIDWithNonNumberID() {
 	_, err := GetSystemByID(context.Background(), "i am not a number")
 	require.NotNil(s.T(), err, "found system for non-number id")
 }
@@ -774,6 +803,145 @@ func (s *SystemsTestSuite) TestGetSystemByClientIDWithEmptyID() {
 func (s *SystemsTestSuite) TestGetSystemByClientIDWithNonNumberID() {
 	_, err := GetSystemByClientID(context.Background(), "i am not a number")
 	require.NotNil(s.T(), err, "found system for non-number id")
+}
+
+func (s *SystemsTestSuite) TestGetSystemByID_With_SGA_ADMIN_FEATURE_Success() {
+	ctx := context.Background()
+	ctx = context.WithValue(ctx, constants.CtxSGAKey, "test-sga")
+
+	newFF := "true"
+	oldFF := os.Getenv("SGA_ADMIN_FEATURE")
+	os.Setenv("SGA_ADMIN_FEATURE", newFF)
+
+	g, expSystem, err := makeTestSystem(s.db)
+	assert.Nil(s.T(), err, "unexpected error")
+	require.Nil(s.T(), err, "unexpected error ", err)
+
+	gotSystem, err := GetSystemByID(ctx, fmt.Sprint(expSystem.ID))
+	assert.Nil(s.T(), err, "unexpected error ", err)
+	assert.Equal(s.T(), expSystem.ID, gotSystem.ID)
+	assert.Equal(s.T(), expSystem.GID, gotSystem.GID)
+	_ = CleanDatabase(g)
+
+	os.Setenv("SGA_ADMIN_FEATURE", oldFF)
+}
+
+func (s *SystemsTestSuite) TestGetSystemByID_With_SGA_ADMIN_FEATURE_UnauthorizedRequester() {
+	ctx := context.Background()
+	ctx = context.WithValue(ctx, constants.CtxSGAKey, "different-sga")
+
+	newFF := "true"
+	oldFF := os.Getenv("SGA_ADMIN_FEATURE")
+	os.Setenv("SGA_ADMIN_FEATURE", newFF)
+
+	g, expSystem, err := makeTestSystem(s.db)
+	assert.Nil(s.T(), err, "unexpected error")
+	require.Nil(s.T(), err, "unexpected error ", err)
+
+	gotSystem, err := GetSystemByID(ctx, fmt.Sprint(expSystem.ID))
+	assert.ErrorContains(s.T(), err, "requesting SGA does not have access to this system, id:")
+	assert.Equal(s.T(), System{}.ID, gotSystem.ID)
+
+	_ = CleanDatabase(g)
+	os.Setenv("SGA_ADMIN_FEATURE", oldFF)
+}
+
+func (s *SystemsTestSuite) TestGetSystemByClientID_With_SGA_ADMIN_FEATURE_Success() {
+	ctx := context.Background()
+	ctx = context.WithValue(ctx, constants.CtxSGAKey, "test-sga")
+
+	newFF := "true"
+	oldFF := os.Getenv("SGA_ADMIN_FEATURE")
+	os.Setenv("SGA_ADMIN_FEATURE", newFF)
+
+	group := Group{GroupID: "abcdef123456"}
+	err := s.db.Create(&group).Error
+	if err != nil {
+		s.FailNow(err.Error())
+	}
+
+	expSystem := System{GID: group.ID, ClientID: "987654zyxwvu", ClientName: "Client with System", SGAKey: "test-sga"} //gitleaks:allow
+	err = s.db.Create(&expSystem).Error
+	if err != nil {
+		s.FailNow(err.Error())
+	}
+
+	gotSystem, err := GetSystemByClientID(ctx, fmt.Sprint(expSystem.ClientID))
+	assert.Nil(s.T(), err, "unexpected error ", err)
+	assert.Equal(s.T(), expSystem.ID, gotSystem.ID)
+	assert.Equal(s.T(), expSystem.GID, gotSystem.GID)
+
+	_ = CleanDatabase(group)
+	os.Setenv("SGA_ADMIN_FEATURE", oldFF)
+}
+
+func (s *SystemsTestSuite) TestGetSystemByClientID_With_SGA_ADMIN_FEATURE_UnauthorizedRequester() {
+	ctx := context.Background()
+	ctx = context.WithValue(ctx, constants.CtxSGAKey, "different-sga")
+
+	newFF := "true"
+	oldFF := os.Getenv("SGA_ADMIN_FEATURE")
+	os.Setenv("SGA_ADMIN_FEATURE", newFF)
+
+	group := Group{GroupID: "abcdef123456"}
+	err := s.db.Create(&group).Error
+	if err != nil {
+		s.FailNow(err.Error())
+	}
+
+	expSystem := System{GID: group.ID, ClientID: "987654zyxwvu", ClientName: "Client with System", SGAKey: "test-sga"} //gitleaks:allow
+	err = s.db.Create(&expSystem).Error
+	if err != nil {
+		s.FailNow(err.Error())
+	}
+
+	gotSystem, err := GetSystemByClientID(ctx, fmt.Sprint(expSystem.ClientID))
+	assert.ErrorContains(s.T(), err, "requesting SGA does not have access to this system, id:")
+	assert.Equal(s.T(), System{}.ID, gotSystem.ID)
+
+	_ = CleanDatabase(group)
+	os.Setenv("SGA_ADMIN_FEATURE", oldFF)
+}
+
+func (s *SystemsTestSuite) TestGetSystemsByGroupIDString_With_SGA_ADMIN_FEATURE_Success() {
+	ctx := context.Background()
+	ctx = context.WithValue(ctx, constants.CtxSGAKey, "test-sga")
+
+	newFF := "true"
+	oldFF := os.Getenv("SGA_ADMIN_FEATURE")
+	os.Setenv("SGA_ADMIN_FEATURE", newFF)
+
+	g, expSystem, err := makeTestSystem(s.db)
+	assert.Nil(s.T(), err, "unexpected error")
+	require.Nil(s.T(), err, "unexpected error ", err)
+
+	gotSystems, err := GetSystemsByGroupIDString(ctx, fmt.Sprint(g.GroupID))
+	assert.Nil(s.T(), err, "unexpected error ", err)
+	assert.Equal(s.T(), expSystem.ID, gotSystems[0].ID)
+	assert.Equal(s.T(), expSystem.GID, gotSystems[0].GID)
+	_ = CleanDatabase(g)
+
+	os.Setenv("SGA_ADMIN_FEATURE", oldFF)
+}
+
+func (s *SystemsTestSuite) TestGetSystemsByGroupIDString_With_SGA_ADMIN_FEATURE_FiltersUnauthorized() {
+	ctx := context.Background()
+	ctx = context.WithValue(ctx, constants.CtxSGAKey, "different-sga")
+
+	newFF := "true"
+	oldFF := os.Getenv("SGA_ADMIN_FEATURE")
+	os.Setenv("SGA_ADMIN_FEATURE", newFF)
+
+	g, _, err := makeTestSystem(s.db)
+	assert.Nil(s.T(), err, "unexpected error")
+	require.Nil(s.T(), err, "unexpected error ", err)
+
+	gotSystems, err := GetSystemsByGroupIDString(ctx, fmt.Sprint(g.GroupID))
+	assert.Nil(s.T(), err, "unexpected error ", err)
+	assert.Equal(s.T(), len(gotSystems), 0)
+
+	_ = CleanDatabase(g)
+	os.Setenv("SGA_ADMIN_FEATURE", oldFF)
 }
 
 func (s *SystemsTestSuite) TestIsExpired() {

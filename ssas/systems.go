@@ -14,11 +14,13 @@ import (
 	"math"
 	"net"
 	"os"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/CMSgov/bcda-ssas-app/ssas/cfg"
+	"github.com/CMSgov/bcda-ssas-app/ssas/constants"
 	"github.com/joho/godotenv"
 	"github.com/pborman/uuid"
 	"gorm.io/gorm"
@@ -439,6 +441,7 @@ func registerSystem(ctx context.Context, input SystemInput, isV2 bool) (Credenti
 		ClientName: input.ClientName,
 		APIScope:   scope,
 		XData:      input.XData,
+		SGAKey:     fmt.Sprintf("%v", ctx.Value(constants.CtxSGAKey)),
 	}
 
 	err = tx.Create(&system).Error
@@ -659,6 +662,15 @@ func GetSystemsByGroupIDString(ctx context.Context, groupId string) ([]System, e
 	if err = Connection.WithContext(ctx).Where("group_id = ? AND deleted_at IS NULL", groupId).Find(&systems).Error; err != nil {
 		err = fmt.Errorf("no Systems found with group_id %s", groupId)
 	}
+
+	if os.Getenv("SGA_ADMIN_FEATURE") == "true" {
+		requesterSGAKey := fmt.Sprintf("%v", ctx.Value(constants.CtxSGAKey))
+
+		systems = slices.DeleteFunc(systems, func(system System) bool {
+			return system.SGAKey != requesterSGAKey
+		})
+	}
+
 	return systems, err
 }
 
@@ -672,6 +684,15 @@ func GetSystemByClientID(ctx context.Context, clientID string) (System, error) {
 	if err = Connection.WithContext(ctx).First(&system, "client_id = ?", clientID).Error; errors.Is(err, gorm.ErrRecordNotFound) {
 		err = fmt.Errorf("no System record found for client %s", clientID)
 	}
+
+	if os.Getenv("SGA_ADMIN_FEATURE") == "true" {
+		requesterSGAKey := fmt.Sprintf("%v", ctx.Value(constants.CtxSGAKey))
+
+		if requesterSGAKey != system.SGAKey {
+			return System{}, fmt.Errorf("requesting SGA does not have access to this system, id: %+v", system.ID)
+		}
+	}
+
 	return system, err
 }
 
@@ -690,6 +711,15 @@ func GetSystemByID(ctx context.Context, id string) (System, error) {
 	if err = Connection.WithContext(ctx).First(&system, id1).Error; err != nil {
 		err = fmt.Errorf("no System record found with ID %s %v", id, err)
 	}
+
+	if os.Getenv("SGA_ADMIN_FEATURE") == "true" {
+		requesterSGAKey := fmt.Sprintf("%v", ctx.Value(constants.CtxSGAKey))
+
+		if requesterSGAKey != system.SGAKey {
+			return System{}, fmt.Errorf("requesting SGA does not have access to this system, id: %+v", id)
+		}
+	}
+
 	return system, err
 }
 
