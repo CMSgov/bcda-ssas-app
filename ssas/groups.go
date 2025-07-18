@@ -6,9 +6,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
+	"slices"
 	"strconv"
 	"time"
 
+	"github.com/CMSgov/bcda-ssas-app/ssas/constants"
 	"gorm.io/gorm"
 )
 
@@ -27,6 +30,7 @@ type SystemSummary struct {
 	ClientID   string    `json:"client_id"`
 	IPs        []string  `json:"ips,omitempty" gorm:"-"`
 	UpdatedAt  time.Time `json:"updated_at"`
+	SGAKey     string    `json:"sga_key"`
 }
 
 func (SystemSummary) TableName() string {
@@ -99,6 +103,21 @@ func ListGroups(ctx context.Context) (list GroupList, err error) {
 	}
 	list.Count = len(groups)
 	list.ReportedAt = time.Now()
+
+	if os.Getenv("SGA_ADMIN_FEATURE") == "true" {
+		requesterSGAKey := fmt.Sprintf("%v", ctx.Value(constants.CtxSGAKey))
+
+		groups = slices.DeleteFunc(groups, func(group GroupSummary) bool {
+			// remove all unauthorized systems
+			group.Systems = slices.DeleteFunc(group.Systems, func(system SystemSummary) bool {
+				return system.SGAKey != requesterSGAKey
+			})
+
+			// remove group if no authorized systems
+			return len(group.Systems) == 0
+		})
+	}
+
 	list.Groups = groups
 	return list, nil
 }
@@ -133,27 +152,28 @@ func DeleteGroup(ctx context.Context, id string) error {
 
 // GetAuthorizedGroupsForOktaID returns a slice of GroupID's representing all groups this Okta user has rights to manage
 // TODO: this is the slowest and most memory intensive way possible to implement this.  Refactor!
-func GetAuthorizedGroupsForOktaID(ctx context.Context, oktaID string) ([]string, error) {
-	var (
-		result []string
-	)
+// seems to be unused, seems worth keeping around in case we need to move to okta?
+// func GetAuthorizedGroupsForOktaID(ctx context.Context, oktaID string) ([]string, error) {
+// 	var (
+// 		result []string
+// 	)
 
-	groups := []Group{}
-	err := Connection.WithContext(ctx).Select("*").Find(&groups).Error
-	if err != nil {
-		return result, err
-	}
+// 	groups := []Group{}
+// 	err := Connection.WithContext(ctx).Select("*").Find(&groups).Error
+// 	if err != nil {
+// 		return result, err
+// 	}
 
-	for _, group := range groups {
-		for _, user := range group.Data.Users {
-			if user == oktaID {
-				result = append(result, group.GroupID)
-			}
-		}
-	}
+// 	for _, group := range groups {
+// 		for _, user := range group.Data.Users {
+// 			if user == oktaID {
+// 				result = append(result, group.GroupID)
+// 			}
+// 		}
+// 	}
 
-	return result, nil
-}
+// 	return result, nil
+// }
 
 func cascadeDeleteGroup(ctx context.Context, group Group) error {
 	var (
@@ -218,6 +238,13 @@ func (gd *GroupData) Scan(value interface{}) error {
 }
 
 func GetGroupByGroupID(ctx context.Context, groupID string) (Group, error) {
+	if os.Getenv("SGA_ADMIN_FEATURE") == "true" {
+		systems, err := GetSystemsByGroupIDString(ctx, groupID)
+		if err != nil || len(systems) == 0 {
+			return Group{}, fmt.Errorf("error finding authorized system(s) related to groupID: %v, err: %+v", groupID, err)
+		}
+	}
+
 	var (
 		group Group
 		err   error
@@ -245,5 +272,13 @@ func GetGroupByID(ctx context.Context, id string) (Group, error) {
 	if err = Connection.WithContext(ctx).First(&group, id1).Error; err != nil {
 		err = fmt.Errorf("no Group record found with ID %s", id)
 	}
+
+	if os.Getenv("SGA_ADMIN_FEATURE") == "true" {
+		systems, err := GetSystemsByGroupIDString(ctx, group.GroupID)
+		if err != nil || len(systems) == 0 {
+			return Group{}, fmt.Errorf("error finding authorized system(s) related to groupID: %v, err: %+v", group.GroupID, err)
+		}
+	}
+
 	return group, err
 }

@@ -919,8 +919,8 @@ func (s *SystemsTestSuite) TestGetSystemsByGroupIDString_With_SGA_ADMIN_FEATURE_
 	assert.Nil(s.T(), err, "unexpected error ", err)
 	assert.Equal(s.T(), expSystem.ID, gotSystems[0].ID)
 	assert.Equal(s.T(), expSystem.GID, gotSystems[0].GID)
-	_ = CleanDatabase(g)
 
+	_ = CleanDatabase(g)
 	os.Setenv("SGA_ADMIN_FEATURE", oldFF)
 }
 

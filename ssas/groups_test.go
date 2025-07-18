@@ -5,8 +5,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
 	"testing"
 
+	"github.com/CMSgov/bcda-ssas-app/ssas/constants"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -123,6 +125,73 @@ func (s *GroupsTestSuite) TestListGroups() {
 	assert.Len(s.T(), groupList.Groups, int(startingCount))
 }
 
+func (s *GroupsTestSuite) TestListGroups_With_SGA_ADMIN_FEATURE() {
+	ctx := context.Background()
+	ctx = context.WithValue(ctx, constants.CtxSGAKey, "test-sga")
+
+	newFF := "true"
+	oldFF := os.Getenv("SGA_ADMIN_FEATURE")
+	os.Setenv("SGA_ADMIN_FEATURE", newFF)
+
+	// create 3 groups
+	// group 1 multiple systems, some unauth
+	// group 2 no auth systems
+	// group 3 no systems
+	g1Bytes := []byte(fmt.Sprintf(SampleGroup, "group-id-1", SampleXdata))
+	gd1 := GroupData{}
+	err := json.Unmarshal(g1Bytes, &gd1)
+	assert.Nil(s.T(), err)
+	g1, err := CreateGroup(context.Background(), gd1)
+	assert.Nil(s.T(), err)
+
+	g2Bytes := []byte(fmt.Sprintf(SampleGroup, "group-id-2", SampleXdata))
+	gd2 := GroupData{}
+	err = json.Unmarshal(g2Bytes, &gd2)
+	assert.Nil(s.T(), err)
+	g2, err := CreateGroup(context.Background(), gd2)
+	assert.Nil(s.T(), err)
+
+	g3Bytes := []byte(fmt.Sprintf(SampleGroup, "group-id-3", SampleXdata))
+	gd3 := GroupData{}
+	err = json.Unmarshal(g3Bytes, &gd3)
+	assert.Nil(s.T(), err)
+	g3, err := CreateGroup(context.Background(), gd3)
+	assert.Nil(s.T(), err)
+
+	// create 3 systems
+	// 2 associated with group 1, one auth, one unauthed
+	// 1 associated with group 2, no auth
+	g1AuthSys := System{GID: g1.ID, GroupID: "group-id-1", ClientID: "c-id-1", SGAKey: "test-sga"}
+	err = s.db.Create(&g1AuthSys).Error
+	assert.Nil(s.T(), err, "unexpected error")
+
+	g1UnauthSys := System{GID: g1.ID, GroupID: "group-id-1", ClientID: "c-id-2", SGAKey: "different-sga"}
+	err = s.db.Create(&g1UnauthSys).Error
+	assert.Nil(s.T(), err, "unexpected error")
+
+	g2UnauthSys := System{GID: g2.ID, GroupID: "group-id-2", ClientID: "c-id-3", SGAKey: "different-sga"}
+	err = s.db.Create(&g2UnauthSys).Error
+	assert.Nil(s.T(), err, "unexpected error")
+
+	s.T().Cleanup(func() {
+		err = CleanDatabase(g1)
+		assert.Nil(s.T(), err)
+		err = CleanDatabase(g2)
+		assert.Nil(s.T(), err)
+		err = CleanDatabase(g3)
+		assert.Nil(s.T(), err)
+		os.Setenv("SGA_ADMIN_FEATURE", oldFF)
+	})
+
+	// verify only group 1 is returned, and only has auth system
+	groupList, err := ListGroups(ctx)
+	assert.Nil(s.T(), err)
+	assert.Equal(s.T(), len(groupList.Groups), 1)
+	assert.Equal(s.T(), groupList.Groups[0].ID, g1.ID)
+	assert.Equal(s.T(), groupList.Groups[0].GroupID, "group-id-1")
+	assert.Equal(s.T(), groupList.Groups[0].Systems[0].SGAKey, "test-sga")
+}
+
 func (s *GroupsTestSuite) TestUpdateGroup() {
 	gid1 := RandomHexID()
 	groupBytes := []byte(fmt.Sprintf(SampleGroup, gid1, SampleXdata))
@@ -172,39 +241,135 @@ func (s *GroupsTestSuite) TestDeleteGroup() {
 	assert.Nil(s.T(), err)
 }
 
-func (s *GroupsTestSuite) TestGetAuthorizedGroupsForOktaID() {
-	group1bytes := []byte(`{"group_id":"T0001","users":["abcdef","qrstuv"],"scopes":[],"resources":[],"systems":[],"name":""}`)
-	group2bytes := []byte(`{"group_id":"T0002","users":["abcdef","qrstuv"],"scopes":[],"resources":[],"systems":[],"name":""}`)
-	group3bytes := []byte(`{"group_id":"T0003","users":["qrstuv"],"scopes":[],"resources":[],"systems":[],"name":""}`)
+func (s *GroupsTestSuite) TestGetGroupByID_With_SGA_ADMIN_FEATURE() {
+	ctx := context.Background()
+	ctx = context.WithValue(ctx, constants.CtxSGAKey, "test-sga")
 
-	g1 := GroupData{}
-	err := json.Unmarshal(group1bytes, &g1)
+	newFF := "true"
+	oldFF := os.Getenv("SGA_ADMIN_FEATURE")
+	os.Setenv("SGA_ADMIN_FEATURE", newFF)
+
+	// create 2 groups, 1 with auth system, 1 with unauth system
+	g1Bytes := []byte(fmt.Sprintf(SampleGroup, "group-id-1", SampleXdata))
+	gd1 := GroupData{}
+	err := json.Unmarshal(g1Bytes, &gd1)
 	assert.Nil(s.T(), err)
-	group1, _ := CreateGroup(context.Background(), g1)
-
-	g2 := GroupData{}
-	err = json.Unmarshal(group2bytes, &g2)
+	g1, err := CreateGroup(context.Background(), gd1)
 	assert.Nil(s.T(), err)
-	group2, _ := CreateGroup(context.Background(), g2)
 
-	g3 := GroupData{}
-	err = json.Unmarshal(group3bytes, &g3)
+	g1AuthSys := System{GID: g1.ID, GroupID: "group-id-1", ClientID: "test-g1", SGAKey: "test-sga"}
+	err = s.db.Create(&g1AuthSys).Error
+	assert.Nil(s.T(), err, "unexpected error")
+
+	g2Bytes := []byte(fmt.Sprintf(SampleGroup, "group-id-2", SampleXdata))
+	gd2 := GroupData{}
+	err = json.Unmarshal(g2Bytes, &gd2)
 	assert.Nil(s.T(), err)
-	group3, _ := CreateGroup(context.Background(), g3)
+	g2, err := CreateGroup(context.Background(), gd2)
+	assert.Nil(s.T(), err)
 
-	defer s.db.Unscoped().Delete(&group1)
-	defer s.db.Unscoped().Delete(&group2)
-	defer s.db.Unscoped().Delete(&group3)
+	g2UnauthSys := System{GID: g2.ID, GroupID: "group-id-2", ClientID: "test-g2", SGAKey: "different-sga"}
+	err = s.db.Create(&g2UnauthSys).Error
+	assert.Nil(s.T(), err, "unexpected error")
 
-	authorizedGroups, err := GetAuthorizedGroupsForOktaID(context.Background(), "abcdef")
-	if err != nil {
-		s.FailNow(err.Error())
-	}
-	if len(authorizedGroups) != 2 {
-		s.FailNow("oktaID should be authorized for exactly two groups")
-	}
-	assert.Equal(s.T(), "T0001", authorizedGroups[0])
+	s.T().Cleanup(func() {
+		err = CleanDatabase(g1)
+		assert.Nil(s.T(), err)
+		err = CleanDatabase(g2)
+		assert.Nil(s.T(), err)
+		os.Setenv("SGA_ADMIN_FEATURE", oldFF)
+	})
+
+	foundG1, err := GetGroupByGroupID(ctx, "group-id-1")
+	assert.Nil(s.T(), err)
+	assert.Equal(s.T(), foundG1.ID, g1.ID)
+
+	foundG2, err := GetGroupByGroupID(ctx, "group-id-2")
+	assert.ErrorContains(s.T(), err, "error finding authorized system(s) related to groupID")
+	assert.Equal(s.T(), foundG2.ID, Group{}.ID)
 }
+
+func (s *GroupsTestSuite) TestGetGroupByGroupID_With_SGA_ADMIN_FEATURE() {
+	ctx := context.Background()
+	ctx = context.WithValue(ctx, constants.CtxSGAKey, "test-sga")
+
+	newFF := "true"
+	oldFF := os.Getenv("SGA_ADMIN_FEATURE")
+	os.Setenv("SGA_ADMIN_FEATURE", newFF)
+
+	// create 2 groups, 1 with auth system, 1 with unauth system
+	g1Bytes := []byte(fmt.Sprintf(SampleGroup, "group-id-1", SampleXdata))
+	gd1 := GroupData{}
+	err := json.Unmarshal(g1Bytes, &gd1)
+	assert.Nil(s.T(), err)
+	g1, err := CreateGroup(context.Background(), gd1)
+	assert.Nil(s.T(), err)
+
+	g2Bytes := []byte(fmt.Sprintf(SampleGroup, "group-id-2", SampleXdata))
+	gd2 := GroupData{}
+	err = json.Unmarshal(g2Bytes, &gd2)
+	assert.Nil(s.T(), err)
+	g2, err := CreateGroup(context.Background(), gd2)
+	assert.Nil(s.T(), err)
+
+	g1AuthSys := System{GID: g1.ID, GroupID: "group-id-1", ClientID: "test-g1", SGAKey: "test-sga"}
+	err = s.db.Create(&g1AuthSys).Error
+	assert.Nil(s.T(), err, "unexpected error")
+
+	g2UnauthSys := System{GID: g2.ID, GroupID: "group-id-2", ClientID: "test-g2", SGAKey: "different-sga"}
+	err = s.db.Create(&g2UnauthSys).Error
+	assert.Nil(s.T(), err, "unexpected error")
+
+	s.T().Cleanup(func() {
+		err = CleanDatabase(g1)
+		assert.Nil(s.T(), err)
+		err = CleanDatabase(g2)
+		assert.Nil(s.T(), err)
+		os.Setenv("SGA_ADMIN_FEATURE", oldFF)
+	})
+
+	foundG1, err := GetGroupByGroupID(ctx, "group-id-1")
+	assert.Nil(s.T(), err)
+	assert.Equal(s.T(), foundG1.ID, g1.ID)
+
+	foundG2, err := GetGroupByGroupID(ctx, "group-id-2")
+	assert.ErrorContains(s.T(), err, "error finding authorized system(s) related to groupID")
+	assert.Equal(s.T(), foundG2.ID, Group{}.ID)
+}
+
+// func (s *GroupsTestSuite) TestGetAuthorizedGroupsForOktaID() {
+// 	group1bytes := []byte(`{"group_id":"T0001","users":["abcdef","qrstuv"],"scopes":[],"resources":[],"systems":[],"name":""}`)
+// 	group2bytes := []byte(`{"group_id":"T0002","users":["abcdef","qrstuv"],"scopes":[],"resources":[],"systems":[],"name":""}`)
+// 	group3bytes := []byte(`{"group_id":"T0003","users":["qrstuv"],"scopes":[],"resources":[],"systems":[],"name":""}`)
+
+// 	g1 := GroupData{}
+// 	err := json.Unmarshal(group1bytes, &g1)
+// 	assert.Nil(s.T(), err)
+// 	group1, _ := CreateGroup(context.Background(), g1)
+
+// 	g2 := GroupData{}
+// 	err = json.Unmarshal(group2bytes, &g2)
+// 	assert.Nil(s.T(), err)
+// 	group2, _ := CreateGroup(context.Background(), g2)
+
+// 	g3 := GroupData{}
+// 	err = json.Unmarshal(group3bytes, &g3)
+// 	assert.Nil(s.T(), err)
+// 	group3, _ := CreateGroup(context.Background(), g3)
+
+// 	defer s.db.Unscoped().Delete(&group1)
+// 	defer s.db.Unscoped().Delete(&group2)
+// 	defer s.db.Unscoped().Delete(&group3)
+
+// 	authorizedGroups, err := GetAuthorizedGroupsForOktaID(context.Background(), "abcdef")
+// 	if err != nil {
+// 		s.FailNow(err.Error())
+// 	}
+// 	if len(authorizedGroups) != 2 {
+// 		s.FailNow("oktaID should be authorized for exactly two groups")
+// 	}
+// 	assert.Equal(s.T(), "T0001", authorizedGroups[0])
+// }
 
 func TestGroupsTestSuite(t *testing.T) {
 	suite.Run(t, new(GroupsTestSuite))
