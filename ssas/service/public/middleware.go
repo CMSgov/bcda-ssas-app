@@ -4,9 +4,11 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"os"
 	"regexp"
 
 	"github.com/CMSgov/bcda-ssas-app/ssas"
+	"github.com/CMSgov/bcda-ssas-app/ssas/constants"
 	"github.com/CMSgov/bcda-ssas-app/ssas/service"
 	"github.com/sirupsen/logrus"
 )
@@ -40,6 +42,15 @@ func readGroupID(next http.Handler) http.Handler {
 
 		ctx := context.WithValue(r.Context(), "rd", rd) //nolint:staticcheck
 		ssas.SetCtxEntry(r, "rd", rd)
+
+		if os.Getenv("SGA_ADMIN_FEATURE") == "true" {
+			sgaKey, err := ssas.GetSGAKeyByGroupID(r.Context(), rd.GroupID)
+			if err == nil {
+				fmt.Printf("\nsetting context with key: %+v", sgaKey)
+				r = r.WithContext(context.WithValue(r.Context(), constants.CtxSGAKey, sgaKey))
+			}
+		}
+
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
@@ -148,4 +159,15 @@ func contains(list []string, target string) bool {
 		}
 	}
 	return false
+}
+
+// SkipSGAAuthCheck allows requests to skip SGA auth checks, be careful when adding new requests with this middleware!
+func SkipSGAAuthCheck(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if os.Getenv("SGA_ADMIN_FEATURE") == "true" {
+			r = r.WithContext(context.WithValue(r.Context(), constants.CtxSGASkipAuthKey, "true"))
+		}
+
+		next.ServeHTTP(w, r)
+	})
 }

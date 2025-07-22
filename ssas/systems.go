@@ -14,7 +14,6 @@ import (
 	"math"
 	"net"
 	"os"
-	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -429,7 +428,6 @@ func registerSystem(ctx context.Context, input SystemInput, isV2 bool) (Credenti
 	}
 
 	group, err := GetGroupByGroupID(ctx, input.GroupID)
-
 	if err != nil {
 		return creds, errors.New("unable to find group with id " + input.GroupID)
 	}
@@ -663,15 +661,23 @@ func GetSystemsByGroupIDString(ctx context.Context, groupId string) ([]System, e
 		err = fmt.Errorf("no Systems found with group_id %s", groupId)
 	}
 
-	if os.Getenv("SGA_ADMIN_FEATURE") == "true" {
-		requesterSGAKey := fmt.Sprintf("%v", ctx.Value(constants.CtxSGAKey))
+	return systems, err
+}
 
-		systems = slices.DeleteFunc(systems, func(system System) bool {
-			return system.SGAKey != requesterSGAKey
-		})
+// GetSGAKeyByGroupID gets an SGA key from the first system associated with a Group ID
+// This skips SGA authorization so should be used very carefully.  The only current use is in public router middleware
+// AFTER a request has had its token verified.  These requests should only allow modification of itself (the requests associated group/system/secret etc)
+func GetSGAKeyByGroupID(ctx context.Context, groupID string) (string, error) {
+	var (
+		systems []System
+		err     error
+	)
+
+	if err = Connection.WithContext(ctx).Where("group_id = ? AND deleted_at IS NULL", groupID).Find(&systems).Error; err != nil {
+		return "", fmt.Errorf("no Systems found with group_id %s", groupID)
 	}
 
-	return systems, err
+	return systems[0].SGAKey, nil
 }
 
 // GetSystemByClientID returns the system associated with the provided clientID
@@ -683,14 +689,6 @@ func GetSystemByClientID(ctx context.Context, clientID string) (System, error) {
 
 	if err = Connection.WithContext(ctx).First(&system, "client_id = ?", clientID).Error; errors.Is(err, gorm.ErrRecordNotFound) {
 		err = fmt.Errorf("no System record found for client %s", clientID)
-	}
-
-	if os.Getenv("SGA_ADMIN_FEATURE") == "true" {
-		requesterSGAKey := fmt.Sprintf("%v", ctx.Value(constants.CtxSGAKey))
-
-		if requesterSGAKey != system.SGAKey {
-			return System{}, fmt.Errorf("requesting SGA does not have access to this system, id: %+v", system.ID)
-		}
 	}
 
 	return system, err
@@ -712,8 +710,10 @@ func GetSystemByID(ctx context.Context, id string) (System, error) {
 		err = fmt.Errorf("no System record found with ID %s %v", id, err)
 	}
 
-	if os.Getenv("SGA_ADMIN_FEATURE") == "true" {
+	skipSGAAuthCheck := fmt.Sprintf("%v", ctx.Value(constants.CtxSGASkipAuthKey))
+	if os.Getenv("SGA_ADMIN_FEATURE") == "true" && skipSGAAuthCheck != "true" {
 		requesterSGAKey := fmt.Sprintf("%v", ctx.Value(constants.CtxSGAKey))
+		fmt.Printf("\n-----: GetSystemByID requester key %+v, system key: %+v, \n---system found: %+v\n", requesterSGAKey, system.SGAKey, system)
 
 		if requesterSGAKey != system.SGAKey {
 			return System{}, fmt.Errorf("requesting SGA does not have access to this system, id: %+v", id)

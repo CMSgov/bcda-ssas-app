@@ -16,6 +16,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/CMSgov/bcda-ssas-app/ssas"
+	"github.com/CMSgov/bcda-ssas-app/ssas/service"
 )
 
 type MainTestSuite struct {
@@ -30,7 +31,7 @@ func (s *MainTestSuite) SetupSuite() {
 func (s *MainTestSuite) TestResetSecret() {
 	var flags Flags
 	flags.doResetSecret = true
-	flags.clientID = "0c527d2e-2e8a-4808-b11d-0fa06baf8254" // gitleaks:allow
+	flags.clientID = service.TestGroupID
 	output := captureOutput(func() { handleFlags(flags) })
 	assert.NotEqual(s.T(), "", output)
 }
@@ -56,7 +57,7 @@ func (s *MainTestSuite) TestShowXDataWithClientID() {
 func (s *MainTestSuite) TestShowXDataClientIDDoesNotExist() {
 	var flags Flags
 	flags.doShowXData = true
-	flags.clientID = "0c527d2e-2e8a-4808-b11d-0fa06baf8123" // gitleaks:allow
+	flags.clientID = service.TestGroupID
 	output := captureLog(func() { handleFlags(flags) })
 	assert.Contains(s.T(), output, "invalid client id")
 }
@@ -123,7 +124,7 @@ func (s *MainTestSuite) TestAddFixtureData() {
 func (s *MainTestSuite) TestResetCredentials() {
 	var flags Flags
 	flags.doResetSecret = true
-	flags.clientID = "0c527d2e-2e8a-4808-b11d-0fa06baf8254" // gitleaks:allow
+	flags.clientID = service.TestGroupID
 
 	output := captureOutput(func() { handleFlags(flags) })
 	assert.NotEqual(s.T(), output, "")
@@ -183,7 +184,7 @@ func (s *MainTestSuite) TestFixtureData() {
 		switch r.GroupID {
 		case "admin":
 			foundAdmin = true
-		case "0c527d2e-2e8a-4808-b11d-0fa06baf8254":
+		case service.TestGroupID:
 			foundConsumer = true
 		}
 	}
@@ -194,7 +195,7 @@ func (s *MainTestSuite) TestFixtureData() {
 
 func (s *MainTestSuite) TestListIPs() {
 	db := ssas.Connection
-	fixtureClientID := "0c527d2e-2e8a-4808-b11d-0fa06baf8254"
+	fixtureClientID := service.TestGroupID
 	system, err := ssas.GetSystemByClientID(context.Background(), fixtureClientID)
 	assert.Nil(s.T(), err)
 	testIP := ssas.RandomIPv4()
@@ -226,7 +227,7 @@ func (s *MainTestSuite) TestListExpiringCredentials() {
 	assert.Nil(s.T(), os.Setenv("SSAS_CRED_TIMEOUT_DAYS", "60"))
 	assert.Nil(s.T(), os.Setenv("SSAS_CRED_WARNING_DAYS", "7"))
 
-	fixtureClientID := "0c527d2e-2e8a-4808-b11d-0fa06baf8254"
+	fixtureClientID := service.TestGroupID
 	system, err := ssas.GetSystemByClientID(context.Background(), fixtureClientID)
 	assert.Nil(s.T(), err)
 	assert.False(s.T(), errors.Is(db.First(&secret, "system_id = ?", system.ID).Error, gorm.ErrRecordNotFound))

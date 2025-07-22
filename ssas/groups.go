@@ -238,13 +238,6 @@ func (gd *GroupData) Scan(value interface{}) error {
 }
 
 func GetGroupByGroupID(ctx context.Context, groupID string) (Group, error) {
-	if os.Getenv("SGA_ADMIN_FEATURE") == "true" {
-		systems, err := GetSystemsByGroupIDString(ctx, groupID)
-		if err != nil || len(systems) == 0 {
-			return Group{}, fmt.Errorf("error finding authorized system(s) related to groupID: %v, err: %+v", groupID, err)
-		}
-	}
-
 	var (
 		group Group
 		err   error
@@ -273,10 +266,12 @@ func GetGroupByID(ctx context.Context, id string) (Group, error) {
 		err = fmt.Errorf("no Group record found with ID %s", id)
 	}
 
-	if os.Getenv("SGA_ADMIN_FEATURE") == "true" {
-		systems, err := GetSystemsByGroupIDString(ctx, group.GroupID)
-		if err != nil || len(systems) == 0 {
-			return Group{}, fmt.Errorf("error finding authorized system(s) related to groupID: %v, err: %+v", group.GroupID, err)
+	skipSGAAuthCheck := fmt.Sprintf("%v", ctx.Value(constants.CtxSGASkipAuthKey))
+	if os.Getenv("SGA_ADMIN_FEATURE") == "true" && skipSGAAuthCheck != "true" {
+		sgaKeyFromGroupID, err := GetSGAKeyByGroupID(ctx, group.GroupID)
+		requesterSGAKey := fmt.Sprintf("%v", ctx.Value(constants.CtxSGAKey))
+		if err != nil || sgaKeyFromGroupID != requesterSGAKey {
+			return Group{}, fmt.Errorf("error authorizing requesting system (%+v) to group with groupID: %v, err: %+v", requesterSGAKey, group.GroupID, err)
 		}
 	}
 

@@ -924,6 +924,30 @@ func (s *SystemsTestSuite) TestGetSystemsByGroupIDString_With_SGA_ADMIN_FEATURE_
 	os.Setenv("SGA_ADMIN_FEATURE", oldFF)
 }
 
+func (s *SystemsTestSuite) TestGetSGAKeyByGroupID() {
+	g, expSystem, err := makeTestSystem(s.db)
+	assert.Nil(s.T(), err, "unexpected error")
+	require.Nil(s.T(), err, "unexpected error ", err)
+
+	sgaKey, err := GetSGAKeyByGroupID(context.Background(), fmt.Sprint(g.GroupID))
+	assert.Nil(s.T(), err, "unexpected error ", err)
+	assert.Equal(s.T(), expSystem.SGAKey, sgaKey)
+
+	_ = CleanDatabase(g)
+}
+
+func (s *SystemsTestSuite) TestGetSGAKeyByGroupID_BadGroupID() {
+	g, _, err := makeTestSystem(s.db)
+	assert.Nil(s.T(), err, "unexpected error")
+	require.Nil(s.T(), err, "unexpected error ", err)
+
+	sgaKey, err := GetSGAKeyByGroupID(context.Background(), "different-group-id")
+	assert.ErrorContains(s.T(), err, "no Systems found with group_id")
+	assert.Equal(s.T(), "", sgaKey)
+
+	_ = CleanDatabase(g)
+}
+
 func (s *SystemsTestSuite) TestGetSystemsByGroupIDString_With_SGA_ADMIN_FEATURE_FiltersUnauthorized() {
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, constants.CtxSGAKey, "different-sga")

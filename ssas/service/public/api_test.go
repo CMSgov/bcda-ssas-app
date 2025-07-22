@@ -40,6 +40,7 @@ type APITestSuite struct {
 	badSigningKeyPath string
 	assertAud         string
 	logEntry          *ssas.APILoggerEntry
+	ctx               context.Context
 }
 
 func (s *APITestSuite) SetupSuite() {
@@ -50,6 +51,12 @@ func (s *APITestSuite) SetupSuite() {
 	service.StartBlacklist()
 	s.logEntry = MakeTestStructuredLoggerEntry(logrus.Fields{"cms_id": "A9999", "request_id": uuid.NewUUID().String()})
 
+	if os.Getenv("SGA_ADMIN_FEATURE") == "true" {
+		s.ctx = context.WithValue(context.Background(), constants.CtxSGAKey, "test-sga")
+		s.ctx = context.WithValue(context.Background(), constants.CtxSGASkipAuthKey, "true")
+	} else {
+		s.ctx = context.Background()
+	}
 }
 
 func (s *APITestSuite) SetupTest() {
@@ -60,7 +67,7 @@ func (s *APITestSuite) SetupTest() {
 func (s *APITestSuite) TestAuthRegisterEmpty() {
 	regBody := strings.NewReader("")
 
-	req, err := http.NewRequest("GET", "/auth/register", regBody)
+	req, err := http.NewRequestWithContext(s.ctx, "GET", "/auth/register", regBody)
 	assert.Nil(s.T(), err)
 
 	req = addRegDataContext(s, req, "T12123", []string{"T12123"})
@@ -71,7 +78,7 @@ func (s *APITestSuite) TestAuthRegisterEmpty() {
 func (s *APITestSuite) TestAuthRegisterBadJSON() {
 	regBody := strings.NewReader("asdflkjghjkl")
 
-	req, err := http.NewRequest("GET", "/auth/register", regBody)
+	req, err := http.NewRequestWithContext(s.ctx, "GET", "/auth/register", regBody)
 	assert.Nil(s.T(), err)
 
 	req = addRegDataContext(s, req, "T12123", []string{"T12123"})
@@ -90,7 +97,7 @@ func (s *APITestSuite) TestAuthRegisterSuccess() {
 	regBody := strings.NewReader(fmt.Sprintf(`{"client_id":"my_client_id","client_name":"my_client_name","scope":"%s","jwks":{"keys":[{"e":"AAEAAQ","n":"ok6rvXu95337IxsDXrKzlIqw_I_zPDG8JyEw2CTOtNMoDi1QzpXQVMGj2snNEmvNYaCTmFf51I-EDgeFLLexr40jzBXlg72quV4aw4yiNuxkigW0gMA92OmaT2jMRIdDZM8mVokoxyPfLub2YnXHFq0XuUUgkX_TlutVhgGbyPN0M12teYZtMYo2AUzIRggONhHvnibHP0CPWDjCwSfp3On1Recn4DPxbn3DuGslF2myalmCtkujNcrhHLhwYPP-yZFb8e0XSNTcQvXaQxAqmnWH6NXcOtaeWMQe43PNTAyNinhndgI8ozG3Hz-1NzHssDH_yk6UYFSszhDbWAzyqw","kty":"RSA"}]}}`,
 		ssas.DefaultScope))
 
-	req, err := http.NewRequest("GET", "/auth/register", regBody)
+	req, err := http.NewRequestWithContext(s.ctx, "GET", "/auth/register", regBody)
 	assert.Nil(s.T(), err)
 
 	req = addRegDataContext(s, req, "T12123", []string{"T12123"})
@@ -117,7 +124,7 @@ func (s *APITestSuite) TestAuthRegisterJSON() {
 	regBody := strings.NewReader(fmt.Sprintf(`{"client_id":"my_client_id","client_name":"My\\Name\\Has\"Escaped Chars\"","scope":"%s","jwks":{"keys":[{"e":"AAEAAQ","n":"ok6rvXu95337IxsDXrKzlIqw_I_zPDG8JyEw2CTOtNMoDi1QzpXQVMGj2snNEmvNYaCTmFf51I-EDgeFLLexr40jzBXlg72quV4aw4yiNuxkigW0gMA92OmaT2jMRIdDZM8mVokoxyPfLub2YnXHFq0XuUUgkX_TlutVhgGbyPN0M12teYZtMYo2AUzIRggONhHvnibHP0CPWDjCwSfp3On1Recn4DPxbn3DuGslF2myalmCtkujNcrhHLhwYPP-yZFb8e0XSNTcQvXaQxAqmnWH6NXcOtaeWMQe43PNTAyNinhndgI8ozG3Hz-1NzHssDH_yk6UYFSszhDbWAzyqw","kty":"RSA"}]}}`,
 		ssas.DefaultScope))
 
-	req, err := http.NewRequest("GET", "/auth/register", regBody)
+	req, err := http.NewRequestWithContext(s.ctx, "GET", "/auth/register", regBody)
 	assert.Nil(s.T(), err)
 
 	req = addRegDataContext(s, req, "T12123", []string{"T12123"})
@@ -145,7 +152,7 @@ func (s *APITestSuite) TestAuthRegisterNoKey() {
 	regBody := strings.NewReader(fmt.Sprintf(`{"client_id":"my_client_id","client_name":"my_client_name","scope":"%s"}`,
 		ssas.DefaultScope))
 
-	req, err := http.NewRequest("GET", "/auth/register", regBody)
+	req, err := http.NewRequestWithContext(s.ctx, "GET", "/auth/register", regBody)
 	assert.Nil(s.T(), err)
 
 	req = addRegDataContext(s, req, "T12123", []string{"T12123"})
@@ -169,7 +176,7 @@ func (s *APITestSuite) TestResetSecretNoSystem() {
 	}
 
 	body := strings.NewReader(`{"client_id":"abcd1234"}`)
-	req, err := http.NewRequest("PUT", "/reset", body)
+	req, err := http.NewRequestWithContext(s.ctx, "PUT", "/reset", body)
 	assert.Nil(s.T(), err)
 
 	req = addRegDataContext(s, req, groupID, []string{groupID})
@@ -190,7 +197,7 @@ func (s *APITestSuite) TestResetSecretBadRegData() {
 	}
 
 	body := strings.NewReader(`{"client_id":"abcd1234"}`)
-	req, err := http.NewRequest("PUT", "/reset", body)
+	req, err := http.NewRequestWithContext(s.ctx, "PUT", "/reset", body)
 	if err != nil {
 		s.T().Fail()
 	}
@@ -221,7 +228,7 @@ func (s *APITestSuite) TestRegisterSystemBadReg() {
 	}
 
 	body := strings.NewReader(`{"client_id":"abcd1234"}`)
-	req, err := http.NewRequest("PUT", "/reset", body)
+	req, err := http.NewRequestWithContext(s.ctx, "PUT", "/reset", body)
 	if err != nil {
 		s.T().Fail()
 	}
@@ -247,7 +254,7 @@ func (s *APITestSuite) TestResetSecretEmpty() {
 	groupID := "T23234"
 
 	body := strings.NewReader("")
-	req, err := http.NewRequest("PUT", "/reset", body)
+	req, err := http.NewRequestWithContext(s.ctx, "PUT", "/reset", body)
 	assert.Nil(s.T(), err)
 
 	req = addRegDataContext(s, req, groupID, []string{groupID})
@@ -259,7 +266,7 @@ func (s *APITestSuite) TestResetSecretBadJSON() {
 	groupID := "T23234"
 
 	body := strings.NewReader(`abcdefg`)
-	req, err := http.NewRequest("PUT", "/reset", body)
+	req, err := http.NewRequestWithContext(s.ctx, "PUT", "/reset", body)
 	assert.Nil(s.T(), err)
 
 	req = addRegDataContext(s, req, groupID, []string{groupID})
@@ -285,7 +292,7 @@ func (s *APITestSuite) TestResetSecretSuccess() {
 	}
 
 	body := strings.NewReader(`{"client_id":"abcd1234"}`)
-	req, err := http.NewRequest("PUT", "/reset", body)
+	req, err := http.NewRequestWithContext(s.ctx, "PUT", "/reset", body)
 	assert.Nil(s.T(), err)
 
 	req = addRegDataContext(s, req, groupID, []string{groupID})
@@ -325,7 +332,7 @@ func (s *APITestSuite) TestResetSecretJSON() {
 	}
 
 	body := strings.NewReader(`{"client_id":"abcd1234"}`)
-	req, err := http.NewRequest("PUT", "/reset", body)
+	req, err := http.NewRequestWithContext(s.ctx, "PUT", "/reset", body)
 	assert.Nil(s.T(), err)
 
 	req = addRegDataContext(s, req, groupID, []string{groupID})
@@ -368,7 +375,7 @@ func (s *APITestSuite) TestTokenSuccess() {
 
 	pemString, err := ssas.ConvertPublicKeyToPEMString(&pubKey)
 	require.Nil(s.T(), err)
-	loggerctx := context.WithValue(context.Background(), ssas.CtxLoggerKey, s.logEntry)
+	loggerctx := context.WithValue(s.ctx, ssas.CtxLoggerKey, s.logEntry)
 
 	creds, err := ssas.RegisterSystem(loggerctx, constants.TestSystemName, groupID, ssas.DefaultScope, pemString, []string{}, uuid.NewRandom().String())
 	assert.Nil(s.T(), err)
@@ -376,7 +383,7 @@ func (s *APITestSuite) TestTokenSuccess() {
 	assert.NotNil(s.T(), creds.ClientSecret)
 
 	// now for the actual test
-	req := httptest.NewRequest("POST", constants.TokenEndpoint, nil)
+	req := httptest.NewRequestWithContext(s.ctx, "POST", constants.TokenEndpoint, nil)
 	req.SetBasicAuth(creds.ClientID, creds.ClientSecret)
 	req.Header.Add("Accept", constants.HeaderApplicationJSON)
 
@@ -404,7 +411,7 @@ func (s *APITestSuite) TestTokenErrAtGenerateTokenReturn401() {
 
 	pemString, err := ssas.ConvertPublicKeyToPEMString(&pubKey)
 	require.Nil(s.T(), err)
-	loggerctx := context.WithValue(context.Background(), ssas.CtxLoggerKey, s.logEntry)
+	loggerctx := context.WithValue(s.ctx, ssas.CtxLoggerKey, s.logEntry)
 	creds, err := ssas.RegisterSystem(loggerctx, constants.TestSystemName, groupID, ssas.DefaultScope, pemString, []string{}, uuid.NewRandom().String())
 	assert.Nil(s.T(), err)
 	assert.Equal(s.T(), constants.TestSystemName, creds.ClientName)
@@ -416,7 +423,7 @@ func (s *APITestSuite) TestTokenErrAtGenerateTokenReturn401() {
 	SetMockAccessTokenCreator(s.T(), mock)
 
 	//setup API request
-	req := httptest.NewRequest("POST", constants.TokenEndpoint, nil)
+	req := httptest.NewRequestWithContext(s.ctx, "POST", constants.TokenEndpoint, nil)
 	req.SetBasicAuth(creds.ClientID, creds.ClientSecret)
 	req.Header.Add("Accept", constants.HeaderApplicationJSON)
 	handler := service.NewCtxLogger(http.HandlerFunc(token))
@@ -445,13 +452,13 @@ func (s *APITestSuite) TestTokenEmptySecretProduces401() {
 
 	pemString, err := ssas.ConvertPublicKeyToPEMString(&pubKey)
 	require.Nil(s.T(), err)
-	loggerctx := context.WithValue(context.Background(), ssas.CtxLoggerKey, s.logEntry)
+	loggerctx := context.WithValue(s.ctx, ssas.CtxLoggerKey, s.logEntry)
 	creds, err := ssas.RegisterSystem(loggerctx, constants.TestSystemName, groupID, ssas.DefaultScope, pemString, []string{}, uuid.NewRandom().String())
 	assert.Nil(s.T(), err)
 	assert.Equal(s.T(), constants.TestSystemName, creds.ClientName)
 	assert.NotNil(s.T(), creds.ClientSecret)
 
-	req := httptest.NewRequest("POST", constants.TokenEndpoint, nil)
+	req := httptest.NewRequestWithContext(s.ctx, "POST", constants.TokenEndpoint, nil)
 	req.SetBasicAuth(creds.ClientID, "")
 	req.Header.Add("Accept", constants.HeaderApplicationJSON)
 	handler := service.NewCtxLogger(http.HandlerFunc(token))
@@ -477,13 +484,13 @@ func (s *APITestSuite) TestTokenWrongSecretProduces401() {
 
 	pemString, err := ssas.ConvertPublicKeyToPEMString(&pubKey)
 	require.Nil(s.T(), err)
-	loggerctx := context.WithValue(context.Background(), ssas.CtxLoggerKey, s.logEntry)
+	loggerctx := context.WithValue(s.ctx, ssas.CtxLoggerKey, s.logEntry)
 	creds, err := ssas.RegisterSystem(loggerctx, constants.TestSystemName, groupID, ssas.DefaultScope, pemString, []string{}, uuid.NewRandom().String())
 	assert.Nil(s.T(), err)
 	assert.Equal(s.T(), constants.TestSystemName, creds.ClientName)
 	assert.NotNil(s.T(), creds.ClientSecret)
 
-	req := httptest.NewRequest("POST", constants.TokenEndpoint, nil)
+	req := httptest.NewRequestWithContext(s.ctx, "POST", constants.TokenEndpoint, nil)
 	req.SetBasicAuth(creds.ClientID, "eogihfogihegoihego")
 	req.Header.Add("Accept", constants.HeaderApplicationJSON)
 	handler := service.NewCtxLogger(http.HandlerFunc(token))
@@ -509,13 +516,13 @@ func (s *APITestSuite) TestTokenEmptyClientIdProduces401() {
 
 	pemString, err := ssas.ConvertPublicKeyToPEMString(&pubKey)
 	require.Nil(s.T(), err)
-	loggerctx := context.WithValue(context.Background(), ssas.CtxLoggerKey, s.logEntry)
+	loggerctx := context.WithValue(s.ctx, ssas.CtxLoggerKey, s.logEntry)
 	creds, err := ssas.RegisterSystem(loggerctx, constants.TestSystemName, groupID, ssas.DefaultScope, pemString, []string{}, uuid.NewRandom().String())
 	assert.Nil(s.T(), err)
 	assert.Equal(s.T(), constants.TestSystemName, creds.ClientName)
 	assert.NotNil(s.T(), creds.ClientSecret)
 
-	req := httptest.NewRequest("POST", constants.TokenEndpoint, nil)
+	req := httptest.NewRequestWithContext(s.ctx, "POST", constants.TokenEndpoint, nil)
 	req.SetBasicAuth("", creds.ClientSecret)
 	req.Header.Add("Accept", constants.HeaderApplicationJSON)
 	handler := service.NewCtxLogger(http.HandlerFunc(token))
@@ -550,9 +557,9 @@ func (s *APITestSuite) testIntrospectFlaw(flaw service.TokenFlaw, errorText stri
 
 	creds, group := ssas.CreateTestXData(s.T(), s.db)
 
-	system, err := ssas.GetSystemByClientID(context.Background(), creds.ClientID)
+	system, err := ssas.GetSystemByClientID(s.ctx, creds.ClientID)
 	assert.Nil(s.T(), err)
-	data, err := ssas.XDataFor(context.Background(), system)
+	data, err := ssas.XDataFor(s.ctx, system)
 	assert.Nil(s.T(), err)
 
 	claims := service.CommonClaims{
@@ -566,7 +573,7 @@ func (s *APITestSuite) testIntrospectFlaw(flaw service.TokenFlaw, errorText stri
 	assert.Nil(s.T(), err, fmt.Sprintf("Unable to create bad token for flaw %v", flaw))
 
 	body := strings.NewReader(fmt.Sprintf(`{"token":"%s"}`, signedString))
-	req := httptest.NewRequest("POST", "/introspect", body)
+	req := httptest.NewRequestWithContext(s.ctx, "POST", "/introspect", body)
 	req.SetBasicAuth(creds.ClientID, creds.ClientSecret)
 	req.Header.Add("Content-Type", constants.HeaderApplicationJSON)
 	req.Header.Add("Accept", constants.HeaderApplicationJSON)
@@ -599,7 +606,7 @@ func (s *APITestSuite) TestIntrospectFailure() {
 func (s *APITestSuite) TestIntrospectSuccess() {
 	creds, group := ssas.CreateTestXData(s.T(), s.db)
 
-	req := httptest.NewRequest("POST", constants.TokenEndpoint, nil)
+	req := httptest.NewRequestWithContext(s.ctx, "POST", constants.TokenEndpoint, nil)
 	req.SetBasicAuth(creds.ClientID, creds.ClientSecret)
 	req.Header.Add("Accept", constants.HeaderApplicationJSON)
 
@@ -613,7 +620,7 @@ func (s *APITestSuite) TestIntrospectSuccess() {
 
 	// the actual test
 	body := strings.NewReader(fmt.Sprintf(`{"token":"%s"}`, t.AccessToken))
-	req = httptest.NewRequest("POST", "/introspect", body)
+	req = httptest.NewRequestWithContext(s.ctx, "POST", "/introspect", body)
 	req.SetBasicAuth(creds.ClientID, creds.ClientSecret)
 	req.Header.Add("Content-Type", constants.HeaderApplicationJSON)
 	req.Header.Add("Accept", constants.HeaderApplicationJSON)
@@ -637,29 +644,29 @@ func (s *APITestSuite) TestSaveTokenTime() {
 	err := s.db.Create(&group).Error
 	require.Nil(s.T(), err)
 
-	creds, err := ssas.RegisterSystem(context.WithValue(context.Background(), ssas.CtxLoggerKey, s.logEntry), "Introspect Test", groupID, ssas.DefaultScope, "", []string{}, uuid.NewRandom().String())
+	creds, err := ssas.RegisterSystem(context.WithValue(s.ctx, ssas.CtxLoggerKey, s.logEntry), "Introspect Test", groupID, ssas.DefaultScope, "", []string{}, uuid.NewRandom().String())
 	assert.Nil(s.T(), err)
 	assert.Equal(s.T(), "Introspect Test", creds.ClientName)
 	assert.NotNil(s.T(), creds.ClientSecret)
 
-	system, err := ssas.GetSystemByClientID(context.Background(), creds.ClientID)
+	system, err := ssas.GetSystemByClientID(s.ctx, creds.ClientID)
 	assert.Nil(s.T(), err)
 	assert.True(s.T(), system.LastTokenAt.IsZero())
 
-	err = system.SaveTokenTime(context.Background())
+	err = system.SaveTokenTime(s.ctx)
 	if err != nil {
 		s.T().Fail()
 	}
-	system, err = ssas.GetSystemByClientID(context.Background(), creds.ClientID)
+	system, err = ssas.GetSystemByClientID(s.ctx, creds.ClientID)
 	assert.Nil(s.T(), err)
 	assert.False(s.T(), system.LastTokenAt.IsZero())
 
 	time1 := system.LastTokenAt
-	err = system.SaveTokenTime(context.Background())
+	err = system.SaveTokenTime(s.ctx)
 	if err != nil {
 		s.T().Fail()
 	}
-	system, err = ssas.GetSystemByClientID(context.Background(), creds.ClientID)
+	system, err = ssas.GetSystemByClientID(s.ctx, creds.ClientID)
 	assert.Nil(s.T(), err)
 	assert.NotEqual(s.T(), system.LastTokenAt, time1)
 
@@ -683,6 +690,16 @@ func TestAPITestSuite(t *testing.T) {
 	suite.Run(t, new(APITestSuite))
 }
 
+func TestAPITestSuite_With_SGA_ADMIN_FEATURE(t *testing.T) {
+	newFF := "true"
+	oldFF := os.Getenv("SGA_ADMIN_FEATURE")
+	os.Setenv("SGA_ADMIN_FEATURE", newFF)
+
+	suite.Run(t, new(APITestSuite))
+
+	os.Setenv("SGA_ADMIN_FEATURE", oldFF)
+}
+
 func (s *APITestSuite) SetupClientAssertionTest() (ssas.Credentials, ssas.Group, *rsa.PrivateKey) {
 	groupID := ssas.RandomHexID()[0:4]
 	group := ssas.Group{GroupID: groupID, XData: "x_data"}
@@ -704,7 +721,7 @@ func (s *APITestSuite) SetupClientAssertionTest() (ssas.Credentials, ssas.Group,
 		TrackingID: uuid.NewRandom().String(),
 		XData:      `{"impl": "blah"}`,
 	}
-	creds, err := ssas.RegisterV2System(context.WithValue(context.Background(), ssas.CtxLoggerKey, s.logEntry), si)
+	creds, err := ssas.RegisterV2System(context.WithValue(s.ctx, ssas.CtxLoggerKey, s.logEntry), si)
 	assert.Nil(s.T(), err)
 	assert.Equal(s.T(), constants.TestSystemName, creds.ClientName)
 	assert.NotNil(s.T(), creds.ClientSecret)
@@ -724,7 +741,7 @@ func (s *APITestSuite) TestAuthenticatingWithJWT() {
 	form.Add("client_assertion_type", "urn:ietf:params:oauth:client-assertion-type:jwt-bearer")
 	form.Add("client_assertion", clientAssertion)
 
-	req := httptest.NewRequest("POST", "/v2/token", strings.NewReader(form.Encode()))
+	req := httptest.NewRequestWithContext(s.ctx, "POST", "/v2/token", strings.NewReader(form.Encode()))
 	req.Header.Add("Accept", constants.HeaderApplicationJSON)
 	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 
@@ -745,7 +762,7 @@ func (s *APITestSuite) TestAuthenticatingWithJWT() {
 // Authenticate and generate access token using JWT (v2/token/)
 func (s *APITestSuite) TestAuthenticatingWithJWTUsingSecondPublicKey() {
 	creds, group, _ := s.SetupClientAssertionTest()
-	system, _ := ssas.GetSystemByID(context.Background(), creds.SystemID)
+	system, _ := ssas.GetSystemByID(s.ctx, creds.SystemID)
 	pubK, sig, newPrivateKey, _ := ssas.GeneratePublicKey(2048)
 	secondKey, _ := system.AddAdditionalPublicKey(strings.NewReader(pubK), sig)
 
@@ -753,7 +770,7 @@ func (s *APITestSuite) TestAuthenticatingWithJWTUsingSecondPublicKey() {
 	assert.Nil(s.T(), errors)
 
 	form := buildClientAssertionForm(clientAssertion)
-	req := buildClientAssertionRequest(form)
+	req := buildClientAssertionRequest(s.ctx, form)
 
 	//handler := http.HandlerFunc(tokenV2)
 	handler := service.NewCtxLogger(http.HandlerFunc(tokenV2))
@@ -772,7 +789,7 @@ func (s *APITestSuite) TestAuthenticatingWithJWTUsingSecondPublicKey() {
 
 func (s *APITestSuite) TestAuthenticatingWithJWTUsingWrongPrivateKey() {
 	creds, group, firstPrivateKey := s.SetupClientAssertionTest()
-	system, _ := ssas.GetSystemByID(context.Background(), creds.SystemID)
+	system, _ := ssas.GetSystemByID(s.ctx, creds.SystemID)
 	pubK, sig, _, _ := ssas.GeneratePublicKey(2048)
 	secondKey, _ := system.AddAdditionalPublicKey(strings.NewReader(pubK), sig)
 
@@ -780,7 +797,7 @@ func (s *APITestSuite) TestAuthenticatingWithJWTUsingWrongPrivateKey() {
 	assert.Nil(s.T(), errors)
 
 	form := buildClientAssertionForm(clientAssertion)
-	req := buildClientAssertionRequest(form)
+	req := buildClientAssertionRequest(s.ctx, form)
 
 	//handler := http.HandlerFunc(tokenV2)
 	handler := service.NewCtxLogger(http.HandlerFunc(tokenV2))
@@ -805,7 +822,7 @@ func (s *APITestSuite) TestAuthenticatingWithMismatchLocation() {
 	form.Add("client_assertion_type", "urn:ietf:params:oauth:client-assertion-type:jwt-bearer")
 	form.Add("client_assertion", clientAssertion)
 
-	req := httptest.NewRequest("POST", "/v2/token", strings.NewReader(form.Encode()))
+	req := httptest.NewRequestWithContext(s.ctx, "POST", "/v2/token", strings.NewReader(form.Encode()))
 	req.Header.Add("Accept", constants.HeaderApplicationJSON)
 	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 
@@ -830,7 +847,7 @@ func (s *APITestSuite) TestAuthenticatingWithJWTWithExpBeforeIssuedTime() {
 	form.Add("client_assertion_type", "urn:ietf:params:oauth:client-assertion-type:jwt-bearer")
 	form.Add("client_assertion", clientAssertion)
 
-	req := httptest.NewRequest("POST", "/v2/token", strings.NewReader(form.Encode()))
+	req := httptest.NewRequestWithContext(s.ctx, "POST", "/v2/token", strings.NewReader(form.Encode()))
 	req.Header.Add("Accept", constants.HeaderApplicationJSON)
 	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 
@@ -857,7 +874,7 @@ func (s *APITestSuite) TestAuthenticatingWithJWTWithMoreThan5MinutesExpTime() {
 	form.Add("client_assertion_type", "urn:ietf:params:oauth:client-assertion-type:jwt-bearer")
 	form.Add("client_assertion", clientAssertion)
 
-	req := httptest.NewRequest("POST", "/v2/token", strings.NewReader(form.Encode()))
+	req := httptest.NewRequestWithContext(s.ctx, "POST", "/v2/token", strings.NewReader(form.Encode()))
 	req.Header.Add("Accept", constants.HeaderApplicationJSON)
 	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 
@@ -884,7 +901,7 @@ func (s *APITestSuite) TestAuthenticatingWithJWTWithExpiredToken() {
 	form.Add("client_assertion_type", "urn:ietf:params:oauth:client-assertion-type:jwt-bearer")
 	form.Add("client_assertion", clientAssertion)
 
-	req := httptest.NewRequest("POST", "/v2/token", strings.NewReader(form.Encode()))
+	req := httptest.NewRequestWithContext(s.ctx, "POST", "/v2/token", strings.NewReader(form.Encode()))
 	req.Header.Add("Accept", constants.HeaderApplicationJSON)
 	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 	handler := service.NewCtxLogger(http.HandlerFunc(tokenV2))
@@ -913,7 +930,7 @@ func (s *APITestSuite) TestAuthenticatingWithJWTSignedWithWrongKey() {
 	form.Add("client_assertion_type", "urn:ietf:params:oauth:client-assertion-type:jwt-bearer")
 	form.Add("client_assertion", clientAssertion)
 
-	req := httptest.NewRequest("POST", "/v2/token", strings.NewReader(form.Encode()))
+	req := httptest.NewRequestWithContext(s.ctx, "POST", "/v2/token", strings.NewReader(form.Encode()))
 	req.Header.Add("Accept", constants.HeaderApplicationJSON)
 	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 
@@ -940,11 +957,11 @@ func (s *APITestSuite) TestAuthenticatingWithJWTWithSoftDeletedPublicKey() {
 	form.Add("client_assertion_type", "urn:ietf:params:oauth:client-assertion-type:jwt-bearer")
 	form.Add("client_assertion", clientAssertion)
 
-	req := httptest.NewRequest("POST", "/v2/token", strings.NewReader(form.Encode()))
+	req := httptest.NewRequestWithContext(s.ctx, "POST", "/v2/token", strings.NewReader(form.Encode()))
 	req.Header.Add("Accept", constants.HeaderApplicationJSON)
 	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 
-	system, err := ssas.GetSystemByID(context.Background(), creds.SystemID)
+	system, err := ssas.GetSystemByID(s.ctx, creds.SystemID)
 	assert.Nil(s.T(), err)
 	key, err := system.GetEncryptionKey(req.Context())
 	assert.Nil(s.T(), err)
@@ -982,7 +999,7 @@ func (s *APITestSuite) TestAuthenticatingWithJWTWithMissingIssuerClaim() {
 	form.Add("client_assertion_type", "urn:ietf:params:oauth:client-assertion-type:jwt-bearer")
 	form.Add("client_assertion", clientAssertion)
 
-	req := httptest.NewRequest("POST", "/v2/token", strings.NewReader(form.Encode()))
+	req := httptest.NewRequestWithContext(s.ctx, "POST", "/v2/token", strings.NewReader(form.Encode()))
 	req.Header.Add("Accept", constants.HeaderApplicationJSON)
 	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 
@@ -1006,7 +1023,7 @@ func (s *APITestSuite) TestAuthenticatingWithJWTWithBadAudienceClaim() {
 	form.Add("client_assertion_type", "urn:ietf:params:oauth:client-assertion-type:jwt-bearer")
 	form.Add("client_assertion", clientAssertion)
 
-	req := httptest.NewRequest("POST", "/v2/token", strings.NewReader(form.Encode()))
+	req := httptest.NewRequestWithContext(s.ctx, "POST", "/v2/token", strings.NewReader(form.Encode()))
 	req.Header.Add("Accept", constants.HeaderApplicationJSON)
 	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 
@@ -1040,7 +1057,7 @@ func (s *APITestSuite) TestAuthenticatingWithJWTWithMissingKID() {
 	form.Add("client_assertion_type", "urn:ietf:params:oauth:client-assertion-type:jwt-bearer")
 	form.Add("client_assertion", signedString)
 
-	req := httptest.NewRequest("POST", "/v2/token", strings.NewReader(form.Encode()))
+	req := httptest.NewRequestWithContext(s.ctx, "POST", "/v2/token", strings.NewReader(form.Encode()))
 	req.Header.Add("Accept", constants.HeaderApplicationJSON)
 	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 
@@ -1070,7 +1087,7 @@ func (s *APITestSuite) TestAuthenticatingWithJWTWithMissingJTI() {
 	assert.Nil(s.T(), err)
 
 	form := buildClientAssertionForm(signedString)
-	req := buildClientAssertionRequest(form)
+	req := buildClientAssertionRequest(s.ctx, form)
 
 	//handler := http.HandlerFunc(tokenV2)
 	handler := service.NewCtxLogger(http.HandlerFunc(tokenV2))
@@ -1087,7 +1104,7 @@ func (s *APITestSuite) TestAuthenticatingWithJWTWithMissingSubjectClaim() {
 	assert.Nil(s.T(), errors)
 
 	form := buildClientAssertionForm(clientAssertion)
-	req := buildClientAssertionRequest(form)
+	req := buildClientAssertionRequest(s.ctx, form)
 
 	//handler := http.HandlerFunc(tokenV2)
 	handler := service.NewCtxLogger(http.HandlerFunc(tokenV2))
@@ -1098,8 +1115,8 @@ func (s *APITestSuite) TestAuthenticatingWithJWTWithMissingSubjectClaim() {
 	assert.Nil(s.T(), err)
 }
 
-func buildClientAssertionRequest(form url.Values) *http.Request {
-	req := httptest.NewRequest("POST", "/v2/token", strings.NewReader(form.Encode()))
+func buildClientAssertionRequest(ctx context.Context, form url.Values) *http.Request {
+	req := httptest.NewRequestWithContext(ctx, "POST", "/v2/token", strings.NewReader(form.Encode()))
 	req.Header.Add("Accept", constants.HeaderApplicationJSON)
 	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 	return req
@@ -1125,7 +1142,7 @@ func (s *APITestSuite) TestClientAssertionAuthWithBadScopeParam() {
 
 	//Invalid scope value
 	form.Set("scope", "system/invalid")
-	req := httptest.NewRequest("POST", "/v2/token", strings.NewReader(form.Encode()))
+	req := httptest.NewRequestWithContext(s.ctx, "POST", "/v2/token", strings.NewReader(form.Encode()))
 	req.Header.Set("Accept", constants.HeaderApplicationJSON)
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	handler.ServeHTTP(s.rr, req)
@@ -1139,7 +1156,7 @@ func (s *APITestSuite) TestClientAssertionAuthWithBadAcceptHeader() {
 	handler := service.NewCtxLogger(http.HandlerFunc(tokenV2))
 
 	//Invalid accept header value
-	req := httptest.NewRequest("POST", "/v2/token", strings.NewReader(form.Encode()))
+	req := httptest.NewRequestWithContext(s.ctx, "POST", "/v2/token", strings.NewReader(form.Encode()))
 	req.Header.Set("Accept", "application/txt")
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	handler.ServeHTTP(s.rr, req)
@@ -1152,13 +1169,13 @@ func (s *APITestSuite) TestClientAssertionAuthWithBadContentTypeHeader() {
 	//handler := http.HandlerFunc(tokenV2)
 	handler := service.NewCtxLogger(http.HandlerFunc(tokenV2))
 	//Missing Content-Type header
-	req := httptest.NewRequest("POST", "/v2/token", strings.NewReader(form.Encode()))
+	req := httptest.NewRequestWithContext(s.ctx, "POST", "/v2/token", strings.NewReader(form.Encode()))
 	req.Header.Set("Accept", constants.HeaderApplicationJSON)
 	handler.ServeHTTP(s.rr, req)
 	s.verifyErrorResponse(http.StatusBadRequest, "missing Content-Type header")
 
 	//Invalid Content-Type header value
-	req = httptest.NewRequest("POST", "/v2/token", strings.NewReader(form.Encode()))
+	req = httptest.NewRequestWithContext(s.ctx, "POST", "/v2/token", strings.NewReader(form.Encode()))
 	req.Header.Set("Accept", constants.HeaderApplicationJSON)
 	req.Header.Set("Content-Type", "application/bad-type")
 	handler.ServeHTTP(s.rr, req)
@@ -1173,7 +1190,7 @@ func (s *APITestSuite) TestClientAssertionAuthWithBadGrantTypeParam() {
 	handler := service.NewCtxLogger(http.HandlerFunc(tokenV2))
 
 	//Invalid grant_type param
-	req := httptest.NewRequest("POST", "/v2/token", strings.NewReader(form.Encode()))
+	req := httptest.NewRequestWithContext(s.ctx, "POST", "/v2/token", strings.NewReader(form.Encode()))
 	req.Header.Add("Accept", constants.HeaderApplicationJSON)
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	handler.ServeHTTP(s.rr, req)
@@ -1188,7 +1205,7 @@ func (s *APITestSuite) TestClientAssertionAuthWithBadClientAssertionTypeParam() 
 
 	//Invalid client_assertion_type param
 	form.Set("client_assertion_type", "invalid_client_assertion_type")
-	req := httptest.NewRequest("POST", "/v2/token", strings.NewReader(form.Encode()))
+	req := httptest.NewRequestWithContext(s.ctx, "POST", "/v2/token", strings.NewReader(form.Encode()))
 	req.Header.Add("Accept", constants.HeaderApplicationJSON)
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	handler.ServeHTTP(s.rr, req)
@@ -1203,7 +1220,7 @@ func (s *APITestSuite) TestClientAssertionAuthWithMissingClientAssertionParam() 
 	handler := service.NewCtxLogger(http.HandlerFunc(tokenV2))
 
 	//Missing client_assertion param
-	req := httptest.NewRequest("POST", "/v2/token", strings.NewReader(form.Encode()))
+	req := httptest.NewRequestWithContext(s.ctx, "POST", "/v2/token", strings.NewReader(form.Encode()))
 	req.Header.Set("Accept", constants.HeaderApplicationJSON)
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 
@@ -1246,7 +1263,7 @@ func (s *APITestSuite) TestGetTokenInfo() {
 
 	body := fmt.Sprintf("{\"token\":\"%s\"}", access)
 
-	req := httptest.NewRequest("POST", "/token_info", strings.NewReader(body))
+	req := httptest.NewRequestWithContext(s.ctx, "POST", "/token_info", strings.NewReader(body))
 	rctx := chi.NewRouteContext()
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
 	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry))
@@ -1265,7 +1282,7 @@ func (s *APITestSuite) TestGetTokenInfo() {
 
 func (s *APITestSuite) TestGetTokenInfoWithMissingToken() {
 	body := "{}"
-	req := httptest.NewRequest("POST", "/token_info", strings.NewReader(body))
+	req := httptest.NewRequestWithContext(s.ctx, "POST", "/token_info", strings.NewReader(body))
 	rCtx := chi.NewRouteContext()
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rCtx))
 	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry))
@@ -1283,7 +1300,7 @@ func (s *APITestSuite) TestGetTokenInfoWithMissingToken() {
 
 func (s *APITestSuite) TestGetTokenInfoWithEmptyToken() {
 	body := `{"token":""}`
-	req := httptest.NewRequest("POST", "/token_info", strings.NewReader(body))
+	req := httptest.NewRequestWithContext(s.ctx, "POST", "/token_info", strings.NewReader(body))
 	rCtx := chi.NewRouteContext()
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rCtx))
 	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry))
@@ -1301,7 +1318,7 @@ func (s *APITestSuite) TestGetTokenInfoWithEmptyToken() {
 func (s *APITestSuite) TestGetTokenInfoWithCorruptToken() {
 	body := `{"token":"dafdasfdsfadfdasfdsafadsfadsf"}`
 
-	req := httptest.NewRequest("POST", "/token_info", strings.NewReader(body))
+	req := httptest.NewRequestWithContext(s.ctx, "POST", "/token_info", strings.NewReader(body))
 	rCtx := chi.NewRouteContext()
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rCtx))
 	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry))
@@ -1318,7 +1335,7 @@ func (s *APITestSuite) TestGetTokenInfoWithExpiredToken() {
 	time.Sleep(5 * time.Second)
 
 	body := fmt.Sprintf("{\"token\":\"%s\"}", access)
-	req := httptest.NewRequest("POST", "/token_info", strings.NewReader(body))
+	req := httptest.NewRequestWithContext(s.ctx, "POST", "/token_info", strings.NewReader(body))
 	rCtx := chi.NewRouteContext()
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rCtx))
 	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry))
@@ -1331,9 +1348,9 @@ func (s *APITestSuite) TestGetTokenInfoWithExpiredToken() {
 
 func (s *APITestSuite) MintTestAccessTokenWithDuration(duration time.Duration) (*jwt.Token, string, error) {
 	creds, _ := ssas.CreateTestXDataV2(s.T(), s.db)
-	system, err := ssas.GetSystemByClientID(context.Background(), creds.ClientID)
+	system, err := ssas.GetSystemByClientID(s.ctx, creds.ClientID)
 	assert.Nil(s.T(), err)
-	data, err := ssas.XDataFor(context.Background(), system)
+	data, err := ssas.XDataFor(s.ctx, system)
 	assert.Nil(s.T(), err)
 
 	claims := service.CommonClaims{

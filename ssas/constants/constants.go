@@ -19,3 +19,8 @@ const Application = "ssas"
 type CtxSGAKeyType string
 
 const CtxSGAKey CtxSGAKeyType = "CtxSGAKey"
+
+// Sets bool that allows skipping of SGA authorization checks
+type CtxSGASkipAuthType string
+
+const CtxSGASkipAuthKey CtxSGASkipAuthType = "CtxSGASkipAuthKey"

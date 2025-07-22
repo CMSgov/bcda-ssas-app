@@ -69,6 +69,11 @@ func (s *PublicRouterTestSuite) TestTokenRoute() {
 	assert.Equal(s.T(), http.StatusBadRequest, res.StatusCode)
 }
 
+func (s *PublicRouterTestSuite) TestIntrospectRoute() {
+	res := s.reqPublicRoute("POST", "/introspect", nil, "")
+	assert.Equal(s.T(), http.StatusUnauthorized, res.StatusCode)
+}
+
 func (s *PublicRouterTestSuite) TestRegisterRoute() {
 	groupIDs := []string{"T1234", "T0001"}
 	_, ts, _ := MintRegistrationToken("test_okta_id", groupIDs)
@@ -100,3 +105,13 @@ func (s *PublicRouterTestSuite) TestResetRouteNoToken() {
 func TestPublicRouterTestSuite(t *testing.T) {
 	suite.Run(t, new(PublicRouterTestSuite))
 }
+
+// func TestPublicRouterTestSuite_With_SGA_ADMIN_FEATURE(t *testing.T) {
+// 	newFF := "true"
+// 	oldFF := os.Getenv("SGA_ADMIN_FEATURE")
+// 	os.Setenv("SGA_ADMIN_FEATURE", newFF)
+
+// 	suite.Run(t, new(PublicRouterTestSuite))
+
+// 	os.Setenv("SGA_ADMIN_FEATURE", oldFF)
+// }
