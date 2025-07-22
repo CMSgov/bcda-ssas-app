@@ -674,10 +674,14 @@ func GetSGAKeyByGroupID(ctx context.Context, groupID string) (string, error) {
 	)
 
 	if err = Connection.WithContext(ctx).Where("group_id = ? AND deleted_at IS NULL", groupID).Find(&systems).Error; err != nil {
-		return "", fmt.Errorf("no Systems found with group_id %s", groupID)
+		err = fmt.Errorf("no Systems found with group_id %s", groupID)
 	}
 
-	return systems[0].SGAKey, nil
+	if len(systems) > 0 {
+		return systems[0].SGAKey, err
+	} else {
+		return "", err
+	}
 }
 
 // GetSystemByClientID returns the system associated with the provided clientID

@@ -9,10 +9,12 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strconv"
 	"strings"
 	"testing"
 
+	"github.com/CMSgov/bcda-ssas-app/ssas/constants"
 	"github.com/CMSgov/bcda-ssas-app/ssas/service"
 	"github.com/pborman/uuid"
 	"github.com/sirupsen/logrus"
@@ -63,6 +65,7 @@ type APITestSuite struct {
 	suite.Suite
 	db       *gorm.DB
 	logEntry *ssas.APILoggerEntry
+	ctx      context.Context
 }
 
 func (s *APITestSuite) SetupSuite() {
@@ -70,6 +73,12 @@ func (s *APITestSuite) SetupSuite() {
 	service.StartBlacklist()
 	ssas.MaxIPs = 3
 	s.logEntry = MakeTestStructuredLoggerEntry(logrus.Fields{"cms_id": "A9999", "request_id": uuid.NewUUID().String()})
+
+	if os.Getenv("SGA_ADMIN_FEATURE") == "true" {
+		s.ctx = context.WithValue(context.Background(), constants.CtxSGAKey, "test-sga")
+	} else {
+		s.ctx = context.Background()
+	}
 }
 
 func (s *APITestSuite) TearDownSuite() {
@@ -80,12 +89,22 @@ func TestAPITestSuite(t *testing.T) {
 	suite.Run(t, new(APITestSuite))
 }
 
+func TestAPITestSuite_With_SGA_ADMIN_FEATURE(t *testing.T) {
+	newFF := "true"
+	oldFF := os.Getenv("SGA_ADMIN_FEATURE")
+	os.Setenv("SGA_ADMIN_FEATURE", newFF)
+
+	suite.Run(t, new(APITestSuite))
+
+	os.Setenv("SGA_ADMIN_FEATURE", oldFF)
+}
+
 func (s *APITestSuite) TestCreateGroup() {
 
 	gid := ssas.RandomBase64(16)
 	testInput := fmt.Sprintf(SampleGroup, gid, SampleXdata)
 
-	req := httptest.NewRequest("POST", "/group", strings.NewReader(testInput))
+	req := httptest.NewRequestWithContext(s.ctx, "POST", "/group", strings.NewReader(testInput))
 	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry))
 
 	logger := ssas.GetLogger(ssas.Logger)
@@ -118,7 +137,7 @@ func (s *APITestSuite) TestCreateGroup() {
 func (s *APITestSuite) TestCreateGroupFailure() {
 	gid := ssas.RandomBase64(16)
 	testInput := fmt.Sprintf(SampleGroup, gid, SampleXdata)
-	req := httptest.NewRequest("POST", "/group", strings.NewReader(testInput))
+	req := httptest.NewRequestWithContext(s.ctx, "POST", "/group", strings.NewReader(testInput))
 	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry))
 	handler := http.HandlerFunc(createGroup)
 	rr := httptest.NewRecorder()
@@ -136,7 +155,7 @@ func (s *APITestSuite) TestCreateGroupFailure() {
 func (s *APITestSuite) TestCreateGroupEmptyGroupId() {
 	gid := ""
 	testInput := fmt.Sprintf(SampleGroup, gid, SampleXdata)
-	req := httptest.NewRequest("POST", "/group", strings.NewReader(testInput))
+	req := httptest.NewRequestWithContext(s.ctx, "POST", "/group", strings.NewReader(testInput))
 	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry))
 	handler := http.HandlerFunc(createGroup)
 	rr := httptest.NewRecorder()
@@ -160,7 +179,7 @@ func (s *APITestSuite) TestListGroups() {
 	g2, err := ssas.CreateGroup(context.Background(), gd)
 	assert.Nil(s.T(), err)
 
-	req := httptest.NewRequest("GET", "/group", nil)
+	req := httptest.NewRequestWithContext(s.ctx, "GET", "/group", nil)
 	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry))
 	handler := http.HandlerFunc(listGroups)
 	rr := httptest.NewRecorder()
@@ -201,7 +220,7 @@ func (s *APITestSuite) TestUpdateGroup() {
 	assert.Nil(s.T(), err)
 
 	url := fmt.Sprintf("/group/%v", g.ID)
-	req := httptest.NewRequest("PUT", url, strings.NewReader(testInput))
+	req := httptest.NewRequestWithContext(s.ctx, "PUT", url, strings.NewReader(testInput))
 	rctx := chi.NewRouteContext()
 	rctx.URLParams.Add("id", fmt.Sprint(g.ID))
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
@@ -224,7 +243,7 @@ func (s *APITestSuite) TestUpdateGroupBadGroupID() {
 
 	// No group exists
 	url := fmt.Sprintf("/group/%v", gid)
-	req := httptest.NewRequest("PUT", url, strings.NewReader(testInput))
+	req := httptest.NewRequestWithContext(s.ctx, "PUT", url, strings.NewReader(testInput))
 	rctx := chi.NewRouteContext()
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
 	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry))
@@ -238,7 +257,7 @@ func (s *APITestSuite) TestRevokeToken() {
 	tokenID := "abc-123-def-456"
 
 	url := fmt.Sprintf("/token/%s", tokenID)
-	req := httptest.NewRequest("DELETE", url, nil)
+	req := httptest.NewRequestWithContext(s.ctx, "DELETE", url, nil)
 	rctx := chi.NewRouteContext()
 	rctx.URLParams.Add("tokenID", tokenID)
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
@@ -256,7 +275,7 @@ func (s *APITestSuite) TestRevokeTokenNoToken() {
 	tokenID := ""
 
 	url := fmt.Sprintf("/token/%s", tokenID)
-	req := httptest.NewRequest("DELETE", url, nil)
+	req := httptest.NewRequestWithContext(s.ctx, "DELETE", url, nil)
 	rctx := chi.NewRouteContext()
 	rctx.URLParams.Add("tokenID", tokenID)
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
@@ -280,7 +299,7 @@ func (s *APITestSuite) TestDeleteGroup() {
 	assert.Nil(s.T(), err)
 
 	url := fmt.Sprintf("/group/%v", g.ID)
-	req := httptest.NewRequest("DELETE", url, nil)
+	req := httptest.NewRequestWithContext(s.ctx, "DELETE", url, nil)
 	rctx := chi.NewRouteContext()
 	rctx.URLParams.Add("id", fmt.Sprint(g.ID))
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
@@ -303,7 +322,7 @@ func (s *APITestSuite) TestCreateSystem() {
 		s.FailNow("Error creating test data", err.Error())
 	}
 
-	req := httptest.NewRequest("POST", "/system", strings.NewReader(`{"client_name": "Test Client", "group_id": "test-group-id", "scope": "bcda-api", "public_key": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEArhxobShmNifzW3xznB+L\nI8+hgaePpSGIFCtFz2IXGU6EMLdeufhADaGPLft9xjwdN1ts276iXQiaChKPA2CK\n/CBpuKcnU3LhU8JEi7u/db7J4lJlh6evjdKVKlMuhPcljnIKAiGcWln3zwYrFCeL\ncN0aTOt4xnQpm8OqHawJ18y0WhsWT+hf1DeBDWvdfRuAPlfuVtl3KkrNYn1yqCgQ\nlT6v/WyzptJhSR1jxdR7XLOhDGTZUzlHXh2bM7sav2n1+sLsuCkzTJqWZ8K7k7cI\nXK354CNpCdyRYUAUvr4rORIAUmcIFjaR3J4y/Dh2JIyDToOHg7vjpCtNnNoS+ON2\nHwIDAQAB\n-----END PUBLIC KEY-----", "tracking_id": "T00000"}`))
+	req := httptest.NewRequestWithContext(s.ctx, "POST", "/system", strings.NewReader(`{"client_name": "Test Client", "group_id": "test-group-id", "scope": "bcda-api", "public_key": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEArhxobShmNifzW3xznB+L\nI8+hgaePpSGIFCtFz2IXGU6EMLdeufhADaGPLft9xjwdN1ts276iXQiaChKPA2CK\n/CBpuKcnU3LhU8JEi7u/db7J4lJlh6evjdKVKlMuhPcljnIKAiGcWln3zwYrFCeL\ncN0aTOt4xnQpm8OqHawJ18y0WhsWT+hf1DeBDWvdfRuAPlfuVtl3KkrNYn1yqCgQ\nlT6v/WyzptJhSR1jxdR7XLOhDGTZUzlHXh2bM7sav2n1+sLsuCkzTJqWZ8K7k7cI\nXK354CNpCdyRYUAUvr4rORIAUmcIFjaR3J4y/Dh2JIyDToOHg7vjpCtNnNoS+ON2\nHwIDAQAB\n-----END PUBLIC KEY-----", "tracking_id": "T00000"}`))
 	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry))
 	handler := http.Handler(service.NewCtxLogger(http.HandlerFunc(createSystem)))
 	rr := httptest.NewRecorder()
@@ -342,7 +361,7 @@ func (s *APITestSuite) TestCreateSystemMultipleIps() {
 	}
 
 	reqBody := fmt.Sprintf(`{"client_name": "Test Client", "group_id": "test-group-id", "scope": "bcda-api", "ips": ["%s", "%s"],"tracking_id": "T00000"}`, randomIPv4, randomIPv6)
-	req := httptest.NewRequest("POST", "/auth/system", strings.NewReader(reqBody))
+	req := httptest.NewRequestWithContext(s.ctx, "POST", "/auth/system", strings.NewReader(reqBody))
 	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry))
 	handler := http.HandlerFunc(createSystem)
 	rr := httptest.NewRecorder()
@@ -375,7 +394,7 @@ func (s *APITestSuite) TestCreateSystemBadIp() {
 		s.FailNow("Error creating test data", err.Error())
 	}
 
-	req := httptest.NewRequest("POST", "/auth/system", strings.NewReader(`{"client_name": "Test Client", "group_id": "test-group-id", "scope": "bcda-api", ips: ["304.0.2.1/32"],"tracking_id": "T00000"}`))
+	req := httptest.NewRequestWithContext(s.ctx, "POST", "/auth/system", strings.NewReader(`{"client_name": "Test Client", "group_id": "test-group-id", "scope": "bcda-api", ips: ["304.0.2.1/32"],"tracking_id": "T00000"}`))
 	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry))
 	handler := http.HandlerFunc(createSystem)
 	rr := httptest.NewRecorder()
@@ -393,7 +412,7 @@ func (s *APITestSuite) TestCreateSystemEmptyKey() {
 		s.FailNow("Error creating test data", err.Error())
 	}
 
-	req := httptest.NewRequest("POST", "/auth/system", strings.NewReader(`{"client_name": "Test Client", "group_id": "test-group-id", "scope": "bcda-api", "public_key": "", "tracking_id": "T00000"}`))
+	req := httptest.NewRequestWithContext(s.ctx, "POST", "/auth/system", strings.NewReader(`{"client_name": "Test Client", "group_id": "test-group-id", "scope": "bcda-api", "public_key": "", "tracking_id": "T00000"}`))
 	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry))
 	handler := http.HandlerFunc(createSystem)
 	rr := httptest.NewRecorder()
@@ -417,7 +436,7 @@ func (s *APITestSuite) TestCreateSystemNoKey() {
 		s.FailNow("Error creating test data", err.Error())
 	}
 
-	req := httptest.NewRequest("POST", "/auth/system", strings.NewReader(`{"client_name": "Test Client", "group_id": "test-group-id", "scope": "bcda-api", "tracking_id": "T00000"}`))
+	req := httptest.NewRequestWithContext(s.ctx, "POST", "/auth/system", strings.NewReader(`{"client_name": "Test Client", "group_id": "test-group-id", "scope": "bcda-api", "tracking_id": "T00000"}`))
 	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry))
 	handler := http.HandlerFunc(createSystem)
 	rr := httptest.NewRecorder()
@@ -435,7 +454,7 @@ func (s *APITestSuite) TestCreateSystemNoKey() {
 }
 
 func (s *APITestSuite) TestCreateSystemInvalidRequest() {
-	req := httptest.NewRequest("POST", "/auth/system", strings.NewReader("{ badJSON }"))
+	req := httptest.NewRequestWithContext(s.ctx, "POST", "/auth/system", strings.NewReader("{ badJSON }"))
 	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry))
 	handler := http.HandlerFunc(createSystem)
 	rr := httptest.NewRecorder()
@@ -444,7 +463,7 @@ func (s *APITestSuite) TestCreateSystemInvalidRequest() {
 }
 
 func (s *APITestSuite) TestCreateSystemMissingRequiredParam() {
-	req := httptest.NewRequest("POST", "/auth/system", strings.NewReader(`{"group_id": "T00001", "client_name": "Test Client 1", "scope": "bcda-api"}`))
+	req := httptest.NewRequestWithContext(s.ctx, "POST", "/auth/system", strings.NewReader(`{"group_id": "T00001", "client_name": "Test Client 1", "scope": "bcda-api"}`))
 	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry))
 	handler := http.HandlerFunc(createSystem)
 	rr := httptest.NewRecorder()
@@ -464,7 +483,7 @@ func (s *APITestSuite) TestResetCredentials() {
 	s.db.Create(&secret)
 
 	systemID := strconv.FormatUint(uint64(system.ID), 10)
-	req := httptest.NewRequest("PUT", "/system/"+systemID+"/credentials", nil)
+	req := httptest.NewRequestWithContext(s.ctx, "PUT", "/system/"+systemID+"/credentials", nil)
 	rctx := chi.NewRouteContext()
 	rctx.URLParams.Add("systemID", systemID)
 
@@ -499,7 +518,7 @@ func (s *APITestSuite) TestResetCredentials() {
 
 func (s *APITestSuite) TestResetCredentialsInvalidSystemID() {
 	systemID := "999"
-	req := httptest.NewRequest("PUT", "/system/"+systemID+"/credentials", nil)
+	req := httptest.NewRequestWithContext(s.ctx, "PUT", "/system/"+systemID+"/credentials", nil)
 	rctx := chi.NewRouteContext()
 	rctx.URLParams.Add("systemID", systemID)
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
@@ -513,7 +532,7 @@ func (s *APITestSuite) TestResetCredentialsInvalidSystemID() {
 
 func (s *APITestSuite) TestGetPublicKeyBadSystemID() {
 	systemID := strconv.FormatUint(uint64(9999), 10)
-	req := httptest.NewRequest("GET", "/system/"+systemID+"/key", nil)
+	req := httptest.NewRequestWithContext(s.ctx, "GET", "/system/"+systemID+"/key", nil)
 	rctx := chi.NewRouteContext()
 	rctx.URLParams.Add("systemID", systemID)
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
@@ -549,7 +568,7 @@ func (s *APITestSuite) TestGetPublicKey() {
 	}
 
 	systemID := strconv.FormatUint(uint64(system.ID), 10)
-	req := httptest.NewRequest("GET", "/system/"+systemID+"/key", nil)
+	req := httptest.NewRequestWithContext(s.ctx, "GET", "/system/"+systemID+"/key", nil)
 	rctx := chi.NewRouteContext()
 	rctx.URLParams.Add("systemID", systemID)
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
@@ -603,7 +622,7 @@ func (s *APITestSuite) TestGetPublicKeyRotation() {
 	assert.NotEqual(s.T(), rk1.UUID, rk2.UUID)
 
 	systemID := strconv.FormatUint(uint64(system.ID), 10)
-	req := httptest.NewRequest("GET", "/system/"+systemID+"/key", nil)
+	req := httptest.NewRequestWithContext(s.ctx, "GET", "/system/"+systemID+"/key", nil)
 	rctx := chi.NewRouteContext()
 	rctx.URLParams.Add("systemID", systemID)
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
@@ -631,7 +650,7 @@ func (s *APITestSuite) TestGetPublicKeyRotation() {
 
 func (s *APITestSuite) TestDeactivateSystemCredentialsNotFound() {
 	systemID := strconv.FormatUint(uint64(9999), 10)
-	req := httptest.NewRequest("DELETE", "/system/"+systemID+"/credentials", nil)
+	req := httptest.NewRequestWithContext(s.ctx, "DELETE", "/system/"+systemID+"/credentials", nil)
 	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry))
 	rctx := chi.NewRouteContext()
 	rctx.URLParams.Add("systemID", systemID)
@@ -654,7 +673,7 @@ func (s *APITestSuite) TestDeactivateSystemCredentials() {
 	s.db.Create(&secret)
 
 	systemID := strconv.FormatUint(uint64(system.ID), 10)
-	req := httptest.NewRequest("DELETE", "/system/"+systemID+"/credentials", nil)
+	req := httptest.NewRequestWithContext(s.ctx, "DELETE", "/system/"+systemID+"/credentials", nil)
 	rctx := chi.NewRouteContext()
 	rctx.URLParams.Add("systemID", systemID)
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
@@ -697,7 +716,7 @@ func (s *APITestSuite) TestGetSystemIPs() {
 	s.db.Create(&system)
 
 	systemID := strconv.FormatUint(uint64(system.ID), 10)
-	req := httptest.NewRequest("GET", "/system/"+systemID+"/ip", nil)
+	req := httptest.NewRequestWithContext(s.ctx, "GET", "/system/"+systemID+"/ip", nil)
 	rctx := chi.NewRouteContext()
 	rctx.URLParams.Add("systemID", systemID)
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
@@ -746,7 +765,7 @@ func (s *APITestSuite) TestGetSystemIPsBadSystem() {
 	badSysId := 42
 
 	systemID := strconv.FormatUint(uint64(badSysId), 10) // #nosec G115
-	req := httptest.NewRequest("GET", "/system/"+systemID+"/ip", nil)
+	req := httptest.NewRequestWithContext(s.ctx, "GET", "/system/"+systemID+"/ip", nil)
 	rctx := chi.NewRouteContext()
 	rctx.URLParams.Add("systemID", systemID)
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
@@ -766,7 +785,7 @@ func (s *APITestSuite) TestRegisterSystemIP() {
 
 	systemID := strconv.FormatUint(uint64(system.ID), 10)
 	body := `{"address":"2.5.22.81"}`
-	req := httptest.NewRequest("POST", "/system/"+systemID+"/ip", strings.NewReader(body))
+	req := httptest.NewRequestWithContext(s.ctx, "POST", "/system/"+systemID+"/ip", strings.NewReader(body))
 	rctx := chi.NewRouteContext()
 	rctx.URLParams.Add("systemID", systemID)
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
@@ -779,7 +798,7 @@ func (s *APITestSuite) TestRegisterSystemIP() {
 	assert.Equal(s.T(), "application/json", rr.Result().Header.Get("Content-Type"))
 
 	//Retrieve to confirm
-	req = httptest.NewRequest("GET", "/system/"+systemID+"/ip", nil)
+	req = httptest.NewRequestWithContext(s.ctx, "GET", "/system/"+systemID+"/ip", nil)
 	rctx = chi.NewRouteContext()
 	rctx.URLParams.Add("systemID", systemID)
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
@@ -805,7 +824,7 @@ func (s *APITestSuite) TestRegisterInvalidIP() {
 
 	systemID := strconv.FormatUint(uint64(system.ID), 10)
 	body := `{"address":"600.1"}`
-	req := httptest.NewRequest("POST", "/system/"+systemID+"/ip", strings.NewReader(body))
+	req := httptest.NewRequestWithContext(s.ctx, "POST", "/system/"+systemID+"/ip", strings.NewReader(body))
 	rctx := chi.NewRouteContext()
 	rctx.URLParams.Add("systemID", systemID)
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
@@ -835,7 +854,7 @@ func (s *APITestSuite) TestRegisterMaxSystemIP() {
 	//Max is 3 (for test), 4th should produce error
 	systemID := strconv.FormatUint(uint64(system.ID), 10)
 	body := `{"address":"2.5.22.84"}`
-	req := httptest.NewRequest("POST", "/system/"+systemID+"/ip", strings.NewReader(body))
+	req := httptest.NewRequestWithContext(s.ctx, "POST", "/system/"+systemID+"/ip", strings.NewReader(body))
 	rctx := chi.NewRouteContext()
 	rctx.URLParams.Add("systemID", systemID)
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
@@ -862,7 +881,7 @@ func (s *APITestSuite) TestRegisterDuplicateSystemIP() {
 
 	systemID := strconv.FormatUint(uint64(system.ID), 10)
 	body := `{"address":"2.5.22.81"}`
-	req := httptest.NewRequest("POST", "/system/"+systemID+"/ip", strings.NewReader(body))
+	req := httptest.NewRequestWithContext(s.ctx, "POST", "/system/"+systemID+"/ip", strings.NewReader(body))
 	rctx := chi.NewRouteContext()
 	rctx.URLParams.Add("systemID", systemID)
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
@@ -884,7 +903,7 @@ func (s *APITestSuite) TestRegisterSystemIPInvalidBody() {
 
 	systemID := strconv.FormatUint(uint64(system.ID), 10)
 	body := `{"addr":"2.5.22.81"}`
-	req := httptest.NewRequest("POST", "/system/"+systemID+"/ip", strings.NewReader(body))
+	req := httptest.NewRequestWithContext(s.ctx, "POST", "/system/"+systemID+"/ip", strings.NewReader(body))
 	rctx := chi.NewRouteContext()
 	rctx.URLParams.Add("systemID", systemID)
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
@@ -899,7 +918,7 @@ func (s *APITestSuite) TestRegisterSystemIPInvalidBody() {
 
 func (s *APITestSuite) TestRegisterSystemIPSystemNotFound() {
 	body := `{"address":"2.5.22.81"}`
-	req := httptest.NewRequest("POST", "/system/123/ip", strings.NewReader(body))
+	req := httptest.NewRequestWithContext(s.ctx, "POST", "/system/123/ip", strings.NewReader(body))
 	rctx := chi.NewRouteContext()
 	rctx.URLParams.Add("systemID", "123")
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
@@ -924,7 +943,7 @@ func (s *APITestSuite) TestDeleteIP() {
 
 	// Fetch IPs associated with system
 	systemID := strconv.FormatUint(uint64(system.ID), 10)
-	req := httptest.NewRequest("GET", "/system/"+systemID+"/ip", nil)
+	req := httptest.NewRequestWithContext(s.ctx, "GET", "/system/"+systemID+"/ip", nil)
 	rctx := chi.NewRouteContext()
 
 	rctx.URLParams.Add("systemID", systemID)
@@ -944,7 +963,7 @@ func (s *APITestSuite) TestDeleteIP() {
 	ipID := strconv.FormatUint(uint64(ips[0].ID), 10)
 
 	// Delete IP
-	req = httptest.NewRequest("DELETE", "/system/"+systemID+"/ip/"+ipID, nil)
+	req = httptest.NewRequestWithContext(s.ctx, "DELETE", "/system/"+systemID+"/ip/"+ipID, nil)
 	rctx.URLParams.Add("id", ipID)
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
 	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry))
@@ -961,7 +980,7 @@ func (s *APITestSuite) TestDeleteIP() {
 }
 
 func (s *APITestSuite) TestDeleteIPSystemNotFound() {
-	req := httptest.NewRequest("DELETE", "/system/123/ip/123", nil)
+	req := httptest.NewRequestWithContext(s.ctx, "DELETE", "/system/123/ip/123", nil)
 	rctx := chi.NewRouteContext()
 
 	rctx.URLParams.Add("id", "123")
@@ -981,7 +1000,7 @@ func (s *APITestSuite) TestDeleteIPIPNotFound() {
 	s.db.Create(&system)
 
 	systemID := strconv.FormatUint(uint64(system.ID), 10)
-	req := httptest.NewRequest("DELETE", "/system/"+systemID+"/ip/123", nil)
+	req := httptest.NewRequestWithContext(s.ctx, "DELETE", "/system/"+systemID+"/ip/123", nil)
 	rctx := chi.NewRouteContext()
 
 	rctx.URLParams.Add("systemID", systemID)
@@ -1003,7 +1022,7 @@ func (s *APITestSuite) TestUpdateSystem() {
 	}
 
 	//Create system
-	req := httptest.NewRequest("POST", "/system", strings.NewReader(`{"client_name": "Test Client", "group_id": "test-group-id", "scope": "bcda-api", "public_key": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEArhxobShmNifzW3xznB+L\nI8+hgaePpSGIFCtFz2IXGU6EMLdeufhADaGPLft9xjwdN1ts276iXQiaChKPA2CK\n/CBpuKcnU3LhU8JEi7u/db7J4lJlh6evjdKVKlMuhPcljnIKAiGcWln3zwYrFCeL\ncN0aTOt4xnQpm8OqHawJ18y0WhsWT+hf1DeBDWvdfRuAPlfuVtl3KkrNYn1yqCgQ\nlT6v/WyzptJhSR1jxdR7XLOhDGTZUzlHXh2bM7sav2n1+sLsuCkzTJqWZ8K7k7cI\nXK354CNpCdyRYUAUvr4rORIAUmcIFjaR3J4y/Dh2JIyDToOHg7vjpCtNnNoS+ON2\nHwIDAQAB\n-----END PUBLIC KEY-----", "tracking_id": "T00000"}`))
+	req := httptest.NewRequestWithContext(s.ctx, "POST", "/system", strings.NewReader(`{"client_name": "Test Client", "group_id": "test-group-id", "scope": "bcda-api", "public_key": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEArhxobShmNifzW3xznB+L\nI8+hgaePpSGIFCtFz2IXGU6EMLdeufhADaGPLft9xjwdN1ts276iXQiaChKPA2CK\n/CBpuKcnU3LhU8JEi7u/db7J4lJlh6evjdKVKlMuhPcljnIKAiGcWln3zwYrFCeL\ncN0aTOt4xnQpm8OqHawJ18y0WhsWT+hf1DeBDWvdfRuAPlfuVtl3KkrNYn1yqCgQ\nlT6v/WyzptJhSR1jxdR7XLOhDGTZUzlHXh2bM7sav2n1+sLsuCkzTJqWZ8K7k7cI\nXK354CNpCdyRYUAUvr4rORIAUmcIFjaR3J4y/Dh2JIyDToOHg7vjpCtNnNoS+ON2\nHwIDAQAB\n-----END PUBLIC KEY-----", "tracking_id": "T00000"}`))
 	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry))
 	handler := http.HandlerFunc(createSystem)
 	rr := httptest.NewRecorder()
@@ -1014,7 +1033,7 @@ func (s *APITestSuite) TestUpdateSystem() {
 	sysId := result["system_id"].(string)
 
 	//Update Client name
-	req = httptest.NewRequest("Patch", V2_SYSTEM_ROUTE+sysId, strings.NewReader(`{"client_name": "Updated Client Name"}`))
+	req = httptest.NewRequestWithContext(s.ctx, "Patch", V2_SYSTEM_ROUTE+sysId, strings.NewReader(`{"client_name": "Updated Client Name"}`))
 	rctx := chi.NewRouteContext()
 	rctx.URLParams.Add("id", fmt.Sprint(sysId))
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
@@ -1030,7 +1049,7 @@ func (s *APITestSuite) TestUpdateSystem() {
 	assert.Equal(s.T(), "Updated Client Name", sys.ClientName)
 
 	//Update API Scope
-	req = httptest.NewRequest("Patch", V2_SYSTEM_ROUTE+sysId, strings.NewReader(`{"api_scope": "updated_scope"}`))
+	req = httptest.NewRequestWithContext(s.ctx, "Patch", V2_SYSTEM_ROUTE+sysId, strings.NewReader(`{"api_scope": "updated_scope"}`))
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
 	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry))
 	handler = http.HandlerFunc(updateSystem)
@@ -1044,7 +1063,7 @@ func (s *APITestSuite) TestUpdateSystem() {
 	assert.Equal(s.T(), "updated_scope", sys.APIScope)
 
 	//Update Software Id
-	req = httptest.NewRequest("Patch", V2_SYSTEM_ROUTE+sysId, strings.NewReader(`{"software_id": "42"}`))
+	req = httptest.NewRequestWithContext(s.ctx, "Patch", V2_SYSTEM_ROUTE+sysId, strings.NewReader(`{"software_id": "42"}`))
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
 	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry))
 	handler = http.HandlerFunc(updateSystem)
@@ -1058,7 +1077,7 @@ func (s *APITestSuite) TestUpdateSystem() {
 	assert.Equal(s.T(), "42", sys.SoftwareID)
 
 	//Update prohibited attributes
-	req = httptest.NewRequest("Patch", V2_SYSTEM_ROUTE+sysId, strings.NewReader(`{"client_id": "42"}`))
+	req = httptest.NewRequestWithContext(s.ctx, "Patch", V2_SYSTEM_ROUTE+sysId, strings.NewReader(`{"client_id": "42"}`))
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
 	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry))
 	handler = http.HandlerFunc(updateSystem)
@@ -1070,7 +1089,7 @@ func (s *APITestSuite) TestUpdateSystem() {
 	assert.Equal(s.T(), "attribute: client_id is not valid", result["error_description"])
 
 	//Update attributes with empty string
-	req = httptest.NewRequest("Patch", V2_SYSTEM_ROUTE+sysId, strings.NewReader(`{"api_scope": ""}`))
+	req = httptest.NewRequestWithContext(s.ctx, "Patch", V2_SYSTEM_ROUTE+sysId, strings.NewReader(`{"api_scope": ""}`))
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
 	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry))
 	handler = http.HandlerFunc(updateSystem)
@@ -1085,7 +1104,7 @@ func (s *APITestSuite) TestUpdateSystem() {
 	assert.Nil(s.T(), err)
 }
 func (s *APITestSuite) TestUpdateSystemWithInvalidBody() {
-	req := httptest.NewRequest("Patch", V2_SYSTEM_ROUTE+"0", strings.NewReader(`{"client_name": invalid json`))
+	req := httptest.NewRequestWithContext(s.ctx, "Patch", V2_SYSTEM_ROUTE+"0", strings.NewReader(`{"client_name": invalid json`))
 	rctx := chi.NewRouteContext()
 	rctx.URLParams.Add("id", "0")
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
@@ -1098,7 +1117,7 @@ func (s *APITestSuite) TestUpdateSystemWithInvalidBody() {
 }
 
 func (s *APITestSuite) TestUpdateNonExistingSystem() {
-	req := httptest.NewRequest("Patch", V2_SYSTEM_ROUTE+"-1", strings.NewReader(`{"client_name":"updated_client"}`))
+	req := httptest.NewRequestWithContext(s.ctx, "Patch", V2_SYSTEM_ROUTE+"-1", strings.NewReader(`{"client_name":"updated_client"}`))
 	rctx := chi.NewRouteContext()
 	rctx.URLParams.Add("id", "-1")
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
@@ -1127,7 +1146,7 @@ func (s *APITestSuite) TestCreateV2System() {
 		s.FailNow("Error creating test data", err.Error())
 	}
 
-	req := httptest.NewRequest("POST", "/v2/system", strings.NewReader(`{"client_name": "Test Client", "group_id": "test-group-id","xdata":"{\"org\":\"testOrgID\"}", "scope": "bcda-api", "public_key": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEArhxobShmNifzW3xznB+L\nI8+hgaePpSGIFCtFz2IXGU6EMLdeufhADaGPLft9xjwdN1ts276iXQiaChKPA2CK\n/CBpuKcnU3LhU8JEi7u/db7J4lJlh6evjdKVKlMuhPcljnIKAiGcWln3zwYrFCeL\ncN0aTOt4xnQpm8OqHawJ18y0WhsWT+hf1DeBDWvdfRuAPlfuVtl3KkrNYn1yqCgQ\nlT6v/WyzptJhSR1jxdR7XLOhDGTZUzlHXh2bM7sav2n1+sLsuCkzTJqWZ8K7k7cI\nXK354CNpCdyRYUAUvr4rORIAUmcIFjaR3J4y/Dh2JIyDToOHg7vjpCtNnNoS+ON2\nHwIDAQAB\n-----END PUBLIC KEY-----", "tracking_id": "T00000"}`))
+	req := httptest.NewRequestWithContext(s.ctx, "POST", "/v2/system", strings.NewReader(`{"client_name": "Test Client", "group_id": "test-group-id","xdata":"{\"org\":\"testOrgID\"}", "scope": "bcda-api", "public_key": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEArhxobShmNifzW3xznB+L\nI8+hgaePpSGIFCtFz2IXGU6EMLdeufhADaGPLft9xjwdN1ts276iXQiaChKPA2CK\n/CBpuKcnU3LhU8JEi7u/db7J4lJlh6evjdKVKlMuhPcljnIKAiGcWln3zwYrFCeL\ncN0aTOt4xnQpm8OqHawJ18y0WhsWT+hf1DeBDWvdfRuAPlfuVtl3KkrNYn1yqCgQ\nlT6v/WyzptJhSR1jxdR7XLOhDGTZUzlHXh2bM7sav2n1+sLsuCkzTJqWZ8K7k7cI\nXK354CNpCdyRYUAUvr4rORIAUmcIFjaR3J4y/Dh2JIyDToOHg7vjpCtNnNoS+ON2\nHwIDAQAB\n-----END PUBLIC KEY-----", "tracking_id": "T00000"}`))
 	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry))
 	handler := http.HandlerFunc(createV2System)
 	rr := httptest.NewRecorder()
@@ -1153,7 +1172,7 @@ func (s *APITestSuite) TestCreateV2SystemWithMissingPublicKey() {
 		s.FailNow("Error creating test data", err.Error())
 	}
 
-	req := httptest.NewRequest("POST", "/v2/system", strings.NewReader(`{"client_name": "Test Client", "group_id": "test-group-id", "scope": "bcda-api", "tracking_id": "T00000"}`))
+	req := httptest.NewRequestWithContext(s.ctx, "POST", "/v2/system", strings.NewReader(`{"client_name": "Test Client", "group_id": "test-group-id", "scope": "bcda-api", "tracking_id": "T00000"}`))
 	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry))
 	handler := http.HandlerFunc(createV2System)
 	rr := httptest.NewRecorder()
@@ -1182,7 +1201,7 @@ func (s *APITestSuite) TestCreateV2SystemMultipleIps() {
 	}
 
 	reqBody := fmt.Sprintf(`{"client_name": "Test Client", "group_id": "test-group-id", "scope": "bcda-api", "ips": ["%s", "%s"],"public_key": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEArhxobShmNifzW3xznB+L\nI8+hgaePpSGIFCtFz2IXGU6EMLdeufhADaGPLft9xjwdN1ts276iXQiaChKPA2CK\n/CBpuKcnU3LhU8JEi7u/db7J4lJlh6evjdKVKlMuhPcljnIKAiGcWln3zwYrFCeL\ncN0aTOt4xnQpm8OqHawJ18y0WhsWT+hf1DeBDWvdfRuAPlfuVtl3KkrNYn1yqCgQ\nlT6v/WyzptJhSR1jxdR7XLOhDGTZUzlHXh2bM7sav2n1+sLsuCkzTJqWZ8K7k7cI\nXK354CNpCdyRYUAUvr4rORIAUmcIFjaR3J4y/Dh2JIyDToOHg7vjpCtNnNoS+ON2\nHwIDAQAB\n-----END PUBLIC KEY-----","tracking_id": "T00000"}`, randomIPv4, randomIPv6)
-	req := httptest.NewRequest("POST", "/v2/system", strings.NewReader(reqBody))
+	req := httptest.NewRequestWithContext(s.ctx, "POST", "/v2/system", strings.NewReader(reqBody))
 	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry))
 	handler := http.HandlerFunc(createV2System)
 	rr := httptest.NewRecorder()
@@ -1215,7 +1234,7 @@ func (s *APITestSuite) TestCreateV2SystemBadIp() {
 		s.FailNow("Error creating test data", err.Error())
 	}
 
-	req := httptest.NewRequest("POST", "/v2/system", strings.NewReader(`{"client_name": "Test Client", "group_id": "test-group-id", "scope": "bcda-api", ips: ["304.0.2.1/32"],"tracking_id": "T00000"}`))
+	req := httptest.NewRequestWithContext(s.ctx, "POST", "/v2/system", strings.NewReader(`{"client_name": "Test Client", "group_id": "test-group-id", "scope": "bcda-api", ips: ["304.0.2.1/32"],"tracking_id": "T00000"}`))
 	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry))
 	handler := http.HandlerFunc(createV2System)
 	rr := httptest.NewRecorder()
@@ -1233,7 +1252,7 @@ func (s *APITestSuite) TestCreateV2SystemEmptyKey() {
 		s.FailNow("Error creating test data", err.Error())
 	}
 
-	req := httptest.NewRequest("POST", "/v2/system", strings.NewReader(`{"client_name": "Test Client", "group_id": "test-group-id", "scope": "bcda-api", "public_key": "", "tracking_id": "T00000"}`))
+	req := httptest.NewRequestWithContext(s.ctx, "POST", "/v2/system", strings.NewReader(`{"client_name": "Test Client", "group_id": "test-group-id", "scope": "bcda-api", "public_key": "", "tracking_id": "T00000"}`))
 	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry))
 	handler := http.HandlerFunc(createV2System)
 	rr := httptest.NewRecorder()
@@ -1252,7 +1271,7 @@ func (s *APITestSuite) TestCreateV2SystemEmptyKey() {
 }
 
 func (s *APITestSuite) TestCreateV2SystemInvalidRequest() {
-	req := httptest.NewRequest("POST", "/v2/system", strings.NewReader("{ badJSON }"))
+	req := httptest.NewRequestWithContext(s.ctx, "POST", "/v2/system", strings.NewReader("{ badJSON }"))
 	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry))
 	handler := http.HandlerFunc(createV2System)
 	rr := httptest.NewRecorder()
@@ -1261,7 +1280,7 @@ func (s *APITestSuite) TestCreateV2SystemInvalidRequest() {
 }
 
 func (s *APITestSuite) TestCreateV2SystemMissingRequiredParam() {
-	req := httptest.NewRequest("POST", "/v2/system", strings.NewReader(`{"group_id": "T00001", "client_name": "Test Client 1", "scope": "bcda-api"}`))
+	req := httptest.NewRequestWithContext(s.ctx, "POST", "/v2/system", strings.NewReader(`{"group_id": "T00001", "client_name": "Test Client 1", "scope": "bcda-api"}`))
 	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry))
 	handler := http.HandlerFunc(createV2System)
 	rr := httptest.NewRecorder()
@@ -1271,7 +1290,7 @@ func (s *APITestSuite) TestCreateV2SystemMissingRequiredParam() {
 
 func (s *APITestSuite) TestGetV2System() {
 	creds, _ := ssas.CreateTestXDataV2(s.T(), s.db)
-	req := httptest.NewRequest("GET", fmt.Sprintf("/v2/system/%s", creds.SystemID), nil)
+	req := httptest.NewRequestWithContext(s.ctx, "GET", fmt.Sprintf("/v2/system/%s", creds.SystemID), nil)
 	rctx := chi.NewRouteContext()
 	rctx.URLParams.Add("id", creds.SystemID)
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
@@ -1302,7 +1321,7 @@ func (s *APITestSuite) TestGetV2SystemInactive() {
 	creds, _ := ssas.CreateTestXDataV2(s.T(), s.db)
 	s.db.Delete(&ssas.System{}, creds.SystemID)
 
-	req := httptest.NewRequest("GET", fmt.Sprintf("/v2/system/%s", creds.SystemID), nil)
+	req := httptest.NewRequestWithContext(s.ctx, "GET", fmt.Sprintf("/v2/system/%s", creds.SystemID), nil)
 	rctx := chi.NewRouteContext()
 	rctx.URLParams.Add("id", creds.SystemID)
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
@@ -1321,7 +1340,7 @@ func (s *APITestSuite) TestGetV2SystemInactive() {
 func (s *APITestSuite) TestCreateAndDeleteAdditionalV2SystemToken() {
 	creds, _ := ssas.CreateTestXDataV2(s.T(), s.db)
 
-	req := httptest.NewRequest("POST", fmt.Sprintf("/v2/system/%s/token", creds.SystemID), strings.NewReader(`{"label":"hello"}`))
+	req := httptest.NewRequestWithContext(s.ctx, "POST", fmt.Sprintf("/v2/system/%s/token", creds.SystemID), strings.NewReader(`{"label":"hello"}`))
 	rctx := chi.NewRouteContext()
 	rctx.URLParams.Add("systemID", creds.SystemID)
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
@@ -1337,7 +1356,7 @@ func (s *APITestSuite) TestCreateAndDeleteAdditionalV2SystemToken() {
 	assert.NotNil(s.T(), clr.Token)
 	assert.Equal(s.T(), "hello", clr.Label)
 
-	req = httptest.NewRequest("GET", fmt.Sprintf("/v2/system/%s", creds.SystemID), nil)
+	req = httptest.NewRequestWithContext(s.ctx, "GET", fmt.Sprintf("/v2/system/%s", creds.SystemID), nil)
 	rctx = chi.NewRouteContext()
 	rctx.URLParams.Add("id", creds.SystemID)
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
@@ -1354,7 +1373,7 @@ func (s *APITestSuite) TestCreateAndDeleteAdditionalV2SystemToken() {
 	assert.Equal(s.T(), "hello", system.ClientTokens[1].Label)
 
 	//delete the token
-	req = httptest.NewRequest("DELETE", fmt.Sprintf("/v2/system/%s/token/%s", creds.SystemID, system.ClientTokens[1].UUID), strings.NewReader(`{"label":"hello"}`))
+	req = httptest.NewRequestWithContext(s.ctx, "DELETE", fmt.Sprintf("/v2/system/%s/token/%s", creds.SystemID, system.ClientTokens[1].UUID), strings.NewReader(`{"label":"hello"}`))
 	rctx = chi.NewRouteContext()
 	rctx.URLParams.Add("systemID", creds.SystemID)
 	rctx.URLParams.Add("id", system.ClientTokens[1].UUID)
@@ -1365,7 +1384,7 @@ func (s *APITestSuite) TestCreateAndDeleteAdditionalV2SystemToken() {
 	handler.ServeHTTP(rr, req)
 
 	//verify the token is deleted
-	req = httptest.NewRequest("GET", fmt.Sprintf("/v2/system/%s", creds.SystemID), nil)
+	req = httptest.NewRequestWithContext(s.ctx, "GET", fmt.Sprintf("/v2/system/%s", creds.SystemID), nil)
 	rctx = chi.NewRouteContext()
 	rctx.URLParams.Add("id", creds.SystemID)
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
@@ -1381,7 +1400,7 @@ func (s *APITestSuite) TestCreateAndDeleteAdditionalV2SystemToken() {
 }
 
 func (s *APITestSuite) TestCreateV2SystemTokenSystemNotFound() {
-	req := httptest.NewRequest("POST", fmt.Sprintf("/v2/system/%s/token", "fake-token"), strings.NewReader(`{"label":"hello"}`))
+	req := httptest.NewRequestWithContext(s.ctx, "POST", fmt.Sprintf("/v2/system/%s/token", "fake-token"), strings.NewReader(`{"label":"hello"}`))
 	rctx := chi.NewRouteContext()
 	rctx.URLParams.Add("systemID", "fake-token")
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
@@ -1395,7 +1414,7 @@ func (s *APITestSuite) TestCreateV2SystemTokenSystemNotFound() {
 func (s *APITestSuite) TestCreateV2SystemTokenNonJson() {
 	creds, _ := ssas.CreateTestXDataV2(s.T(), s.db)
 
-	req := httptest.NewRequest("POST", fmt.Sprintf("/v2/system/%s/token", creds.SystemID), strings.NewReader(`"notalabel":"hello"}`))
+	req := httptest.NewRequestWithContext(s.ctx, "POST", fmt.Sprintf("/v2/system/%s/token", creds.SystemID), strings.NewReader(`"notalabel":"hello"}`))
 	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry))
 	rctx := chi.NewRouteContext()
 	rctx.URLParams.Add("systemID", creds.SystemID)
@@ -1411,7 +1430,7 @@ func (s *APITestSuite) TestCreateV2SystemTokenNonJson() {
 func (s *APITestSuite) TestCreateV2SystemTokenMissingLabel() {
 	creds, _ := ssas.CreateTestXDataV2(s.T(), s.db)
 
-	req := httptest.NewRequest("POST", fmt.Sprintf("/v2/system/%s/token", creds.SystemID), strings.NewReader(`{"notalabel":"hello"}`))
+	req := httptest.NewRequestWithContext(s.ctx, "POST", fmt.Sprintf("/v2/system/%s/token", creds.SystemID), strings.NewReader(`{"notalabel":"hello"}`))
 	rctx := chi.NewRouteContext()
 	rctx.URLParams.Add("systemID", creds.SystemID)
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
@@ -1423,7 +1442,7 @@ func (s *APITestSuite) TestCreateV2SystemTokenMissingLabel() {
 }
 
 func (s *APITestSuite) TestDeleteV2SystemTokenSystemNotFound() {
-	req := httptest.NewRequest("DELETE", fmt.Sprintf("/v2/system/%s/token/%s", "fake-token", "fake-uuid"), strings.NewReader(`{"label":"hello"}`))
+	req := httptest.NewRequestWithContext(s.ctx, "DELETE", fmt.Sprintf("/v2/system/%s/token/%s", "fake-token", "fake-uuid"), strings.NewReader(`{"label":"hello"}`))
 	rctx := chi.NewRouteContext()
 	rctx.URLParams.Add("systemID", "fake-token")
 	rctx.URLParams.Add("id", "fake-uuid")
@@ -1440,7 +1459,7 @@ func (s *APITestSuite) TestCreateAndDeletePublicKey() {
 
 	key, sig, _, _ := ssas.GeneratePublicKey(2048)
 	keyStr := strings.ReplaceAll(key, "\n", "\\n")
-	req := httptest.NewRequest("POST", fmt.Sprintf("/v2/system/%s/key", creds.SystemID), strings.NewReader(fmt.Sprintf(`{"public_key":"%s", "signature":"%s"}`, keyStr, sig)))
+	req := httptest.NewRequestWithContext(s.ctx, "POST", fmt.Sprintf("/v2/system/%s/key", creds.SystemID), strings.NewReader(fmt.Sprintf(`{"public_key":"%s", "signature":"%s"}`, keyStr, sig)))
 	rctx := chi.NewRouteContext()
 	rctx.URLParams.Add("systemID", creds.SystemID)
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
@@ -1458,7 +1477,7 @@ func (s *APITestSuite) TestCreateAndDeletePublicKey() {
 	assert.NotNil(s.T(), responseMap["client_id"])
 	assert.NotNil(s.T(), responseMap["public_key"])
 
-	req = httptest.NewRequest("GET", fmt.Sprintf("/v2/system/%s", creds.SystemID), nil)
+	req = httptest.NewRequestWithContext(s.ctx, "GET", fmt.Sprintf("/v2/system/%s", creds.SystemID), nil)
 	rctx = chi.NewRouteContext()
 	rctx.URLParams.Add("id", creds.SystemID)
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
@@ -1475,7 +1494,7 @@ func (s *APITestSuite) TestCreateAndDeletePublicKey() {
 	assert.Equal(s.T(), key, system.PublicKeys[1].Key)
 
 	//delete the key
-	req = httptest.NewRequest("DELETE", fmt.Sprintf("/v2/system/%s/key/%s", creds.SystemID, system.PublicKeys[1].ID), nil)
+	req = httptest.NewRequestWithContext(s.ctx, "DELETE", fmt.Sprintf("/v2/system/%s/key/%s", creds.SystemID, system.PublicKeys[1].ID), nil)
 	rctx = chi.NewRouteContext()
 	rctx.URLParams.Add("systemID", creds.SystemID)
 	rctx.URLParams.Add("id", system.PublicKeys[1].ID)
@@ -1486,7 +1505,7 @@ func (s *APITestSuite) TestCreateAndDeletePublicKey() {
 	handler.ServeHTTP(rr, req)
 
 	//verify the key is deleted
-	req = httptest.NewRequest("GET", fmt.Sprintf("/v2/system/%s", creds.SystemID), nil)
+	req = httptest.NewRequestWithContext(s.ctx, "GET", fmt.Sprintf("/v2/system/%s", creds.SystemID), nil)
 	rctx = chi.NewRouteContext()
 	rctx.URLParams.Add("id", creds.SystemID)
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
@@ -1504,7 +1523,7 @@ func (s *APITestSuite) TestCreateAndDeletePublicKey() {
 func (s *APITestSuite) TestCreatePublicKeySystemNotFound() {
 	key, sig, _, _ := ssas.GeneratePublicKey(2048)
 	keyStr := strings.ReplaceAll(key, "\n", "\\n")
-	req := httptest.NewRequest("POST", fmt.Sprintf("/v2/system/%s/key", "fake-token"), strings.NewReader(fmt.Sprintf(`{"public_key":"%s", "signature":"%s"}`, keyStr, sig)))
+	req := httptest.NewRequestWithContext(s.ctx, "POST", fmt.Sprintf("/v2/system/%s/key", "fake-token"), strings.NewReader(fmt.Sprintf(`{"public_key":"%s", "signature":"%s"}`, keyStr, sig)))
 	rctx := chi.NewRouteContext()
 	rctx.URLParams.Add("systemID", "fake-token")
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
@@ -1520,7 +1539,7 @@ func (s *APITestSuite) TestCreatePublicKeyNonJson() {
 
 	key, sig, _, _ := ssas.GeneratePublicKey(2048)
 	keyStr := strings.ReplaceAll(key, "\n", "\\n")
-	req := httptest.NewRequest("POST", fmt.Sprintf("/v2/system/%s/key", creds.SystemID), strings.NewReader(fmt.Sprintf(`"public_abcd":"%s", "signature":"%s"}`, keyStr, sig)))
+	req := httptest.NewRequestWithContext(s.ctx, "POST", fmt.Sprintf("/v2/system/%s/key", creds.SystemID), strings.NewReader(fmt.Sprintf(`"public_abcd":"%s", "signature":"%s"}`, keyStr, sig)))
 	rctx := chi.NewRouteContext()
 	rctx.URLParams.Add("systemID", creds.SystemID)
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
@@ -1536,7 +1555,7 @@ func (s *APITestSuite) TestCreatePublicKeyMissingFields() {
 
 	key, sig, _, _ := ssas.GeneratePublicKey(2048)
 	keyStr := strings.ReplaceAll(key, "\n", "\\n")
-	req := httptest.NewRequest("POST", fmt.Sprintf("/v2/system/%s/key", creds.SystemID), strings.NewReader(fmt.Sprintf(`{"public_abcd":"%s", "signature":"%s"}`, keyStr, sig)))
+	req := httptest.NewRequestWithContext(s.ctx, "POST", fmt.Sprintf("/v2/system/%s/key", creds.SystemID), strings.NewReader(fmt.Sprintf(`{"public_abcd":"%s", "signature":"%s"}`, keyStr, sig)))
 	rctx := chi.NewRouteContext()
 	rctx.URLParams.Add("systemID", creds.SystemID)
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
@@ -1550,7 +1569,7 @@ func (s *APITestSuite) TestCreatePublicKeyMissingFields() {
 }
 
 func (s *APITestSuite) TestDeletePublicKeySystemNotFound() {
-	req := httptest.NewRequest("DELETE", fmt.Sprintf("/v2/system/%s/key/%s", "fake-token", "fake-key"), nil)
+	req := httptest.NewRequestWithContext(s.ctx, "DELETE", fmt.Sprintf("/v2/system/%s/key/%s", "fake-token", "fake-key"), nil)
 	rctx := chi.NewRouteContext()
 	rctx.URLParams.Add("systemID", "fake-token")
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
