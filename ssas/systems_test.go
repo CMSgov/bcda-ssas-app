@@ -943,6 +943,7 @@ func (s *SystemsTestSuite) TestGetSGAKeyByGroupID_BadGroupID() {
 
 	sgaKey, err := GetSGAKeyByGroupID(context.Background(), "different-group-id")
 	assert.Equal(s.T(), "", sgaKey)
+	assert.Nil(s.T(), err)
 
 	_ = CleanDatabase(g)
 }
