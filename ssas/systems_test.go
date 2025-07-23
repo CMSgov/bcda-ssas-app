@@ -948,26 +948,6 @@ func (s *SystemsTestSuite) TestGetSGAKeyByGroupID_BadGroupID() {
 	_ = CleanDatabase(g)
 }
 
-// func (s *SystemsTestSuite) TestGetSystemsByGroupIDString_With_SGA_ADMIN_FEATURE_FiltersUnauthorized() {
-// 	ctx := context.Background()
-// 	ctx = context.WithValue(ctx, constants.CtxSGAKey, "different-sga")
-
-// 	newFF := "true"
-// 	oldFF := os.Getenv("SGA_ADMIN_FEATURE")
-// 	os.Setenv("SGA_ADMIN_FEATURE", newFF)
-
-// 	g, _, err := makeTestSystem(s.db)
-// 	assert.Nil(s.T(), err, "unexpected error")
-// 	require.Nil(s.T(), err, "unexpected error ", err)
-
-// 	gotSystems, err := GetSystemsByGroupIDString(ctx, fmt.Sprint(g.GroupID))
-// 	assert.Nil(s.T(), err, "unexpected error ", err)
-// 	assert.Equal(s.T(), len(gotSystems), 0)
-
-// 	_ = CleanDatabase(g)
-// 	os.Setenv("SGA_ADMIN_FEATURE", oldFF)
-// }
-
 func (s *SystemsTestSuite) TestIsExpired() {
 	groupID := "group-isExpiredTest"
 	group := Group{GroupID: groupID}

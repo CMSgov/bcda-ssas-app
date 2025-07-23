@@ -1726,3 +1726,67 @@ func MakeTestStructuredLoggerEntry(logFields logrus.Fields) *ssas.APILoggerEntry
 	newLogEntry := &ssas.APILoggerEntry{Logger: lggr.WithFields(logFields)}
 	return newLogEntry
 }
+
+func TestSGAAdmin_NoAuth(t *testing.T) {
+	newFF := "true"
+	oldFF := os.Getenv("SGA_ADMIN_FEATURE")
+	os.Setenv("SGA_ADMIN_FEATURE", newFF)
+
+	db := ssas.Connection
+	service.StartBlacklist()
+	ssas.MaxIPs = 3
+
+	ctx := context.Background()
+	ctx = context.WithValue(ctx, constants.CtxSGAKey, "test-sga")
+
+	gid := ssas.RandomBase64(16)
+	testInput := fmt.Sprintf(SampleGroup, gid, SampleXdata)
+	gd := ssas.GroupData{}
+	err := json.Unmarshal([]byte(testInput), &gd)
+	assert.Nil(t, err)
+	g, err := ssas.CreateGroup(ctx, gd)
+	assert.Nil(t, err)
+	system := ssas.System{GID: g.ID, GroupID: g.GroupID, ClientID: "test-update-group", SGAKey: "different-sga"}
+	err = db.Create(&system).Error
+	if err != nil {
+		t.FailNow()
+	}
+
+	t.Cleanup(func() {
+		err = ssas.CleanDatabase(g)
+		assert.Nil(t, err)
+		os.Setenv("SGA_ADMIN_FEATURE", oldFF)
+	})
+
+	tests := []struct {
+		handlerFunc    http.HandlerFunc
+		endpoint       string
+		httpMethod     string
+		expectedStatus int
+	}{
+		{updateGroup, fmt.Sprintf("/group/%d", g.ID), "PUT", http.StatusBadRequest},
+		{deleteGroup, fmt.Sprintf("/group/%d", g.ID), "DELETE", http.StatusNotFound},
+		{resetCredentials, fmt.Sprintf("/system/%d/credentials", system.ID), "PUT", http.StatusNotFound},
+		{getPublicKey, fmt.Sprintf("/system/%d/key", system.ID), "GET", http.StatusNotFound},
+		{deactivateSystemCredentials, fmt.Sprintf("/system/%d/credentials", system.ID), "DELETE", http.StatusNotFound},
+		{revokeToken, fmt.Sprintf("/token/%s", "token-id"), "DELETE", http.StatusBadRequest},
+		{updateGroup, fmt.Sprintf("/v2/group/%d", g.ID), "PATCH", http.StatusBadRequest},
+		{updateSystem, fmt.Sprintf("/v2/system/%d", system.ID), "PATCH", http.StatusNotFound},
+		{getSystem, fmt.Sprintf("/v2/system/%d", system.ID), "GET", http.StatusNotFound},
+		{registerIP, fmt.Sprintf("/v2/system/%d/ip", system.ID), "POST", http.StatusNotFound},
+		{getSystemIPs, fmt.Sprintf("/v2/system/%d/ip", system.ID), "GET", http.StatusNotFound},
+		{deleteSystemIP, fmt.Sprintf("/v2/system/%d/ip/%s", system.ID, "ip-id"), "DELETE", http.StatusNotFound},
+		{createToken, fmt.Sprintf("/v2/system/%d/token", system.ID), "POST", http.StatusNotFound},
+		{createKey, fmt.Sprintf("/v2/system/%d/key", system.ID), "POST", http.StatusNotFound},
+		{deleteKey, fmt.Sprintf("/v2/system/%d/key/%s", system.ID, "key-id"), "DELETE", http.StatusNotFound},
+	}
+
+	for _, test := range tests {
+		req := httptest.NewRequestWithContext(ctx, test.httpMethod, test.endpoint, strings.NewReader("{}"))
+		handler := http.HandlerFunc(test.handlerFunc)
+		rr := httptest.NewRecorder()
+		handler.ServeHTTP(rr, req)
+		assert.Equal(t, test.expectedStatus, rr.Result().StatusCode, fmt.Sprintf("test url: %+v", test.endpoint))
+	}
+
+}

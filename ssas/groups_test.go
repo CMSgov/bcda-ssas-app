@@ -241,54 +241,6 @@ func (s *GroupsTestSuite) TestDeleteGroup() {
 	assert.Nil(s.T(), err)
 }
 
-// func (s *GroupsTestSuite) TestGetGroupByGroupID_With_SGA_ADMIN_FEATURE() {
-// 	ctx := context.Background()
-// 	ctx = context.WithValue(ctx, constants.CtxSGAKey, "test-sga")
-
-// 	newFF := "true"
-// 	oldFF := os.Getenv("SGA_ADMIN_FEATURE")
-// 	os.Setenv("SGA_ADMIN_FEATURE", newFF)
-
-// 	// create 2 groups, 1 with auth system, 1 with unauth system
-// 	g1Bytes := []byte(fmt.Sprintf(SampleGroup, "group-id-1", SampleXdata))
-// 	gd1 := GroupData{}
-// 	err := json.Unmarshal(g1Bytes, &gd1)
-// 	assert.Nil(s.T(), err)
-// 	g1, err := CreateGroup(context.Background(), gd1)
-// 	assert.Nil(s.T(), err)
-
-// 	g1AuthSys := System{GID: g1.ID, GroupID: "group-id-1", ClientID: "test-g1", SGAKey: "test-sga"}
-// 	err = s.db.Create(&g1AuthSys).Error
-// 	assert.Nil(s.T(), err, "unexpected error")
-
-// 	g2Bytes := []byte(fmt.Sprintf(SampleGroup, "group-id-2", SampleXdata))
-// 	gd2 := GroupData{}
-// 	err = json.Unmarshal(g2Bytes, &gd2)
-// 	assert.Nil(s.T(), err)
-// 	g2, err := CreateGroup(context.Background(), gd2)
-// 	assert.Nil(s.T(), err)
-
-// 	g2UnauthSys := System{GID: g2.ID, GroupID: "group-id-2", ClientID: "test-g2", SGAKey: "different-sga"}
-// 	err = s.db.Create(&g2UnauthSys).Error
-// 	assert.Nil(s.T(), err, "unexpected error")
-
-// 	s.T().Cleanup(func() {
-// 		err = CleanDatabase(g1)
-// 		assert.Nil(s.T(), err)
-// 		err = CleanDatabase(g2)
-// 		assert.Nil(s.T(), err)
-// 		os.Setenv("SGA_ADMIN_FEATURE", oldFF)
-// 	})
-
-// 	foundG1, err := GetGroupByGroupID(ctx, "group-id-1")
-// 	assert.Nil(s.T(), err)
-// 	assert.Equal(s.T(), foundG1.ID, g1.ID)
-
-// 	foundG2, err := GetGroupByGroupID(ctx, "group-id-2")
-// 	assert.ErrorContains(s.T(), err, "error finding authorized system(s) related to groupID")
-// 	assert.Equal(s.T(), foundG2.ID, Group{}.ID)
-// }
-
 // func (s *GroupsTestSuite) TestGetAuthorizedGroupsForOktaID() {
 // 	group1bytes := []byte(`{"group_id":"T0001","users":["abcdef","qrstuv"],"scopes":[],"resources":[],"systems":[],"name":""}`)
 // 	group2bytes := []byte(`{"group_id":"T0002","users":["abcdef","qrstuv"],"scopes":[],"resources":[],"systems":[],"name":""}`)
