@@ -158,7 +158,7 @@ func CreateTestXData(t *testing.T, db *gorm.DB) (creds Credentials, group Group)
 	return
 }
 
-func CreateTestXDataV2(t *testing.T, db *gorm.DB) (creds Credentials, group Group) {
+func CreateTestXDataV2(t *testing.T, ctx context.Context, db *gorm.DB) (creds Credentials, group Group) {
 	groupID := RandomHexID()[0:4]
 
 	group = Group{GroupID: groupID, XData: `{"group":"1"}`}
@@ -179,7 +179,7 @@ func CreateTestXDataV2(t *testing.T, db *gorm.DB) (creds Credentials, group Grou
 		TrackingID: uuid.NewRandom().String(),
 		XData:      `{"impl": "2"}`,
 	}
-	creds, err = RegisterV2System(context.WithValue(context.Background(), CtxLoggerKey, MakeTestStructuredLoggerEntry(logrus.Fields{"cms_id": "A9999", "request_id": uuid.NewUUID().String()})), s)
+	creds, err = RegisterV2System(context.WithValue(ctx, CtxLoggerKey, MakeTestStructuredLoggerEntry(logrus.Fields{"cms_id": "A9999", "request_id": uuid.NewUUID().String()})), s)
 	assert.Nil(t, err)
 	assert.Equal(t, "Test Client Name", creds.ClientName)
 	assert.NotNil(t, creds.ClientSecret)

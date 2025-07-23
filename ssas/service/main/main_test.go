@@ -57,7 +57,7 @@ func (s *MainTestSuite) TestShowXDataWithClientID() {
 func (s *MainTestSuite) TestShowXDataClientIDDoesNotExist() {
 	var flags Flags
 	flags.doShowXData = true
-	flags.clientID = service.TestGroupID
+	flags.clientID = "bad-id"
 	output := captureLog(func() { handleFlags(flags) })
 	assert.Contains(s.T(), output, "invalid client id")
 }

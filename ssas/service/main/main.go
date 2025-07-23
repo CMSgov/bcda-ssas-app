@@ -142,6 +142,7 @@ func handleFlags(flags Flags) {
 		listExpiringCredentials()
 		return
 	}
+	fmt.Printf("\n--- handle flags: %+v, %+v, %+v\n", flags.doShowXData, flags.clientID, flags.auth)
 	if flags.doShowXData {
 		if flags.clientID != "" || flags.auth != "" {
 			err := showXData(flags.clientID, flags.auth)
@@ -392,7 +393,7 @@ func cliTrackingID() string {
 }
 
 func showXData(clientID, auth string) error {
-	// The auth header decoding logic was pulled from Go's requuest.go#parseBasicAuth func
+	// The auth header decoding logic was pulled from Go's request.go#parseBasicAuth func
 	if auth != "" {
 		c, err := base64.StdEncoding.DecodeString(auth)
 		if err != nil {
@@ -410,6 +411,7 @@ func showXData(clientID, auth string) error {
 	}
 
 	system, err := ssas.GetSystemByClientID(context.Background(), clientID)
+	fmt.Printf("\n--- system found: %+v\n", system)
 	if err != nil {
 		return fmt.Errorf("invalid client id: %w", err)
 	}

@@ -125,13 +125,15 @@ func (s *APITestSuite) TestCreateGroup() {
 		assert.FailNow(s.T(), fmt.Sprintf("record not found for group_id=%s", gid))
 	}
 
+	s.T().Cleanup(func() {
+		err := ssas.CleanDatabase(g)
+		assert.Nil(s.T(), err)
+	})
+
 	// Duplicate request fails
 	rr = httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
 	assert.Equal(s.T(), http.StatusBadRequest, rr.Result().StatusCode)
-
-	err := ssas.CleanDatabase(g)
-	assert.Nil(s.T(), err)
 }
 
 func (s *APITestSuite) TestCreateGroupFailure() {
@@ -148,8 +150,10 @@ func (s *APITestSuite) TestCreateGroupFailure() {
 	if errors.Is(s.db.First(&g, "group_id = ?", gid).Error, gorm.ErrRecordNotFound) {
 		assert.FailNow(s.T(), fmt.Sprintf("record not found for group_id=%s", gid))
 	}
-	err := ssas.CleanDatabase(g)
-	assert.Nil(s.T(), err)
+	s.T().Cleanup(func() {
+		err := ssas.CleanDatabase(g)
+		assert.Nil(s.T(), err)
+	})
 }
 
 func (s *APITestSuite) TestCreateGroupEmptyGroupId() {
@@ -173,11 +177,28 @@ func (s *APITestSuite) TestListGroups() {
 	assert.Nil(s.T(), err)
 	g1, err := ssas.CreateGroup(context.Background(), gd)
 	assert.Nil(s.T(), err)
+	s1 := ssas.System{GID: g1.ID, GroupID: g1.GroupID, ClientID: "test-list-groups-1", SGAKey: "test-sga"}
+	err = s.db.Create(&s1).Error
+	if err != nil {
+		s.FailNow("Error creating test data", err.Error())
+	}
 
 	gd.GroupID = g2ID
 	gd.Name = "another-fake-name"
 	g2, err := ssas.CreateGroup(context.Background(), gd)
 	assert.Nil(s.T(), err)
+	s2 := ssas.System{GID: g2.ID, GroupID: g2.GroupID, ClientID: "test-list-groups-2", SGAKey: "test-sga"}
+	err = s.db.Create(&s2).Error
+	if err != nil {
+		s.FailNow("Error creating test data", err.Error())
+	}
+
+	s.T().Cleanup(func() {
+		err = ssas.CleanDatabase(g1)
+		assert.Nil(s.T(), err)
+		err = ssas.CleanDatabase(g2)
+		assert.Nil(s.T(), err)
+	})
 
 	req := httptest.NewRequestWithContext(s.ctx, "GET", "/group", nil)
 	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry))
@@ -203,11 +224,6 @@ func (s *APITestSuite) TestListGroups() {
 	}
 	assert.True(s.T(), found1, "group 1 not present in list")
 	assert.True(s.T(), found2, "group 2 not present in list")
-
-	err = ssas.CleanDatabase(g1)
-	assert.Nil(s.T(), err)
-	err = ssas.CleanDatabase(g2)
-	assert.Nil(s.T(), err)
 }
 
 func (s *APITestSuite) TestUpdateGroup() {
@@ -218,6 +234,16 @@ func (s *APITestSuite) TestUpdateGroup() {
 	assert.Nil(s.T(), err)
 	g, err := ssas.CreateGroup(context.Background(), gd)
 	assert.Nil(s.T(), err)
+	system := ssas.System{GID: g.ID, GroupID: g.GroupID, ClientID: "test-update-group", SGAKey: "test-sga"}
+	err = s.db.Create(&system).Error
+	if err != nil {
+		s.FailNow(err.Error())
+	}
+
+	s.T().Cleanup(func() {
+		err = ssas.CleanDatabase(g)
+		assert.Nil(s.T(), err)
+	})
 
 	url := fmt.Sprintf("/group/%v", g.ID)
 	req := httptest.NewRequestWithContext(s.ctx, "PUT", url, strings.NewReader(testInput))
@@ -230,8 +256,6 @@ func (s *APITestSuite) TestUpdateGroup() {
 	handler.ServeHTTP(rr, req)
 	assert.Equal(s.T(), http.StatusOK, rr.Result().StatusCode)
 	assert.Equal(s.T(), "application/json", rr.Result().Header.Get("Content-Type"))
-	err = ssas.CleanDatabase(g)
-	assert.Nil(s.T(), err)
 }
 
 func (s *APITestSuite) TestUpdateGroupBadGroupID() {
@@ -297,6 +321,16 @@ func (s *APITestSuite) TestDeleteGroup() {
 	assert.Nil(s.T(), err)
 	g, err := ssas.CreateGroup(context.Background(), gd)
 	assert.Nil(s.T(), err)
+	system := ssas.System{GID: g.ID, GroupID: g.GroupID, ClientID: "test-delete-group", SGAKey: "test-sga"}
+	err = s.db.Create(&system).Error
+	if err != nil {
+		s.FailNow("Error creating test data", err.Error())
+	}
+
+	s.T().Cleanup(func() {
+		err = ssas.CleanDatabase(g)
+		assert.Nil(s.T(), err)
+	})
 
 	url := fmt.Sprintf("/group/%v", g.ID)
 	req := httptest.NewRequestWithContext(s.ctx, "DELETE", url, nil)
@@ -309,8 +343,6 @@ func (s *APITestSuite) TestDeleteGroup() {
 	handler.ServeHTTP(rr, req)
 	assert.Equal(s.T(), http.StatusOK, rr.Result().StatusCode)
 	assert.True(s.T(), errors.Is(s.db.First(&ssas.Group{}, g.ID).Error, gorm.ErrRecordNotFound))
-	err = ssas.CleanDatabase(g)
-	assert.Nil(s.T(), err)
 }
 
 func (s *APITestSuite) TestCreateSystem() {
@@ -321,6 +353,16 @@ func (s *APITestSuite) TestCreateSystem() {
 	if err != nil {
 		s.FailNow("Error creating test data", err.Error())
 	}
+	system := ssas.System{GID: group.ID, ClientID: "test-create-system", SGAKey: "test-sga"}
+	err = s.db.Create(&system).Error
+	if err != nil {
+		s.FailNow("Error creating test data", err.Error())
+	}
+
+	s.T().Cleanup(func() {
+		err = ssas.CleanDatabase(group)
+		assert.Nil(s.T(), err)
+	})
 
 	req := httptest.NewRequestWithContext(s.ctx, "POST", "/system", strings.NewReader(`{"client_name": "Test Client", "group_id": "test-group-id", "scope": "bcda-api", "public_key": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEArhxobShmNifzW3xznB+L\nI8+hgaePpSGIFCtFz2IXGU6EMLdeufhADaGPLft9xjwdN1ts276iXQiaChKPA2CK\n/CBpuKcnU3LhU8JEi7u/db7J4lJlh6evjdKVKlMuhPcljnIKAiGcWln3zwYrFCeL\ncN0aTOt4xnQpm8OqHawJ18y0WhsWT+hf1DeBDWvdfRuAPlfuVtl3KkrNYn1yqCgQ\nlT6v/WyzptJhSR1jxdR7XLOhDGTZUzlHXh2bM7sav2n1+sLsuCkzTJqWZ8K7k7cI\nXK354CNpCdyRYUAUvr4rORIAUmcIFjaR3J4y/Dh2JIyDToOHg7vjpCtNnNoS+ON2\nHwIDAQAB\n-----END PUBLIC KEY-----", "tracking_id": "T00000"}`))
 	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry))
@@ -346,9 +388,6 @@ func (s *APITestSuite) TestCreateSystem() {
 
 	// verify the logging used for aco alerts
 	assert.True(s.T(), alertLog)
-
-	err = ssas.CleanDatabase(group)
-	assert.Nil(s.T(), err)
 }
 
 func (s *APITestSuite) TestCreateSystemMultipleIps() {
@@ -359,6 +398,11 @@ func (s *APITestSuite) TestCreateSystemMultipleIps() {
 	if err != nil {
 		s.FailNow("Error creating test data", err.Error())
 	}
+
+	s.T().Cleanup(func() {
+		err = ssas.CleanDatabase(group)
+		assert.Nil(s.T(), err)
+	})
 
 	reqBody := fmt.Sprintf(`{"client_name": "Test Client", "group_id": "test-group-id", "scope": "bcda-api", "ips": ["%s", "%s"],"tracking_id": "T00000"}`, randomIPv4, randomIPv6)
 	req := httptest.NewRequestWithContext(s.ctx, "POST", "/auth/system", strings.NewReader(reqBody))
@@ -380,11 +424,8 @@ func (s *APITestSuite) TestCreateSystemMultipleIps() {
 	assert.Nil(s.T(), err)
 	ips, err := system.GetIPs()
 	assert.Nil(s.T(), err)
-	assert.True(s.T(), contains(ips, randomIPv4))
-	assert.True(s.T(), contains(ips, randomIPv6))
-
-	err = ssas.CleanDatabase(group)
-	assert.Nil(s.T(), err)
+	assert.Contains(s.T(), ips, randomIPv4)
+	assert.Contains(s.T(), ips, randomIPv6)
 }
 
 func (s *APITestSuite) TestCreateSystemBadIp() {
@@ -394,15 +435,17 @@ func (s *APITestSuite) TestCreateSystemBadIp() {
 		s.FailNow("Error creating test data", err.Error())
 	}
 
+	s.T().Cleanup(func() {
+		err = ssas.CleanDatabase(group)
+		assert.Nil(s.T(), err)
+	})
+
 	req := httptest.NewRequestWithContext(s.ctx, "POST", "/auth/system", strings.NewReader(`{"client_name": "Test Client", "group_id": "test-group-id", "scope": "bcda-api", ips: ["304.0.2.1/32"],"tracking_id": "T00000"}`))
 	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry))
 	handler := http.HandlerFunc(createSystem)
 	rr := httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
 	assert.Equal(s.T(), http.StatusBadRequest, rr.Result().StatusCode)
-
-	err = ssas.CleanDatabase(group)
-	assert.Nil(s.T(), err)
 }
 
 func (s *APITestSuite) TestCreateSystemEmptyKey() {
@@ -411,6 +454,11 @@ func (s *APITestSuite) TestCreateSystemEmptyKey() {
 	if err != nil {
 		s.FailNow("Error creating test data", err.Error())
 	}
+
+	s.T().Cleanup(func() {
+		err = ssas.CleanDatabase(group)
+		assert.Nil(s.T(), err)
+	})
 
 	req := httptest.NewRequestWithContext(s.ctx, "POST", "/auth/system", strings.NewReader(`{"client_name": "Test Client", "group_id": "test-group-id", "scope": "bcda-api", "public_key": "", "tracking_id": "T00000"}`))
 	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry))
@@ -424,9 +472,6 @@ func (s *APITestSuite) TestCreateSystemEmptyKey() {
 	assert.NotEmpty(s.T(), result["client_id"])
 	assert.NotEmpty(s.T(), result["client_secret"])
 	assert.Equal(s.T(), "Test Client", result["client_name"])
-
-	err = ssas.CleanDatabase(group)
-	assert.Nil(s.T(), err)
 }
 
 func (s *APITestSuite) TestCreateSystemNoKey() {
@@ -435,6 +480,11 @@ func (s *APITestSuite) TestCreateSystemNoKey() {
 	if err != nil {
 		s.FailNow("Error creating test data", err.Error())
 	}
+
+	s.T().Cleanup(func() {
+		err = ssas.CleanDatabase(group)
+		assert.Nil(s.T(), err)
+	})
 
 	req := httptest.NewRequestWithContext(s.ctx, "POST", "/auth/system", strings.NewReader(`{"client_name": "Test Client", "group_id": "test-group-id", "scope": "bcda-api", "tracking_id": "T00000"}`))
 	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry))
@@ -448,9 +498,6 @@ func (s *APITestSuite) TestCreateSystemNoKey() {
 	assert.NotEmpty(s.T(), result["client_id"])
 	assert.NotEmpty(s.T(), result["client_secret"])
 	assert.Equal(s.T(), "Test Client", result["client_name"])
-
-	err = ssas.CleanDatabase(group)
-	assert.Nil(s.T(), err)
 }
 
 func (s *APITestSuite) TestCreateSystemInvalidRequest() {
@@ -477,10 +524,15 @@ func (s *APITestSuite) TestResetCredentials() {
 
 	group := ssas.Group{GroupID: "test-reset-creds-group", XData: string(`{"cms_ids":["A9999"]}`)}
 	s.db.Create(&group)
-	system := ssas.System{GID: group.ID, ClientID: "test-reset-creds-client"}
+	system := ssas.System{GID: group.ID, GroupID: group.GroupID, ClientID: "test-reset-creds-client", SGAKey: "test-sga"}
 	s.db.Create(&system)
 	secret := ssas.Secret{Hash: "test-reset-creds-hash", SystemID: system.ID}
 	s.db.Create(&secret)
+
+	s.T().Cleanup(func() {
+		err := ssas.CleanDatabase(group)
+		assert.Nil(s.T(), err)
+	})
 
 	systemID := strconv.FormatUint(uint64(system.ID), 10)
 	req := httptest.NewRequestWithContext(s.ctx, "PUT", "/system/"+systemID+"/credentials", nil)
@@ -512,8 +564,6 @@ func (s *APITestSuite) TestResetCredentials() {
 
 	// verify the logging used for aco alerts
 	assert.True(s.T(), alertLog)
-
-	_ = ssas.CleanDatabase(group)
 }
 
 func (s *APITestSuite) TestResetCredentialsInvalidSystemID() {
@@ -551,7 +601,7 @@ func (s *APITestSuite) TestGetPublicKey() {
 		s.FailNow(err.Error())
 	}
 
-	system := ssas.System{GID: group.ID, ClientID: "api-test-get-public-key-client"}
+	system := ssas.System{GID: group.ID, ClientID: "api-test-get-public-key-client", SGAKey: "test-sga"}
 	err = s.db.Create(&system).Error
 	if err != nil {
 		s.FailNow(err.Error())
@@ -566,6 +616,11 @@ func (s *APITestSuite) TestGetPublicKey() {
 	if err != nil {
 		s.FailNow(err.Error())
 	}
+
+	s.T().Cleanup(func() {
+		err := ssas.CleanDatabase(group)
+		assert.Nil(s.T(), err)
+	})
 
 	systemID := strconv.FormatUint(uint64(system.ID), 10)
 	req := httptest.NewRequestWithContext(s.ctx, "GET", "/system/"+systemID+"/key", nil)
@@ -589,9 +644,6 @@ func (s *APITestSuite) TestGetPublicKey() {
 	resPublicKey := result["public_key"]
 	assert.NotEmpty(s.T(), resPublicKey)
 	assert.Equal(s.T(), key1Str, resPublicKey)
-
-	err = ssas.CleanDatabase(group)
-	assert.Nil(s.T(), err)
 }
 
 func (s *APITestSuite) TestGetPublicKeyRotation() {
@@ -601,7 +653,7 @@ func (s *APITestSuite) TestGetPublicKeyRotation() {
 		s.FailNow(err.Error())
 	}
 
-	system := ssas.System{GID: group.ID, ClientID: "api-test-get-public-key-client"}
+	system := ssas.System{GID: group.ID, ClientID: "api-test-get-public-key-client", SGAKey: "test-sga"}
 	err = s.db.Create(&system).Error
 	if err != nil {
 		s.FailNow(err.Error())
@@ -618,6 +670,11 @@ func (s *APITestSuite) TestGetPublicKeyRotation() {
 	if err != nil {
 		s.FailNow(err.Error())
 	}
+
+	s.T().Cleanup(func() {
+		err := ssas.CleanDatabase(group)
+		assert.Nil(s.T(), err)
+	})
 
 	assert.NotEqual(s.T(), rk1.UUID, rk2.UUID)
 
@@ -643,9 +700,6 @@ func (s *APITestSuite) TestGetPublicKeyRotation() {
 	resPublicKey := result["public_key"]
 	assert.NotEmpty(s.T(), resPublicKey)
 	assert.Equal(s.T(), key2, resPublicKey)
-
-	err = ssas.CleanDatabase(group)
-	assert.Nil(s.T(), err)
 }
 
 func (s *APITestSuite) TestDeactivateSystemCredentialsNotFound() {
@@ -667,10 +721,15 @@ func (s *APITestSuite) TestDeactivateSystemCredentials() {
 	logHook := test.NewLocal(logger)
 	group := ssas.Group{GroupID: "test-deactivate-creds-group", XData: string(`{"cms_ids":["A9999"]}`)}
 	s.db.Create(&group)
-	system := ssas.System{GID: group.ID, ClientID: "test-deactivate-creds-client"}
+	system := ssas.System{GID: group.ID, GroupID: "test-deactivate-creds-group", ClientID: "test-deactivate-creds-client", SGAKey: "test-sga"}
 	s.db.Create(&system)
 	secret := ssas.Secret{Hash: "test-deactivate-creds-hash", SystemID: system.ID}
 	s.db.Create(&secret)
+
+	s.T().Cleanup(func() {
+		err := ssas.CleanDatabase(group)
+		assert.Nil(s.T(), err)
+	})
 
 	systemID := strconv.FormatUint(uint64(system.ID), 10)
 	req := httptest.NewRequestWithContext(s.ctx, "DELETE", "/system/"+systemID+"/credentials", nil)
@@ -693,8 +752,6 @@ func (s *APITestSuite) TestDeactivateSystemCredentials() {
 
 	// verify the logging used for aco alerts
 	assert.True(s.T(), alertLog)
-
-	_ = ssas.CleanDatabase(group)
 }
 
 func (s *APITestSuite) TestJSONError() {
@@ -712,7 +769,7 @@ func (s *APITestSuite) TestJSONError() {
 func (s *APITestSuite) TestGetSystemIPs() {
 	group := ssas.Group{GroupID: "test-reset-creds-group"}
 	s.db.Create(&group)
-	system := ssas.System{GID: group.ID, ClientID: "test-reset-creds-client"}
+	system := ssas.System{GID: group.ID, ClientID: "test-reset-creds-client", SGAKey: "test-sga"}
 	s.db.Create(&system)
 
 	systemID := strconv.FormatUint(uint64(system.ID), 10)
@@ -722,6 +779,11 @@ func (s *APITestSuite) TestGetSystemIPs() {
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
 	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry))
 	handler := http.HandlerFunc(getSystemIPs)
+
+	s.T().Cleanup(func() {
+		err := ssas.CleanDatabase(group)
+		assert.Nil(s.T(), err)
+	})
 
 	//No ips
 	rr := httptest.NewRecorder()
@@ -756,8 +818,6 @@ func (s *APITestSuite) TestGetSystemIPs() {
 	_ = json.Unmarshal(rr.Body.Bytes(), &ips)
 	assert.NotEmpty(s.T(), ips)
 	assert.Len(s.T(), ips, 3)
-
-	_ = ssas.CleanDatabase(group)
 }
 
 func (s *APITestSuite) TestGetSystemIPsBadSystem() {
@@ -780,8 +840,13 @@ func (s *APITestSuite) TestGetSystemIPsBadSystem() {
 func (s *APITestSuite) TestRegisterSystemIP() {
 	group := ssas.Group{GroupID: "test-reset-creds-group"}
 	s.db.Create(&group)
-	system := ssas.System{GID: group.ID, ClientID: "test-reset-creds-client"}
+	system := ssas.System{GID: group.ID, ClientID: "test-reset-creds-client", SGAKey: "test-sga"}
 	s.db.Create(&system)
+
+	s.T().Cleanup(func() {
+		err := ssas.CleanDatabase(group)
+		assert.Nil(s.T(), err)
+	})
 
 	systemID := strconv.FormatUint(uint64(system.ID), 10)
 	body := `{"address":"2.5.22.81"}`
@@ -812,15 +877,18 @@ func (s *APITestSuite) TestRegisterSystemIP() {
 	var ips []ssas.IP
 	_ = json.Unmarshal(rr.Body.Bytes(), &ips)
 	assert.Len(s.T(), ips, 1)
-
-	_ = ssas.CleanDatabase(group)
 }
 
 func (s *APITestSuite) TestRegisterInvalidIP() {
 	group := ssas.Group{GroupID: "test-reset-creds-group"}
 	s.db.Create(&group)
-	system := ssas.System{GID: group.ID, ClientID: "test-reset-creds-client"}
+	system := ssas.System{GID: group.ID, ClientID: "test-reset-creds-client", SGAKey: "test-sga"}
 	s.db.Create(&system)
+
+	s.T().Cleanup(func() {
+		err := ssas.CleanDatabase(group)
+		assert.Nil(s.T(), err)
+	})
 
 	systemID := strconv.FormatUint(uint64(system.ID), 10)
 	body := `{"address":"600.1"}`
@@ -834,14 +902,12 @@ func (s *APITestSuite) TestRegisterInvalidIP() {
 	rr := httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
 	assert.Equal(s.T(), http.StatusBadRequest, rr.Result().StatusCode)
-
-	_ = ssas.CleanDatabase(group)
 }
 
 func (s *APITestSuite) TestRegisterMaxSystemIP() {
 	group := ssas.Group{GroupID: "test-reset-creds-group"}
 	s.db.Create(&group)
-	system := ssas.System{GID: group.ID, ClientID: "test-reset-creds-client"}
+	system := ssas.System{GID: group.ID, ClientID: "test-reset-creds-client", SGAKey: "test-sga"}
 	s.db.Create(&system)
 
 	ip1 := ssas.IP{Address: "2.5.22.81", SystemID: system.ID}
@@ -850,6 +916,11 @@ func (s *APITestSuite) TestRegisterMaxSystemIP() {
 	s.db.Create(&ip2)
 	ip3 := ssas.IP{Address: "2.5.22.83", SystemID: system.ID}
 	s.db.Create(&ip3)
+
+	s.T().Cleanup(func() {
+		err := ssas.CleanDatabase(group)
+		assert.Nil(s.T(), err)
+	})
 
 	//Max is 3 (for test), 4th should produce error
 	systemID := strconv.FormatUint(uint64(system.ID), 10)
@@ -865,19 +936,23 @@ func (s *APITestSuite) TestRegisterMaxSystemIP() {
 	handler.ServeHTTP(rr, req)
 	assert.Equal(s.T(), http.StatusBadRequest, rr.Result().StatusCode)
 	assert.Contains(s.T(), rr.Body.String(), "max ip addresses reached")
-	_ = ssas.CleanDatabase(group)
 }
 
 func (s *APITestSuite) TestRegisterDuplicateSystemIP() {
 	group := ssas.Group{GroupID: "test-reset-creds-group"}
 	s.db.Create(&group)
-	system := ssas.System{GID: group.ID, ClientID: "test-reset-creds-client"}
+	system := ssas.System{GID: group.ID, ClientID: "test-reset-creds-client", SGAKey: "test-sga"}
 	s.db.Create(&system)
 
 	ip1 := ssas.IP{Address: "2.5.22.81", SystemID: system.ID}
 	s.db.Create(&ip1)
 	ip2 := ssas.IP{Address: "2.5.22.82", SystemID: system.ID}
 	s.db.Create(&ip2)
+
+	s.T().Cleanup(func() {
+		err := ssas.CleanDatabase(group)
+		assert.Nil(s.T(), err)
+	})
 
 	systemID := strconv.FormatUint(uint64(system.ID), 10)
 	body := `{"address":"2.5.22.81"}`
@@ -892,14 +967,18 @@ func (s *APITestSuite) TestRegisterDuplicateSystemIP() {
 	handler.ServeHTTP(rr, req)
 	assert.Equal(s.T(), http.StatusConflict, rr.Result().StatusCode)
 	assert.Contains(s.T(), rr.Body.String(), "duplicate ip address")
-	_ = ssas.CleanDatabase(group)
 }
 
 func (s *APITestSuite) TestRegisterSystemIPInvalidBody() {
 	group := ssas.Group{GroupID: "test-reset-creds-group"}
 	s.db.Create(&group)
-	system := ssas.System{GID: group.ID, ClientID: "test-reset-creds-client"}
+	system := ssas.System{GID: group.ID, ClientID: "test-reset-creds-client", SGAKey: "test-sga"}
 	s.db.Create(&system)
+
+	s.T().Cleanup(func() {
+		err := ssas.CleanDatabase(group)
+		assert.Nil(s.T(), err)
+	})
 
 	systemID := strconv.FormatUint(uint64(system.ID), 10)
 	body := `{"addr":"2.5.22.81"}`
@@ -913,7 +992,6 @@ func (s *APITestSuite) TestRegisterSystemIPInvalidBody() {
 	rr := httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
 	assert.Equal(s.T(), http.StatusBadRequest, rr.Result().StatusCode)
-	_ = ssas.CleanDatabase(group)
 }
 
 func (s *APITestSuite) TestRegisterSystemIPSystemNotFound() {
@@ -933,13 +1011,18 @@ func (s *APITestSuite) TestRegisterSystemIPSystemNotFound() {
 func (s *APITestSuite) TestDeleteIP() {
 	group := ssas.Group{GroupID: "test-reset-creds-group"}
 	s.db.Create(&group)
-	system := ssas.System{GID: group.ID, ClientID: "test-reset-creds-client"}
+	system := ssas.System{GID: group.ID, ClientID: "test-reset-creds-client", SGAKey: "test-sga"}
 	s.db.Create(&system)
 
 	ip1 := ssas.IP{Address: "2.5.22.81", SystemID: system.ID}
 	s.db.Create(&ip1)
 	ip2 := ssas.IP{Address: "2.5.22.82", SystemID: system.ID}
 	s.db.Create(&ip2)
+
+	s.T().Cleanup(func() {
+		err := ssas.CleanDatabase(group)
+		assert.Nil(s.T(), err)
+	})
 
 	// Fetch IPs associated with system
 	systemID := strconv.FormatUint(uint64(system.ID), 10)
@@ -975,8 +1058,6 @@ func (s *APITestSuite) TestDeleteIP() {
 	// Test that the IP was deleted
 	assert.Equal(s.T(), http.StatusNoContent, rr.Result().StatusCode)
 	assert.Equal(s.T(), strconv.FormatUint(uint64(ips[0].ID), 10), ipID)
-
-	_ = ssas.CleanDatabase(group)
 }
 
 func (s *APITestSuite) TestDeleteIPSystemNotFound() {
@@ -996,8 +1077,13 @@ func (s *APITestSuite) TestDeleteIPSystemNotFound() {
 func (s *APITestSuite) TestDeleteIPIPNotFound() {
 	group := ssas.Group{GroupID: "test-delete-ip-ip-not-found-group"}
 	s.db.Create(&group)
-	system := ssas.System{GID: group.ID, ClientID: "test-delete-ip-ip-not-found-client"}
+	system := ssas.System{GID: group.ID, ClientID: "test-delete-ip-ip-not-found-client", SGAKey: "test-sga"}
 	s.db.Create(&system)
+
+	s.T().Cleanup(func() {
+		err := ssas.CleanDatabase(group)
+		assert.Nil(s.T(), err)
+	})
 
 	systemID := strconv.FormatUint(uint64(system.ID), 10)
 	req := httptest.NewRequestWithContext(s.ctx, "DELETE", "/system/"+systemID+"/ip/123", nil)
@@ -1011,7 +1097,6 @@ func (s *APITestSuite) TestDeleteIPIPNotFound() {
 	rr := httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
 	assert.Equal(s.T(), http.StatusNotFound, rr.Result().StatusCode)
-	_ = ssas.CleanDatabase(group)
 }
 
 func (s *APITestSuite) TestUpdateSystem() {
@@ -1021,9 +1106,16 @@ func (s *APITestSuite) TestUpdateSystem() {
 		s.FailNow("Error creating test data", err.Error())
 	}
 
+	s.T().Cleanup(func() {
+		err := ssas.CleanDatabase(group)
+		assert.Nil(s.T(), err)
+	})
+
 	//Create system
 	req := httptest.NewRequestWithContext(s.ctx, "POST", "/system", strings.NewReader(`{"client_name": "Test Client", "group_id": "test-group-id", "scope": "bcda-api", "public_key": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEArhxobShmNifzW3xznB+L\nI8+hgaePpSGIFCtFz2IXGU6EMLdeufhADaGPLft9xjwdN1ts276iXQiaChKPA2CK\n/CBpuKcnU3LhU8JEi7u/db7J4lJlh6evjdKVKlMuhPcljnIKAiGcWln3zwYrFCeL\ncN0aTOt4xnQpm8OqHawJ18y0WhsWT+hf1DeBDWvdfRuAPlfuVtl3KkrNYn1yqCgQ\nlT6v/WyzptJhSR1jxdR7XLOhDGTZUzlHXh2bM7sav2n1+sLsuCkzTJqWZ8K7k7cI\nXK354CNpCdyRYUAUvr4rORIAUmcIFjaR3J4y/Dh2JIyDToOHg7vjpCtNnNoS+ON2\nHwIDAQAB\n-----END PUBLIC KEY-----", "tracking_id": "T00000"}`))
+	fmt.Printf("\n--- create1 ctx: %+v", req.Context().Value(constants.CtxSGAKey))
 	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry))
+	fmt.Printf("\n--- create2 ctx: %+v", req.Context().Value(constants.CtxSGAKey))
 	handler := http.HandlerFunc(createSystem)
 	rr := httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
@@ -1034,45 +1126,54 @@ func (s *APITestSuite) TestUpdateSystem() {
 
 	//Update Client name
 	req = httptest.NewRequestWithContext(s.ctx, "Patch", V2_SYSTEM_ROUTE+sysId, strings.NewReader(`{"client_name": "Updated Client Name"}`))
+	fmt.Printf("\n--- update1 ctx: %+v", req.Context().Value(constants.CtxSGAKey))
 	rctx := chi.NewRouteContext()
 	rctx.URLParams.Add("id", fmt.Sprint(sysId))
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+	fmt.Printf("\n--- update2 ctx: %+v", req.Context().Value(constants.CtxSGAKey))
 	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry))
+	fmt.Printf("\n--- update3 ctx: %+v", req.Context().Value(constants.CtxSGAKey))
 	handler = http.HandlerFunc(updateSystem)
 	rr = httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
 	assert.Equal(s.T(), http.StatusNoContent, rr.Result().StatusCode)
 
 	//Verify patch
-	sys, err := ssas.GetSystemByID(context.Background(), sysId)
+	sys, err := ssas.GetSystemByID(s.ctx, sysId)
 	assert.NoError(s.T(), err)
 	assert.Equal(s.T(), "Updated Client Name", sys.ClientName)
 
 	//Update API Scope
 	req = httptest.NewRequestWithContext(s.ctx, "Patch", V2_SYSTEM_ROUTE+sysId, strings.NewReader(`{"api_scope": "updated_scope"}`))
+	fmt.Printf("\n--- dd1 ctx: %+v", req.Context().Value(constants.CtxSGAKey))
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+	fmt.Printf("\n--- dd2 ctx: %+v", req.Context().Value(constants.CtxSGAKey))
 	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry))
+	fmt.Printf("\n--- dd3 ctx: %+v", req.Context().Value(constants.CtxSGAKey))
 	handler = http.HandlerFunc(updateSystem)
 	rr = httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
 	assert.Equal(s.T(), http.StatusNoContent, rr.Result().StatusCode)
 
 	//Verify API Scope patch
-	sys, err = ssas.GetSystemByID(context.Background(), sysId)
+	sys, err = ssas.GetSystemByID(s.ctx, sysId)
 	assert.NoError(s.T(), err)
 	assert.Equal(s.T(), "updated_scope", sys.APIScope)
 
 	//Update Software Id
 	req = httptest.NewRequestWithContext(s.ctx, "Patch", V2_SYSTEM_ROUTE+sysId, strings.NewReader(`{"software_id": "42"}`))
+	fmt.Printf("\n--- sw1 ctx: %+v", req.Context().Value(constants.CtxSGAKey))
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+	fmt.Printf("\n--- sw2 ctx: %+v", req.Context().Value(constants.CtxSGAKey))
 	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry))
+	fmt.Printf("\n--- sw3 ctx: %+v", req.Context().Value(constants.CtxSGAKey))
 	handler = http.HandlerFunc(updateSystem)
 	rr = httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
 	assert.Equal(s.T(), http.StatusNoContent, rr.Result().StatusCode)
 
 	//Verify Software Id patch
-	sys, err = ssas.GetSystemByID(context.Background(), sysId)
+	sys, err = ssas.GetSystemByID(s.ctx, sysId)
 	assert.NoError(s.T(), err)
 	assert.Equal(s.T(), "42", sys.SoftwareID)
 
@@ -1099,9 +1200,6 @@ func (s *APITestSuite) TestUpdateSystem() {
 	_ = json.Unmarshal(rr.Body.Bytes(), &result)
 	assert.Equal(s.T(), http.StatusBadRequest, rr.Result().StatusCode)
 	assert.Equal(s.T(), "attribute: api_scope may not be empty", result["error_description"])
-
-	err = ssas.CleanDatabase(group)
-	assert.Nil(s.T(), err)
 }
 func (s *APITestSuite) TestUpdateSystemWithInvalidBody() {
 	req := httptest.NewRequestWithContext(s.ctx, "Patch", V2_SYSTEM_ROUTE+"0", strings.NewReader(`{"client_name": invalid json`))
@@ -1129,15 +1227,6 @@ func (s *APITestSuite) TestUpdateNonExistingSystem() {
 	assert.Contains(s.T(), rr.Body.String(), "failed to update system")
 }
 
-func contains(list []string, target string) bool {
-	for _, item := range list {
-		if item == target {
-			return true
-		}
-	}
-	return false
-}
-
 // V2 Tests Below
 func (s *APITestSuite) TestCreateV2System() {
 	group := ssas.Group{GroupID: "test-group-id"}
@@ -1145,6 +1234,11 @@ func (s *APITestSuite) TestCreateV2System() {
 	if err != nil {
 		s.FailNow("Error creating test data", err.Error())
 	}
+
+	s.T().Cleanup(func() {
+		err = ssas.CleanDatabase(group)
+		assert.Nil(s.T(), err)
+	})
 
 	req := httptest.NewRequestWithContext(s.ctx, "POST", "/v2/system", strings.NewReader(`{"client_name": "Test Client", "group_id": "test-group-id","xdata":"{\"org\":\"testOrgID\"}", "scope": "bcda-api", "public_key": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEArhxobShmNifzW3xznB+L\nI8+hgaePpSGIFCtFz2IXGU6EMLdeufhADaGPLft9xjwdN1ts276iXQiaChKPA2CK\n/CBpuKcnU3LhU8JEi7u/db7J4lJlh6evjdKVKlMuhPcljnIKAiGcWln3zwYrFCeL\ncN0aTOt4xnQpm8OqHawJ18y0WhsWT+hf1DeBDWvdfRuAPlfuVtl3KkrNYn1yqCgQ\nlT6v/WyzptJhSR1jxdR7XLOhDGTZUzlHXh2bM7sav2n1+sLsuCkzTJqWZ8K7k7cI\nXK354CNpCdyRYUAUvr4rORIAUmcIFjaR3J4y/Dh2JIyDToOHg7vjpCtNnNoS+ON2\nHwIDAQAB\n-----END PUBLIC KEY-----", "tracking_id": "T00000"}`))
 	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry))
@@ -1160,9 +1254,6 @@ func (s *APITestSuite) TestCreateV2System() {
 	assert.NotEmpty(s.T(), result["client_token"])
 	assert.Empty(s.T(), result["client_secret"])
 	assert.Equal(s.T(), "Test Client", result["client_name"])
-
-	err = ssas.CleanDatabase(group)
-	assert.Nil(s.T(), err)
 }
 
 func (s *APITestSuite) TestCreateV2SystemWithMissingPublicKey() {
@@ -1171,6 +1262,11 @@ func (s *APITestSuite) TestCreateV2SystemWithMissingPublicKey() {
 	if err != nil {
 		s.FailNow("Error creating test data", err.Error())
 	}
+
+	s.T().Cleanup(func() {
+		err = ssas.CleanDatabase(group)
+		assert.Nil(s.T(), err)
+	})
 
 	req := httptest.NewRequestWithContext(s.ctx, "POST", "/v2/system", strings.NewReader(`{"client_name": "Test Client", "group_id": "test-group-id", "scope": "bcda-api", "tracking_id": "T00000"}`))
 	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry))
@@ -1186,9 +1282,6 @@ func (s *APITestSuite) TestCreateV2SystemWithMissingPublicKey() {
 	_ = json.Unmarshal(rr.Body.Bytes(), &result)
 	assert.Empty(s.T(), result["client_token"])
 	assert.Equal(s.T(), "could not create system", result["error_description"])
-
-	err = ssas.CleanDatabase(group)
-	assert.Nil(s.T(), err)
 }
 
 func (s *APITestSuite) TestCreateV2SystemMultipleIps() {
@@ -1199,6 +1292,11 @@ func (s *APITestSuite) TestCreateV2SystemMultipleIps() {
 	if err != nil {
 		s.FailNow("Error creating test data", err.Error())
 	}
+
+	s.T().Cleanup(func() {
+		err = ssas.CleanDatabase(group)
+		assert.Nil(s.T(), err)
+	})
 
 	reqBody := fmt.Sprintf(`{"client_name": "Test Client", "group_id": "test-group-id", "scope": "bcda-api", "ips": ["%s", "%s"],"public_key": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEArhxobShmNifzW3xznB+L\nI8+hgaePpSGIFCtFz2IXGU6EMLdeufhADaGPLft9xjwdN1ts276iXQiaChKPA2CK\n/CBpuKcnU3LhU8JEi7u/db7J4lJlh6evjdKVKlMuhPcljnIKAiGcWln3zwYrFCeL\ncN0aTOt4xnQpm8OqHawJ18y0WhsWT+hf1DeBDWvdfRuAPlfuVtl3KkrNYn1yqCgQ\nlT6v/WyzptJhSR1jxdR7XLOhDGTZUzlHXh2bM7sav2n1+sLsuCkzTJqWZ8K7k7cI\nXK354CNpCdyRYUAUvr4rORIAUmcIFjaR3J4y/Dh2JIyDToOHg7vjpCtNnNoS+ON2\nHwIDAQAB\n-----END PUBLIC KEY-----","tracking_id": "T00000"}`, randomIPv4, randomIPv6)
 	req := httptest.NewRequestWithContext(s.ctx, "POST", "/v2/system", strings.NewReader(reqBody))
@@ -1220,11 +1318,8 @@ func (s *APITestSuite) TestCreateV2SystemMultipleIps() {
 	assert.Nil(s.T(), err)
 	ips, err := system.GetIPs()
 	assert.Nil(s.T(), err)
-	assert.True(s.T(), contains(ips, randomIPv4))
-	assert.True(s.T(), contains(ips, randomIPv6))
-
-	err = ssas.CleanDatabase(group)
-	assert.Nil(s.T(), err)
+	assert.Contains(s.T(), ips, randomIPv4)
+	assert.Contains(s.T(), ips, randomIPv6)
 }
 
 func (s *APITestSuite) TestCreateV2SystemBadIp() {
@@ -1234,15 +1329,17 @@ func (s *APITestSuite) TestCreateV2SystemBadIp() {
 		s.FailNow("Error creating test data", err.Error())
 	}
 
+	s.T().Cleanup(func() {
+		err = ssas.CleanDatabase(group)
+		assert.Nil(s.T(), err)
+	})
+
 	req := httptest.NewRequestWithContext(s.ctx, "POST", "/v2/system", strings.NewReader(`{"client_name": "Test Client", "group_id": "test-group-id", "scope": "bcda-api", ips: ["304.0.2.1/32"],"tracking_id": "T00000"}`))
 	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry))
 	handler := http.HandlerFunc(createV2System)
 	rr := httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
 	assert.Equal(s.T(), http.StatusBadRequest, rr.Result().StatusCode)
-
-	err = ssas.CleanDatabase(group)
-	assert.Nil(s.T(), err)
 }
 
 func (s *APITestSuite) TestCreateV2SystemEmptyKey() {
@@ -1251,6 +1348,11 @@ func (s *APITestSuite) TestCreateV2SystemEmptyKey() {
 	if err != nil {
 		s.FailNow("Error creating test data", err.Error())
 	}
+
+	s.T().Cleanup(func() {
+		err = ssas.CleanDatabase(group)
+		assert.Nil(s.T(), err)
+	})
 
 	req := httptest.NewRequestWithContext(s.ctx, "POST", "/v2/system", strings.NewReader(`{"client_name": "Test Client", "group_id": "test-group-id", "scope": "bcda-api", "public_key": "", "tracking_id": "T00000"}`))
 	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry))
@@ -1265,9 +1367,6 @@ func (s *APITestSuite) TestCreateV2SystemEmptyKey() {
 
 	assert.Empty(s.T(), result["client_token"])
 	assert.Equal(s.T(), "could not create system", result["error_description"])
-
-	err = ssas.CleanDatabase(group)
-	assert.Nil(s.T(), err)
 }
 
 func (s *APITestSuite) TestCreateV2SystemInvalidRequest() {
@@ -1289,7 +1388,13 @@ func (s *APITestSuite) TestCreateV2SystemMissingRequiredParam() {
 }
 
 func (s *APITestSuite) TestGetV2System() {
-	creds, _ := ssas.CreateTestXDataV2(s.T(), s.db)
+	creds, group := ssas.CreateTestXDataV2(s.T(), s.ctx, s.db)
+
+	s.T().Cleanup(func() {
+		err := ssas.CleanDatabase(group)
+		assert.Nil(s.T(), err)
+	})
+
 	req := httptest.NewRequestWithContext(s.ctx, "GET", fmt.Sprintf("/v2/system/%s", creds.SystemID), nil)
 	rctx := chi.NewRouteContext()
 	rctx.URLParams.Add("id", creds.SystemID)
@@ -1318,7 +1423,13 @@ func (s *APITestSuite) TestGetV2System() {
 }
 
 func (s *APITestSuite) TestGetV2SystemInactive() {
-	creds, _ := ssas.CreateTestXDataV2(s.T(), s.db)
+	creds, group := ssas.CreateTestXDataV2(s.T(), s.ctx, s.db)
+
+	s.T().Cleanup(func() {
+		err := ssas.CleanDatabase(group)
+		assert.Nil(s.T(), err)
+	})
+
 	s.db.Delete(&ssas.System{}, creds.SystemID)
 
 	req := httptest.NewRequestWithContext(s.ctx, "GET", fmt.Sprintf("/v2/system/%s", creds.SystemID), nil)
@@ -1338,7 +1449,12 @@ func (s *APITestSuite) TestGetV2SystemInactive() {
 }
 
 func (s *APITestSuite) TestCreateAndDeleteAdditionalV2SystemToken() {
-	creds, _ := ssas.CreateTestXDataV2(s.T(), s.db)
+	creds, group := ssas.CreateTestXDataV2(s.T(), s.ctx, s.db)
+
+	s.T().Cleanup(func() {
+		err := ssas.CleanDatabase(group)
+		assert.Nil(s.T(), err)
+	})
 
 	req := httptest.NewRequestWithContext(s.ctx, "POST", fmt.Sprintf("/v2/system/%s/token", creds.SystemID), strings.NewReader(`{"label":"hello"}`))
 	rctx := chi.NewRouteContext()
@@ -1412,7 +1528,12 @@ func (s *APITestSuite) TestCreateV2SystemTokenSystemNotFound() {
 }
 
 func (s *APITestSuite) TestCreateV2SystemTokenNonJson() {
-	creds, _ := ssas.CreateTestXDataV2(s.T(), s.db)
+	creds, group := ssas.CreateTestXDataV2(s.T(), s.ctx, s.db)
+
+	s.T().Cleanup(func() {
+		err := ssas.CleanDatabase(group)
+		assert.Nil(s.T(), err)
+	})
 
 	req := httptest.NewRequestWithContext(s.ctx, "POST", fmt.Sprintf("/v2/system/%s/token", creds.SystemID), strings.NewReader(`"notalabel":"hello"}`))
 	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry))
@@ -1428,7 +1549,12 @@ func (s *APITestSuite) TestCreateV2SystemTokenNonJson() {
 }
 
 func (s *APITestSuite) TestCreateV2SystemTokenMissingLabel() {
-	creds, _ := ssas.CreateTestXDataV2(s.T(), s.db)
+	creds, group := ssas.CreateTestXDataV2(s.T(), s.ctx, s.db)
+
+	s.T().Cleanup(func() {
+		err := ssas.CleanDatabase(group)
+		assert.Nil(s.T(), err)
+	})
 
 	req := httptest.NewRequestWithContext(s.ctx, "POST", fmt.Sprintf("/v2/system/%s/token", creds.SystemID), strings.NewReader(`{"notalabel":"hello"}`))
 	rctx := chi.NewRouteContext()
@@ -1455,7 +1581,12 @@ func (s *APITestSuite) TestDeleteV2SystemTokenSystemNotFound() {
 }
 
 func (s *APITestSuite) TestCreateAndDeletePublicKey() {
-	creds, _ := ssas.CreateTestXDataV2(s.T(), s.db)
+	creds, group := ssas.CreateTestXDataV2(s.T(), s.ctx, s.db)
+
+	s.T().Cleanup(func() {
+		err := ssas.CleanDatabase(group)
+		assert.Nil(s.T(), err)
+	})
 
 	key, sig, _, _ := ssas.GeneratePublicKey(2048)
 	keyStr := strings.ReplaceAll(key, "\n", "\\n")
@@ -1535,7 +1666,12 @@ func (s *APITestSuite) TestCreatePublicKeySystemNotFound() {
 }
 
 func (s *APITestSuite) TestCreatePublicKeyNonJson() {
-	creds, _ := ssas.CreateTestXDataV2(s.T(), s.db)
+	creds, group := ssas.CreateTestXDataV2(s.T(), s.ctx, s.db)
+
+	s.T().Cleanup(func() {
+		err := ssas.CleanDatabase(group)
+		assert.Nil(s.T(), err)
+	})
 
 	key, sig, _, _ := ssas.GeneratePublicKey(2048)
 	keyStr := strings.ReplaceAll(key, "\n", "\\n")
@@ -1551,7 +1687,12 @@ func (s *APITestSuite) TestCreatePublicKeyNonJson() {
 }
 
 func (s *APITestSuite) TestCreatePublicKeyMissingFields() {
-	creds, _ := ssas.CreateTestXDataV2(s.T(), s.db)
+	creds, group := ssas.CreateTestXDataV2(s.T(), s.ctx, s.db)
+
+	s.T().Cleanup(func() {
+		err := ssas.CleanDatabase(group)
+		assert.Nil(s.T(), err)
+	})
 
 	key, sig, _, _ := ssas.GeneratePublicKey(2048)
 	keyStr := strings.ReplaceAll(key, "\n", "\\n")

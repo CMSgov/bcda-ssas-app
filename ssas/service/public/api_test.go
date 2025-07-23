@@ -1347,7 +1347,7 @@ func (s *APITestSuite) TestGetTokenInfoWithExpiredToken() {
 }
 
 func (s *APITestSuite) MintTestAccessTokenWithDuration(duration time.Duration) (*jwt.Token, string, error) {
-	creds, _ := ssas.CreateTestXDataV2(s.T(), s.db)
+	creds, _ := ssas.CreateTestXDataV2(s.T(), s.ctx, s.db)
 	system, err := ssas.GetSystemByClientID(s.ctx, creds.ClientID)
 	assert.Nil(s.T(), err)
 	data, err := ssas.XDataFor(s.ctx, system)

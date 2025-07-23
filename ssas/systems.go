@@ -442,6 +442,8 @@ func registerSystem(ctx context.Context, input SystemInput, isV2 bool) (Credenti
 		SGAKey:     fmt.Sprintf("%v", ctx.Value(constants.CtxSGAKey)),
 	}
 
+	fmt.Printf("\n--- registerSystem with system: %+v\n", system)
+
 	err = tx.Create(&system).Error
 
 	if err != nil {
