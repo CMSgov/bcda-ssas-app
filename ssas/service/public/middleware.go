@@ -46,7 +46,6 @@ func readGroupID(next http.Handler) http.Handler {
 		if os.Getenv("SGA_ADMIN_FEATURE") == "true" {
 			sgaKey, err := ssas.GetSGAKeyByGroupID(r.Context(), rd.GroupID)
 			if err == nil {
-				fmt.Printf("\nsetting context with key: %+v", sgaKey)
 				r = r.WithContext(context.WithValue(r.Context(), constants.CtxSGAKey, sgaKey))
 			}
 		}
@@ -162,6 +161,7 @@ func contains(list []string, target string) bool {
 }
 
 // SkipSGAAuthCheck allows requests to skip SGA auth checks, be careful when adding new requests with this middleware!
+// This is needed as certain public requests use some ORM functions that require auth checks.
 func SkipSGAAuthCheck(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if os.Getenv("SGA_ADMIN_FEATURE") == "true" {

@@ -442,8 +442,6 @@ func registerSystem(ctx context.Context, input SystemInput, isV2 bool) (Credenti
 		SGAKey:     fmt.Sprintf("%v", ctx.Value(constants.CtxSGAKey)),
 	}
 
-	fmt.Printf("\n--- registerSystem with system: %+v\n", system)
-
 	err = tx.Create(&system).Error
 
 	if err != nil {
@@ -667,8 +665,6 @@ func GetSystemsByGroupIDString(ctx context.Context, groupId string) ([]System, e
 }
 
 // GetSGAKeyByGroupID gets an SGA key from the first system associated with a Group ID
-// This skips SGA authorization so should be used very carefully.  The only current use is in public router middleware
-// AFTER a request has had its token verified.  These requests should only allow modification of itself (the requests associated group/system/secret etc)
 func GetSGAKeyByGroupID(ctx context.Context, groupID string) (string, error) {
 	var (
 		systems []System
@@ -719,7 +715,6 @@ func GetSystemByID(ctx context.Context, id string) (System, error) {
 	skipSGAAuthCheck := fmt.Sprintf("%v", ctx.Value(constants.CtxSGASkipAuthKey))
 	if os.Getenv("SGA_ADMIN_FEATURE") == "true" && skipSGAAuthCheck != "true" {
 		requesterSGAKey := fmt.Sprintf("%v", ctx.Value(constants.CtxSGAKey))
-		fmt.Printf("\n-----: GetSystemByID requester key %+v, system key: %+v, \n---system found: %+v\n", requesterSGAKey, system.SGAKey, system)
 
 		if requesterSGAKey != system.SGAKey {
 			return System{}, fmt.Errorf("requesting SGA does not have access to this system, id: %+v", id)

@@ -1113,9 +1113,7 @@ func (s *APITestSuite) TestUpdateSystem() {
 
 	//Create system
 	req := httptest.NewRequestWithContext(s.ctx, "POST", "/system", strings.NewReader(`{"client_name": "Test Client", "group_id": "test-group-id", "scope": "bcda-api", "public_key": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEArhxobShmNifzW3xznB+L\nI8+hgaePpSGIFCtFz2IXGU6EMLdeufhADaGPLft9xjwdN1ts276iXQiaChKPA2CK\n/CBpuKcnU3LhU8JEi7u/db7J4lJlh6evjdKVKlMuhPcljnIKAiGcWln3zwYrFCeL\ncN0aTOt4xnQpm8OqHawJ18y0WhsWT+hf1DeBDWvdfRuAPlfuVtl3KkrNYn1yqCgQ\nlT6v/WyzptJhSR1jxdR7XLOhDGTZUzlHXh2bM7sav2n1+sLsuCkzTJqWZ8K7k7cI\nXK354CNpCdyRYUAUvr4rORIAUmcIFjaR3J4y/Dh2JIyDToOHg7vjpCtNnNoS+ON2\nHwIDAQAB\n-----END PUBLIC KEY-----", "tracking_id": "T00000"}`))
-	fmt.Printf("\n--- create1 ctx: %+v", req.Context().Value(constants.CtxSGAKey))
 	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry))
-	fmt.Printf("\n--- create2 ctx: %+v", req.Context().Value(constants.CtxSGAKey))
 	handler := http.HandlerFunc(createSystem)
 	rr := httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
@@ -1126,13 +1124,10 @@ func (s *APITestSuite) TestUpdateSystem() {
 
 	//Update Client name
 	req = httptest.NewRequestWithContext(s.ctx, "Patch", V2_SYSTEM_ROUTE+sysId, strings.NewReader(`{"client_name": "Updated Client Name"}`))
-	fmt.Printf("\n--- update1 ctx: %+v", req.Context().Value(constants.CtxSGAKey))
 	rctx := chi.NewRouteContext()
 	rctx.URLParams.Add("id", fmt.Sprint(sysId))
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
-	fmt.Printf("\n--- update2 ctx: %+v", req.Context().Value(constants.CtxSGAKey))
 	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry))
-	fmt.Printf("\n--- update3 ctx: %+v", req.Context().Value(constants.CtxSGAKey))
 	handler = http.HandlerFunc(updateSystem)
 	rr = httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
@@ -1145,11 +1140,8 @@ func (s *APITestSuite) TestUpdateSystem() {
 
 	//Update API Scope
 	req = httptest.NewRequestWithContext(s.ctx, "Patch", V2_SYSTEM_ROUTE+sysId, strings.NewReader(`{"api_scope": "updated_scope"}`))
-	fmt.Printf("\n--- dd1 ctx: %+v", req.Context().Value(constants.CtxSGAKey))
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
-	fmt.Printf("\n--- dd2 ctx: %+v", req.Context().Value(constants.CtxSGAKey))
 	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry))
-	fmt.Printf("\n--- dd3 ctx: %+v", req.Context().Value(constants.CtxSGAKey))
 	handler = http.HandlerFunc(updateSystem)
 	rr = httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
@@ -1162,11 +1154,8 @@ func (s *APITestSuite) TestUpdateSystem() {
 
 	//Update Software Id
 	req = httptest.NewRequestWithContext(s.ctx, "Patch", V2_SYSTEM_ROUTE+sysId, strings.NewReader(`{"software_id": "42"}`))
-	fmt.Printf("\n--- sw1 ctx: %+v", req.Context().Value(constants.CtxSGAKey))
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
-	fmt.Printf("\n--- sw2 ctx: %+v", req.Context().Value(constants.CtxSGAKey))
 	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry))
-	fmt.Printf("\n--- sw3 ctx: %+v", req.Context().Value(constants.CtxSGAKey))
 	handler = http.HandlerFunc(updateSystem)
 	rr = httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)

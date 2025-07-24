@@ -87,10 +87,6 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: code-coverage-report-ssas
-      - run: |
-          pwd
-          ls -als
-          cat ./testcoverage-ssas.out
       - name: Run quality gate scan
         uses: sonarsource/sonarqube-scan-action@master
         with:

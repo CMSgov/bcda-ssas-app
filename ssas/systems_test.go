@@ -875,34 +875,6 @@ func (s *SystemsTestSuite) TestGetSystemByClientID_With_SGA_ADMIN_FEATURE_Succes
 	os.Setenv("SGA_ADMIN_FEATURE", oldFF)
 }
 
-// func (s *SystemsTestSuite) TestGetSystemByClientID_With_SGA_ADMIN_FEATURE_UnauthorizedRequester() {
-// 	ctx := context.Background()
-// 	ctx = context.WithValue(ctx, constants.CtxSGAKey, "different-sga")
-
-// 	newFF := "true"
-// 	oldFF := os.Getenv("SGA_ADMIN_FEATURE")
-// 	os.Setenv("SGA_ADMIN_FEATURE", newFF)
-
-// 	group := Group{GroupID: "abcdef123456"}
-// 	err := s.db.Create(&group).Error
-// 	if err != nil {
-// 		s.FailNow(err.Error())
-// 	}
-
-// 	expSystem := System{GID: group.ID, ClientID: "987654zyxwvu", ClientName: "Client with System", SGAKey: "test-sga"} //gitleaks:allow
-// 	err = s.db.Create(&expSystem).Error
-// 	if err != nil {
-// 		s.FailNow(err.Error())
-// 	}
-
-// 	gotSystem, err := GetSystemByClientID(ctx, fmt.Sprint(expSystem.ClientID))
-// 	assert.ErrorContains(s.T(), err, "requesting SGA does not have access to this system, id:")
-// 	assert.Equal(s.T(), System{}.ID, gotSystem.ID)
-
-// 	_ = CleanDatabase(group)
-// 	os.Setenv("SGA_ADMIN_FEATURE", oldFF)
-// }
-
 func (s *SystemsTestSuite) TestGetSystemsByGroupIDString_With_SGA_ADMIN_FEATURE_Success() {
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, constants.CtxSGAKey, "test-sga")

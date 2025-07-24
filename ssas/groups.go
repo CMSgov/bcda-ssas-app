@@ -152,7 +152,7 @@ func DeleteGroup(ctx context.Context, id string) error {
 
 // GetAuthorizedGroupsForOktaID returns a slice of GroupID's representing all groups this Okta user has rights to manage
 // TODO: this is the slowest and most memory intensive way possible to implement this.  Refactor!
-// seems to be unused, seems worth keeping around in case we need to move to okta?
+// This seems to be unused but worth keeping around in case we need to move to okta?
 // func GetAuthorizedGroupsForOktaID(ctx context.Context, oktaID string) ([]string, error) {
 // 	var (
 // 		result []string
@@ -267,11 +267,10 @@ func GetGroupByID(ctx context.Context, id string) (Group, error) {
 	}
 
 	skipSGAAuthCheck := fmt.Sprintf("%v", ctx.Value(constants.CtxSGASkipAuthKey))
-	fmt.Printf("\n--- skip check? %+v, continue? %+v\n", skipSGAAuthCheck, (skipSGAAuthCheck != "true"))
 	if os.Getenv("SGA_ADMIN_FEATURE") == "true" && skipSGAAuthCheck != "true" {
 		sgaKeyFromGroupID, err := GetSGAKeyByGroupID(ctx, group.GroupID)
 		requesterSGAKey := fmt.Sprintf("%v", ctx.Value(constants.CtxSGAKey))
-		fmt.Printf("\n--- GetGroupByID: sgaKeyFromGroupID: %+v, requesterSGAKey: %+v\n, err: %+v", sgaKeyFromGroupID, requesterSGAKey, err)
+
 		if err != nil || sgaKeyFromGroupID != requesterSGAKey {
 			return Group{}, fmt.Errorf("error authorizing requesting system (%+v) to group with groupID: %v, err: %+v", requesterSGAKey, group.GroupID, err)
 		}

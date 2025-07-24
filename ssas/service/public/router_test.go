@@ -105,13 +105,3 @@ func (s *PublicRouterTestSuite) TestResetRouteNoToken() {
 func TestPublicRouterTestSuite(t *testing.T) {
 	suite.Run(t, new(PublicRouterTestSuite))
 }
-
-// func TestPublicRouterTestSuite_With_SGA_ADMIN_FEATURE(t *testing.T) {
-// 	newFF := "true"
-// 	oldFF := os.Getenv("SGA_ADMIN_FEATURE")
-// 	os.Setenv("SGA_ADMIN_FEATURE", newFF)
-
-// 	suite.Run(t, new(PublicRouterTestSuite))
-
-// 	os.Setenv("SGA_ADMIN_FEATURE", oldFF)
-// }
