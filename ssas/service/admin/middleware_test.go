@@ -114,10 +114,14 @@ func (s *AdminMiddlewareTestSuite) TestRequireBasicAuthContext() {
 
 func verifyContext(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		SGAKey := r.Context().Value(constants.CtxSGAKey)
+		sgaKey := r.Context().Value(constants.CtxSGAKey)
+		skipAuth := r.Context().Value(constants.CtxSGASkipAuthKey)
 
 		// set in service/main#addFixtureData()
-		if SGAKey != "bcda" {
+		if sgaKey != "bcda" {
+			w.WriteHeader(http.StatusNotFound)
+		}
+		if skipAuth != "true" {
 			w.WriteHeader(http.StatusNotFound)
 		}
 
