@@ -150,31 +150,6 @@ func DeleteGroup(ctx context.Context, id string) error {
 	return nil
 }
 
-// GetAuthorizedGroupsForOktaID returns a slice of GroupID's representing all groups this Okta user has rights to manage
-// TODO: this is the slowest and most memory intensive way possible to implement this.  Refactor!
-// This seems to be unused but worth keeping around in case we need to move to okta?
-// func GetAuthorizedGroupsForOktaID(ctx context.Context, oktaID string) ([]string, error) {
-// 	var (
-// 		result []string
-// 	)
-
-// 	groups := []Group{}
-// 	err := Connection.WithContext(ctx).Select("*").Find(&groups).Error
-// 	if err != nil {
-// 		return result, err
-// 	}
-
-// 	for _, group := range groups {
-// 		for _, user := range group.Data.Users {
-// 			if user == oktaID {
-// 				result = append(result, group.GroupID)
-// 			}
-// 		}
-// 	}
-
-// 	return result, nil
-// }
-
 func cascadeDeleteGroup(ctx context.Context, group Group) error {
 	var (
 		system        System

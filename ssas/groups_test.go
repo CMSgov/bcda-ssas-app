@@ -241,40 +241,6 @@ func (s *GroupsTestSuite) TestDeleteGroup() {
 	assert.Nil(s.T(), err)
 }
 
-// func (s *GroupsTestSuite) TestGetAuthorizedGroupsForOktaID() {
-// 	group1bytes := []byte(`{"group_id":"T0001","users":["abcdef","qrstuv"],"scopes":[],"resources":[],"systems":[],"name":""}`)
-// 	group2bytes := []byte(`{"group_id":"T0002","users":["abcdef","qrstuv"],"scopes":[],"resources":[],"systems":[],"name":""}`)
-// 	group3bytes := []byte(`{"group_id":"T0003","users":["qrstuv"],"scopes":[],"resources":[],"systems":[],"name":""}`)
-
-// 	g1 := GroupData{}
-// 	err := json.Unmarshal(group1bytes, &g1)
-// 	assert.Nil(s.T(), err)
-// 	group1, _ := CreateGroup(context.Background(), g1)
-
-// 	g2 := GroupData{}
-// 	err = json.Unmarshal(group2bytes, &g2)
-// 	assert.Nil(s.T(), err)
-// 	group2, _ := CreateGroup(context.Background(), g2)
-
-// 	g3 := GroupData{}
-// 	err = json.Unmarshal(group3bytes, &g3)
-// 	assert.Nil(s.T(), err)
-// 	group3, _ := CreateGroup(context.Background(), g3)
-
-// 	defer s.db.Unscoped().Delete(&group1)
-// 	defer s.db.Unscoped().Delete(&group2)
-// 	defer s.db.Unscoped().Delete(&group3)
-
-// 	authorizedGroups, err := GetAuthorizedGroupsForOktaID(context.Background(), "abcdef")
-// 	if err != nil {
-// 		s.FailNow(err.Error())
-// 	}
-// 	if len(authorizedGroups) != 2 {
-// 		s.FailNow("oktaID should be authorized for exactly two groups")
-// 	}
-// 	assert.Equal(s.T(), "T0001", authorizedGroups[0])
-// }
-
 func TestGroupsTestSuite(t *testing.T) {
 	suite.Run(t, new(GroupsTestSuite))
 }
