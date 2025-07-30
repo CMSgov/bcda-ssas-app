@@ -127,7 +127,7 @@ func (s *GroupsTestSuite) TestListGroups() {
 
 func (s *GroupsTestSuite) TestListGroups_With_SGA_ADMIN_FEATURE() {
 	ctx := context.Background()
-	ctx = context.WithValue(ctx, constants.CtxSGAKey, "test-sga")
+	ctx = context.WithValue(ctx, constants.CtxSGAKey, "unique-sga")
 
 	newFF := "true"
 	oldFF := os.Getenv("SGA_ADMIN_FEATURE")
@@ -161,7 +161,7 @@ func (s *GroupsTestSuite) TestListGroups_With_SGA_ADMIN_FEATURE() {
 	// create 3 systems
 	// 2 associated with group 1, one auth, one unauthed
 	// 1 associated with group 2, no auth
-	g1AuthSys := System{GID: g1.ID, GroupID: "group-id-1", ClientID: "c-id-1", SGAKey: "test-sga"}
+	g1AuthSys := System{GID: g1.ID, GroupID: "group-id-1", ClientID: "c-id-1", SGAKey: "unique-sga"}
 	err = s.db.Create(&g1AuthSys).Error
 	assert.Nil(s.T(), err, "unexpected error")
 
@@ -189,7 +189,7 @@ func (s *GroupsTestSuite) TestListGroups_With_SGA_ADMIN_FEATURE() {
 	assert.Equal(s.T(), len(groupList.Groups), 1)
 	assert.Equal(s.T(), groupList.Groups[0].ID, g1.ID)
 	assert.Equal(s.T(), groupList.Groups[0].GroupID, "group-id-1")
-	assert.Equal(s.T(), groupList.Groups[0].Systems[0].SGAKey, "test-sga")
+	assert.Equal(s.T(), groupList.Groups[0].Systems[0].SGAKey, "unique-sga")
 }
 
 func (s *GroupsTestSuite) TestUpdateGroup() {

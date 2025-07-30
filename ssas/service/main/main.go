@@ -218,7 +218,7 @@ func addFixtureData() {
 	if err := db.Save(&ssas.Group{GroupID: service.TestGroupID, Data: ssas.GroupData{GroupID: service.TestGroupID}, XData: `{"cms_ids":["A9994"]}`}).Error; err != nil {
 		fmt.Println(err)
 	}
-	makeSystem(db, "admin", "31e029ef-0e97-47f8-873c-0e8b7e7f99bf",
+	makeSystem(db, "admin", service.TestAdminClientID,
 		"BCDA API Admin", "bcda-admin",
 		"ofSsVmNaR6+nq93pGUhzKcLvJlokzE4mKqBxS8kt5Fc=:yt+N0wLzqZsY4Lw0pIEWlySbU7y7P7mNnn8IUjsZR0qis9/X2aKtjAMKlFRcCp+CYDeF/+FrvzuCDqacQwX+hA==:130000",
 		"bcda",
@@ -226,7 +226,7 @@ func addFixtureData() {
 	makeSystem(db, service.TestGroupID,
 		service.TestGroupID, "ACO Dev", "bcda-api",
 		"bUtFIoldpvBjK92JoJrZEQCZbjTAI0o5RRJ+krdHMFA=:iKOi8/rskQ+ykmA32f3iVNQ6SWBJbWrC0weq7K6R1LF164zKcmQ8PXa4CMUZ1kd8sBBqvP+ISTYqwDu9C+5dtA==:130000",
-		"bcda",
+		"test-sga",
 	)
 }
 

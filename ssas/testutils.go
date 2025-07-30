@@ -20,14 +20,13 @@ import (
 	"gorm.io/gorm"
 )
 
-func ResetAdminCreds() (encSecret string, err error) {
-	err = RevokeActiveCreds("admin")
+func ResetCreds(clientID string, groupID string) (encSecret string, err error) {
+	err = RevokeActiveCreds(groupID)
 	if err != nil {
 		return
 	}
 
-	id := "31e029ef-0e97-47f8-873c-0e8b7e7f99bf"
-	system, err := GetSystemByClientID(context.Background(), id)
+	system, err := GetSystemByClientID(context.Background(), clientID)
 	if err != nil {
 		return
 	}
@@ -37,7 +36,7 @@ func ResetAdminCreds() (encSecret string, err error) {
 		return
 	}
 
-	basicAuth := id + ":" + creds.ClientSecret
+	basicAuth := clientID + ":" + creds.ClientSecret
 	encSecret = base64.StdEncoding.EncodeToString([]byte(basicAuth))
 
 	return

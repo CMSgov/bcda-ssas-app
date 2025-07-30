@@ -2,11 +2,14 @@ package public
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"testing"
 
+	"github.com/CMSgov/bcda-ssas-app/ssas/constants"
 	"github.com/CMSgov/bcda-ssas-app/ssas/service"
 	"github.com/go-chi/chi/v5"
 	"github.com/stretchr/testify/assert"
@@ -237,6 +240,62 @@ func (s *PublicMiddlewareTestSuite) TestGetTransactionID() {
 	if tid, ok := req.Context().Value(service.CtxTransactionKey).(string); ok {
 		assert.Equal(s.T(), tid, "1234")
 	}
+}
+
+func (s *PublicMiddlewareTestSuite) TestVerifySGAAuthSkip_With_SGA_ADMIN_FEATURE() {
+	oldFFVal := os.Getenv("SGA_ADMIN_FEATURE")
+	os.Setenv("SGA_ADMIN_FEATURE", "true")
+
+	testForSkip := func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			skipCheck := r.Context().Value(constants.CtxSGASkipAuthKey).(string)
+			assert.Equal(s.T(), "true", skipCheck)
+		})
+	}
+
+	s.server = httptest.NewServer(s.CreateRouter(SkipSGAAuthCheck, testForSkip))
+	client := s.server.Client()
+	req, err := http.NewRequest("GET", s.server.URL, nil)
+	if err != nil {
+		assert.FailNow(s.T(), err.Error())
+	}
+
+	resp, err := client.Do(req)
+	if err != nil {
+		assert.FailNow(s.T(), err.Error())
+	}
+	assert.Equal(s.T(), http.StatusOK, resp.StatusCode)
+
+	err = os.Setenv("SGA_ADMIN_FEATURE", oldFFVal)
+	assert.Nil(s.T(), err)
+}
+
+func (s *PublicMiddlewareTestSuite) TestVerifySGAAuthSkip_Without_SGA_ADMIN_FEATURE() {
+	oldFFVal := os.Getenv("SGA_ADMIN_FEATURE")
+	os.Setenv("SGA_ADMIN_FEATURE", "false")
+
+	testNoSkip := func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			skipCheck := r.Context().Value(constants.CtxSGASkipAuthKey)
+			assert.Equal(s.T(), "<nil>", fmt.Sprintf("%v", skipCheck))
+		})
+	}
+
+	s.server = httptest.NewServer(s.CreateRouter(SkipSGAAuthCheck, testNoSkip))
+	client := s.server.Client()
+	req, err := http.NewRequest("GET", s.server.URL, nil)
+	if err != nil {
+		assert.FailNow(s.T(), err.Error())
+	}
+
+	resp, err := client.Do(req)
+	if err != nil {
+		assert.FailNow(s.T(), err.Error())
+	}
+	assert.Equal(s.T(), http.StatusOK, resp.StatusCode)
+
+	err = os.Setenv("SGA_ADMIN_FEATURE", oldFFVal)
+	assert.Nil(s.T(), err)
 }
 
 func (s *PublicMiddlewareTestSuite) TestContains() {
