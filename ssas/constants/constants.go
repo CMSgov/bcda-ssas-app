@@ -15,6 +15,12 @@ const HeaderApplicationJSON = "application/json"
 
 const Application = "ssas"
 
+// Sets requesting SGA on admin endpoint requests into context
 type CtxSGAKeyType string
 
 const CtxSGAKey CtxSGAKeyType = "CtxSGAKey"
+
+// Sets bool that allows skipping of SGA authorization checks
+type CtxSGASkipAuthType string
+
+const CtxSGASkipAuthKey CtxSGASkipAuthType = "CtxSGASkipAuthKey"

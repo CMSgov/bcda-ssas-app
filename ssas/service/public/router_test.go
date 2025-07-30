@@ -69,6 +69,11 @@ func (s *PublicRouterTestSuite) TestTokenRoute() {
 	assert.Equal(s.T(), http.StatusBadRequest, res.StatusCode)
 }
 
+func (s *PublicRouterTestSuite) TestIntrospectRoute() {
+	res := s.reqPublicRoute("POST", "/introspect", nil, "")
+	assert.Equal(s.T(), http.StatusUnauthorized, res.StatusCode)
+}
+
 func (s *PublicRouterTestSuite) TestRegisterRoute() {
 	groupIDs := []string{"T1234", "T0001"}
 	_, ts, _ := MintRegistrationToken("test_okta_id", groupIDs)

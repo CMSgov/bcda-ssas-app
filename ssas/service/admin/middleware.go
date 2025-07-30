@@ -26,6 +26,11 @@ func requireBasicAuth(next http.Handler) http.Handler {
 
 		if os.Getenv("SGA_ADMIN_FEATURE") == "true" {
 			r = r.WithContext(context.WithValue(r.Context(), constants.CtxSGAKey, system.SGAKey))
+
+			// skip auth checks if requester is us
+			if system.SGAKey == "bcda" {
+				r = r.WithContext(context.WithValue(r.Context(), constants.CtxSGASkipAuthKey, "true"))
+			}
 		}
 
 		savedSecret, err := system.GetSecret(r.Context())

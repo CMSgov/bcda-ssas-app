@@ -19,6 +19,9 @@ const (
 	MissingID
 )
 
+const TestAdminClientID = "31e029ef-0e97-47f8-873c-0e8b7e7f99bf" // gitleaks:allow
+const TestGroupID = "0c527d2e-2e8a-4808-b11d-0fa06baf8254"       // gitleaks:allow
+
 // BadToken creates invalid tokens for testing.  To avoid exposing token spoofing capabilities, a limited number of
 // bad token types will be supported.
 func BadToken(claims *CommonClaims, flaw TokenFlaw, keyPath string) (token *jwt.Token, signedString string, err error) {

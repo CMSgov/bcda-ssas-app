@@ -6,9 +6,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
+	"slices"
 	"strconv"
 	"time"
 
+	"github.com/CMSgov/bcda-ssas-app/ssas/constants"
 	"gorm.io/gorm"
 )
 
@@ -27,6 +30,7 @@ type SystemSummary struct {
 	ClientID   string    `json:"client_id"`
 	IPs        []string  `json:"ips,omitempty" gorm:"-"`
 	UpdatedAt  time.Time `json:"updated_at"`
+	SGAKey     string    `json:"sga_key"`
 }
 
 func (SystemSummary) TableName() string {
@@ -99,6 +103,21 @@ func ListGroups(ctx context.Context) (list GroupList, err error) {
 	}
 	list.Count = len(groups)
 	list.ReportedAt = time.Now()
+
+	if os.Getenv("SGA_ADMIN_FEATURE") == "true" {
+		requesterSGAKey := fmt.Sprintf("%v", ctx.Value(constants.CtxSGAKey))
+
+		groups = slices.DeleteFunc(groups, func(group GroupSummary) bool {
+			// remove all unauthorized systems
+			group.Systems = slices.DeleteFunc(group.Systems, func(system SystemSummary) bool {
+				return system.SGAKey != requesterSGAKey
+			})
+
+			// remove group if no authorized systems
+			return len(group.Systems) == 0
+		})
+	}
+
 	list.Groups = groups
 	return list, nil
 }
@@ -129,30 +148,6 @@ func DeleteGroup(ctx context.Context, id string) error {
 		return err
 	}
 	return nil
-}
-
-// GetAuthorizedGroupsForOktaID returns a slice of GroupID's representing all groups this Okta user has rights to manage
-// TODO: this is the slowest and most memory intensive way possible to implement this.  Refactor!
-func GetAuthorizedGroupsForOktaID(ctx context.Context, oktaID string) ([]string, error) {
-	var (
-		result []string
-	)
-
-	groups := []Group{}
-	err := Connection.WithContext(ctx).Select("*").Find(&groups).Error
-	if err != nil {
-		return result, err
-	}
-
-	for _, group := range groups {
-		for _, user := range group.Data.Users {
-			if user == oktaID {
-				result = append(result, group.GroupID)
-			}
-		}
-	}
-
-	return result, nil
 }
 
 func cascadeDeleteGroup(ctx context.Context, group Group) error {
@@ -245,5 +240,16 @@ func GetGroupByID(ctx context.Context, id string) (Group, error) {
 	if err = Connection.WithContext(ctx).First(&group, id1).Error; err != nil {
 		err = fmt.Errorf("no Group record found with ID %s", id)
 	}
+
+	skipSGAAuthCheck := fmt.Sprintf("%v", ctx.Value(constants.CtxSGASkipAuthKey))
+	if os.Getenv("SGA_ADMIN_FEATURE") == "true" && skipSGAAuthCheck != "true" {
+		sgaKeyFromGroupID, err := GetSGAKeyByGroupID(ctx, group.GroupID)
+		requesterSGAKey := fmt.Sprintf("%v", ctx.Value(constants.CtxSGAKey))
+
+		if err != nil || sgaKeyFromGroupID != requesterSGAKey {
+			return Group{}, fmt.Errorf("error authorizing requesting system (%+v) to group with groupID: %v, err: %+v", requesterSGAKey, group.GroupID, err)
+		}
+	}
+
 	return group, err
 }

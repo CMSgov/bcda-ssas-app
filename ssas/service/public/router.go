@@ -53,7 +53,14 @@ func routes() *chi.Mux {
 	router := chi.NewRouter()
 	m := monitoring.GetMonitor()
 
-	router.Use(gcmw.RequestID, service.GetTransactionID, service.NewAPILogger(), service.ConnectionClose, service.NewCtxLogger)
+	router.Use(
+		gcmw.RequestID,
+		service.GetTransactionID,
+		service.NewAPILogger(),
+		service.ConnectionClose,
+		service.NewCtxLogger,
+		SkipSGAAuthCheck,
+	)
 
 	//v1 Routes
 	router.Post(m.WrapHandler("/token", token))

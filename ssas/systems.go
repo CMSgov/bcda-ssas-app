@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/CMSgov/bcda-ssas-app/ssas/cfg"
+	"github.com/CMSgov/bcda-ssas-app/ssas/constants"
 	"github.com/joho/godotenv"
 	"github.com/pborman/uuid"
 	"gorm.io/gorm"
@@ -427,7 +428,6 @@ func registerSystem(ctx context.Context, input SystemInput, isV2 bool) (Credenti
 	}
 
 	group, err := GetGroupByGroupID(ctx, input.GroupID)
-
 	if err != nil {
 		return creds, errors.New("unable to find group with id " + input.GroupID)
 	}
@@ -439,6 +439,7 @@ func registerSystem(ctx context.Context, input SystemInput, isV2 bool) (Credenti
 		ClientName: input.ClientName,
 		APIScope:   scope,
 		XData:      input.XData,
+		SGAKey:     fmt.Sprintf("%v", ctx.Value(constants.CtxSGAKey)),
 	}
 
 	err = tx.Create(&system).Error
@@ -659,7 +660,26 @@ func GetSystemsByGroupIDString(ctx context.Context, groupId string) ([]System, e
 	if err = Connection.WithContext(ctx).Where("group_id = ? AND deleted_at IS NULL", groupId).Find(&systems).Error; err != nil {
 		err = fmt.Errorf("no Systems found with group_id %s", groupId)
 	}
+
 	return systems, err
+}
+
+// GetSGAKeyByGroupID gets an SGA key from the first system associated with a Group ID
+func GetSGAKeyByGroupID(ctx context.Context, groupID string) (string, error) {
+	var (
+		systems []System
+		err     error
+	)
+
+	if err = Connection.WithContext(ctx).Where("group_id = ? AND deleted_at IS NULL", groupID).Find(&systems).Error; err != nil {
+		err = fmt.Errorf("no Systems found with group_id %s", groupID)
+	}
+
+	if len(systems) > 0 {
+		return systems[0].SGAKey, err
+	} else {
+		return "", err
+	}
 }
 
 // GetSystemByClientID returns the system associated with the provided clientID
@@ -672,6 +692,7 @@ func GetSystemByClientID(ctx context.Context, clientID string) (System, error) {
 	if err = Connection.WithContext(ctx).First(&system, "client_id = ?", clientID).Error; errors.Is(err, gorm.ErrRecordNotFound) {
 		err = fmt.Errorf("no System record found for client %s", clientID)
 	}
+
 	return system, err
 }
 
@@ -690,6 +711,16 @@ func GetSystemByID(ctx context.Context, id string) (System, error) {
 	if err = Connection.WithContext(ctx).First(&system, id1).Error; err != nil {
 		err = fmt.Errorf("no System record found with ID %s %v", id, err)
 	}
+
+	skipSGAAuthCheck := fmt.Sprintf("%v", ctx.Value(constants.CtxSGASkipAuthKey))
+	if os.Getenv("SGA_ADMIN_FEATURE") == "true" && skipSGAAuthCheck != "true" {
+		requesterSGAKey := fmt.Sprintf("%v", ctx.Value(constants.CtxSGAKey))
+
+		if requesterSGAKey != system.SGAKey {
+			return System{}, fmt.Errorf("requesting SGA does not have access to this system, id: %+v", id)
+		}
+	}
+
 	return system, err
 }
 

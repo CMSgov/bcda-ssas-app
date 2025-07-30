@@ -3,6 +3,7 @@ package admin
 import (
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"io"
 	"log"
 	"net/http"
@@ -12,6 +13,7 @@ import (
 
 	"github.com/CMSgov/bcda-ssas-app/ssas"
 	"github.com/CMSgov/bcda-ssas-app/ssas/constants"
+	"github.com/CMSgov/bcda-ssas-app/ssas/service"
 	"github.com/go-chi/chi/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
@@ -39,11 +41,11 @@ func (s *AdminMiddlewareTestSuite) CreateRouter(handlers ...func(http.Handler) h
 
 func (s *AdminMiddlewareTestSuite) SetupTest() {
 	s.rr = httptest.NewRecorder()
-	encCreds, err := ssas.ResetAdminCreds()
+	encCreds, err := ssas.ResetCreds(service.TestAdminClientID, "admin")
 	assert.NoError(s.T(), err)
 	s.basicAuth = encCreds
 
-	badAuth := "31e029ef-0e97-47f8-873c-0e8b7e7f99bf:This_is_not_the_secret"
+	badAuth := fmt.Sprintf("%s:This_is_not_the_secret", service.TestAdminClientID)
 	s.badAuth = base64.StdEncoding.EncodeToString([]byte(badAuth))
 }
 
@@ -114,10 +116,44 @@ func (s *AdminMiddlewareTestSuite) TestRequireBasicAuthContext() {
 
 func verifyContext(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		SGAKey := r.Context().Value(constants.CtxSGAKey)
+		sgaKey := r.Context().Value(constants.CtxSGAKey)
+		skipAuth := r.Context().Value(constants.CtxSGASkipAuthKey)
 
 		// set in service/main#addFixtureData()
-		if SGAKey != "bcda" {
+		if sgaKey != "bcda" {
+			w.WriteHeader(http.StatusNotFound)
+		}
+		if skipAuth != "true" {
+			w.WriteHeader(http.StatusNotFound)
+		}
+
+		next.ServeHTTP(w, r)
+	})
+}
+
+func (s *AdminMiddlewareTestSuite) TestRequireBasicAuthContext_NoSGA() {
+	encCreds, err := ssas.ResetCreds(service.TestGroupID, service.TestGroupID)
+	assert.NoError(s.T(), err)
+	s.basicAuth = encCreds
+
+	oldFFVal := os.Getenv("SGA_ADMIN_FEATURE")
+	os.Setenv("SGA_ADMIN_FEATURE", "true")
+
+	testAuth(s.basicAuth, http.StatusOK, s, verifyNoContext)
+
+	err = os.Setenv("SGA_ADMIN_FEATURE", oldFFVal)
+	assert.Nil(s.T(), err)
+}
+
+func verifyNoContext(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		sgaKey := r.Context().Value(constants.CtxSGAKey)
+		skipAuth := r.Context().Value(constants.CtxSGASkipAuthKey)
+		fmt.Printf("\n--- vals found: %+v, %+v\n", sgaKey, skipAuth)
+		if sgaKey != "test-sga" {
+			w.WriteHeader(http.StatusNotFound)
+		}
+		if fmt.Sprintf("%v", skipAuth) != "<nil>" {
 			w.WriteHeader(http.StatusNotFound)
 		}
 

@@ -2,12 +2,14 @@ package admin
 
 import (
 	"encoding/base64"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
 	"testing"
 
 	"github.com/CMSgov/bcda-ssas-app/ssas"
+	"github.com/CMSgov/bcda-ssas-app/ssas/service"
 	"github.com/sirupsen/logrus/hooks/test"
 
 	"github.com/stretchr/testify/assert"
@@ -23,12 +25,12 @@ type RouterTestSuite struct {
 }
 
 func (s *RouterTestSuite) SetupSuite() {
-	encSecret, err := ssas.ResetAdminCreds()
+	encSecret, err := ssas.ResetCreds(service.TestAdminClientID, "admin")
 	assert.NoError(s.T(), err)
 
 	s.basicAuth = encSecret
 
-	badAuth := "31e029ef-0e97-47f8-873c-0e8b7e7f99bf:This_is_not_the_secret"
+	badAuth := fmt.Sprintf("%s:This_is_not_the_secret", service.TestAdminClientID)
 	s.badAuth = base64.StdEncoding.EncodeToString([]byte(badAuth))
 }
 

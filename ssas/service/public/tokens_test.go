@@ -46,7 +46,7 @@ func (s *PublicTokenTestSuite) TestMintRegistrationTokenMissingID() {
 
 func (s *PublicTokenTestSuite) TestMintAccessToken() {
 	data := `"{\"cms_ids\":[\"T67890\",\"T54321\"]}"`
-	commonClaims := CreateCommonClaims("AccessToken", "", "2", "0c527d2e-2e8a-4808-b11d-0fa06baf8254", data, "", nil)
+	commonClaims := CreateCommonClaims("AccessToken", "", "2", service.TestGroupID, data, "", nil)
 
 	accessTokenGenerator := AccessTokenCreator{}
 	t, ts, err := accessTokenGenerator.GenerateToken(commonClaims)
