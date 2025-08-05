@@ -540,94 +540,6 @@
 					"response": []
 				},
 				{
-					"name": "list group (present)",
-					"event": [
-						{
-							"listen": "test",
-							"script": {
-								"exec": [
-									"var schema = {",
-									"    \"properties\": {",
-									"        \"count\": { \"type\": \"integer\" },",
-									"        \"groups\": {",
-									"            \"type\": \"array\", \"items\": {",
-									"                \"properties\": {",
-									"                    \"id\": { \"type\": \"integer\" },                                ",
-									"                    \"group_id\": { \"type\": \"string\" },",
-									"                    \"xdata\": { \"type\": \"string\" },",
-									"                    \"systems\": {",
-									"                        \"type\": \"array\", \"items\": {",
-									"                            \"properties\": {",
-									"                                \"id\": { \"type\": \"integer\" },                                ",
-									"                                \"client_name\": { \"type\": \"string\" },",
-									"                                \"client_id\": { \"type\": \"string\" },",
-									"                                \"ips\": {",
-									"                                    \"type\": \"array\", \"items\": [",
-									"                                        { \"type\": \"string\" }",
-									"                                    ]",
-									"                                }",
-									"                            }",
-									"                        }",
-									"                    }",
-									"                }",
-									"            }",
-									"        }",
-									"    }",
-									"};",
-									"var Ajv = require('ajv');",
-									"var ajv = new Ajv({schemas: [schema]});",
-									"",
-									"pm.test(\"Response is 'ok'\", function () {",
-									"    pm.response.to.have.status(200);",
-									"});",
-									"",
-									"pm.test('Schema is valid', function() {",
-									"    pm.expect(ajv.validate(schema, pm.response.text())).to.be.true;",
-									"});",
-									"",
-									"pm.test(\"Response includes Group.group_id\", function() {",
-									"    pm.expect(pm.response.text()).to.include(pm.environment.get(\"group.group_id\"));",
-									"});",
-									"",
-									""
-								],
-								"type": "text/javascript"
-							}
-						}
-					],
-					"request": {
-						"auth": {
-							"type": "basic",
-							"basic": [
-								{
-									"key": "password",
-									"value": "{{adminClientSecret}}",
-									"type": "string"
-								},
-								{
-									"key": "username",
-									"value": "{{adminClientId}}",
-									"type": "string"
-								}
-							]
-						},
-						"method": "GET",
-						"header": [],
-						"url": {
-							"raw": "{{scheme}}://{{host}}:{{admin-port}}/group",
-							"protocol": "{{scheme}}",
-							"host": [
-								"{{host}}"
-							],
-							"port": "{{admin-port}}",
-							"path": [
-								"group"
-							]
-						}
-					},
-					"response": []
-				},
-				{
 					"name": "create system",
 					"event": [
 						{
@@ -720,6 +632,94 @@
 							"port": "{{admin-port}}",
 							"path": [
 								"system"
+							]
+						}
+					},
+					"response": []
+				},
+								{
+					"name": "list group (present)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var schema = {",
+									"    \"properties\": {",
+									"        \"count\": { \"type\": \"integer\" },",
+									"        \"groups\": {",
+									"            \"type\": \"array\", \"items\": {",
+									"                \"properties\": {",
+									"                    \"id\": { \"type\": \"integer\" },                                ",
+									"                    \"group_id\": { \"type\": \"string\" },",
+									"                    \"xdata\": { \"type\": \"string\" },",
+									"                    \"systems\": {",
+									"                        \"type\": \"array\", \"items\": {",
+									"                            \"properties\": {",
+									"                                \"id\": { \"type\": \"integer\" },                                ",
+									"                                \"client_name\": { \"type\": \"string\" },",
+									"                                \"client_id\": { \"type\": \"string\" },",
+									"                                \"ips\": {",
+									"                                    \"type\": \"array\", \"items\": [",
+									"                                        { \"type\": \"string\" }",
+									"                                    ]",
+									"                                }",
+									"                            }",
+									"                        }",
+									"                    }",
+									"                }",
+									"            }",
+									"        }",
+									"    }",
+									"};",
+									"var Ajv = require('ajv');",
+									"var ajv = new Ajv({schemas: [schema]});",
+									"",
+									"pm.test(\"Response is 'ok'\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Schema is valid', function() {",
+									"    pm.expect(ajv.validate(schema, pm.response.text())).to.be.true;",
+									"});",
+									"",
+									"pm.test(\"Response includes Group.group_id\", function() {",
+									"    pm.expect(pm.response.text()).to.include(pm.environment.get(\"group.group_id\"));",
+									"});",
+									"",
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "basic",
+							"basic": [
+								{
+									"key": "password",
+									"value": "{{adminClientSecret}}",
+									"type": "string"
+								},
+								{
+									"key": "username",
+									"value": "{{adminClientId}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{scheme}}://{{host}}:{{admin-port}}/group",
+							"protocol": "{{scheme}}",
+							"host": [
+								"{{host}}"
+							],
+							"port": "{{admin-port}}",
+							"path": [
+								"group"
 							]
 						}
 					},
@@ -1949,95 +1949,6 @@
 					"response": []
 				},
 				{
-					"name": "list group (present)",
-					"event": [
-						{
-							"listen": "test",
-							"script": {
-								"exec": [
-									"var schema = {",
-									"    \"properties\": {",
-									"        \"count\": { \"type\": \"integer\" },",
-									"        \"groups\": {",
-									"            \"type\": \"array\", \"items\": {",
-									"                \"properties\": {",
-									"                    \"id\": { \"type\": \"integer\" },                                ",
-									"                    \"group_id\": { \"type\": \"string\" },",
-									"                    \"xdata\": { \"type\": \"string\" },",
-									"                    \"systems\": {",
-									"                        \"type\": \"array\", \"items\": {",
-									"                            \"properties\": {",
-									"                                \"id\": { \"type\": \"integer\" },                                ",
-									"                                \"client_name\": { \"type\": \"string\" },",
-									"                                \"client_id\": { \"type\": \"string\" },",
-									"                                \"ips\": {",
-									"                                    \"type\": \"array\", \"items\": [",
-									"                                        { \"type\": \"string\" }",
-									"                                    ]",
-									"                                }",
-									"                            }",
-									"                        }",
-									"                    }",
-									"                }",
-									"            }",
-									"        }",
-									"    }",
-									"};",
-									"var Ajv = require('ajv');",
-									"var ajv = new Ajv({schemas: [schema]});",
-									"",
-									"pm.test(\"Response is 'ok'\", function () {",
-									"    pm.response.to.have.status(200);",
-									"});",
-									"",
-									"pm.test('Schema is valid', function() {",
-									"    pm.expect(ajv.validate(schema, pm.response.text())).to.be.true;",
-									"});",
-									"",
-									"pm.test(\"Response includes Group.group_id\", function() {",
-									"    pm.expect(pm.response.text()).to.include(pm.environment.get(\"group.group_id\"));",
-									"});",
-									"",
-									""
-								],
-								"type": "text/javascript"
-							}
-						}
-					],
-					"request": {
-						"auth": {
-							"type": "basic",
-							"basic": [
-								{
-									"key": "password",
-									"value": "{{adminClientSecret}}",
-									"type": "string"
-								},
-								{
-									"key": "username",
-									"value": "{{adminClientId}}",
-									"type": "string"
-								}
-							]
-						},
-						"method": "GET",
-						"header": [],
-						"url": {
-							"raw": "{{scheme}}://{{host}}:{{admin-port}}/v2/group",
-							"protocol": "{{scheme}}",
-							"host": [
-								"{{host}}"
-							],
-							"port": "{{admin-port}}",
-							"path": [
-								"v2",
-								"group"
-							]
-						}
-					},
-					"response": []
-				},
-				{
 					"name": "create system",
 					"event": [
 						{
@@ -2139,6 +2050,95 @@
 							"path": [
 								"v2",
 								"system"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "list group (present)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var schema = {",
+									"    \"properties\": {",
+									"        \"count\": { \"type\": \"integer\" },",
+									"        \"groups\": {",
+									"            \"type\": \"array\", \"items\": {",
+									"                \"properties\": {",
+									"                    \"id\": { \"type\": \"integer\" },                                ",
+									"                    \"group_id\": { \"type\": \"string\" },",
+									"                    \"xdata\": { \"type\": \"string\" },",
+									"                    \"systems\": {",
+									"                        \"type\": \"array\", \"items\": {",
+									"                            \"properties\": {",
+									"                                \"id\": { \"type\": \"integer\" },                                ",
+									"                                \"client_name\": { \"type\": \"string\" },",
+									"                                \"client_id\": { \"type\": \"string\" },",
+									"                                \"ips\": {",
+									"                                    \"type\": \"array\", \"items\": [",
+									"                                        { \"type\": \"string\" }",
+									"                                    ]",
+									"                                }",
+									"                            }",
+									"                        }",
+									"                    }",
+									"                }",
+									"            }",
+									"        }",
+									"    }",
+									"};",
+									"var Ajv = require('ajv');",
+									"var ajv = new Ajv({schemas: [schema]});",
+									"",
+									"pm.test(\"Response is 'ok'\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Schema is valid', function() {",
+									"    pm.expect(ajv.validate(schema, pm.response.text())).to.be.true;",
+									"});",
+									"",
+									"pm.test(\"Response includes Group.group_id\", function() {",
+									"    pm.expect(pm.response.text()).to.include(pm.environment.get(\"group.group_id\"));",
+									"});",
+									"",
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "basic",
+							"basic": [
+								{
+									"key": "password",
+									"value": "{{adminClientSecret}}",
+									"type": "string"
+								},
+								{
+									"key": "username",
+									"value": "{{adminClientId}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{scheme}}://{{host}}:{{admin-port}}/v2/group",
+							"protocol": "{{scheme}}",
+							"host": [
+								"{{host}}"
+							],
+							"port": "{{admin-port}}",
+							"path": [
+								"v2",
+								"group"
 							]
 						}
 					},
