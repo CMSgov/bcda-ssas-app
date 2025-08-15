@@ -85,6 +85,7 @@ func init() {
 
 // We provide some simple commands for bootstrapping the system into place. Commands cannot be combined.
 func main() {
+	ssas.SetupLogger()
 	ssas.Logger.Info("Home of the System-to-System Authentication Service")
 	var config = parseConfig()
 	handleFlags(config)
