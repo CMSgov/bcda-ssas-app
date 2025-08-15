@@ -139,12 +139,10 @@ func (s *MainTestSuite) TestNewAdminSystem() {
 }
 
 func (s *MainTestSuite) TestMainLog() {
-	var str bytes.Buffer
-	logger := ssas.GetLogger(ssas.Logger)
-	logger.SetOutput(&str)
 	main()
-	output := str.String()
-	assert.Contains(s.T(), output, "Home of")
+	content, err := os.ReadFile(os.Getenv("SSAS_LOG"))
+	assert.Nil(s.T(), err)
+	assert.Contains(s.T(), string(content), "Home of")
 }
 
 func (s *MainTestSuite) TestFixtureData() {
