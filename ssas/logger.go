@@ -12,10 +12,9 @@ import (
 )
 
 // Logger provides a structured logger for this service
-var Logger logrus.FieldLogger
+var Logger logrus.FieldLogger = defaultLogger()
 
-func init() {
-
+func SetupLogger() {
 	logInstance := logrus.New()
 	logInstance.SetFormatter(&logrus.JSONFormatter{TimestampFormat: time.RFC3339Nano})
 
@@ -36,8 +35,19 @@ func init() {
 	Logger = logInstance.WithFields(logrus.Fields{
 		"application": constants.Application,
 		"environment": os.Getenv("DEPLOYMENT_TARGET"),
-		"version":     constants.Version})
+		"version":     constants.Version,
+	})
+}
 
+func defaultLogger() logrus.FieldLogger {
+	logInstance := logrus.New()
+	logInstance.SetFormatter(&logrus.JSONFormatter{TimestampFormat: time.RFC3339Nano})
+
+	return logInstance.WithFields(logrus.Fields{
+		"application": constants.Application,
+		"environment": os.Getenv("DEPLOYMENT_TARGET"),
+		"version":     constants.Version,
+	})
 }
 
 type APILoggerEntry struct {
