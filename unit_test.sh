@@ -6,6 +6,8 @@
 set -e
 set -o pipefail
 
+ls -als
+
 timestamp=`date +%Y-%m-%d_%H-%M-%S`
 mkdir -p test_results/${timestamp}
 mkdir -p test_results/latest
