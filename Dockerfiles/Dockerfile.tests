@@ -18,6 +18,8 @@ RUN go install -tags 'postgres' github.com/golang-migrate/migrate/v4/cmd/migrate
 WORKDIR /go/src/github.com/CMSgov/bcda-ssas-app
 COPY . .
 
+# RUN ls -als && ls -als test_results && mkdir test_results
+# RUN whoami && ls -als && ls -als test_results && mkdir -p test_fake && ls -als && mkdir test_results && exit 1
 RUN mkdir -p test_results
 
 WORKDIR /go/src/github.com/CMSgov/bcda-ssas-app

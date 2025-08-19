@@ -7,6 +7,7 @@ set -e
 set -o pipefail
 
 whoami
+pwd
 ls -als
 
 timestamp=`date +%Y-%m-%d_%H-%M-%S`
