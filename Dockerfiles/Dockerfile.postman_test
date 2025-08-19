@@ -1,6 +1,11 @@
 FROM postman/newman
+
+RUN addgroup -S ssas-group && adduser -S ssas-user -G ssas-group
+USER ssas-user
+
 WORKDIR /go/src/github.com/CMSgov/bcda-ssas-app/test/postman_test
 COPY ./test/postman_test .
 WORKDIR /go/src/github.com/CMSgov/bcda-ssas-app/
-ENV NODE_OPTIONS "--max-old-space-size=2048"
+ENV NODE_OPTIONS="--max-old-space-size=2048"
+
 ENTRYPOINT ["newman", "run", "--timeout-script", "99999"]

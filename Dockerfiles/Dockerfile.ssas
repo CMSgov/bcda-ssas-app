@@ -1,9 +1,14 @@
+### OpenAPI docs
 FROM golang:1.24.4-alpine3.22 AS documentation
-RUN apk update upgrade
-RUN apk add git build-base gcc binutils-gold
+
+RUN apk update upgrade && apk add \
+    binutils-gold \
+    build-base \
+    gcc \
+    git
+
 WORKDIR /go/src/github.com/CMSgov/bcda-ssas-app
 COPY . .
-ARG GO111MODULE=auto
 
 RUN dir=$(mktemp -d) && \
     git clone -b v0.31.0 https://github.com/go-swagger/go-swagger "$dir" && \
@@ -13,26 +18,48 @@ RUN dir=$(mktemp -d) && \
 WORKDIR /go/src/github.com/CMSgov/bcda-ssas-app/ssas/service/main
 RUN swagger generate spec -i ../../swaggerui/tags.yml -o ../../swaggerui/swagger.json -m
 
+RUN addgroup -S ssas-group && adduser -S ssas-user -G ssas-group
+USER ssas-user
+
+
+### Builder/compilation
 FROM golang:1.24.4-alpine3.22 AS builder
+
 ARG VERSION
-RUN apk update upgrade
-RUN apk add git
+
+RUN apk update upgrade && apk add \
+    git
+
 WORKDIR /go/src/github.com/CMSgov/bcda-ssas-app
 COPY . .
 WORKDIR /go/src/github.com/CMSgov/bcda-ssas-app/ssas
 COPY --from=documentation /go/src/github.com/CMSgov/bcda-ssas-app/ssas/swaggerui ./swaggerui
+
 RUN go build -ldflags "-X github.com/CMSgov/bcda-ssas-app/ssas/constants.Version=$VERSION" -o ssas ./service/main
 
+RUN addgroup -S ssas-group && adduser -S ssas-user -G ssas-group
+USER ssas-user
+
+
+### Final image
 FROM golang:1.24.4-alpine3.22
-RUN apk update upgrade
-RUN apk --no-cache add ca-certificates aws-cli curl
+
+RUN apk update upgrade && apk --no-cache add \
+    aws-cli \
+    ca-certificates \
+    curl
+
+RUN addgroup -S ssas-group && adduser -S ssas-user -G ssas-group
+USER ssas-user
+
 WORKDIR /go/src/github.com/CMSgov/bcda-ssas-app
 COPY --from=builder /go/src/github.com/CMSgov/bcda-ssas-app/ssas/cfg/configs ssas/cfg/configs
 WORKDIR /usr/local/bin
 COPY --from=builder /go/src/github.com/CMSgov/bcda-ssas-app/ssas/ssas .
 COPY --from=documentation /go/src/github.com/CMSgov/bcda-ssas-app/ssas/swaggerui ./swaggerui
+
 EXPOSE 3003
 EXPOSE 3004
 EXPOSE 3005
-CMD ["ssas", "--start"]
 
+CMD ["ssas", "--start"]

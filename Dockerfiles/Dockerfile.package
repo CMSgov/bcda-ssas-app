@@ -1,16 +1,24 @@
 FROM golang:1.24.4-alpine3.22
 
+RUN apk update upgrade && apk add \
+    build-base \
+    gcc \
+    git \
+    gpg \
+    gpg-agent \
+    # ruby \
+    # ruby-dev \
+    rpm
+
 ENV CGO_ENABLED=0
 
-ARG GPG_PUB_KEY_FILE
-ARG GPG_SEC_KEY_FILE
+ARG GPG_PUB_FILE_PATH
+ARG GPG_SEC_FILE_PATH
 ARG GPG_RPM_USER
 ARG GPG_RPM_EMAIL
 ARG BCDA_GPG_RPM_PASSPHRASE
 
-RUN apk update upgrade
-RUN apk add build-base gcc ruby ruby-dev rpm git gpg gpg-agent
-RUN gem install --no-document fpm etc
+# RUN gem install --no-document fpm etc
 
 WORKDIR /go/src/github.com/CMSgov/bcda-ssas-app
 COPY . .
@@ -21,3 +29,6 @@ RUN chmod u+x build_and_package.sh
 
 ENTRYPOINT ["sh", "build_and_package.sh"]
 CMD []
+
+RUN addgroup -S ssas-group && adduser -S ssas-user -G ssas-group
+USER ssas-user
