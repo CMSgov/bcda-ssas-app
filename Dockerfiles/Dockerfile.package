@@ -6,7 +6,11 @@ RUN apk update upgrade && apk add \
     git \
     gpg \
     gpg-agent \
-    rpm
+    rpm \
+    ruby \
+    ruby-dev
+
+RUN gem install --no-document fpm etc
 
 ENV CGO_ENABLED=0
 
@@ -25,6 +29,3 @@ RUN chmod u+x build_and_package.sh
 
 ENTRYPOINT ["sh", "build_and_package.sh"]
 CMD []
-
-RUN addgroup -S ssas-group && adduser -S ssas-user -G ssas-group
-USER ssas-user
