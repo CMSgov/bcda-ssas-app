@@ -5,11 +5,6 @@ RUN apk update upgrade && apk add \
     build-base \
     curl
 
-# this image currently gets used by unit_test.sh which needs root level access to run various commands
-# unit_test.sh could likely get refactored away but for now leaving as is
-# RUN addgroup -S ssas-group && adduser -S ssas-user -G ssas-group
-# USER ssas-user
-
 RUN curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/HEAD/install.sh | sh -s -- -b $(go env GOPATH)/bin v2.2.1
 
 RUN go install github.com/xo/usql@v0.17.5
