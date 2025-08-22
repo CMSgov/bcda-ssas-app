@@ -87,7 +87,7 @@ func updateIpSet(ctx context.Context, conn PgxConnection, wafsvc wafv2iface.WAFV
 	addresses = append(addresses, ipv6Addrs...)
 
 	if len(addresses) == 0 {
-		log.WithField("name", ipSetName).Warn("length of IP addresses to update is 0, potentially problematic")
+		log.WithField("name", ipSetName).Error("length of IP addresses to update is 0, potentially problematic")
 	}
 
 	return addresses, nil
