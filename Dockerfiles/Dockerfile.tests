@@ -15,5 +15,4 @@ RUN go install -tags 'postgres' github.com/golang-migrate/migrate/v4/cmd/migrate
 WORKDIR /go/src/github.com/CMSgov/bcda-ssas-app
 COPY . .
 
-WORKDIR /go/src/github.com/CMSgov/bcda-ssas-app
 ENTRYPOINT []
