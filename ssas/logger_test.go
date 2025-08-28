@@ -8,7 +8,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/CMSgov/bcda-app/bcda/testUtils"
 	"github.com/CMSgov/bcda-ssas-app/ssas/constants"
 	"github.com/pborman/uuid"
 	"github.com/sirupsen/logrus"
@@ -62,7 +61,7 @@ func TestSetupLogger_ToSTDOut(t *testing.T) {
 	t.Cleanup(func() { os.Setenv("LOG_TO_STD_OUT", oldVal) })
 
 	SetupLogger()
-	testLogger := test.NewLocal(testUtils.GetLogger(Logger))
+	testLogger := test.NewLocal(getLogger(Logger))
 
 	msg := uuid.New()
 	Logger.Info(msg)
@@ -75,7 +74,7 @@ func TestSetupLogger_ToSTDOut(t *testing.T) {
 
 func TestDefaultLogger(t *testing.T) {
 	Logger := defaultLogger()
-	testLogger := test.NewLocal(testUtils.GetLogger(Logger))
+	testLogger := test.NewLocal(getLogger(Logger))
 
 	msg := uuid.New()
 	Logger.Info(msg)
@@ -86,4 +85,13 @@ func TestDefaultLogger(t *testing.T) {
 	assert.Equal(t, os.Getenv("DEPLOYMENT_TARGET"), testLogger.LastEntry().Data["environment"])
 	assert.Equal(t, "ssas", testLogger.LastEntry().Data["log_type"])
 	assert.Equal(t, constants.Version, testLogger.LastEntry().Data["version"])
+}
+
+// GetLogger returns the underlying implementation of the field logger
+func getLogger(logger logrus.FieldLogger) *logrus.Logger {
+	if entry, ok := logger.(*logrus.Entry); ok {
+		return entry.Logger
+	}
+	// Must be a *logrus.Logger
+	return logger.(*logrus.Logger)
 }
