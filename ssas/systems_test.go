@@ -32,9 +32,9 @@ type SystemsTestSuite struct {
 }
 
 func (s *SystemsTestSuite) SetupSuite() {
+	SetupLogger()
 	s.db = Connection
 	s.logEntry = MakeTestStructuredLoggerEntry(logrus.Fields{"cms_id": "A9999", "request_id": uuid.NewUUID().String()})
-
 }
 
 func (s *SystemsTestSuite) AfterTest() {

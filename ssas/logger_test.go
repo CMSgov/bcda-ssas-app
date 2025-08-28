@@ -17,10 +17,14 @@ import (
 
 func TestSetupLogger(t *testing.T) {
 	env := uuid.New()
+	oldEnvVal := os.Getenv("DEPLOYMENT_TARGET")
 	os.Setenv("DEPLOYMENT_TARGET", env)
-	oldVal := os.Getenv("LOG_TO_STD_OUT")
+	oldLogVal := os.Getenv("LOG_TO_STD_OUT")
 	os.Unsetenv("LOG_TO_STD_OUT")
-	t.Cleanup(func() { os.Setenv("LOG_TO_STD_OUT", oldVal) })
+	t.Cleanup(func() {
+		os.Setenv("DEPLOYMENT_TARGET", oldEnvVal)
+		os.Setenv("LOG_TO_STD_OUT", oldLogVal)
+	})
 
 	logFile, err := os.CreateTemp("", "*")
 	assert.NoError(t, err)
@@ -55,10 +59,14 @@ func TestSetupLogger(t *testing.T) {
 
 func TestSetupLogger_ToSTDOut(t *testing.T) {
 	env := uuid.New()
+	oldEnvVal := os.Getenv("DEPLOYMENT_TARGET")
 	os.Setenv("DEPLOYMENT_TARGET", env)
-	oldVal := os.Getenv("LOG_TO_STD_OUT")
-	os.Setenv("LOG_TO_STD_OUT", "true")
-	t.Cleanup(func() { os.Setenv("LOG_TO_STD_OUT", oldVal) })
+	oldLogVal := os.Getenv("LOG_TO_STD_OUT")
+	os.Unsetenv("LOG_TO_STD_OUT")
+	t.Cleanup(func() {
+		os.Setenv("DEPLOYMENT_TARGET", oldEnvVal)
+		os.Setenv("LOG_TO_STD_OUT", oldLogVal)
+	})
 
 	SetupLogger()
 	testLogger := test.NewLocal(getLogger(Logger))
