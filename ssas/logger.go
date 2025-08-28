@@ -18,23 +18,26 @@ func SetupLogger() {
 	logInstance := logrus.New()
 	logInstance.SetFormatter(&logrus.JSONFormatter{TimestampFormat: time.RFC3339Nano})
 
-	filePath, success := os.LookupEnv("SSAS_LOG")
-	if success {
-		/* #nosec -- 0664 permissions required for Splunk ingestion */
-		file, err := os.OpenFile(filePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0664)
+	if os.Getenv("LOG_TO_STD_OUT") != "true" {
+		filePath, success := os.LookupEnv("SSAS_LOG")
+		if success {
+			/* #nosec -- 0664 permissions required for Splunk ingestion */
+			file, err := os.OpenFile(filePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0664)
 
-		if err == nil {
-			logInstance.SetOutput(file)
+			if err == nil {
+				logInstance.SetOutput(file)
+			} else {
+				logInstance.Info("Failed to open SSAS log file; using default stderr")
+			}
 		} else {
-			logInstance.Info("Failed to open SSAS log file; using default stderr")
+			logInstance.Info("No SSAS log location provided; using default stderr")
 		}
-	} else {
-		logInstance.Info("No SSAS log location provided; using default stderr")
 	}
 
 	Logger = logInstance.WithFields(logrus.Fields{
 		"application": constants.Application,
 		"environment": os.Getenv("DEPLOYMENT_TARGET"),
+		"log_type":    "ssas",
 		"version":     constants.Version,
 	})
 }
@@ -46,6 +49,7 @@ func defaultLogger() logrus.FieldLogger {
 	return logInstance.WithFields(logrus.Fields{
 		"application": constants.Application,
 		"environment": os.Getenv("DEPLOYMENT_TARGET"),
+		"log_type":    "ssas",
 		"version":     constants.Version,
 	})
 }
