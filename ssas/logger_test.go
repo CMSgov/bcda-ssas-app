@@ -52,6 +52,7 @@ func TestSetupLogger(t *testing.T) {
 	assert.Equal(t, constants.Application, fields["application"])
 	assert.Equal(t, env, fields["environment"])
 	assert.Equal(t, msg, fields["msg"])
+	assert.Equal(t, "bcda", fields["source_app"])
 	assert.Equal(t, constants.Version, fields["version"])
 	_, err = time.Parse(time.RFC3339Nano, fields["time"].(string))
 	assert.NoError(t, err)
@@ -92,6 +93,7 @@ func TestDefaultLogger(t *testing.T) {
 	assert.Equal(t, constants.Application, testLogger.LastEntry().Data["application"])
 	assert.Equal(t, os.Getenv("DEPLOYMENT_TARGET"), testLogger.LastEntry().Data["environment"])
 	assert.Equal(t, "ssas", testLogger.LastEntry().Data["log_type"])
+	assert.Equal(t, "bcda", testLogger.LastEntry().Data["source_app"])
 	assert.Equal(t, constants.Version, testLogger.LastEntry().Data["version"])
 }
 

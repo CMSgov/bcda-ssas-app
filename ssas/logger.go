@@ -38,6 +38,7 @@ func SetupLogger() {
 		"application": constants.Application,
 		"environment": os.Getenv("DEPLOYMENT_TARGET"),
 		"log_type":    "ssas",
+		"source_app":  "bcda",
 		"version":     constants.Version,
 	})
 }
@@ -50,6 +51,7 @@ func defaultLogger() logrus.FieldLogger {
 		"application": constants.Application,
 		"environment": os.Getenv("DEPLOYMENT_TARGET"),
 		"log_type":    "ssas",
+		"source_app":  "bcda",
 		"version":     constants.Version,
 	})
 }
