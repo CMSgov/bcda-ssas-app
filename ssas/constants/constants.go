@@ -13,7 +13,7 @@ const TokenEndpoint = "/token"
 
 const HeaderApplicationJSON = "application/json"
 
-const Application = "ssas"
+const Application string = "ssas"
 
 // Sets requesting SGA on admin endpoint requests into context
 type CtxSGAKeyType string
