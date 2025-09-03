@@ -2,10 +2,10 @@
 
 BEGIN;
 
-ALTER TABLE public.denylist_entries 
-RENAME TO public.blacklist_entries;
+ALTER TABLE denylist_entries 
+RENAME TO blacklist_entries;
 
-ALTER SEQUENCE public. denylist_entries_id_seq
-RENAME TO public.blacklist_entries_id_seq ;
+ALTER SEQUENCE denylist_entries_id_seq
+RENAME TO blacklist_entries_id_seq ;
 
 COMMIT;
