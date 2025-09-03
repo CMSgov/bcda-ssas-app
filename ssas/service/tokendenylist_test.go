@@ -24,7 +24,7 @@ var (
 
 type TokenCacheTestSuite struct {
 	suite.Suite
-	t  *Blacklist
+	t  *Denylist
 	db *gorm.DB
 }
 
@@ -32,32 +32,33 @@ var maxInt = big.NewInt(100)
 
 func (s *TokenCacheTestSuite) SetupSuite() {
 	s.db = ssas.Connection
-	s.t = NewBlacklist(context.Background(), defaultCacheTimeout, cacheCleanupInterval)
+	c := NewCacheConfig()
+	s.t = NewDenylist(context.Background(), c)
 }
 
 func (s *TokenCacheTestSuite) TearDownTest() {
 	s.t.c.Flush()
-	err := s.db.Exec("DELETE FROM blacklist_entries;").Error
+	err := s.db.Exec("DELETE FROM denylist_entries;").Error
 	assert.Nil(s.T(), err)
 }
 
 func (s *TokenCacheTestSuite) TestLoadFromDatabaseEmpty() {
 	key := "tokenID"
 
-	var blackListEntries []ssas.BlacklistEntry
-	s.db.Unscoped().Find(&blackListEntries)
-	assert.Len(s.T(), blackListEntries, 0)
+	var denyListEntries []ssas.DenylistEntry
+	s.db.Unscoped().Find(&denyListEntries)
+	assert.Len(s.T(), denyListEntries, 0)
 	if err := s.t.LoadFromDatabase(); err != nil {
 		assert.FailNow(s.T(), err.Error())
 	}
 	assert.Len(s.T(), s.t.c.Items(), 0)
 
-	if err := s.t.BlacklistToken(context.Background(), key, expiration); err != nil {
+	if err := s.t.DenylistToken(context.Background(), key, expiration); err != nil {
 		assert.FailNow(s.T(), err.Error())
 	}
 
-	s.db.Unscoped().Find(&blackListEntries)
-	assert.Len(s.T(), blackListEntries, 1)
+	s.db.Unscoped().Find(&denyListEntries)
+	assert.Len(s.T(), denyListEntries, 1)
 	if err := s.t.LoadFromDatabase(); err != nil {
 		assert.FailNow(s.T(), err.Error())
 	}
@@ -74,9 +75,9 @@ func (s *TokenCacheTestSuite) TestLoadFromDatabaseSomeExpired() {
 	entryDate := timeExpired.Unix()
 	expired := timeExpired.UnixNano()
 	notExpired := timeNotExpired.UnixNano()
-	entryExpired := ssas.BlacklistEntry{Key: expiredKey, EntryDate: entryDate, CacheExpiration: expired}
-	entryDuplicateExpired := ssas.BlacklistEntry{Key: notExpiredKey, EntryDate: entryDate, CacheExpiration: expired}
-	entryNotExpired := ssas.BlacklistEntry{Key: notExpiredKey, EntryDate: entryDate, CacheExpiration: notExpired}
+	entryExpired := ssas.DenylistEntry{Key: expiredKey, EntryDate: entryDate, CacheExpiration: expired}
+	entryDuplicateExpired := ssas.DenylistEntry{Key: notExpiredKey, EntryDate: entryDate, CacheExpiration: expired}
+	entryNotExpired := ssas.DenylistEntry{Key: notExpiredKey, EntryDate: entryDate, CacheExpiration: notExpired}
 
 	if err = s.db.Save(&entryExpired).Error; err != nil {
 		assert.FailNow(s.T(), err.Error())
@@ -90,9 +91,9 @@ func (s *TokenCacheTestSuite) TestLoadFromDatabaseSomeExpired() {
 	}
 
 	assert.Len(s.T(), s.t.c.Items(), 0)
-	assert.False(s.T(), s.t.IsTokenBlacklisted(expiredKey))
+	assert.False(s.T(), s.t.IsTokenDenylisted(expiredKey))
 	// This result changes after putting a new entry in the database that has not expired.
-	assert.False(s.T(), s.t.IsTokenBlacklisted(notExpiredKey))
+	assert.False(s.T(), s.t.IsTokenDenylisted(notExpiredKey))
 
 	if err = s.db.Save(&entryNotExpired).Error; err != nil {
 		assert.FailNow(s.T(), err.Error())
@@ -102,17 +103,17 @@ func (s *TokenCacheTestSuite) TestLoadFromDatabaseSomeExpired() {
 	}
 
 	assert.Len(s.T(), s.t.c.Items(), 1)
-	assert.False(s.T(), s.t.IsTokenBlacklisted(expiredKey))
-	// The second time we check, this key is blacklisted
-	assert.True(s.T(), s.t.IsTokenBlacklisted(notExpiredKey))
+	assert.False(s.T(), s.t.IsTokenDenylisted(expiredKey))
+	// The second time we check, this key is denylisted
+	assert.True(s.T(), s.t.IsTokenDenylisted(notExpiredKey))
 }
 
 func (s *TokenCacheTestSuite) TestLoadFromDatabase() {
 	var err error
 	entryDate := timeExpired.Unix()
 	expiration := timeNotExpired.UnixNano()
-	e1 := ssas.BlacklistEntry{Key: "key1", EntryDate: entryDate, CacheExpiration: expiration}
-	e2 := ssas.BlacklistEntry{Key: "key2", EntryDate: entryDate, CacheExpiration: expiration}
+	e1 := ssas.DenylistEntry{Key: "key1", EntryDate: entryDate, CacheExpiration: expiration}
+	e2 := ssas.DenylistEntry{Key: "key2", EntryDate: entryDate, CacheExpiration: expiration}
 
 	if err = s.db.Save(&e1).Error; err != nil {
 		assert.FailNow(s.T(), err.Error())
@@ -126,8 +127,8 @@ func (s *TokenCacheTestSuite) TestLoadFromDatabase() {
 	}
 
 	assert.Len(s.T(), s.t.c.Items(), 2)
-	assert.True(s.T(), s.t.IsTokenBlacklisted(e1.Key))
-	assert.True(s.T(), s.t.IsTokenBlacklisted(e2.Key))
+	assert.True(s.T(), s.t.IsTokenDenylisted(e1.Key))
+	assert.True(s.T(), s.t.IsTokenDenylisted(e2.Key))
 
 	obj1, _, found := s.t.c.GetWithExpiration(e1.Key)
 	assert.True(s.T(), found)
@@ -142,7 +143,7 @@ func (s *TokenCacheTestSuite) TestLoadFromDatabase() {
 	assert.Equal(s.T(), entryDate, insertedDate2)
 }
 
-func (s *TokenCacheTestSuite) TestIsTokenBlacklistedTrue() {
+func (s *TokenCacheTestSuite) TestIsTokenDenylistedTrue() {
 	randInt, err := rand.Int(rand.Reader, maxInt)
 	assert.Nil(s.T(), err)
 	key := strconv.Itoa(int(randInt.Int64()))
@@ -150,10 +151,10 @@ func (s *TokenCacheTestSuite) TestIsTokenBlacklistedTrue() {
 	if err != nil {
 		assert.FailNow(s.T(), "unable to set cache value: "+err.Error())
 	}
-	assert.True(s.T(), s.t.IsTokenBlacklisted(key))
+	assert.True(s.T(), s.t.IsTokenDenylisted(key))
 }
 
-func (s *TokenCacheTestSuite) TestIsTokenBlacklistedExpired() {
+func (s *TokenCacheTestSuite) TestIsTokenDenylistedExpired() {
 	minimalDuration := 1 * time.Nanosecond
 	randInt, err := rand.Int(rand.Reader, maxInt)
 	assert.Nil(s.T(), err)
@@ -163,28 +164,28 @@ func (s *TokenCacheTestSuite) TestIsTokenBlacklistedExpired() {
 		assert.FailNow(s.T(), "unable to set cache value: "+err.Error())
 	}
 	time.Sleep(minimalDuration * 5)
-	assert.False(s.T(), s.t.IsTokenBlacklisted(key))
+	assert.False(s.T(), s.t.IsTokenDenylisted(key))
 }
 
-func (s *TokenCacheTestSuite) TestIsTokenBlacklistedFalse() {
+func (s *TokenCacheTestSuite) TestIsTokenDenylistedFalse() {
 	randInt, err := rand.Int(rand.Reader, maxInt)
 	assert.Nil(s.T(), err)
 	key := strconv.Itoa(int(randInt.Int64()))
-	assert.False(s.T(), s.t.IsTokenBlacklisted(key))
+	assert.False(s.T(), s.t.IsTokenDenylisted(key))
 }
 
-func (s *TokenCacheTestSuite) TestBlacklistToken() {
+func (s *TokenCacheTestSuite) TestDenylistToken() {
 	randInt, err := rand.Int(rand.Reader, maxInt)
 	assert.Nil(s.T(), err)
 	key := strconv.Itoa(int(randInt.Int64()))
-	if err := s.t.BlacklistToken(context.Background(), key, expiration); err != nil {
+	if err := s.t.DenylistToken(context.Background(), key, expiration); err != nil {
 		assert.FailNow(s.T(), err.Error())
 	}
 
 	_, found := s.t.c.Get(key)
 	assert.True(s.T(), found)
 
-	entries, err := ssas.GetUnexpiredBlacklistEntries(context.Background())
+	entries, err := ssas.GetUnexpiredDenylistEntries(context.Background())
 	assert.Nil(s.T(), err)
 	assert.Len(s.T(), entries, 1)
 	assert.Equal(s.T(), key, entries[0].Key)
@@ -199,13 +200,13 @@ func (s *TokenCacheTestSuite) TestStartCacheRefreshTicker() {
 	key1 := "key1"
 	key2 := "key2"
 
-	e1 := ssas.BlacklistEntry{Key: key1, EntryDate: entryDate, CacheExpiration: expiration}
+	e1 := ssas.DenylistEntry{Key: key1, EntryDate: entryDate, CacheExpiration: expiration}
 	if err = s.db.Save(&e1).Error; err != nil {
 		assert.FailNow(s.T(), err.Error())
 	}
 
-	assert.False(s.T(), s.t.IsTokenBlacklisted(key1))
-	assert.False(s.T(), s.t.IsTokenBlacklisted(key2))
+	assert.False(s.T(), s.t.IsTokenDenylisted(key1))
+	assert.False(s.T(), s.t.IsTokenDenylisted(key2))
 
 	ticker, cancelFunc := s.t.startCacheRefreshTicker(time.Millisecond * 250)
 	defer func() {
@@ -214,26 +215,26 @@ func (s *TokenCacheTestSuite) TestStartCacheRefreshTicker() {
 	}()
 
 	time.Sleep(time.Millisecond * 350)
-	assert.True(s.T(), s.t.IsTokenBlacklisted(key1))
-	assert.False(s.T(), s.t.IsTokenBlacklisted(key2))
+	assert.True(s.T(), s.t.IsTokenDenylisted(key1))
+	assert.False(s.T(), s.t.IsTokenDenylisted(key2))
 
-	e2 := ssas.BlacklistEntry{Key: key2, EntryDate: entryDate, CacheExpiration: expiration}
+	e2 := ssas.DenylistEntry{Key: key2, EntryDate: entryDate, CacheExpiration: expiration}
 	if err = s.db.Save(&e2).Error; err != nil {
 		assert.FailNow(s.T(), err.Error())
 	}
 
 	time.Sleep(time.Millisecond * 250)
-	assert.True(s.T(), s.t.IsTokenBlacklisted(key1))
-	assert.True(s.T(), s.t.IsTokenBlacklisted(key2))
+	assert.True(s.T(), s.t.IsTokenDenylisted(key1))
+	assert.True(s.T(), s.t.IsTokenDenylisted(key2))
 }
 
-func (s *TokenCacheTestSuite) TestBlacklistTokenKeyExists() {
+func (s *TokenCacheTestSuite) TestDenylistTokenKeyExists() {
 	randInt, err := rand.Int(rand.Reader, maxInt)
 	assert.Nil(s.T(), err)
 	key := strconv.Itoa(int(randInt.Int64()))
 
-	// Place key in blacklist
-	if err := s.t.BlacklistToken(context.Background(), key, expiration); err != nil {
+	// Place key in denylist
+	if err := s.t.DenylistToken(context.Background(), key, expiration); err != nil {
 		assert.FailNow(s.T(), err.Error())
 	}
 	// Verify key exists in cache
@@ -241,18 +242,18 @@ func (s *TokenCacheTestSuite) TestBlacklistTokenKeyExists() {
 	assert.True(s.T(), found)
 
 	// Verify key exists in database
-	entries1, err := ssas.GetUnexpiredBlacklistEntries(context.Background())
+	entries1, err := ssas.GetUnexpiredDenylistEntries(context.Background())
 	assert.Nil(s.T(), err)
 	assert.Len(s.T(), entries1, 1)
 	assert.Equal(s.T(), key, entries1[0].Key)
 	assert.Equal(s.T(), obj1, entries1[0].EntryDate)
 
 	// The value stored is the current time expressed as in Unix time.
-	// Wait to make sure the new blacklist entry has a different value
+	// Wait to make sure the new denylist entry has a different value
 	time.Sleep(2 * time.Second)
 
 	// Place key in cache a second time; the expiration will be different
-	if err := s.t.BlacklistToken(context.Background(), key, expiration); err != nil {
+	if err := s.t.DenylistToken(context.Background(), key, expiration); err != nil {
 		assert.FailNow(s.T(), err.Error())
 	}
 
@@ -262,7 +263,7 @@ func (s *TokenCacheTestSuite) TestBlacklistTokenKeyExists() {
 	assert.NotEqual(s.T(), obj1, obj2)
 
 	// Verify both keys are in the database, and that they are in time order
-	entries2, err := ssas.GetUnexpiredBlacklistEntries(context.Background())
+	entries2, err := ssas.GetUnexpiredDenylistEntries(context.Background())
 	assert.Nil(s.T(), err)
 	// 2 entries were added in this test; 1 was added in middleware_test
 	// depending on which order the tests are completed, sometimes there are 2 entries and sometimes there are 3
@@ -270,7 +271,7 @@ func (s *TokenCacheTestSuite) TestBlacklistTokenKeyExists() {
 	assert.Equal(s.T(), key, entries2[1].Key)
 	assert.Equal(s.T(), obj2, entries2[1].EntryDate)
 
-	// Verify that the blacklisted object changed in both cache and database
+	// Verify that the denylisted object changed in both cache and database
 	assert.NotEqual(s.T(), obj1, obj2)
 	assert.NotEqual(s.T(), entries1[0].CacheExpiration, entries2[1].CacheExpiration)
 

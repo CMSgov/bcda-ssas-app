@@ -48,7 +48,7 @@ func (s *APITestSuite) SetupSuite() {
 	s.server = Server()
 	s.badSigningKeyPath = "../../../shared_files/ssas/admin_test_signing_key.pem"
 	s.assertAud = "http://local.testing.cms.gov/api/v2/Token/auth"
-	service.StartBlacklist()
+	service.StartDenylist()
 	s.logEntry = MakeTestStructuredLoggerEntry(logrus.Fields{"cms_id": "A9999", "request_id": uuid.NewUUID().String()})
 
 	if os.Getenv("SGA_ADMIN_FEATURE") == "true" {
