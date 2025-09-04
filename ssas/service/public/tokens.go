@@ -113,7 +113,7 @@ func tokenValidity(ctx context.Context, tokenString string, requiredTokenType st
 		return err
 	}
 
-	if service.TokenBlacklist.IsTokenBlacklisted(c.Id) {
+	if service.TokenDenylist.IsTokenDenylisted(c.Id) {
 		err = fmt.Errorf("token has been revoked")
 		logger.Error(err)
 		return err

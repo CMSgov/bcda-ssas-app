@@ -574,7 +574,7 @@ func deactivateSystemCredentials(w http.ResponseWriter, r *http.Request) {
 
 		Revoke token
 
-		Revokes the specified tokenID by placing it on a blacklist.  Will return an HTTP 200 status whether or not the tokenID has been issued.
+		Revokes the specified tokenID by placing it on a denylist.  Will return an HTTP 200 status whether or not the tokenID has been issued.
 
 		Produces:
 		- application/json
@@ -595,12 +595,12 @@ func revokeToken(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ssas.SetCtxEntry(r, "Op", "TokenBlacklist")
+	ssas.SetCtxEntry(r, "Op", "TokenDenylist")
 	logger := ssas.GetCtxLogger(r.Context())
 	logger.Infof("Operation Called: admin.revokeToken()")
 
-	if err := service.TokenBlacklist.BlacklistToken(r.Context(), tokenID, service.TokenCacheLifetime); err != nil {
-		logger.Errorf("failed to blacklist token; %s", err)
+	if err := service.TokenDenylist.DenylistToken(r.Context(), tokenID, service.TokenCacheLifetime); err != nil {
+		logger.Errorf("failed to denylist token; %s", err)
 		service.JSONError(w, http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError), "")
 	}
 

@@ -193,7 +193,7 @@ func start(ps *service.Server, as *service.Server, forwarder *http.Server) {
 
 	ps.Serve()
 	as.Serve()
-	service.StartBlacklist()
+	service.StartDenylist()
 	ssas.Logger.Fatal(forwarder.ListenAndServe())
 }
 
