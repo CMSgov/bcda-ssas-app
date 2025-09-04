@@ -42,8 +42,6 @@ func StartDenylist() {
 	TokenDenylist = NewDenylist(context.Background(), c)
 }
 
-// NewDenylist allows for easy Denylist{} creation and manipulation during testing, and, outside a test suite,
-// should not be called
 func NewDenylist(ctx context.Context, cfg *CacheConfig) *Denylist {
 	// In case a Denylist timer has already been started:
 	stopCacheRefreshTicker()
