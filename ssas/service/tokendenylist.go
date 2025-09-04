@@ -49,19 +49,19 @@ func NewDenylist(ctx context.Context, cfg *CacheConfig) *Denylist {
 
 	ssas.Logger.WithField("op", "InitDenylist").Info()
 
-	bl := Denylist{ID: trackingID}
-	bl.c = cache.New(defaultCacheTimeout, cfg.cacheCleanupInterval)
+	dl := Denylist{ID: trackingID}
+	dl.c = cache.New(defaultCacheTimeout, cfg.cacheCleanupInterval)
 
-	if err := bl.LoadFromDatabase(); err != nil {
+	if err := dl.LoadFromDatabase(); err != nil {
 		ssas.Logger.Error("failed to load denylist from database: ", err)
 		// Log this failure, but allow the cache to operate.  It's conceivable the next cache refresh will work.
 	} else {
 		ssas.Logger.Info("successfully loaded denylist from database")
 	}
 
-	cacheRefreshTicker, cancelFunc = bl.startCacheRefreshTicker(cfg.cacheRefreshFreq)
+	cacheRefreshTicker, cancelFunc = dl.startCacheRefreshTicker(cfg.cacheRefreshFreq)
 
-	return &bl
+	return &dl
 }
 
 type Denylist struct {
