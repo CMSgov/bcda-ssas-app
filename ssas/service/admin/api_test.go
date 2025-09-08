@@ -70,7 +70,7 @@ type APITestSuite struct {
 
 func (s *APITestSuite) SetupSuite() {
 	s.db = ssas.Connection
-	service.StartBlacklist()
+	service.StartDenylist()
 	ssas.MaxIPs = 3
 	s.logEntry = MakeTestStructuredLoggerEntry(logrus.Fields{"cms_id": "A9999", "request_id": uuid.NewUUID().String()})
 
@@ -291,8 +291,8 @@ func (s *APITestSuite) TestRevokeToken() {
 	handler.ServeHTTP(rr, req)
 	assert.Equal(s.T(), http.StatusOK, rr.Result().StatusCode)
 
-	assert.True(s.T(), service.TokenBlacklist.IsTokenBlacklisted(tokenID))
-	assert.False(s.T(), service.TokenBlacklist.IsTokenBlacklisted("this_key_should_not_exist"))
+	assert.True(s.T(), service.TokenDenylist.IsTokenDenylisted(tokenID))
+	assert.False(s.T(), service.TokenDenylist.IsTokenDenylisted("this_key_should_not_exist"))
 }
 
 func (s *APITestSuite) TestRevokeTokenNoToken() {
@@ -1722,7 +1722,7 @@ func TestSGAAdmin_NoAuth(t *testing.T) {
 	os.Setenv("SGA_ADMIN_FEATURE", newFF)
 
 	db := ssas.Connection
-	service.StartBlacklist()
+	service.StartDenylist()
 	ssas.MaxIPs = 3
 
 	ctx := context.Background()
