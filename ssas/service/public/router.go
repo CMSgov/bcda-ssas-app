@@ -13,6 +13,8 @@ import (
 	gcmw "github.com/go-chi/chi/v5/middleware"
 )
 
+var server *service.Server
+
 func Server() *service.Server {
 	unsafeMode := os.Getenv("HTTP_ONLY") == "true"
 	useMTLS := os.Getenv("PUBLIC_USE_MTLS") == "true"
@@ -30,7 +32,7 @@ func Server() *service.Server {
 		return nil
 	}
 
-	server := service.NewServer("public", ":3003", constants.Version, infoMap, routes(), unsafeMode, useMTLS, signingKey, 20*time.Minute, clientAssertAud)
+	server = service.NewServer("public", ":3003", constants.Version, infoMap, routes(), unsafeMode, useMTLS, signingKey, 20*time.Minute, clientAssertAud)
 	if server != nil {
 		r, _ := server.ListRoutes()
 		infoMap["banner"] = []string{fmt.Sprintf("%s server running on port %s", "public", ":3003")}
