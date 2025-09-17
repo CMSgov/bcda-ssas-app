@@ -17,21 +17,14 @@ import (
 	"github.com/CMSgov/bcda-ssas-app/ssas/service"
 )
 
-var infoMap map[string][]string
-var adminSigningKeyPath string
-var adminSigningKey string
-var server *service.Server
-
-func init() {
-	infoMap = make(map[string][]string)
-	adminSigningKeyPath = os.Getenv("SSAS_ADMIN_SIGNING_KEY_PATH")
-	adminSigningKey = os.Getenv("SSAS_ADMIN_SIGNING_KEY")
-}
-
 // Server creates an SSAS admin server
 func Server() *service.Server {
 	unsafeMode := os.Getenv("HTTP_ONLY") == "true"
 	useMTLS := os.Getenv("ADMIN_USE_MTLS") == "true"
+	adminSigningKeyPath := os.Getenv("SSAS_ADMIN_SIGNING_KEY_PATH")
+	adminSigningKey := os.Getenv("SSAS_ADMIN_SIGNING_KEY")
+
+	infoMap := make(map[string][]string)
 
 	signingKey, err := service.ChooseSigningKey(adminSigningKeyPath, adminSigningKey)
 	if err != nil {
@@ -40,7 +33,7 @@ func Server() *service.Server {
 		return nil
 	}
 
-	server = service.NewServer("admin", ":3004", constants.Version, infoMap, routes(), unsafeMode, useMTLS, signingKey, 20*time.Minute, "")
+	server := service.NewServer("admin", ":3004", constants.Version, infoMap, routes(), unsafeMode, useMTLS, signingKey, 20*time.Minute, "")
 	if server != nil {
 		r, _ := server.ListRoutes()
 		infoMap["banner"] = []string{fmt.Sprintf("%s server running on port %s", "admin", ":3004")}
