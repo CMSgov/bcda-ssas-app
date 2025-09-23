@@ -11,7 +11,6 @@ import (
 	"fmt"
 	"go/build"
 	"io"
-	"math"
 	"net"
 	"os"
 	"strconv"
@@ -67,19 +66,16 @@ func getEnvVars() {
 	MacaroonExpiration = time.Duration(macaroonExpirationDays*24) * time.Hour
 }
 
-type System struct {
+type IP struct {
 	gorm.Model
-	GID            uint            `json:"g_id"`
-	GroupID        string          `json:"group_id"`
-	ClientID       string          `json:"client_id"`
-	SoftwareID     string          `json:"software_id"`
-	ClientName     string          `json:"client_name"`
-	APIScope       string          `json:"api_scope"`
-	EncryptionKeys []EncryptionKey `json:"encryption_keys,omitempty"`
-	Secrets        []Secret        `json:"secrets,omitempty"`
-	LastTokenAt    time.Time       `json:"last_token_at"`
-	XData          string          `json:"xdata"`
-	SGAKey         string          `json:"sga_key"`
+	Address  string
+	SystemID uint
+}
+
+type AuthRegData struct {
+	GroupID         string
+	AllowedGroupIDs []string
+	OktaID          string
 }
 
 type EncryptionKey struct {
@@ -97,6 +93,11 @@ type Secret struct {
 	SystemID uint   `json:"system_id"`
 }
 
+// IsExpired tests whether this secret has expired
+func (secret *Secret) IsExpired() bool {
+	return secret.UpdatedAt.Add(CredentialExpiration).Before(time.Now())
+}
+
 type ClientToken struct {
 	gorm.Model
 	Label     string    `json:"label"`
@@ -106,12 +107,33 @@ type ClientToken struct {
 	ExpiresAt time.Time `json:"expires_at"`
 }
 
-/*
-SaveClientToken should be provided with a token label and token uuid, which will
-be saved to the client tokens table and associated with the current system.
-*/
-func (system *System) SaveClientToken(ctx context.Context, label string, groupXData string, expiration time.Time) (*ClientToken, string, error) {
-	rk, err := NewRootKey(ctx, system.ID, expiration)
+type SystemsRepository struct {
+	db *gorm.DB
+}
+
+func NewSystemsRepository(db *gorm.DB) *SystemsRepository {
+	return &SystemsRepository{db: db}
+}
+
+type System struct {
+	gorm.Model
+	GID            uint            `json:"g_id"`
+	GroupID        string          `json:"group_id"`
+	ClientID       string          `json:"client_id"`
+	SoftwareID     string          `json:"software_id"`
+	ClientName     string          `json:"client_name"`
+	APIScope       string          `json:"api_scope"`
+	EncryptionKeys []EncryptionKey `json:"encryption_keys,omitempty"`
+	Secrets        []Secret        `json:"secrets,omitempty"`
+	LastTokenAt    time.Time       `json:"last_token_at"`
+	XData          string          `json:"xdata"`
+	SGAKey         string          `json:"sga_key"`
+}
+
+// SaveClientToken should be provided with a token label and token uuid, which will be saved to the client tokens table and associated with the current system.
+func (r *SystemsRepository) SaveClientToken(ctx context.Context, system System, label string, groupXData string, expiration time.Time) (*ClientToken, string, error) {
+	keyRepo := NewRootKeyRepository(r.db)
+	rk, err := keyRepo.NewRootKey(ctx, system.ID, expiration)
 	if err != nil {
 		return nil, "", fmt.Errorf("could not create a root key for macaroon generation for clientID %s: %s", system.ClientID, err.Error())
 	}
@@ -132,23 +154,23 @@ func (system *System) SaveClientToken(ctx context.Context, label string, groupXD
 		ExpiresAt: rk.ExpiresAt,
 	}
 
-	if err := Connection.WithContext(ctx).Create(&ct).Error; err != nil {
+	if err := r.db.WithContext(ctx).Create(&ct).Error; err != nil {
 		return nil, "", fmt.Errorf("could not save client token for clientID %s: %s", system.ClientID, err.Error())
 	}
 	return &ct, token, nil
 }
 
-func (system *System) GetClientTokens(ctx context.Context) ([]ClientToken, error) {
+func (r *SystemsRepository) GetClientTokens(ctx context.Context, system System) ([]ClientToken, error) {
 	var tokens []ClientToken
-	err := Connection.WithContext(ctx).Find(&tokens, "system_id=? AND deleted_at IS NULL", system.ID).Error
+	err := r.db.WithContext(ctx).Find(&tokens, "system_id=? AND deleted_at IS NULL", system.ID).Error
 	if err != nil {
 		return tokens, err
 	}
 	return tokens, nil
 }
 
-func (system *System) DeleteClientToken(ctx context.Context, tokenID string) error {
-	tx := Connection.WithContext(ctx).Begin()
+func (r *SystemsRepository) DeleteClientToken(ctx context.Context, system System, tokenID string) error {
+	tx := r.db.WithContext(ctx).Begin()
 	defer func() {
 		if r := recover(); r != nil {
 			tx.Rollback()
@@ -166,55 +188,34 @@ func (system *System) DeleteClientToken(ctx context.Context, tokenID string) err
 	return err
 }
 
-// IsExpired tests whether this secret has expired
-func (secret *Secret) IsExpired() bool {
-	return secret.UpdatedAt.Add(CredentialExpiration).Before(time.Now())
-}
-
-type IP struct {
-	gorm.Model
-	Address  string
-	SystemID uint
-}
-
-type AuthRegData struct {
-	GroupID         string
-	AllowedGroupIDs []string
-	OktaID          string
-}
-
-/*
-SaveSecret should be provided with a secret hashed with ssas.NewHash(), which will
-be saved to the secrets table and associated with the current system.
-*/
-func (system *System) SaveSecret(ctx context.Context, hashedSecret string) error {
+// SaveSecret should be provided with a secret hashed with ssas.NewHash(), which will be saved to the secrets table and associated with the current system.
+func (r *SystemsRepository) SaveSecret(ctx context.Context, system System, hashedSecret string) error {
 	secret := Secret{
 		Hash:     hashedSecret,
 		SystemID: system.ID,
 	}
 
-	if err := system.deactivateSecrets(ctx); err != nil {
+	if err := r.deactivateSecrets(ctx, system); err != nil {
 		return err
 	}
 
-	if err := Connection.WithContext(ctx).Create(&secret).Error; err != nil {
+	if err := r.db.WithContext(ctx).Create(&secret).Error; err != nil {
 		return fmt.Errorf("could not save secret for clientID %s: %s", system.ClientID, err.Error())
 	}
 
 	return nil
 }
 
-/*
-GetSecret will retrieve the hashed secret associated with the current system.
-*/
-func (system *System) GetSecret(ctx context.Context) (Secret, error) {
+// GetSecret will retrieve the hashed secret associated with the current system.
+func (r *SystemsRepository) GetSecret(ctx context.Context, system System) (Secret, error) {
 	secret := Secret{}
-	err := Connection.WithContext(ctx).Where("system_id = ?", system.ID).First(&secret).Error
+	err := r.db.WithContext(ctx).Where("system_id = ?", system.ID).First(&secret).Error
 	if err != nil {
 		return secret, fmt.Errorf("unable to get hashed secret for clientID %s: %s", system.ClientID, err.Error())
 	}
 
 	if strings.TrimSpace(secret.Hash) == "" {
+
 		return secret, fmt.Errorf("stored hash of secret for clientID %s is blank", system.ClientID)
 	}
 
@@ -222,59 +223,46 @@ func (system *System) GetSecret(ctx context.Context) (Secret, error) {
 }
 
 // SaveTokenTime puts the current time in systems.last_token_at
-func (system *System) SaveTokenTime(ctx context.Context) (err error) {
-	err = Connection.WithContext(ctx).Model(&system).UpdateColumn("last_token_at", time.Now()).Error
+func (r *SystemsRepository) SaveTokenTime(ctx context.Context, system System) (err error) {
+	err = r.db.WithContext(ctx).Model(&system).UpdateColumn("last_token_at", time.Now()).Error
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-/*
-RevokeSecret revokes a system's secret
-*/
-func (system *System) RevokeSecret(ctx context.Context, systemID string) error {
-	_, err := XDataFor(ctx, *system)
-	if err != nil {
-		return fmt.Errorf("could not get group XData for clientID %s: %s", system.ClientID, err.Error())
-	}
-
-	err = system.deactivateSecrets(ctx)
+// RevokeSecret revokes a system's secret
+func (r *SystemsRepository) RevokeSecret(ctx context.Context, system System) error {
+	err := r.deactivateSecrets(ctx, system)
 	if err != nil {
 		return fmt.Errorf("unable to revoke credentials for clientID %s", system.ClientID)
 	}
 	return nil
 }
 
-/*
-DeactivateSecrets soft deletes secrets associated with the system.
-*/
-func (system *System) deactivateSecrets(ctx context.Context) error {
-	err := Connection.WithContext(ctx).Where("system_id = ?", system.ID).Delete(&Secret{}).Error
+// DeactivateSecrets soft deletes secrets associated with the system.
+func (r *SystemsRepository) deactivateSecrets(ctx context.Context, system System) error {
+	err := r.db.WithContext(ctx).Where("system_id = ?", system.ID).Delete(&Secret{}).Error
 	if err != nil {
 		return fmt.Errorf("unable to soft delete previous secrets for clientID %s: %s", system.ClientID, err.Error())
 	}
 	return nil
 }
 
-/*
-GetEncryptionKey retrieves the key associated with the current system.
-*/
-func (system *System) GetEncryptionKey(ctx context.Context) (EncryptionKey, error) {
+// GetEncryptionKey retrieves the key associated with the current system.
+func (r *SystemsRepository) GetEncryptionKey(ctx context.Context, system System) (EncryptionKey, error) {
 	var encryptionKey EncryptionKey
-	err := Connection.WithContext(ctx).First(&encryptionKey, "system_id = ?", system.ID).Error
+	err := r.db.WithContext(ctx).First(&encryptionKey, "system_id = ?", system.ID).Error
 	if err != nil {
 		return encryptionKey, fmt.Errorf("cannot find key for clientID %s: %s", system.ClientID, err.Error())
 	}
 	return encryptionKey, nil
 }
 
-/*
-FindEncryptionKey retrieves the key by id associated with the current system.
-*/
-func (system *System) FindEncryptionKey(ctx context.Context, trackingID string, keyId string) (EncryptionKey, error) {
+// FindEncryptionKey retrieves the key by id associated with the current system.
+func (r *SystemsRepository) FindEncryptionKey(ctx context.Context, system System, trackingID string, keyId string) (EncryptionKey, error) {
 	var encryptionKey EncryptionKey
-	err := Connection.WithContext(ctx).First(&encryptionKey, "system_id = ? AND uuid=?", system.ID, keyId).Error
+	err := r.db.WithContext(ctx).First(&encryptionKey, "system_id = ? AND uuid=?", system.ID, keyId).Error
 	if err != nil {
 		return encryptionKey, fmt.Errorf("cannot find key for systemId %d: and keyId: %s error: %s", system.ID, keyId, err.Error())
 	}
@@ -282,12 +270,10 @@ func (system *System) FindEncryptionKey(ctx context.Context, trackingID string, 
 	return encryptionKey, nil
 }
 
-/*
-GetEncryptionKeys retrieves the keys associated with the current system.
-*/
-func (system *System) GetEncryptionKeys(ctx context.Context) ([]EncryptionKey, error) {
+// GetEncryptionKeys retrieves the keys associated with the current system.
+func (r *SystemsRepository) GetEncryptionKeys(ctx context.Context, system System) ([]EncryptionKey, error) {
 	var encryptionKeys []EncryptionKey
-	err := Connection.WithContext(ctx).Where("system_id = ?", system.ID).Find(&encryptionKeys).Error
+	err := r.db.WithContext(ctx).Where("system_id = ?", system.ID).Find(&encryptionKeys).Error
 	if err != nil {
 		return encryptionKeys, fmt.Errorf("cannot find key for clientID %s: %s", system.ClientID, err.Error())
 	}
@@ -295,15 +281,13 @@ func (system *System) GetEncryptionKeys(ctx context.Context) ([]EncryptionKey, e
 	return encryptionKeys, nil
 }
 
-/*
-DeleteEncryptionKey deletes the key associated with the current system.
-*/
-func (system *System) DeleteEncryptionKey(ctx context.Context, keyID string) error {
+// DeleteEncryptionKey deletes the key associated with the current system.
+func (r *SystemsRepository) DeleteEncryptionKey(ctx context.Context, system System, keyID string) error {
 	if keyID == "" {
 		return fmt.Errorf("requires keyID to delete key for clientID %s", system.ClientID)
 	}
 	var encryptionKey EncryptionKey
-	err := Connection.WithContext(ctx).Where("system_id = ? AND uuid = ?", system.ID, keyID).Delete(&encryptionKey).Error
+	err := r.db.WithContext(ctx).Where("system_id = ? AND uuid = ?", system.ID, keyID).Delete(&encryptionKey).Error
 	if err != nil {
 		return fmt.Errorf("cannot find key to delete for clientID %s: %s", system.ClientID, err.Error())
 	}
@@ -311,15 +295,8 @@ func (system *System) DeleteEncryptionKey(ctx context.Context, keyID string) err
 	return nil
 }
 
-/*
-SavePublicKey should be provided with a public key in PEM format, which will be saved
-to the encryption_keys table and associated with the current system.
-*/
-func (system *System) SavePublicKey(publicKey io.Reader, signature string) (*EncryptionKey, error) {
-	return system.SavePublicKeyDB(publicKey, signature, true, Connection)
-}
-
-func (system *System) SavePublicKeyDB(publicKey io.Reader, signature string, onlyOne bool, db *gorm.DB) (*EncryptionKey, error) {
+// SavePublicKey creates a public key for the current system. `onlyOne` == true will soft delete an existing key, effectively replacing it with a new one.
+func (r *SystemsRepository) SavePublicKey(tx *gorm.DB, system System, publicKey io.Reader, signature string, onlyOne bool) (*EncryptionKey, error) {
 	k, err := io.ReadAll(publicKey)
 	if err != nil {
 		return nil, fmt.Errorf("cannot read public key for clientID %s: %s", system.ClientID, err.Error())
@@ -347,13 +324,13 @@ func (system *System) SavePublicKeyDB(publicKey io.Reader, signature string, onl
 
 	if onlyOne {
 		// Only one key should be valid per system.  Soft delete the currently active key, if any.
-		err = db.Where("system_id = ?", system.ID).Delete(&EncryptionKey{}).Error
+		err = tx.Where("system_id = ?", system.ID).Delete(&EncryptionKey{}).Error
 		if err != nil {
 			return nil, fmt.Errorf("unable to soft delete previous encryption keys for clientID %s: %s", system.ClientID, err.Error())
 		}
 	}
 
-	err = db.Create(&encryptionKey).Error
+	err = tx.Create(&encryptionKey).Error
 	if err != nil {
 		return nil, fmt.Errorf("could not save public key for clientID %s: %s", system.ClientID, err.Error())
 	}
@@ -361,8 +338,114 @@ func (system *System) SavePublicKeyDB(publicKey io.Reader, signature string, onl
 	return &encryptionKey, nil
 }
 
-func (system *System) AddAdditionalPublicKey(publicKey io.Reader, signature string) (*EncryptionKey, error) {
-	return system.SavePublicKeyDB(publicKey, signature, false, Connection)
+// DeleteIP soft-deletes an IP associated with a specific system
+func (r *SystemsRepository) DeleteIP(ctx context.Context, system System, ipID string) error {
+	var (
+		ip  IP
+		err error
+	)
+
+	// Find IP to delete
+	err = r.db.WithContext(ctx).First(&ip, "system_id = ? AND id = ?", system.ID, ipID).Error
+	if err != nil {
+		return fmt.Errorf("failed to get ip address with ID %s: %s", ipID, err)
+	}
+
+	// Soft delete IP
+	// Note: db.Delete() soft-deletes by default because the DeletedAt field is set on the Gorm model that IP inherits
+	err = r.db.WithContext(ctx).Delete(&ip).Error
+	if err != nil {
+		return fmt.Errorf("failed to delete IP address with ID %s: %s", ipID, err)
+	}
+
+	return nil
+}
+
+func (r *SystemsRepository) GetIPs(system System) ([]string, error) {
+	var (
+		ips []string
+		err error
+	)
+
+	if err = r.db.Model(&IP{}).Where("system_id = ? AND deleted_at IS NULL", system.ID).Pluck("address", &ips).Error; err != nil {
+		err = fmt.Errorf("no IP's found with system_id %d: %s", system.ID, err.Error())
+	}
+	return ips, err
+}
+
+func (r *SystemsRepository) GetIPsData(ctx context.Context, system System) ([]IP, error) {
+	var (
+		ips []IP
+		err error
+	)
+
+	if err = r.db.WithContext(ctx).Find(&ips, "system_id = ? AND deleted_at IS NULL", system.ID).Error; err != nil {
+		err = fmt.Errorf("no IP's found with system_id %d: %s", system.ID, err.Error())
+	}
+	return ips, err
+}
+
+// ResetSecret creates a new secret for the current system.
+func (r *SystemsRepository) ResetSecret(ctx context.Context, system System) (Credentials, error) {
+	creds := Credentials{}
+
+	secretString, err := GenerateSecret()
+	if err != nil {
+		return creds, fmt.Errorf("could not reset secret for clientID %s: %s", system.ClientID, err.Error())
+	}
+
+	hashedSecret, err := NewHash(secretString)
+	if err != nil {
+		return creds, fmt.Errorf("could not reset secret for clientID %s: %s", system.ClientID, err.Error())
+	}
+
+	hashedSecretString := hashedSecret.String()
+	if err = r.SaveSecret(ctx, system, hashedSecretString); err != nil {
+		return creds, fmt.Errorf("could not reset secret for clientID %s: %s", system.ClientID, err.Error())
+	}
+
+	creds.SystemID = fmt.Sprint(system.ID)
+	creds.ClientID = system.ClientID
+	creds.ClientSecret = secretString
+	creds.ClientName = system.ClientName
+	creds.ExpiresAt = time.Now().Add(CredentialExpiration)
+	return creds, nil
+}
+
+func (r *SystemsRepository) RegisterIP(ctx context.Context, system System, address string) (IP, error) {
+	if !ValidAddress(address) {
+		return IP{}, errors.New("invalid ip address")
+	}
+
+	ip := IP{
+		Address:  address,
+		SystemID: uint(system.ID),
+	}
+	count := int64(0)
+	r.db.WithContext(ctx).Model(&IP{}).Where("ips.system_id = ? AND ips.address = ? AND ips.deleted_at IS NULL", system.ID, address).Count(&count)
+	if count != 0 {
+		return IP{}, fmt.Errorf("can not create duplicate IP address:  %s for system %d", address, system.ID)
+	}
+
+	count = int64(0)
+	r.db.WithContext(ctx).Model(&IP{}).Where("ips.system_id = ? AND ips.deleted_at IS NULL", system.ID).Count(&count)
+	if count >= int64(MaxIPs) {
+		return IP{}, fmt.Errorf("could not add ip, max number of ips reached. Max %d", count)
+	}
+	err := r.db.WithContext(ctx).Create(&ip).Error
+	if err != nil {
+		return IP{}, fmt.Errorf("could not save IP %s; %s", address, err.Error())
+	}
+	return ip, nil
+}
+
+func (r *SystemsRepository) GetIps(ctx context.Context, system System) ([]IP, error) {
+	var ips []IP
+	err := r.db.WithContext(ctx).Find(&ips, "system_id=? AND deleted_at IS NULL", system.ID).Error
+	if err != nil {
+		return ips, err
+	}
+	return ips, nil
 }
 
 type Credentials struct {
@@ -381,7 +464,7 @@ type Credentials struct {
 RegisterSystem will save a new system and public key after verifying provided details for validity.  It returns
 a ssas.Credentials struct including the generated clientID and secret.
 */
-func RegisterSystem(ctx context.Context, clientName string, groupID string, scope string, publicKeyPEM string, ips []string, trackingID string) (Credentials, error) {
+func (r *SystemsRepository) RegisterSystem(ctx context.Context, clientName string, groupID string, scope string, publicKeyPEM string, ips []string, trackingID string) (Credentials, error) {
 	systemInput := SystemInput{
 		ClientName: clientName,
 		GroupID:    groupID,
@@ -391,17 +474,18 @@ func RegisterSystem(ctx context.Context, clientName string, groupID string, scop
 		XData:      "",
 		TrackingID: trackingID,
 	}
-	return registerSystem(ctx, systemInput, false)
+	return r.registerSystem(ctx, systemInput, false)
 }
 
-func RegisterV2System(ctx context.Context, input SystemInput) (Credentials, error) {
-	return registerSystem(ctx, input, true)
+func (r *SystemsRepository) RegisterV2System(ctx context.Context, input SystemInput) (Credentials, error) {
+	return r.registerSystem(ctx, input, true)
 }
 
-func registerSystem(ctx context.Context, input SystemInput, isV2 bool) (Credentials, error) {
+func (r *SystemsRepository) registerSystem(ctx context.Context, input SystemInput, isV2 bool) (Credentials, error) {
 	// The public key and hashed secret are stored separately in the encryption_keys and secrets tables, requiring
 	// multiple INSERT statements.  To ensure we do not get into an invalid state, wrap the two INSERT statements in a transaction.
-	tx := Connection.WithContext(ctx).Begin()
+	var err error
+	tx := r.db.WithContext(ctx).Begin()
 	defer func() {
 		if r := recover(); r != nil {
 			tx.Rollback()
@@ -427,9 +511,9 @@ func registerSystem(ctx context.Context, input SystemInput, isV2 bool) (Credenti
 		return creds, errors.New("scope must be: " + DefaultScope)
 	}
 
-	group, err := GetGroupByGroupID(ctx, input.GroupID)
-	if err != nil {
-		return creds, errors.New("unable to find group with id " + input.GroupID)
+	var group Group
+	if err := tx.WithContext(ctx).First(&group, "group_id = ?", input.GroupID).Error; err != nil && errors.Is(err, gorm.ErrRecordNotFound) {
+		err = fmt.Errorf("no Group record found for groupID %s", input.GroupID)
 	}
 
 	system := System{
@@ -470,7 +554,7 @@ func registerSystem(ctx context.Context, input SystemInput, isV2 bool) (Credenti
 	}
 
 	if input.PublicKey != "" {
-		key, err := system.SavePublicKeyDB(strings.NewReader(input.PublicKey), input.Signature, !isV2, tx)
+		key, err := r.SavePublicKey(tx, system, strings.NewReader(input.PublicKey), input.Signature, !isV2)
 		if err != nil {
 			tx.Rollback()
 			return creds, err
@@ -480,7 +564,7 @@ func registerSystem(ctx context.Context, input SystemInput, isV2 bool) (Credenti
 
 	if isV2 {
 		expiration := time.Now().Add(MacaroonExpiration)
-		_, ct, err := system.SaveClientToken(ctx, "Initial Token", group.XData, expiration)
+		_, ct, err := r.SaveClientToken(ctx, system, "Initial Token", group.XData, expiration)
 		if err != nil {
 			tx.Rollback()
 			errmsg := fmt.Sprintf("could not save client token for clientID %s, groupID %s: %s", clientID, input.GroupID, err.Error())
@@ -550,35 +634,90 @@ func VerifySignature(pubKey *rsa.PublicKey, signatureStr string) error {
 	return nil
 }
 
-func (system *System) RegisterIP(ctx context.Context, address string) (IP, error) {
-	if !ValidAddress(address) {
-		return IP{}, errors.New("invalid ip address")
-	}
-
-	ip := IP{
-		Address:  address,
-		SystemID: uint(system.ID),
-	}
-	count := int64(0)
-	Connection.WithContext(ctx).Model(&IP{}).Where("ips.system_id = ? AND ips.address = ? AND ips.deleted_at IS NULL", system.ID, address).Count(&count)
-	if count != 0 {
-		return IP{}, fmt.Errorf("can not create duplicate IP address:  %s for system %d", address, system.ID)
-	}
-
-	count = int64(0)
-	Connection.WithContext(ctx).Model(&IP{}).Where("ips.system_id = ? AND ips.deleted_at IS NULL", system.ID).Count(&count)
-	if count >= int64(MaxIPs) {
-		return IP{}, fmt.Errorf("could not add ip, max number of ips reached. Max %d", count)
-	}
-	err := Connection.WithContext(ctx).Create(&ip).Error
+// GetSystemsByGroupIDString returns the systems associated with the provided groups.group_id
+func GetSystemsByGroupIDString(ctx context.Context, groupId string) ([]System, error) {
+	db, err := CreateDB()
 	if err != nil {
-		return IP{}, fmt.Errorf("could not save IP %s; %s", address, err.Error())
+		fmt.Println(err)
 	}
-	return ip, nil
+
+	conn, err := db.DB()
+	if err != nil {
+		fmt.Println(err)
+	}
+	defer conn.Close()
+
+	var systems []System
+
+	if err = db.WithContext(ctx).Where("group_id = ? AND deleted_at IS NULL", groupId).Find(&systems).Error; err != nil {
+		err = fmt.Errorf("no Systems found with group_id %s", groupId)
+	}
+
+	return systems, err
 }
 
-func UpdateSystem(ctx context.Context, id string, v map[string]string) (System, error) {
-	sys, err := GetSystemByID(ctx, id)
+// GetSGAKeyByGroupID gets an SGA key from the first system associated with a Group ID
+func GetSGAKeyByGroupID(ctx context.Context, db *gorm.DB, groupID string) (string, error) {
+	var (
+		systems []System
+		err     error
+	)
+
+	if err = db.WithContext(ctx).Where("group_id = ? AND deleted_at IS NULL", groupID).Find(&systems).Error; err != nil {
+		err = fmt.Errorf("no Systems found with group_id %s", groupID)
+	}
+
+	if len(systems) > 0 {
+		return systems[0].SGAKey, err
+	} else {
+		return "", err
+	}
+}
+
+// GetSystemByClientID returns the system associated with the provided clientID
+func (r *SystemsRepository) GetSystemByClientID(ctx context.Context, clientID string) (System, error) {
+	var (
+		system System
+		err    error
+	)
+
+	if err = r.db.WithContext(ctx).First(&system, "client_id = ?", clientID).Error; errors.Is(err, gorm.ErrRecordNotFound) {
+		err = fmt.Errorf("no System record found for client %s", clientID)
+	}
+
+	return system, err
+}
+
+// GetSystemByID returns the system associated with the provided ID
+func (r *SystemsRepository) GetSystemByID(ctx context.Context, id string) (System, error) {
+	var (
+		system System
+		err    error
+	)
+
+	id1, err := strconv.ParseUint(id, 10, 64)
+	if err != nil {
+		return System{}, fmt.Errorf("invalid input %s; %s", id, err)
+	}
+
+	if err = r.db.WithContext(ctx).First(&system, id1).Error; err != nil {
+		err = fmt.Errorf("no System record found with ID %s %v", id, err)
+	}
+
+	skipSGAAuthCheck := fmt.Sprintf("%v", ctx.Value(constants.CtxSGASkipAuthKey))
+	if os.Getenv("SGA_ADMIN_FEATURE") == "true" && skipSGAAuthCheck != "true" {
+		requesterSGAKey := fmt.Sprintf("%v", ctx.Value(constants.CtxSGAKey))
+
+		if requesterSGAKey != system.SGAKey {
+			return System{}, fmt.Errorf("requesting SGA does not have access to this system, id: %+v", id)
+		}
+	}
+
+	return system, err
+}
+
+func (r *SystemsRepository) UpdateSystem(ctx context.Context, id string, v map[string]string) (System, error) {
+	sys, err := r.GetSystemByID(ctx, id)
 	if err != nil {
 		return System{}, fmt.Errorf("record not found for id=%s", id)
 	}
@@ -598,130 +737,12 @@ func UpdateSystem(ctx context.Context, id string, v map[string]string) (System, 
 		sys.SoftwareID = si
 	}
 
-	err = Connection.WithContext(ctx).Save(&sys).Error
+	err = r.db.WithContext(ctx).Save(&sys).Error
 	if err != nil {
 		return System{}, fmt.Errorf("failed to update system: %s", err)
 	}
 
 	return sys, nil
-}
-
-func (system *System) GetIps(ctx context.Context) ([]IP, error) {
-	var ips []IP
-	err := Connection.WithContext(ctx).Find(&ips, "system_id=? AND deleted_at IS NULL", system.ID).Error
-	if err != nil {
-		return ips, err
-	}
-	return ips, nil
-}
-
-// DeleteIP soft-deletes an IP associated with a specific system
-func (system *System) DeleteIP(ctx context.Context, ipID string) error {
-	var (
-		ip  IP
-		err error
-	)
-
-	// Find IP to delete
-	err = Connection.WithContext(ctx).First(&ip, "system_id = ? AND id = ?", system.ID, ipID).Error
-	if err != nil {
-		return fmt.Errorf("failed to get ip address with ID %s: %s", ipID, err)
-	}
-
-	// Soft delete IP
-	// Note: db.Delete() soft-deletes by default because the DeletedAt field is set on the Gorm model that IP inherits
-	err = Connection.WithContext(ctx).Delete(&ip).Error
-	if err != nil {
-		return fmt.Errorf("failed to delete IP address with ID %s: %s", ipID, err)
-	}
-
-	return nil
-}
-
-// DataForSystem returns the group extra data associated with this system
-func XDataFor(ctx context.Context, system System) (string, error) {
-	if system.GID > math.MaxInt {
-		return "", fmt.Errorf("group id uint overflow converting to int")
-	}
-	group, err := GetGroupByID(ctx, strconv.Itoa(int(system.GID)))
-	if err != nil {
-		return "", fmt.Errorf("no group for system %d; %s", system.ID, err)
-	}
-	return group.XData, nil
-}
-
-// GetSystemsByGroupIDString returns the systems associated with the provided groups.group_id
-func GetSystemsByGroupIDString(ctx context.Context, groupId string) ([]System, error) {
-	var (
-		systems []System
-		err     error
-	)
-
-	if err = Connection.WithContext(ctx).Where("group_id = ? AND deleted_at IS NULL", groupId).Find(&systems).Error; err != nil {
-		err = fmt.Errorf("no Systems found with group_id %s", groupId)
-	}
-
-	return systems, err
-}
-
-// GetSGAKeyByGroupID gets an SGA key from the first system associated with a Group ID
-func GetSGAKeyByGroupID(ctx context.Context, groupID string) (string, error) {
-	var (
-		systems []System
-		err     error
-	)
-
-	if err = Connection.WithContext(ctx).Where("group_id = ? AND deleted_at IS NULL", groupID).Find(&systems).Error; err != nil {
-		err = fmt.Errorf("no Systems found with group_id %s", groupID)
-	}
-
-	if len(systems) > 0 {
-		return systems[0].SGAKey, err
-	} else {
-		return "", err
-	}
-}
-
-// GetSystemByClientID returns the system associated with the provided clientID
-func GetSystemByClientID(ctx context.Context, clientID string) (System, error) {
-	var (
-		system System
-		err    error
-	)
-
-	if err = Connection.WithContext(ctx).First(&system, "client_id = ?", clientID).Error; errors.Is(err, gorm.ErrRecordNotFound) {
-		err = fmt.Errorf("no System record found for client %s", clientID)
-	}
-
-	return system, err
-}
-
-// GetSystemByID returns the system associated with the provided ID
-func GetSystemByID(ctx context.Context, id string) (System, error) {
-	var (
-		system System
-		err    error
-	)
-
-	id1, err := strconv.ParseUint(id, 10, 64)
-	if err != nil {
-		return System{}, fmt.Errorf("invalid input %s; %s", id, err)
-	}
-
-	if err = Connection.WithContext(ctx).First(&system, id1).Error; err != nil {
-		err = fmt.Errorf("no System record found with ID %s %v", id, err)
-	}
-
-	skipSGAAuthCheck := fmt.Sprintf("%v", ctx.Value(constants.CtxSGASkipAuthKey))
-	if os.Getenv("SGA_ADMIN_FEATURE") == "true" && skipSGAAuthCheck != "true" {
-		requesterSGAKey := fmt.Sprintf("%v", ctx.Value(constants.CtxSGAKey))
-
-		if requesterSGAKey != system.SGAKey {
-			return System{}, fmt.Errorf("requesting SGA does not have access to this system, id: %+v", id)
-		}
-	}
-
-	return system, err
 }
 
 func GenerateSecret() (string, error) {
@@ -734,7 +755,7 @@ func GenerateSecret() (string, error) {
 	return fmt.Sprintf("%x", b), nil
 }
 
-func GetAllIPs() ([]string, error) {
+func GetAllIPs(db *gorm.DB) ([]string, error) {
 	var (
 		ips []string
 		err error
@@ -745,74 +766,13 @@ func GetAllIPs() ([]string, error) {
 		"WHERE secrets.deleted_at IS NULL AND systems.deleted_at IS NULL AND groups.deleted_at IS NULL AND secrets.updated_at > ?)"
 	exp := time.Now().Add(-1 * CredentialExpiration)
 
-	if err = Connection.Order("address").Model(&IP{}).Where(where, exp).Distinct("address").Pluck(
+	if err = db.Order("address").Model(&IP{}).Where(where, exp).Distinct("address").Pluck(
 		"address", &ips).Error; err != nil {
 		err = fmt.Errorf("no IP's found: %s", err.Error())
 	}
 	return ips, err
 }
 
-func (system *System) GetIPs() ([]string, error) {
-	var (
-		ips []string
-		err error
-	)
-
-	if err = Connection.Model(&IP{}).Where("system_id = ? AND deleted_at IS NULL", system.ID).Pluck("address", &ips).Error; err != nil {
-		err = fmt.Errorf("no IP's found with system_id %d: %s", system.ID, err.Error())
-	}
-	return ips, err
-}
-
-func (system *System) GetIPsData(ctx context.Context) ([]IP, error) {
-	var (
-		ips []IP
-		err error
-	)
-
-	if err = Connection.WithContext(ctx).Find(&ips, "system_id = ? AND deleted_at IS NULL", system.ID).Error; err != nil {
-		err = fmt.Errorf("no IP's found with system_id %d: %s", system.ID, err.Error())
-	}
-	return ips, err
-}
-
-// ResetSecret creates a new secret for the current system.
-func (system *System) ResetSecret(ctx context.Context) (Credentials, error) {
-	creds := Credentials{}
-
-	_, err := XDataFor(ctx, *system)
-	if err != nil {
-		return creds, fmt.Errorf("could not get group XData for clientID %s: %s", system.ClientID, err.Error())
-	}
-
-	secretString, err := GenerateSecret()
-	if err != nil {
-		return creds, fmt.Errorf("could not reset secret for clientID %s: %s", system.ClientID, err.Error())
-	}
-
-	hashedSecret, err := NewHash(secretString)
-	if err != nil {
-		return creds, fmt.Errorf("could not reset secret for clientID %s: %s", system.ClientID, err.Error())
-	}
-
-	hashedSecretString := hashedSecret.String()
-	if err = system.SaveSecret(ctx, hashedSecretString); err != nil {
-		return creds, fmt.Errorf("could not reset secret for clientID %s: %s", system.ClientID, err.Error())
-	}
-
-	creds.SystemID = fmt.Sprint(system.ID)
-	creds.ClientID = system.ClientID
-	creds.ClientSecret = secretString
-	creds.ClientName = system.ClientName
-	creds.ExpiresAt = time.Now().Add(CredentialExpiration)
-	return creds, nil
-}
-
-// The following code is a bit confusing.  It first checks a valid IP address, if fails, returns false.
-// It then checks if the found IP address is in a reserved range.  If it is return false.
-// At a glance this code seems like it allows for an IP address OR a CIDR range to be passed in
-// but that is not the case.  We actually do NOT want SGAs to be able
-// to send us CIDR ranges.  They could accidentally open up huge ranges of IP addresses.
 func ValidAddress(address string) bool {
 	ip := net.ParseIP(address)
 	if ip == nil {

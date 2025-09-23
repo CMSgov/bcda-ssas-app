@@ -58,7 +58,13 @@ func (groupv1) TableName() string {
 }
 
 func TestAllMigrations(t *testing.T) {
-	db = ssas.Connection
+	var err error
+	s.db, err = CreateDB()
+	require.NoError(s.T(), err)
+	db, err := s.db.DB()
+	require.NoError(s.T(), err)
+	defer db.Close()
+
 	dbURL = os.Getenv("DATABASE_URL")
 
 	require.True(t, t.Run("up1", up1))

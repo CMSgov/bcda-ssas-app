@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"gopkg.in/macaroon.v2"
 	"gorm.io/gorm"
@@ -15,10 +16,22 @@ import (
 type RootKeyTestSuite struct {
 	suite.Suite
 	db *gorm.DB
+	r  *RootKeyRepository
 }
 
-func (s *RootKeyTestSuite) SetupSuite() {
-	s.db = Connection
+func (s *RootKeyTestSuite) SetupTest() {
+	var err error
+	s.db, err = CreateDB()
+	require.NoError(s.T(), err)
+	s.r = NewRootKeyRepository(s.db)
+
+}
+
+func (s *RootKeyTestSuite) TearDownTest() {
+	db, err := s.db.DB()
+	require.NoError(s.T(), err)
+	err = db.Close()
+	require.NoError(s.T(), err)
 }
 
 func TestRootKeyTestSuite(t *testing.T) {
@@ -27,7 +40,7 @@ func TestRootKeyTestSuite(t *testing.T) {
 
 func (s *RootKeyTestSuite) TestRootKeyMacaroonGeneration() {
 	expiration := time.Duration(5*24) * time.Hour
-	rk, _ := NewRootKey(context.Background(), 123, time.Now().Add(expiration))
+	rk, _ := s.r.NewRootKey(context.Background(), 123, time.Now().Add(expiration))
 	m, _ := rk.Generate([]Caveats{map[string]string{"foo": "bar"}}, "my-location")
 
 	var um macaroon.Macaroon

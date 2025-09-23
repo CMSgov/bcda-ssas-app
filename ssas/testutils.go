@@ -20,18 +20,19 @@ import (
 	"gorm.io/gorm"
 )
 
-func ResetCreds(clientID string, groupID string) (encSecret string, err error) {
-	err = RevokeActiveCreds(groupID)
+func ResetCreds(db *gorm.DB, clientID string, groupID string) (encSecret string, err error) {
+	r := NewSystemsRepository(db)
+	err = RevokeActiveCreds(db, groupID)
 	if err != nil {
 		return
 	}
 
-	system, err := GetSystemByClientID(context.Background(), clientID)
+	system, err := r.GetSystemByClientID(context.Background(), clientID)
 	if err != nil {
 		return
 	}
 
-	creds, err := system.ResetSecret(context.Background())
+	creds, err := r.ResetSecret(context.Background(), system)
 	if err != nil {
 		return
 	}
@@ -42,18 +43,20 @@ func ResetCreds(clientID string, groupID string) (encSecret string, err error) {
 	return
 }
 
-func ExpireAdminCreds() {
-	Connection.Exec("UPDATE secrets SET created_at = '2000-01-01', updated_at = '2000-01-01' WHERE system_id IN (SELECT id FROM systems WHERE client_id = '31e029ef-0e97-47f8-873c-0e8b7e7f99bf')")
+func ExpireAdminCreds(db *gorm.DB) {
+
+	db.Exec("UPDATE secrets SET created_at = '2000-01-01', updated_at = '2000-01-01' WHERE system_id IN (SELECT id FROM systems WHERE client_id = '31e029ef-0e97-47f8-873c-0e8b7e7f99bf')")
 }
 
 // RevokeActiveCreds revokes all credentials for the specified GroupID
-func RevokeActiveCreds(groupID string) error {
+func RevokeActiveCreds(db *gorm.DB, groupID string) error {
+	r := NewSystemsRepository(db)
 	systems, err := GetSystemsByGroupIDString(context.Background(), groupID)
 	if err != nil {
 		return err
 	}
 	for _, system := range systems {
-		err = system.RevokeSecret(context.Background(), "ssas.RevokeActiveCreds for GroupID "+groupID)
+		err = r.RevokeSecret(context.Background(), system)
 		if err != nil {
 			return err
 		}
@@ -138,6 +141,7 @@ func someRandomBytes(n int) ([]byte, error) {
 }
 
 func CreateTestXData(t *testing.T, db *gorm.DB) (creds Credentials, group Group) {
+	r := NewSystemsRepository(db)
 	groupID := RandomHexID()[0:4]
 
 	group = Group{GroupID: groupID, XData: `{"group":"1"}`}
@@ -149,7 +153,7 @@ func CreateTestXData(t *testing.T, db *gorm.DB) (creds Credentials, group Group)
 	pemString, err := ConvertPublicKeyToPEMString(&pubKey)
 	require.Nil(t, err)
 
-	creds, err = RegisterSystem(context.WithValue(context.Background(), CtxLoggerKey, MakeTestStructuredLoggerEntry(logrus.Fields{"cms_id": "A9999", "request_id": uuid.NewUUID().String()})), "Test Client Name", groupID, DefaultScope, pemString, []string{}, uuid.NewRandom().String())
+	creds, err = r.RegisterSystem(context.WithValue(context.Background(), CtxLoggerKey, MakeTestStructuredLoggerEntry(logrus.Fields{"cms_id": "A9999", "request_id": uuid.NewUUID().String()})), "Test Client Name", groupID, DefaultScope, pemString, []string{}, uuid.NewRandom().String())
 	assert.Nil(t, err)
 	assert.Equal(t, "Test Client Name", creds.ClientName)
 	assert.NotNil(t, creds.ClientSecret)
@@ -158,6 +162,7 @@ func CreateTestXData(t *testing.T, db *gorm.DB) (creds Credentials, group Group)
 }
 
 func CreateTestXDataV2(t *testing.T, ctx context.Context, db *gorm.DB) (creds Credentials, group Group) {
+	r := NewSystemsRepository(db)
 	groupID := RandomHexID()[0:4]
 
 	group = Group{GroupID: groupID, XData: `{"group":"1"}`}
@@ -178,7 +183,7 @@ func CreateTestXDataV2(t *testing.T, ctx context.Context, db *gorm.DB) (creds Cr
 		TrackingID: uuid.NewRandom().String(),
 		XData:      `{"impl": "2"}`,
 	}
-	creds, err = RegisterV2System(context.WithValue(ctx, CtxLoggerKey, MakeTestStructuredLoggerEntry(logrus.Fields{"cms_id": "A9999", "request_id": uuid.NewUUID().String()})), s)
+	creds, err = r.RegisterV2System(context.WithValue(ctx, CtxLoggerKey, MakeTestStructuredLoggerEntry(logrus.Fields{"cms_id": "A9999", "request_id": uuid.NewUUID().String()})), s)
 	assert.Nil(t, err)
 	assert.Equal(t, "Test Client Name", creds.ClientName)
 	assert.NotNil(t, creds.ClientSecret)
@@ -203,7 +208,18 @@ func CleanDatabase(group Group) error {
 		secret        Secret
 		ip            IP
 		systemIds     []int
+		err           error
 	)
+
+	db, err := CreateDB()
+	if err != nil {
+		return fmt.Errorf("failed to connect to database: %s", err)
+	}
+	conn, err := db.DB()
+	if err != nil {
+		return fmt.Errorf("failed to connect to database: %s", err)
+	}
+	defer conn.Close()
 
 	if group.ID == 0 {
 		return fmt.Errorf("invalid group.ID")
@@ -212,16 +228,16 @@ func CleanDatabase(group Group) error {
 	foundGroup := Group{}
 	foundGroup.ID = group.ID
 
-	err := Connection.Unscoped().Find(&foundGroup).Error
+	err = db.Unscoped().Find(&foundGroup).Error
 	if err != nil {
 		return fmt.Errorf("unable to find group %d: %s", group.ID, err.Error())
 	}
 
-	err = Connection.Table("systems").Where("g_id = ?", group.ID).Pluck("id", &systemIds).Error
+	err = db.Table("systems").Where("g_id = ?", group.ID).Pluck("id", &systemIds).Error
 	if err != nil {
 		Logger.Errorf("unable to find associated systems: %s", err.Error())
 	} else {
-		tx := Connection.Unscoped().Begin()
+		tx := db.Unscoped().Begin()
 
 		tx.Where("system_id IN (?)", systemIds).Delete(&ip)
 		tx.Where("system_id IN (?)", systemIds).Delete(&encryptionKey)
@@ -234,7 +250,7 @@ func CleanDatabase(group Group) error {
 		}
 	}
 
-	err = Connection.Unscoped().Delete(&group).Error
+	err = db.Unscoped().Delete(&group).Error
 	if err != nil {
 		return fmt.Errorf("unable to delete group: %s", err.Error())
 	}

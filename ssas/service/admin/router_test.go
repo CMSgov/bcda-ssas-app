@@ -11,8 +11,10 @@ import (
 	"github.com/CMSgov/bcda-ssas-app/ssas"
 	"github.com/CMSgov/bcda-ssas-app/ssas/service"
 	"github.com/sirupsen/logrus/hooks/test"
+	"gorm.io/gorm"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -22,10 +24,14 @@ type RouterTestSuite struct {
 	basicAuth string
 	badAuth   string
 	group     ssas.Group
+	db        *gorm.DB
 }
 
 func (s *RouterTestSuite) SetupSuite() {
-	encSecret, err := ssas.ResetCreds(service.TestAdminClientID, "admin")
+	var err error
+	s.db, err = ssas.CreateDB()
+	require.NoError(s.T(), err)
+	encSecret, err := ssas.ResetCreds(s.db, service.TestAdminClientID, "admin")
 	assert.NoError(s.T(), err)
 
 	s.basicAuth = encSecret
@@ -40,6 +46,11 @@ func (s *RouterTestSuite) SetupTest() {
 
 func (s *RouterTestSuite) TearDownSuite() {
 	_ = ssas.CleanDatabase(s.group)
+
+	db, err := s.db.DB()
+	require.NoError(s.T(), err)
+	db.Close()
+
 }
 
 func (s *RouterTestSuite) TestUnauthorized() {
@@ -125,11 +136,11 @@ func (s *RouterTestSuite) TestPostSystem() {
 }
 
 func (s *RouterTestSuite) TestDeactivateSystemCredentials() {
-	db := ssas.Connection
+
 	group := ssas.Group{GroupID: "delete-system-credentials-test-group"}
-	db.Create(&group)
+	s.db.Create(&group)
 	system := ssas.System{GID: group.ID, ClientID: "delete-system-credentials-test-system"}
-	db.Create(&system)
+	s.db.Create(&system)
 	systemID := strconv.FormatUint(uint64(system.ID), 10)
 
 	req := httptest.NewRequest("DELETE", "/system/"+systemID+"/credentials", nil)
@@ -147,11 +158,10 @@ func (s *RouterTestSuite) TestPutSystemCredentials() {
 	logger := ssas.GetLogger(ssas.Logger)
 	logHook := test.NewLocal(logger)
 
-	db := ssas.Connection
 	group := ssas.Group{GroupID: "put-system-credentials-test-group", XData: string(`{"cms_ids":["A9999"]}`)}
-	db.Create(&group)
+	s.db.Create(&group)
 	system := ssas.System{GID: group.ID, ClientID: "put-system-credentials-test-system"}
-	db.Create(&system)
+	s.db.Create(&system)
 	systemID := strconv.FormatUint(uint64(system.ID), 10)
 
 	req := httptest.NewRequest("PUT", "/system/"+systemID+"/credentials", nil)

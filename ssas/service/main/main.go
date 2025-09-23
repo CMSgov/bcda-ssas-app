@@ -210,12 +210,21 @@ func newForwardingRouter() http.Handler {
 }
 
 func addFixtureData() {
-	db := ssas.Connection
+	db, err := ssas.CreateDB()
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	conn, err := db.DB()
+	if err != nil {
+		fmt.Println(err)
+	}
+	defer conn.Close()
 
 	if err := db.Save(&ssas.Group{GroupID: "admin"}).Error; err != nil {
 		fmt.Println(err)
 	}
-	// group for cms_id A9994; client_id 0c527d2e-2e8a-4808-b11d-0fa06baf8254
+	//group for cms_id A9994; client_id 0c527d2e-2e8a-4808-b11d-0fa06baf8254
 	if err := db.Save(&ssas.Group{GroupID: service.TestGroupID, Data: ssas.GroupData{GroupID: service.TestGroupID}, XData: `{"cms_ids":["A9994"]}`}).Error; err != nil {
 		fmt.Println(err)
 	}
@@ -242,7 +251,8 @@ func makeSystem(db *gorm.DB, groupID, clientID, clientName, scope, hash, sgaKey 
 	HwIDAQAB
 	-----END PUBLIC KEY-----`
 
-	g, err := ssas.GetGroupByGroupID(context.Background(), groupID)
+	r := ssas.NewGroupsRepository(db)
+	g, err := r.GetGroupByGroupID(context.Background(), groupID)
 	if err != nil {
 		ssas.Logger.Warn(err)
 	}
@@ -275,11 +285,21 @@ func resetSecret(clientID string) {
 		s   ssas.System
 		c   ssas.Credentials
 	)
-	if s, err = ssas.GetSystemByClientID(context.Background(), clientID); err != nil {
+	db, err := ssas.CreateDB()
+	if err != nil {
+		fmt.Println(err)
+	}
+	conn, err := db.DB()
+	if err != nil {
+		fmt.Println(err)
+	}
+	defer conn.Close()
+	r := ssas.NewSystemsRepository(db)
+	if s, err = r.GetSystemByClientID(context.Background(), clientID); err != nil {
 		ssas.Logger.Warn(err)
 	}
 	ssas.Logger.WithField("op", "ResetSecret").Info("calling from main.resetSecret()")
-	if c, err = s.ResetSecret(context.Background()); err != nil {
+	if c, err = r.ResetSecret(context.Background(), s); err != nil {
 		ssas.Logger.Warn(err)
 	} else {
 		_, _ = fmt.Fprintf(output, "%s\n", c.ClientSecret)
@@ -293,6 +313,18 @@ func newAdminSystem(name string) {
 		c   ssas.Credentials
 		u   uint64
 	)
+
+	db, err := ssas.CreateDB()
+	if err != nil {
+		fmt.Println(err)
+	}
+	conn, err := db.DB()
+	if err != nil {
+		fmt.Println(err)
+	}
+	defer conn.Close()
+	r := ssas.NewSystemsRepository(db)
+
 	if pk, _, _, err = ssas.GeneratePublicKey(2048); err != nil {
 		ssas.Logger.Errorf("no public key; %s", err)
 		return
@@ -300,7 +332,7 @@ func newAdminSystem(name string) {
 
 	trackingID := cliTrackingID()
 	ssas.Logger.WithField("op", "RegisterSystem").Info("calling from main.newAdminSystem()")
-	if c, err = ssas.RegisterSystem(context.Background(), name, "admin", "bcda-api", pk, []string{}, trackingID); err != nil {
+	if c, err = r.RegisterSystem(context.Background(), name, "admin", "bcda-api", pk, []string{}, trackingID); err != nil {
 		ssas.Logger.Error(err)
 		return
 	}
@@ -310,8 +342,6 @@ func newAdminSystem(name string) {
 		return
 	}
 
-	db := ssas.Connection
-
 	if err = db.Model(&ssas.System{}).Where("id = ?", uint(u)).Update("api_scope", "bcda-admin").Error; err != nil {
 		ssas.Logger.Warnf("bcda-admin scope not set for new system %s", c.SystemID)
 	} else {
@@ -320,7 +350,16 @@ func newAdminSystem(name string) {
 }
 
 func listIPs() {
-	ips, err := ssas.GetAllIPs()
+	db, err := ssas.CreateDB()
+	if err != nil {
+		fmt.Println(err)
+	}
+	conn, err := db.DB()
+	if err != nil {
+		fmt.Println(err)
+	}
+	defer conn.Close()
+	ips, err := ssas.GetAllIPs(db)
 	if err != nil {
 		ssas.Logger.Fatalf("unable to get registered IPs: %s", err)
 	}
@@ -330,7 +369,15 @@ func listIPs() {
 }
 
 func listExpiringCredentials() {
-	db := ssas.Connection
+	db, err := ssas.CreateDB()
+	if err != nil {
+		fmt.Println(err)
+	}
+	conn, err := db.DB()
+	if err != nil {
+		fmt.Println(err)
+	}
+	defer conn.Close()
 
 	type result struct {
 		ClientID    string     `json:"client_id"`
@@ -393,6 +440,19 @@ func cliTrackingID() string {
 }
 
 func showXData(clientID, auth string) error {
+
+	db, err := ssas.CreateDB()
+	if err != nil {
+		fmt.Println(err)
+	}
+	conn, err := db.DB()
+	if err != nil {
+		fmt.Println(err)
+	}
+	defer conn.Close()
+	r := ssas.NewSystemsRepository(db)
+	g := ssas.NewGroupsRepository(db)
+
 	// The auth header decoding logic was pulled from Go's request.go#parseBasicAuth func
 	if auth != "" {
 		c, err := base64.StdEncoding.DecodeString(auth)
@@ -410,12 +470,12 @@ func showXData(clientID, auth string) error {
 		clientID = cs[:s]
 	}
 
-	system, err := ssas.GetSystemByClientID(context.Background(), clientID)
+	system, err := r.GetSystemByClientID(context.Background(), clientID)
 	if err != nil {
 		return fmt.Errorf("invalid client id: %w", err)
 	}
 
-	group, err := ssas.GetGroupByGroupID(context.Background(), system.GroupID)
+	group, err := g.GetGroupByGroupID(context.Background(), system.GroupID)
 	if err != nil {
 		return fmt.Errorf("unable to find group with id %v: %w", system.GroupID, err)
 	}

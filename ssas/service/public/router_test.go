@@ -12,6 +12,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"gorm.io/gorm"
 
@@ -25,18 +26,24 @@ type PublicRouterTestSuite struct {
 	db           *gorm.DB
 	group        ssas.Group
 	system       ssas.System
+	sr           *ssas.SystemsRepository
+	gr           *ssas.GroupsRepository
 }
 
 func (s *PublicRouterTestSuite) SetupSuite() {
+	var err error
 	os.Setenv("DEBUG", "true")
 	s.publicRouter = routes()
-	s.db = ssas.Connection
+	s.db, err = ssas.CreateDB()
+	require.NoError(s.T(), err)
 	s.rr = httptest.NewRecorder()
 	groupBytes := []byte(`{"group_id":"T1234","users":["fake_okta_id","abcdefg"]}`)
 	gd := ssas.GroupData{}
-	err := json.Unmarshal(groupBytes, &gd)
+	err = json.Unmarshal(groupBytes, &gd)
 	assert.Nil(s.T(), err)
-	s.group, err = ssas.CreateGroup(context.Background(), gd)
+	s.gr = ssas.NewGroupsRepository(s.db)
+	s.sr = ssas.NewSystemsRepository(s.db)
+	s.group, err = s.gr.CreateGroup(context.Background(), gd)
 	if err != nil {
 		s.FailNow("unable to create group: " + err.Error())
 	}

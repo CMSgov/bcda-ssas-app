@@ -39,6 +39,7 @@ func NewCacheConfig() *CacheConfig {
 func StartDenylist() {
 	TokenCacheLifetime = time.Duration(cfg.GetEnvInt("SSAS_TOKEN_DENYLIST_CACHE_TIMEOUT_MINUTES", 60*24)) * time.Minute
 	c := NewCacheConfig()
+
 	TokenDenylist = NewDenylist(context.Background(), c)
 }
 
@@ -48,10 +49,14 @@ func NewDenylist(ctx context.Context, cfg *CacheConfig) *Denylist {
 	trackingID := uuid.NewRandom().String()
 
 	ssas.Logger.WithField("op", "InitDenylist").Info()
+	db, err := ssas.CreateDB()
+	if err != nil {
+		ssas.Logger.Fatalf("failed to connect to database: %s", err)
+	}
 
 	dl := Denylist{ID: trackingID}
 	dl.c = cache.New(defaultCacheTimeout, cfg.cacheCleanupInterval)
-
+	dl.r = ssas.NewDenylistEntryRepository(db)
 	if err := dl.LoadFromDatabase(); err != nil {
 		ssas.Logger.Error("failed to load denylist from database: ", err)
 		// Log this failure, but allow the cache to operate.  It's conceivable the next cache refresh will work.
@@ -68,18 +73,19 @@ type Denylist struct {
 	sync.RWMutex
 	c  *cache.Cache
 	ID string
+	r  *ssas.DenylistEntryRepository
 }
 
 // DenylistToken invalidates the specified tokenID
-func (t *Denylist) DenylistToken(ctx context.Context, tokenID string, denylistExpiration time.Duration) error {
+func (d *Denylist) DenylistToken(ctx context.Context, tokenID string, denylistExpiration time.Duration) error {
 	entryDate := time.Now()
 	expirationDate := entryDate.Add(denylistExpiration)
-	if _, err := ssas.CreateDenylistEntry(ctx, tokenID, entryDate, expirationDate); err != nil {
+	if _, err := d.r.CreateDenylistEntry(ctx, tokenID, entryDate, expirationDate); err != nil {
 		return fmt.Errorf("unable to denylist token id %s: %s", tokenID, err.Error())
 	}
 
 	// Add to cache only after token is denylisted in database
-	t.c.Set(tokenID, entryDate.Unix(), denylistExpiration)
+	d.c.Set(tokenID, entryDate.Unix(), denylistExpiration)
 
 	return nil
 }
@@ -88,19 +94,19 @@ func (t *Denylist) DenylistToken(ctx context.Context, tokenID string, denylistEx
 //   - Tokens should expire before denylist entries, so a tokenID for a recently expired token may return "true."
 //   - This queries the cache only, so if a tokenID has been denylisted on a different instance, it will return "false"
 //     until the cached denylist is refreshed from the database.
-func (t *Denylist) IsTokenDenylisted(tokenID string) bool {
+func (d *Denylist) IsTokenDenylisted(tokenID string) bool {
 	// Ensure that we do not attempt to read when the cache is being rebuilt
-	t.RLock()
-	defer t.RUnlock()
+	d.RLock()
+	defer d.RUnlock()
 
-	if _, found := t.c.Get(tokenID); found {
+	if _, found := d.c.Get(tokenID); found {
 		return true
 	}
 	return false
 }
 
 // LoadFromDatabase refreshes unexpired denylist entries from the database
-func (t *Denylist) LoadFromDatabase() error {
+func (d *Denylist) LoadFromDatabase() error {
 	var (
 		entries []ssas.DenylistEntry
 		err     error
@@ -110,20 +116,20 @@ func (t *Denylist) LoadFromDatabase() error {
 	timeoutCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	if entries, err = ssas.GetUnexpiredDenylistEntries(timeoutCtx); err != nil {
+	if entries, err = d.r.GetUnexpiredDenylistEntries(timeoutCtx); err != nil {
 		return err
 	}
 
 	// Need to acquire a lock since we're clearing the entire cache.
 	// Any reads in-between us re-hydrating the cache is invalid (false negatives)
-	t.Lock()
-	defer t.Unlock()
-	t.c.Flush()
+	d.Lock()
+	defer d.Unlock()
+	d.c.Flush()
 
 	// If the key already exists in the cache, it will be updated.
 	for _, entry := range entries {
 		cacheDuration := time.Until(time.Unix(0, entry.CacheExpiration))
-		t.c.Set(entry.Key, entry.EntryDate, cacheDuration)
+		d.c.Set(entry.Key, entry.EntryDate, cacheDuration)
 	}
 	return nil
 }

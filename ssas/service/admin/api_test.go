@@ -23,6 +23,7 @@ import (
 	"github.com/CMSgov/bcda-ssas-app/ssas"
 	"github.com/go-chi/chi/v5"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"gorm.io/gorm"
 )
@@ -66,27 +67,37 @@ type APITestSuite struct {
 	db       *gorm.DB
 	logEntry *ssas.APILoggerEntry
 	ctx      context.Context
+	h        *adminHandler
+	sr       *ssas.SystemsRepository
+	gr       *ssas.GroupsRepository
 }
 
 func (s *APITestSuite) SetupSuite() {
-	s.db = ssas.Connection
 	service.StartDenylist()
 	ssas.MaxIPs = 3
 	s.logEntry = MakeTestStructuredLoggerEntry(logrus.Fields{"cms_id": "A9999", "request_id": uuid.NewUUID().String()})
-
 	if os.Getenv("SGA_ADMIN_FEATURE") == "true" {
 		s.ctx = context.WithValue(context.Background(), constants.CtxSGAKey, "test-sga")
 	} else {
 		s.ctx = context.Background()
 	}
+	var err error
+	s.db, err = ssas.CreateDB()
+	require.NoError(s.T(), err)
+	s.h = NewAdminHandler()
+	s.gr = ssas.NewGroupsRepository(s.db)
+	s.sr = ssas.NewSystemsRepository(s.db)
 }
 
 func (s *APITestSuite) TearDownSuite() {
-	//ssas.Close(s.db)
+	db, err := s.db.DB()
+	require.NoError(s.T(), err)
+	db.Close()
 }
 
 func TestAPITestSuite(t *testing.T) {
 	suite.Run(t, new(APITestSuite))
+
 }
 
 func TestAPITestSuite_With_SGA_ADMIN_FEATURE(t *testing.T) {
@@ -110,7 +121,7 @@ func (s *APITestSuite) TestCreateGroup() {
 	logger := ssas.GetLogger(ssas.Logger)
 	logHook := test.NewLocal(logger)
 
-	handler := http.Handler(service.GetTransactionID(service.NewCtxLogger(http.HandlerFunc(createGroup))))
+	handler := http.Handler(service.GetTransactionID(service.NewCtxLogger(http.HandlerFunc(s.h.createGroup))))
 	rr := httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
 	entries := logHook.AllEntries()
@@ -141,7 +152,7 @@ func (s *APITestSuite) TestCreateGroupFailure() {
 	testInput := fmt.Sprintf(SampleGroup, gid, SampleXdata)
 	req := httptest.NewRequestWithContext(s.ctx, "POST", "/group", strings.NewReader(testInput))
 	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry))
-	handler := http.HandlerFunc(createGroup)
+	handler := http.HandlerFunc(s.h.createGroup)
 	rr := httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
 	assert.Equal(s.T(), http.StatusCreated, rr.Result().StatusCode)
@@ -161,7 +172,7 @@ func (s *APITestSuite) TestCreateGroupEmptyGroupId() {
 	testInput := fmt.Sprintf(SampleGroup, gid, SampleXdata)
 	req := httptest.NewRequestWithContext(s.ctx, "POST", "/group", strings.NewReader(testInput))
 	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry))
-	handler := http.HandlerFunc(createGroup)
+	handler := http.HandlerFunc(s.h.createGroup)
 	rr := httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
 	assert.Equal(s.T(), http.StatusBadRequest, rr.Result().StatusCode)
@@ -175,7 +186,7 @@ func (s *APITestSuite) TestListGroups() {
 	gd := ssas.GroupData{}
 	err := json.Unmarshal([]byte(testInput1), &gd)
 	assert.Nil(s.T(), err)
-	g1, err := ssas.CreateGroup(context.Background(), gd)
+	g1, err := s.gr.CreateGroup(context.Background(), gd)
 	assert.Nil(s.T(), err)
 	s1 := ssas.System{GID: g1.ID, GroupID: g1.GroupID, ClientID: "test-list-groups-1", SGAKey: "test-sga"}
 	err = s.db.Create(&s1).Error
@@ -185,7 +196,7 @@ func (s *APITestSuite) TestListGroups() {
 
 	gd.GroupID = g2ID
 	gd.Name = "another-fake-name"
-	g2, err := ssas.CreateGroup(context.Background(), gd)
+	g2, err := s.gr.CreateGroup(context.Background(), gd)
 	assert.Nil(s.T(), err)
 	s2 := ssas.System{GID: g2.ID, GroupID: g2.GroupID, ClientID: "test-list-groups-2", SGAKey: "test-sga"}
 	err = s.db.Create(&s2).Error
@@ -202,7 +213,7 @@ func (s *APITestSuite) TestListGroups() {
 
 	req := httptest.NewRequestWithContext(s.ctx, "GET", "/group", nil)
 	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry))
-	handler := http.HandlerFunc(listGroups)
+	handler := http.HandlerFunc(s.h.listGroups)
 	rr := httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
 	assert.Equal(s.T(), http.StatusOK, rr.Result().StatusCode)
@@ -232,7 +243,7 @@ func (s *APITestSuite) TestUpdateGroup() {
 	gd := ssas.GroupData{}
 	err := json.Unmarshal([]byte(testInput), &gd)
 	assert.Nil(s.T(), err)
-	g, err := ssas.CreateGroup(context.Background(), gd)
+	g, err := s.gr.CreateGroup(context.Background(), gd)
 	assert.Nil(s.T(), err)
 	system := ssas.System{GID: g.ID, GroupID: g.GroupID, ClientID: "test-update-group", SGAKey: "test-sga"}
 	err = s.db.Create(&system).Error
@@ -251,7 +262,7 @@ func (s *APITestSuite) TestUpdateGroup() {
 	rctx.URLParams.Add("id", fmt.Sprint(g.ID))
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
 	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry))
-	handler := http.HandlerFunc(updateGroup)
+	handler := http.HandlerFunc(s.h.updateGroup)
 	rr := httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
 	assert.Equal(s.T(), http.StatusOK, rr.Result().StatusCode)
@@ -271,7 +282,7 @@ func (s *APITestSuite) TestUpdateGroupBadGroupID() {
 	rctx := chi.NewRouteContext()
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
 	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry))
-	handler := http.HandlerFunc(updateGroup)
+	handler := http.HandlerFunc(s.h.updateGroup)
 	rr := httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
 	assert.Equal(s.T(), http.StatusBadRequest, rr.Result().StatusCode)
@@ -286,7 +297,7 @@ func (s *APITestSuite) TestRevokeToken() {
 	rctx.URLParams.Add("tokenID", tokenID)
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
 	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry))
-	handler := http.HandlerFunc(revokeToken)
+	handler := http.HandlerFunc(s.h.revokeToken)
 	rr := httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
 	assert.Equal(s.T(), http.StatusOK, rr.Result().StatusCode)
@@ -304,7 +315,7 @@ func (s *APITestSuite) TestRevokeTokenNoToken() {
 	rctx.URLParams.Add("tokenID", tokenID)
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
 	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry))
-	handler := http.HandlerFunc(revokeToken)
+	handler := http.HandlerFunc(s.h.revokeToken)
 	rr := httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
 
@@ -319,7 +330,7 @@ func (s *APITestSuite) TestDeleteGroup() {
 	gd := ssas.GroupData{}
 	err := json.Unmarshal(groupBytes, &gd)
 	assert.Nil(s.T(), err)
-	g, err := ssas.CreateGroup(context.Background(), gd)
+	g, err := s.gr.CreateGroup(context.Background(), gd)
 	assert.Nil(s.T(), err)
 	system := ssas.System{GID: g.ID, GroupID: g.GroupID, ClientID: "test-delete-group", SGAKey: "test-sga"}
 	err = s.db.Create(&system).Error
@@ -338,7 +349,7 @@ func (s *APITestSuite) TestDeleteGroup() {
 	rctx.URLParams.Add("id", fmt.Sprint(g.ID))
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
 	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry))
-	handler := http.HandlerFunc(deleteGroup)
+	handler := http.HandlerFunc(s.h.deleteGroup)
 	rr := httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
 	assert.Equal(s.T(), http.StatusOK, rr.Result().StatusCode)
@@ -366,7 +377,7 @@ func (s *APITestSuite) TestCreateSystem() {
 
 	req := httptest.NewRequestWithContext(s.ctx, "POST", "/system", strings.NewReader(`{"client_name": "Test Client", "group_id": "test-group-id", "scope": "bcda-api", "public_key": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEArhxobShmNifzW3xznB+L\nI8+hgaePpSGIFCtFz2IXGU6EMLdeufhADaGPLft9xjwdN1ts276iXQiaChKPA2CK\n/CBpuKcnU3LhU8JEi7u/db7J4lJlh6evjdKVKlMuhPcljnIKAiGcWln3zwYrFCeL\ncN0aTOt4xnQpm8OqHawJ18y0WhsWT+hf1DeBDWvdfRuAPlfuVtl3KkrNYn1yqCgQ\nlT6v/WyzptJhSR1jxdR7XLOhDGTZUzlHXh2bM7sav2n1+sLsuCkzTJqWZ8K7k7cI\nXK354CNpCdyRYUAUvr4rORIAUmcIFjaR3J4y/Dh2JIyDToOHg7vjpCtNnNoS+ON2\nHwIDAQAB\n-----END PUBLIC KEY-----", "tracking_id": "T00000"}`))
 	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry))
-	handler := http.Handler(service.NewCtxLogger(http.HandlerFunc(createSystem)))
+	handler := http.Handler(service.NewCtxLogger(http.HandlerFunc(s.h.createSystem)))
 	rr := httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
 	assert.Equal(s.T(), http.StatusCreated, rr.Result().StatusCode)
@@ -407,7 +418,7 @@ func (s *APITestSuite) TestCreateSystemMultipleIps() {
 	reqBody := fmt.Sprintf(`{"client_name": "Test Client", "group_id": "test-group-id", "scope": "bcda-api", "ips": ["%s", "%s"],"tracking_id": "T00000"}`, randomIPv4, randomIPv6)
 	req := httptest.NewRequestWithContext(s.ctx, "POST", "/auth/system", strings.NewReader(reqBody))
 	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry))
-	handler := http.HandlerFunc(createSystem)
+	handler := http.HandlerFunc(s.h.createSystem)
 	rr := httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
 	assert.Equal(s.T(), http.StatusCreated, rr.Result().StatusCode)
@@ -420,9 +431,9 @@ func (s *APITestSuite) TestCreateSystemMultipleIps() {
 	assert.NotEqual(s.T(), "", creds.ClientID)
 	assert.Equal(s.T(), "Test Client", creds.ClientName)
 
-	system, err := ssas.GetSystemByClientID(context.Background(), creds.ClientID)
+	system, err := s.sr.GetSystemByClientID(context.Background(), creds.ClientID)
 	assert.Nil(s.T(), err)
-	ips, err := system.GetIPs()
+	ips, err := s.sr.GetIPs(system)
 	assert.Nil(s.T(), err)
 	assert.Contains(s.T(), ips, randomIPv4)
 	assert.Contains(s.T(), ips, randomIPv6)
@@ -442,7 +453,7 @@ func (s *APITestSuite) TestCreateSystemBadIp() {
 
 	req := httptest.NewRequestWithContext(s.ctx, "POST", "/auth/system", strings.NewReader(`{"client_name": "Test Client", "group_id": "test-group-id", "scope": "bcda-api", ips: ["304.0.2.1/32"],"tracking_id": "T00000"}`))
 	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry))
-	handler := http.HandlerFunc(createSystem)
+	handler := http.HandlerFunc(s.h.createSystem)
 	rr := httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
 	assert.Equal(s.T(), http.StatusBadRequest, rr.Result().StatusCode)
@@ -462,7 +473,7 @@ func (s *APITestSuite) TestCreateSystemEmptyKey() {
 
 	req := httptest.NewRequestWithContext(s.ctx, "POST", "/auth/system", strings.NewReader(`{"client_name": "Test Client", "group_id": "test-group-id", "scope": "bcda-api", "public_key": "", "tracking_id": "T00000"}`))
 	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry))
-	handler := http.HandlerFunc(createSystem)
+	handler := http.HandlerFunc(s.h.createSystem)
 	rr := httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
 	assert.Equal(s.T(), http.StatusCreated, rr.Result().StatusCode)
@@ -488,7 +499,7 @@ func (s *APITestSuite) TestCreateSystemNoKey() {
 
 	req := httptest.NewRequestWithContext(s.ctx, "POST", "/auth/system", strings.NewReader(`{"client_name": "Test Client", "group_id": "test-group-id", "scope": "bcda-api", "tracking_id": "T00000"}`))
 	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry))
-	handler := http.HandlerFunc(createSystem)
+	handler := http.HandlerFunc(s.h.createSystem)
 	rr := httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
 	assert.Equal(s.T(), http.StatusCreated, rr.Result().StatusCode)
@@ -503,7 +514,7 @@ func (s *APITestSuite) TestCreateSystemNoKey() {
 func (s *APITestSuite) TestCreateSystemInvalidRequest() {
 	req := httptest.NewRequestWithContext(s.ctx, "POST", "/auth/system", strings.NewReader("{ badJSON }"))
 	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry))
-	handler := http.HandlerFunc(createSystem)
+	handler := http.HandlerFunc(s.h.createSystem)
 	rr := httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
 	assert.Equal(s.T(), http.StatusBadRequest, rr.Result().StatusCode)
@@ -512,7 +523,7 @@ func (s *APITestSuite) TestCreateSystemInvalidRequest() {
 func (s *APITestSuite) TestCreateSystemMissingRequiredParam() {
 	req := httptest.NewRequestWithContext(s.ctx, "POST", "/auth/system", strings.NewReader(`{"group_id": "T00001", "client_name": "Test Client 1", "scope": "bcda-api"}`))
 	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry))
-	handler := http.HandlerFunc(createSystem)
+	handler := http.HandlerFunc(s.h.createSystem)
 	rr := httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
 	assert.Equal(s.T(), http.StatusBadRequest, rr.Result().StatusCode)
@@ -541,7 +552,7 @@ func (s *APITestSuite) TestResetCredentials() {
 
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
 	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry.Logger))
-	handler := http.Handler(service.NewCtxLogger(http.HandlerFunc(resetCredentials)))
+	handler := http.Handler(service.NewCtxLogger(http.HandlerFunc(s.h.resetCredentials)))
 
 	rr := httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
@@ -573,7 +584,7 @@ func (s *APITestSuite) TestResetCredentialsInvalidSystemID() {
 	rctx.URLParams.Add("systemID", systemID)
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
 	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry))
-	handler := http.HandlerFunc(resetCredentials)
+	handler := http.HandlerFunc(s.h.resetCredentials)
 	rr := httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
 
@@ -587,7 +598,7 @@ func (s *APITestSuite) TestGetPublicKeyBadSystemID() {
 	rctx.URLParams.Add("systemID", systemID)
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
 	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry))
-	handler := http.HandlerFunc(getPublicKey)
+	handler := http.HandlerFunc(s.h.getPublicKey)
 	rr := httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
 
@@ -628,7 +639,7 @@ func (s *APITestSuite) TestGetPublicKey() {
 	rctx.URLParams.Add("systemID", systemID)
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
 	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry))
-	handler := http.HandlerFunc(getPublicKey)
+	handler := http.HandlerFunc(s.h.getPublicKey)
 	rr := httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
 
@@ -660,13 +671,13 @@ func (s *APITestSuite) TestGetPublicKeyRotation() {
 	}
 
 	key1, _, _, _ := ssas.GeneratePublicKey(2048)
-	rk1, err := system.SavePublicKey(strings.NewReader(key1), "")
+	rk1, err := s.sr.SavePublicKey(s.db, system, strings.NewReader(key1), "", true)
 	if err != nil {
 		s.FailNow(err.Error())
 	}
 
 	key2, _, _, _ := ssas.GeneratePublicKey(2048)
-	rk2, err := system.SavePublicKey(strings.NewReader(key2), "")
+	rk2, err := s.sr.SavePublicKey(s.db, system, strings.NewReader(key2), "", true)
 	if err != nil {
 		s.FailNow(err.Error())
 	}
@@ -684,7 +695,7 @@ func (s *APITestSuite) TestGetPublicKeyRotation() {
 	rctx.URLParams.Add("systemID", systemID)
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
 	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry))
-	handler := http.HandlerFunc(getPublicKey)
+	handler := http.HandlerFunc(s.h.getPublicKey)
 	rr := httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
 
@@ -709,7 +720,7 @@ func (s *APITestSuite) TestDeactivateSystemCredentialsNotFound() {
 	rctx := chi.NewRouteContext()
 	rctx.URLParams.Add("systemID", systemID)
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
-	handler := http.HandlerFunc(deactivateSystemCredentials)
+	handler := http.HandlerFunc(s.h.deactivateSystemCredentials)
 	rr := httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
 	_ = Server()
@@ -737,7 +748,7 @@ func (s *APITestSuite) TestDeactivateSystemCredentials() {
 	rctx.URLParams.Add("systemID", systemID)
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
 	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry))
-	handler := http.Handler(service.NewCtxLogger(http.HandlerFunc(deactivateSystemCredentials)))
+	handler := http.Handler(service.NewCtxLogger(http.HandlerFunc(s.h.deactivateSystemCredentials)))
 	rr := httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
 	assert.Equal(s.T(), http.StatusOK, rr.Result().StatusCode)
@@ -778,7 +789,7 @@ func (s *APITestSuite) TestGetSystemIPs() {
 	rctx.URLParams.Add("systemID", systemID)
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
 	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry))
-	handler := http.HandlerFunc(getSystemIPs)
+	handler := http.HandlerFunc(s.h.getSystemIPs)
 
 	s.T().Cleanup(func() {
 		err := ssas.CleanDatabase(group)
@@ -830,7 +841,7 @@ func (s *APITestSuite) TestGetSystemIPsBadSystem() {
 	rctx.URLParams.Add("systemID", systemID)
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
 	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry))
-	handler := http.HandlerFunc(getSystemIPs)
+	handler := http.HandlerFunc(s.h.getSystemIPs)
 
 	rr := httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
@@ -855,7 +866,7 @@ func (s *APITestSuite) TestRegisterSystemIP() {
 	rctx.URLParams.Add("systemID", systemID)
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
 	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry))
-	handler := http.HandlerFunc(registerIP)
+	handler := http.HandlerFunc(s.h.registerIP)
 
 	rr := httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
@@ -868,7 +879,7 @@ func (s *APITestSuite) TestRegisterSystemIP() {
 	rctx.URLParams.Add("systemID", systemID)
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
 	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry))
-	handler = getSystemIPs
+	handler = s.h.getSystemIPs
 
 	rr = httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
@@ -897,7 +908,7 @@ func (s *APITestSuite) TestRegisterInvalidIP() {
 	rctx.URLParams.Add("systemID", systemID)
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
 	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry))
-	handler := http.HandlerFunc(registerIP)
+	handler := http.HandlerFunc(s.h.registerIP)
 
 	rr := httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
@@ -930,7 +941,7 @@ func (s *APITestSuite) TestRegisterMaxSystemIP() {
 	rctx.URLParams.Add("systemID", systemID)
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
 	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry))
-	handler := http.HandlerFunc(registerIP)
+	handler := http.HandlerFunc(s.h.registerIP)
 
 	rr := httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
@@ -961,7 +972,7 @@ func (s *APITestSuite) TestRegisterDuplicateSystemIP() {
 	rctx.URLParams.Add("systemID", systemID)
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
 	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry))
-	handler := http.HandlerFunc(registerIP)
+	handler := http.HandlerFunc(s.h.registerIP)
 
 	rr := httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
@@ -987,7 +998,7 @@ func (s *APITestSuite) TestRegisterSystemIPInvalidBody() {
 	rctx.URLParams.Add("systemID", systemID)
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
 	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry))
-	handler := http.HandlerFunc(registerIP)
+	handler := http.HandlerFunc(s.h.registerIP)
 
 	rr := httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
@@ -1001,7 +1012,7 @@ func (s *APITestSuite) TestRegisterSystemIPSystemNotFound() {
 	rctx.URLParams.Add("systemID", "123")
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
 	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry))
-	handler := http.HandlerFunc(registerIP)
+	handler := http.HandlerFunc(s.h.registerIP)
 
 	rr := httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
@@ -1032,7 +1043,7 @@ func (s *APITestSuite) TestDeleteIP() {
 	rctx.URLParams.Add("systemID", systemID)
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
 	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry))
-	handler := http.HandlerFunc(getSystemIPs)
+	handler := http.HandlerFunc(s.h.getSystemIPs)
 
 	rr := httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
@@ -1050,7 +1061,7 @@ func (s *APITestSuite) TestDeleteIP() {
 	rctx.URLParams.Add("id", ipID)
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
 	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry))
-	handler = deleteSystemIP
+	handler = s.h.deleteSystemIP
 
 	rr = httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
@@ -1067,7 +1078,7 @@ func (s *APITestSuite) TestDeleteIPSystemNotFound() {
 	rctx.URLParams.Add("id", "123")
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
 	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry))
-	handler := http.HandlerFunc(deleteSystemIP)
+	handler := http.HandlerFunc(s.h.deleteSystemIP)
 
 	rr := httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
@@ -1092,7 +1103,7 @@ func (s *APITestSuite) TestDeleteIPIPNotFound() {
 	rctx.URLParams.Add("systemID", systemID)
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
 	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry))
-	handler := http.HandlerFunc(deleteSystemIP)
+	handler := http.HandlerFunc(s.h.deleteSystemIP)
 
 	rr := httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
@@ -1114,7 +1125,7 @@ func (s *APITestSuite) TestUpdateSystem() {
 	//Create system
 	req := httptest.NewRequestWithContext(s.ctx, "POST", "/system", strings.NewReader(`{"client_name": "Test Client", "group_id": "test-group-id", "scope": "bcda-api", "public_key": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEArhxobShmNifzW3xznB+L\nI8+hgaePpSGIFCtFz2IXGU6EMLdeufhADaGPLft9xjwdN1ts276iXQiaChKPA2CK\n/CBpuKcnU3LhU8JEi7u/db7J4lJlh6evjdKVKlMuhPcljnIKAiGcWln3zwYrFCeL\ncN0aTOt4xnQpm8OqHawJ18y0WhsWT+hf1DeBDWvdfRuAPlfuVtl3KkrNYn1yqCgQ\nlT6v/WyzptJhSR1jxdR7XLOhDGTZUzlHXh2bM7sav2n1+sLsuCkzTJqWZ8K7k7cI\nXK354CNpCdyRYUAUvr4rORIAUmcIFjaR3J4y/Dh2JIyDToOHg7vjpCtNnNoS+ON2\nHwIDAQAB\n-----END PUBLIC KEY-----", "tracking_id": "T00000"}`))
 	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry))
-	handler := http.HandlerFunc(createSystem)
+	handler := http.HandlerFunc(s.h.createSystem)
 	rr := httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
 	var result map[string]interface{}
@@ -1128,13 +1139,13 @@ func (s *APITestSuite) TestUpdateSystem() {
 	rctx.URLParams.Add("id", fmt.Sprint(sysId))
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
 	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry))
-	handler = http.HandlerFunc(updateSystem)
+	handler = http.HandlerFunc(s.h.updateSystem)
 	rr = httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
 	assert.Equal(s.T(), http.StatusNoContent, rr.Result().StatusCode)
 
 	//Verify patch
-	sys, err := ssas.GetSystemByID(s.ctx, sysId)
+	sys, err := s.sr.GetSystemByID(s.ctx, sysId)
 	assert.NoError(s.T(), err)
 	assert.Equal(s.T(), "Updated Client Name", sys.ClientName)
 
@@ -1142,13 +1153,13 @@ func (s *APITestSuite) TestUpdateSystem() {
 	req = httptest.NewRequestWithContext(s.ctx, "Patch", V2_SYSTEM_ROUTE+sysId, strings.NewReader(`{"api_scope": "updated_scope"}`))
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
 	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry))
-	handler = http.HandlerFunc(updateSystem)
+	handler = http.HandlerFunc(s.h.updateSystem)
 	rr = httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
 	assert.Equal(s.T(), http.StatusNoContent, rr.Result().StatusCode)
 
 	//Verify API Scope patch
-	sys, err = ssas.GetSystemByID(s.ctx, sysId)
+	sys, err = s.sr.GetSystemByID(s.ctx, sysId)
 	assert.NoError(s.T(), err)
 	assert.Equal(s.T(), "updated_scope", sys.APIScope)
 
@@ -1156,13 +1167,13 @@ func (s *APITestSuite) TestUpdateSystem() {
 	req = httptest.NewRequestWithContext(s.ctx, "Patch", V2_SYSTEM_ROUTE+sysId, strings.NewReader(`{"software_id": "42"}`))
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
 	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry))
-	handler = http.HandlerFunc(updateSystem)
+	handler = http.HandlerFunc(s.h.updateSystem)
 	rr = httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
 	assert.Equal(s.T(), http.StatusNoContent, rr.Result().StatusCode)
 
 	//Verify Software Id patch
-	sys, err = ssas.GetSystemByID(s.ctx, sysId)
+	sys, err = s.sr.GetSystemByID(s.ctx, sysId)
 	assert.NoError(s.T(), err)
 	assert.Equal(s.T(), "42", sys.SoftwareID)
 
@@ -1170,7 +1181,7 @@ func (s *APITestSuite) TestUpdateSystem() {
 	req = httptest.NewRequestWithContext(s.ctx, "Patch", V2_SYSTEM_ROUTE+sysId, strings.NewReader(`{"client_id": "42"}`))
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
 	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry))
-	handler = http.HandlerFunc(updateSystem)
+	handler = http.HandlerFunc(s.h.updateSystem)
 	rr = httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
 	result = make(map[string]interface{})
@@ -1182,7 +1193,7 @@ func (s *APITestSuite) TestUpdateSystem() {
 	req = httptest.NewRequestWithContext(s.ctx, "Patch", V2_SYSTEM_ROUTE+sysId, strings.NewReader(`{"api_scope": ""}`))
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
 	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry))
-	handler = http.HandlerFunc(updateSystem)
+	handler = http.HandlerFunc(s.h.updateSystem)
 	rr = httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
 	result = make(map[string]interface{})
@@ -1196,7 +1207,7 @@ func (s *APITestSuite) TestUpdateSystemWithInvalidBody() {
 	rctx.URLParams.Add("id", "0")
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
 	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry))
-	handler := http.HandlerFunc(updateSystem)
+	handler := http.HandlerFunc(s.h.updateSystem)
 	rr := httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
 	assert.Equal(s.T(), http.StatusBadRequest, rr.Result().StatusCode)
@@ -1209,7 +1220,7 @@ func (s *APITestSuite) TestUpdateNonExistingSystem() {
 	rctx.URLParams.Add("id", "-1")
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
 	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry))
-	handler := http.HandlerFunc(updateSystem)
+	handler := http.HandlerFunc(s.h.updateSystem)
 	rr := httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
 	assert.Equal(s.T(), http.StatusNotFound, rr.Result().StatusCode)
@@ -1231,7 +1242,7 @@ func (s *APITestSuite) TestCreateV2System() {
 
 	req := httptest.NewRequestWithContext(s.ctx, "POST", "/v2/system", strings.NewReader(`{"client_name": "Test Client", "group_id": "test-group-id","xdata":"{\"org\":\"testOrgID\"}", "scope": "bcda-api", "public_key": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEArhxobShmNifzW3xznB+L\nI8+hgaePpSGIFCtFz2IXGU6EMLdeufhADaGPLft9xjwdN1ts276iXQiaChKPA2CK\n/CBpuKcnU3LhU8JEi7u/db7J4lJlh6evjdKVKlMuhPcljnIKAiGcWln3zwYrFCeL\ncN0aTOt4xnQpm8OqHawJ18y0WhsWT+hf1DeBDWvdfRuAPlfuVtl3KkrNYn1yqCgQ\nlT6v/WyzptJhSR1jxdR7XLOhDGTZUzlHXh2bM7sav2n1+sLsuCkzTJqWZ8K7k7cI\nXK354CNpCdyRYUAUvr4rORIAUmcIFjaR3J4y/Dh2JIyDToOHg7vjpCtNnNoS+ON2\nHwIDAQAB\n-----END PUBLIC KEY-----", "tracking_id": "T00000"}`))
 	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry))
-	handler := http.HandlerFunc(createV2System)
+	handler := http.HandlerFunc(s.h.createV2System)
 	rr := httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
 	assert.Equal(s.T(), http.StatusCreated, rr.Result().StatusCode)
@@ -1259,7 +1270,7 @@ func (s *APITestSuite) TestCreateV2SystemWithMissingPublicKey() {
 
 	req := httptest.NewRequestWithContext(s.ctx, "POST", "/v2/system", strings.NewReader(`{"client_name": "Test Client", "group_id": "test-group-id", "scope": "bcda-api", "tracking_id": "T00000"}`))
 	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry))
-	handler := http.HandlerFunc(createV2System)
+	handler := http.HandlerFunc(s.h.createV2System)
 	rr := httptest.NewRecorder()
 
 	handler.ServeHTTP(rr, req)
@@ -1290,7 +1301,7 @@ func (s *APITestSuite) TestCreateV2SystemMultipleIps() {
 	reqBody := fmt.Sprintf(`{"client_name": "Test Client", "group_id": "test-group-id", "scope": "bcda-api", "ips": ["%s", "%s"],"public_key": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEArhxobShmNifzW3xznB+L\nI8+hgaePpSGIFCtFz2IXGU6EMLdeufhADaGPLft9xjwdN1ts276iXQiaChKPA2CK\n/CBpuKcnU3LhU8JEi7u/db7J4lJlh6evjdKVKlMuhPcljnIKAiGcWln3zwYrFCeL\ncN0aTOt4xnQpm8OqHawJ18y0WhsWT+hf1DeBDWvdfRuAPlfuVtl3KkrNYn1yqCgQ\nlT6v/WyzptJhSR1jxdR7XLOhDGTZUzlHXh2bM7sav2n1+sLsuCkzTJqWZ8K7k7cI\nXK354CNpCdyRYUAUvr4rORIAUmcIFjaR3J4y/Dh2JIyDToOHg7vjpCtNnNoS+ON2\nHwIDAQAB\n-----END PUBLIC KEY-----","tracking_id": "T00000"}`, randomIPv4, randomIPv6)
 	req := httptest.NewRequestWithContext(s.ctx, "POST", "/v2/system", strings.NewReader(reqBody))
 	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry))
-	handler := http.HandlerFunc(createV2System)
+	handler := http.HandlerFunc(s.h.createV2System)
 	rr := httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
 	assert.Equal(s.T(), http.StatusCreated, rr.Result().StatusCode)
@@ -1303,9 +1314,9 @@ func (s *APITestSuite) TestCreateV2SystemMultipleIps() {
 	assert.NotEqual(s.T(), "", creds.ClientID)
 	assert.Equal(s.T(), "Test Client", creds.ClientName)
 
-	system, err := ssas.GetSystemByClientID(req.Context(), creds.ClientID)
+	system, err := s.sr.GetSystemByClientID(req.Context(), creds.ClientID)
 	assert.Nil(s.T(), err)
-	ips, err := system.GetIPs()
+	ips, err := s.sr.GetIPs(system)
 	assert.Nil(s.T(), err)
 	assert.Contains(s.T(), ips, randomIPv4)
 	assert.Contains(s.T(), ips, randomIPv6)
@@ -1325,7 +1336,7 @@ func (s *APITestSuite) TestCreateV2SystemBadIp() {
 
 	req := httptest.NewRequestWithContext(s.ctx, "POST", "/v2/system", strings.NewReader(`{"client_name": "Test Client", "group_id": "test-group-id", "scope": "bcda-api", ips: ["304.0.2.1/32"],"tracking_id": "T00000"}`))
 	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry))
-	handler := http.HandlerFunc(createV2System)
+	handler := http.HandlerFunc(s.h.createV2System)
 	rr := httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
 	assert.Equal(s.T(), http.StatusBadRequest, rr.Result().StatusCode)
@@ -1345,7 +1356,7 @@ func (s *APITestSuite) TestCreateV2SystemEmptyKey() {
 
 	req := httptest.NewRequestWithContext(s.ctx, "POST", "/v2/system", strings.NewReader(`{"client_name": "Test Client", "group_id": "test-group-id", "scope": "bcda-api", "public_key": "", "tracking_id": "T00000"}`))
 	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry))
-	handler := http.HandlerFunc(createV2System)
+	handler := http.HandlerFunc(s.h.createV2System)
 	rr := httptest.NewRecorder()
 
 	handler.ServeHTTP(rr, req)
@@ -1361,7 +1372,7 @@ func (s *APITestSuite) TestCreateV2SystemEmptyKey() {
 func (s *APITestSuite) TestCreateV2SystemInvalidRequest() {
 	req := httptest.NewRequestWithContext(s.ctx, "POST", "/v2/system", strings.NewReader("{ badJSON }"))
 	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry))
-	handler := http.HandlerFunc(createV2System)
+	handler := http.HandlerFunc(s.h.createV2System)
 	rr := httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
 	assert.Equal(s.T(), http.StatusBadRequest, rr.Result().StatusCode)
@@ -1370,7 +1381,7 @@ func (s *APITestSuite) TestCreateV2SystemInvalidRequest() {
 func (s *APITestSuite) TestCreateV2SystemMissingRequiredParam() {
 	req := httptest.NewRequestWithContext(s.ctx, "POST", "/v2/system", strings.NewReader(`{"group_id": "T00001", "client_name": "Test Client 1", "scope": "bcda-api"}`))
 	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry))
-	handler := http.HandlerFunc(createV2System)
+	handler := http.HandlerFunc(s.h.createV2System)
 	rr := httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
 	assert.Equal(s.T(), http.StatusBadRequest, rr.Result().StatusCode)
@@ -1389,7 +1400,7 @@ func (s *APITestSuite) TestGetV2System() {
 	rctx.URLParams.Add("id", creds.SystemID)
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
 	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry))
-	handler := http.HandlerFunc(getSystem)
+	handler := http.HandlerFunc(s.h.getSystem)
 	rr := httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
 
@@ -1426,7 +1437,7 @@ func (s *APITestSuite) TestGetV2SystemInactive() {
 	rctx.URLParams.Add("id", creds.SystemID)
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
 	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry))
-	handler := http.HandlerFunc(getSystem)
+	handler := http.HandlerFunc(s.h.getSystem)
 	rr := httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
 
@@ -1450,7 +1461,7 @@ func (s *APITestSuite) TestCreateAndDeleteAdditionalV2SystemToken() {
 	rctx.URLParams.Add("systemID", creds.SystemID)
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
 	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry))
-	handler := http.HandlerFunc(createToken)
+	handler := http.HandlerFunc(s.h.createToken)
 	rr := httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
 
@@ -1466,7 +1477,7 @@ func (s *APITestSuite) TestCreateAndDeleteAdditionalV2SystemToken() {
 	rctx.URLParams.Add("id", creds.SystemID)
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
 	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry))
-	handler = getSystem
+	handler = s.h.getSystem
 	rr = httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
 
@@ -1484,7 +1495,7 @@ func (s *APITestSuite) TestCreateAndDeleteAdditionalV2SystemToken() {
 	rctx.URLParams.Add("id", system.ClientTokens[1].UUID)
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
 	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry))
-	handler = deleteToken
+	handler = s.h.deleteToken
 	rr = httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
 
@@ -1494,7 +1505,7 @@ func (s *APITestSuite) TestCreateAndDeleteAdditionalV2SystemToken() {
 	rctx.URLParams.Add("id", creds.SystemID)
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
 	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry))
-	handler = getSystem
+	handler = s.h.getSystem
 	rr = httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
 
@@ -1510,7 +1521,7 @@ func (s *APITestSuite) TestCreateV2SystemTokenSystemNotFound() {
 	rctx.URLParams.Add("systemID", "fake-token")
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
 	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry))
-	handler := http.HandlerFunc(createToken)
+	handler := http.HandlerFunc(s.h.createToken)
 	rr := httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
 	assert.Equal(s.T(), http.StatusNotFound, rr.Result().StatusCode)
@@ -1529,7 +1540,7 @@ func (s *APITestSuite) TestCreateV2SystemTokenNonJson() {
 	rctx := chi.NewRouteContext()
 	rctx.URLParams.Add("systemID", creds.SystemID)
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
-	handler := http.HandlerFunc(createToken)
+	handler := http.HandlerFunc(s.h.createToken)
 	rr := httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
 
@@ -1550,7 +1561,7 @@ func (s *APITestSuite) TestCreateV2SystemTokenMissingLabel() {
 	rctx.URLParams.Add("systemID", creds.SystemID)
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
 	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry))
-	handler := http.HandlerFunc(createToken)
+	handler := http.HandlerFunc(s.h.createToken)
 	rr := httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
 	assert.Equal(s.T(), http.StatusBadRequest, rr.Result().StatusCode)
@@ -1563,7 +1574,7 @@ func (s *APITestSuite) TestDeleteV2SystemTokenSystemNotFound() {
 	rctx.URLParams.Add("id", "fake-uuid")
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
 	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry))
-	handler := http.HandlerFunc(deleteToken)
+	handler := http.HandlerFunc(s.h.deleteToken)
 	rr := httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
 	assert.Equal(s.T(), http.StatusNotFound, rr.Result().StatusCode)
@@ -1584,7 +1595,7 @@ func (s *APITestSuite) TestCreateAndDeletePublicKey() {
 	rctx.URLParams.Add("systemID", creds.SystemID)
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
 	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry))
-	handler := http.HandlerFunc(createKey)
+	handler := http.HandlerFunc(s.h.createKey)
 	rr := httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
 
@@ -1602,7 +1613,7 @@ func (s *APITestSuite) TestCreateAndDeletePublicKey() {
 	rctx.URLParams.Add("id", creds.SystemID)
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
 	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry))
-	handler = getSystem
+	handler = s.h.getSystem
 	rr = httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
 
@@ -1620,7 +1631,7 @@ func (s *APITestSuite) TestCreateAndDeletePublicKey() {
 	rctx.URLParams.Add("id", system.PublicKeys[1].ID)
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
 	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry))
-	handler = deleteKey
+	handler = s.h.deleteKey
 	rr = httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
 
@@ -1630,7 +1641,7 @@ func (s *APITestSuite) TestCreateAndDeletePublicKey() {
 	rctx.URLParams.Add("id", creds.SystemID)
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
 	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry))
-	handler = getSystem
+	handler = s.h.getSystem
 	rr = httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
 
@@ -1648,7 +1659,7 @@ func (s *APITestSuite) TestCreatePublicKeySystemNotFound() {
 	rctx.URLParams.Add("systemID", "fake-token")
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
 	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry))
-	handler := http.HandlerFunc(createKey)
+	handler := http.HandlerFunc(s.h.createKey)
 	rr := httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
 	assert.Equal(s.T(), http.StatusNotFound, rr.Result().StatusCode)
@@ -1669,7 +1680,7 @@ func (s *APITestSuite) TestCreatePublicKeyNonJson() {
 	rctx.URLParams.Add("systemID", creds.SystemID)
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
 	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry))
-	handler := http.HandlerFunc(createKey)
+	handler := http.HandlerFunc(s.h.createKey)
 	rr := httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
 	assert.Equal(s.T(), http.StatusBadRequest, rr.Result().StatusCode)
@@ -1690,7 +1701,7 @@ func (s *APITestSuite) TestCreatePublicKeyMissingFields() {
 	rctx.URLParams.Add("systemID", creds.SystemID)
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
 	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry))
-	handler := http.HandlerFunc(createKey)
+	handler := http.HandlerFunc(s.h.createKey)
 	rr := httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
 
@@ -1704,7 +1715,7 @@ func (s *APITestSuite) TestDeletePublicKeySystemNotFound() {
 	rctx.URLParams.Add("systemID", "fake-token")
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
 	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry))
-	handler := http.HandlerFunc(createKey)
+	handler := http.HandlerFunc(s.h.createKey)
 	rr := httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
 	assert.Equal(s.T(), http.StatusNotFound, rr.Result().StatusCode)
@@ -1721,7 +1732,10 @@ func TestSGAAdmin_NoAuth(t *testing.T) {
 	oldFF := os.Getenv("SGA_ADMIN_FEATURE")
 	os.Setenv("SGA_ADMIN_FEATURE", newFF)
 
-	db := ssas.Connection
+	db, err := ssas.CreateDB()
+	require.NoError(t, err)
+	h := NewAdminHandler()
+	r := ssas.NewGroupsRepository(db)
 	service.StartDenylist()
 	ssas.MaxIPs = 3
 
@@ -1731,9 +1745,9 @@ func TestSGAAdmin_NoAuth(t *testing.T) {
 	gid := ssas.RandomBase64(16)
 	testInput := fmt.Sprintf(SampleGroup, gid, SampleXdata)
 	gd := ssas.GroupData{}
-	err := json.Unmarshal([]byte(testInput), &gd)
+	err = json.Unmarshal([]byte(testInput), &gd)
 	assert.Nil(t, err)
-	g, err := ssas.CreateGroup(ctx, gd)
+	g, err := r.CreateGroup(ctx, gd)
 	assert.Nil(t, err)
 	system := ssas.System{GID: g.ID, GroupID: g.GroupID, ClientID: "test-update-group", SGAKey: "different-sga"}
 	err = db.Create(&system).Error
@@ -1745,6 +1759,10 @@ func TestSGAAdmin_NoAuth(t *testing.T) {
 		err = ssas.CleanDatabase(g)
 		assert.Nil(t, err)
 		os.Setenv("SGA_ADMIN_FEATURE", oldFF)
+		conn, err := db.DB()
+		require.NoError(t, err)
+		err = conn.Close()
+		require.NoError(t, err)
 	})
 
 	tests := []struct {
@@ -1753,21 +1771,21 @@ func TestSGAAdmin_NoAuth(t *testing.T) {
 		httpMethod     string
 		expectedStatus int
 	}{
-		{updateGroup, fmt.Sprintf("/group/%d", g.ID), "PUT", http.StatusBadRequest},
-		{deleteGroup, fmt.Sprintf("/group/%d", g.ID), "DELETE", http.StatusNotFound},
-		{resetCredentials, fmt.Sprintf("/system/%d/credentials", system.ID), "PUT", http.StatusNotFound},
-		{getPublicKey, fmt.Sprintf("/system/%d/key", system.ID), "GET", http.StatusNotFound},
-		{deactivateSystemCredentials, fmt.Sprintf("/system/%d/credentials", system.ID), "DELETE", http.StatusNotFound},
-		{revokeToken, fmt.Sprintf("/token/%s", "token-id"), "DELETE", http.StatusBadRequest},
-		{updateGroup, fmt.Sprintf("/v2/group/%d", g.ID), "PATCH", http.StatusBadRequest},
-		{updateSystem, fmt.Sprintf("/v2/system/%d", system.ID), "PATCH", http.StatusNotFound},
-		{getSystem, fmt.Sprintf("/v2/system/%d", system.ID), "GET", http.StatusNotFound},
-		{registerIP, fmt.Sprintf("/v2/system/%d/ip", system.ID), "POST", http.StatusNotFound},
-		{getSystemIPs, fmt.Sprintf("/v2/system/%d/ip", system.ID), "GET", http.StatusNotFound},
-		{deleteSystemIP, fmt.Sprintf("/v2/system/%d/ip/%s", system.ID, "ip-id"), "DELETE", http.StatusNotFound},
-		{createToken, fmt.Sprintf("/v2/system/%d/token", system.ID), "POST", http.StatusNotFound},
-		{createKey, fmt.Sprintf("/v2/system/%d/key", system.ID), "POST", http.StatusNotFound},
-		{deleteKey, fmt.Sprintf("/v2/system/%d/key/%s", system.ID, "key-id"), "DELETE", http.StatusNotFound},
+		{h.updateGroup, fmt.Sprintf("/group/%d", g.ID), "PUT", http.StatusBadRequest},
+		{h.deleteGroup, fmt.Sprintf("/group/%d", g.ID), "DELETE", http.StatusNotFound},
+		{h.resetCredentials, fmt.Sprintf("/system/%d/credentials", system.ID), "PUT", http.StatusNotFound},
+		{h.getPublicKey, fmt.Sprintf("/system/%d/key", system.ID), "GET", http.StatusNotFound},
+		{h.deactivateSystemCredentials, fmt.Sprintf("/system/%d/credentials", system.ID), "DELETE", http.StatusNotFound},
+		{h.revokeToken, fmt.Sprintf("/token/%s", "token-id"), "DELETE", http.StatusBadRequest},
+		{h.updateGroup, fmt.Sprintf("/v2/group/%d", g.ID), "PATCH", http.StatusBadRequest},
+		{h.updateSystem, fmt.Sprintf("/v2/system/%d", system.ID), "PATCH", http.StatusNotFound},
+		{h.getSystem, fmt.Sprintf("/v2/system/%d", system.ID), "GET", http.StatusNotFound},
+		{h.registerIP, fmt.Sprintf("/v2/system/%d/ip", system.ID), "POST", http.StatusNotFound},
+		{h.getSystemIPs, fmt.Sprintf("/v2/system/%d/ip", system.ID), "GET", http.StatusNotFound},
+		{h.deleteSystemIP, fmt.Sprintf("/v2/system/%d/ip/%s", system.ID, "ip-id"), "DELETE", http.StatusNotFound},
+		{h.createToken, fmt.Sprintf("/v2/system/%d/token", system.ID), "POST", http.StatusNotFound},
+		{h.createKey, fmt.Sprintf("/v2/system/%d/key", system.ID), "POST", http.StatusNotFound},
+		{h.deleteKey, fmt.Sprintf("/v2/system/%d/key/%s", system.ID, "key-id"), "DELETE", http.StatusNotFound},
 	}
 
 	for _, test := range tests {

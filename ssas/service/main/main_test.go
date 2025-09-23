@@ -22,10 +22,22 @@ import (
 type MainTestSuite struct {
 	suite.Suite
 	db *gorm.DB
+	r  *ssas.SystemsRepository
 }
 
-func (s *MainTestSuite) SetupSuite() {
-	s.db = ssas.Connection
+func (s *MainTestSuite) SetupTest() {
+	var err error
+	s.db, err = ssas.CreateDB()
+	require.NoError(s.T(), err)
+	s.r = ssas.NewSystemsRepository(s.db)
+}
+
+func (s *MainTestSuite) TearDownTest() {
+	conn, err := s.db.DB()
+	require.NoError(s.T(), err)
+	err = conn.Close()
+	require.NoError(s.T(), err)
+
 }
 
 func (s *MainTestSuite) TestResetSecret() {
@@ -64,7 +76,7 @@ func (s *MainTestSuite) TestShowXDataClientIDDoesNotExist() {
 
 func (s *MainTestSuite) TestShowXDataSystemGroupIDDoesNotExist() {
 	creds, _ := ssas.CreateTestXData(s.T(), s.db)
-	sys, err := ssas.GetSystemByID(context.Background(), creds.SystemID)
+	sys, err := s.r.GetSystemByID(context.Background(), creds.SystemID)
 	assert.Nil(s.T(), err)
 
 	sys.GroupID = ""
@@ -169,7 +181,7 @@ func (s *MainTestSuite) TestFixtureData() {
 		EKID       uint   `json:"ekid"`
 		ScrtID     uint   `json:"scrtid"`
 	}
-	rows, err := ssas.Connection.Raw(q).Rows()
+	rows, err := s.db.Raw(q).Rows()
 	require.Nil(s.T(), err, "error checking fixture data")
 	defer rows.Close()
 
@@ -192,16 +204,16 @@ func (s *MainTestSuite) TestFixtureData() {
 }
 
 func (s *MainTestSuite) TestListIPs() {
-	db := ssas.Connection
+	r := ssas.NewSystemsRepository(s.db)
 	fixtureClientID := service.TestGroupID
-	system, err := ssas.GetSystemByClientID(context.Background(), fixtureClientID)
+	system, err := r.GetSystemByClientID(context.Background(), fixtureClientID)
 	assert.Nil(s.T(), err)
 	testIP := ssas.RandomIPv4()
 	ip := ssas.IP{
 		Address:  testIP,
 		SystemID: system.ID,
 	}
-	err = db.Save(&ip).Error
+	err = s.db.Save(&ip).Error
 	assert.Nil(s.T(), err)
 	var str bytes.Buffer
 	logger := ssas.GetLogger(ssas.Logger)
@@ -214,21 +226,20 @@ func (s *MainTestSuite) TestListIPs() {
 	assert.NotContains(s.T(), output, "unable to get registered IPs")
 	assert.Contains(s.T(), output, testIP)
 	assert.Contains(s.T(), cliOutput, testIP)
-	defer assert.Nil(s.T(), db.Unscoped().Delete(&ip).Error)
+	defer assert.Nil(s.T(), s.db.Unscoped().Delete(&ip).Error)
 }
 
 func (s *MainTestSuite) TestListExpiringCredentials() {
 	var secret ssas.Secret
-	db := ssas.Connection
-
+	r := ssas.NewSystemsRepository(s.db)
 	assert.Nil(s.T(), os.Setenv("SSAS_CRED_EXPIRATION_DAYS", "90"))
 	assert.Nil(s.T(), os.Setenv("SSAS_CRED_TIMEOUT_DAYS", "60"))
 	assert.Nil(s.T(), os.Setenv("SSAS_CRED_WARNING_DAYS", "7"))
 
 	fixtureClientID := service.TestGroupID
-	system, err := ssas.GetSystemByClientID(context.Background(), fixtureClientID)
+	system, err := r.GetSystemByClientID(context.Background(), fixtureClientID)
 	assert.Nil(s.T(), err)
-	assert.False(s.T(), errors.Is(db.First(&secret, "system_id = ?", system.ID).Error, gorm.ErrRecordNotFound))
+	assert.False(s.T(), errors.Is(s.db.First(&secret, "system_id = ?", system.ID).Error, gorm.ErrRecordNotFound))
 	origCreatedAt := secret.CreatedAt
 	origLastTokenAt := system.LastTokenAt
 
@@ -238,8 +249,8 @@ func (s *MainTestSuite) TestListExpiringCredentials() {
 	// Credentials that will expire but not timeout during the warning period WILL be shown
 	secret.CreatedAt = time.Now().Add(-84 * 24 * time.Hour)
 	system.LastTokenAt = time.Now().Add(-52 * 24 * time.Hour)
-	assert.Nil(s.T(), db.Save(&system).Error)
-	assert.Nil(s.T(), db.Save(&secret).Error)
+	assert.Nil(s.T(), s.db.Save(&system).Error)
+	assert.Nil(s.T(), s.db.Save(&secret).Error)
 	output := captureOutput(func() { handleFlags(flags) })
 	assert.NotContains(s.T(), output, "unable")
 	assert.NotContains(s.T(), output, "error")
@@ -248,8 +259,8 @@ func (s *MainTestSuite) TestListExpiringCredentials() {
 	// Credentials that will not expire but will timeout during the warning period WILL be shown
 	secret.CreatedAt = time.Now().Add(-82 * 24 * time.Hour)
 	system.LastTokenAt = time.Now().Add(-54 * 24 * time.Hour)
-	assert.Nil(s.T(), db.Save(&system).Error)
-	assert.Nil(s.T(), db.Save(&secret).Error)
+	assert.Nil(s.T(), s.db.Save(&system).Error)
+	assert.Nil(s.T(), s.db.Save(&secret).Error)
 	output = captureOutput(func() { handleFlags(flags) })
 	assert.NotContains(s.T(), output, "unable")
 	assert.NotContains(s.T(), output, "error")
@@ -258,8 +269,8 @@ func (s *MainTestSuite) TestListExpiringCredentials() {
 	// Credentials that will neither expire nor time out during the warning period will NOT be shown
 	secret.CreatedAt = time.Now().Add(-82 * 24 * time.Hour)
 	system.LastTokenAt = time.Now().Add(-52 * 24 * time.Hour)
-	assert.Nil(s.T(), db.Save(&system).Error)
-	assert.Nil(s.T(), db.Save(&secret).Error)
+	assert.Nil(s.T(), s.db.Save(&system).Error)
+	assert.Nil(s.T(), s.db.Save(&secret).Error)
 	output = captureOutput(func() { handleFlags(flags) })
 	assert.NotContains(s.T(), output, "unable")
 	assert.NotContains(s.T(), output, "error")
@@ -267,8 +278,8 @@ func (s *MainTestSuite) TestListExpiringCredentials() {
 
 	secret.CreatedAt = origCreatedAt
 	system.LastTokenAt = origLastTokenAt
-	assert.Nil(s.T(), db.Save(&system).Error)
-	assert.Nil(s.T(), db.Save(&secret).Error)
+	assert.Nil(s.T(), s.db.Save(&system).Error)
+	assert.Nil(s.T(), s.db.Save(&secret).Error)
 }
 
 func (s *MainTestSuite) TestCreateServers() {

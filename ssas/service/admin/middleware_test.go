@@ -16,7 +16,9 @@ import (
 	"github.com/CMSgov/bcda-ssas-app/ssas/service"
 	"github.com/go-chi/chi/v5"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+	"gorm.io/gorm"
 )
 
 type AdminMiddlewareTestSuite struct {
@@ -25,6 +27,8 @@ type AdminMiddlewareTestSuite struct {
 	rr        *httptest.ResponseRecorder
 	basicAuth string
 	badAuth   string
+	h         *adminMiddlewareHandler
+	db        *gorm.DB
 }
 
 func (s *AdminMiddlewareTestSuite) CreateRouter(handlers ...func(http.Handler) http.Handler) http.Handler {
@@ -39,14 +43,24 @@ func (s *AdminMiddlewareTestSuite) CreateRouter(handlers ...func(http.Handler) h
 	return router
 }
 
+func (s *AdminMiddlewareTestSuite) TearDownTest() {
+	db, err := s.db.DB()
+	require.NoError(s.T(), err)
+	db.Close()
+}
+
 func (s *AdminMiddlewareTestSuite) SetupTest() {
+	var err error
+	s.db, err = ssas.CreateDB()
+	require.NoError(s.T(), err)
 	s.rr = httptest.NewRecorder()
-	encCreds, err := ssas.ResetCreds(service.TestAdminClientID, "admin")
+	encCreds, err := ssas.ResetCreds(s.db, service.TestAdminClientID, "admin")
 	assert.NoError(s.T(), err)
 	s.basicAuth = encCreds
 
 	badAuth := fmt.Sprintf("%s:This_is_not_the_secret", service.TestAdminClientID)
 	s.badAuth = base64.StdEncoding.EncodeToString([]byte(badAuth))
+	s.h = NewAdminMiddlewareHandler()
 }
 
 func (s *AdminMiddlewareTestSuite) TestRequireBasicAuthSuccess() {
@@ -66,7 +80,7 @@ func (s *AdminMiddlewareTestSuite) TestRequireBasicAuthFailure() {
 }
 
 func (s *AdminMiddlewareTestSuite) TestRequireBasicAuthExpired() {
-	ssas.ExpireAdminCreds()
+	ssas.ExpireAdminCreds(s.db)
 	r := testAuth(s.basicAuth, http.StatusUnauthorized, s)
 
 	b, err := io.ReadAll(r.Body)
@@ -79,7 +93,7 @@ func (s *AdminMiddlewareTestSuite) TestRequireBasicAuthExpired() {
 }
 
 func testAuth(base64Creds string, statusCode int, s *AdminMiddlewareTestSuite, customHandlers ...func(http.Handler) http.Handler) *http.Response {
-	handlers := append([]func(http.Handler) http.Handler{requireBasicAuth}, customHandlers...)
+	handlers := append([]func(http.Handler) http.Handler{s.h.requireBasicAuth}, customHandlers...)
 	s.server = httptest.NewServer(s.CreateRouter(handlers...))
 	client := s.server.Client()
 
@@ -132,7 +146,7 @@ func verifyContext(next http.Handler) http.Handler {
 }
 
 func (s *AdminMiddlewareTestSuite) TestRequireBasicAuthContext_NoSGA() {
-	encCreds, err := ssas.ResetCreds(service.TestGroupID, service.TestGroupID)
+	encCreds, err := ssas.ResetCreds(s.db, service.TestGroupID, service.TestGroupID)
 	assert.NoError(s.T(), err)
 	s.basicAuth = encCreds
 

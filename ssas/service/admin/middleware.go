@@ -8,9 +8,30 @@ import (
 	"github.com/CMSgov/bcda-ssas-app/ssas"
 	"github.com/CMSgov/bcda-ssas-app/ssas/constants"
 	"github.com/CMSgov/bcda-ssas-app/ssas/service"
+	"gorm.io/gorm"
 )
 
-func requireBasicAuth(next http.Handler) http.Handler {
+type adminMiddlewareHandler struct {
+	db *gorm.DB
+	sr *ssas.SystemsRepository
+	gr *ssas.GroupsRepository
+}
+
+func NewAdminMiddlewareHandler() *adminMiddlewareHandler {
+	h := adminMiddlewareHandler{}
+	var err error
+	h.db, err = ssas.CreateDB()
+	h.sr = ssas.NewSystemsRepository(h.db)
+	h.gr = ssas.NewGroupsRepository(h.db)
+
+	if err != nil {
+		ssas.Logger.Fatalf("Failed to create db %s", err.Error())
+		return &adminMiddlewareHandler{}
+	}
+	return &h
+}
+
+func (h *adminMiddlewareHandler) requireBasicAuth(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		clientID, secret, ok := r.BasicAuth()
 		if !ok {
@@ -18,7 +39,7 @@ func requireBasicAuth(next http.Handler) http.Handler {
 			return
 		}
 
-		system, err := ssas.GetSystemByClientID(r.Context(), clientID)
+		system, err := h.sr.GetSystemByClientID(r.Context(), clientID)
 		if err != nil {
 			service.JSONError(w, http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized), "invalid client id")
 			return
@@ -33,7 +54,7 @@ func requireBasicAuth(next http.Handler) http.Handler {
 			}
 		}
 
-		savedSecret, err := system.GetSecret(r.Context())
+		savedSecret, err := h.sr.GetSecret(r.Context(), system)
 		if err != nil || !ssas.Hash(savedSecret.Hash).IsHashOf(secret) {
 			service.JSONError(w, http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized), "invalid client secret")
 			return

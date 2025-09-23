@@ -24,7 +24,15 @@ type RootKey struct {
 
 type Caveats map[string]string
 
-func NewRootKey(ctx context.Context, systemID uint, expiration time.Time) (*RootKey, error) {
+type RootKeyRepository struct {
+	db *gorm.DB
+}
+
+func NewRootKeyRepository(db *gorm.DB) *RootKeyRepository {
+	return &RootKeyRepository{db: db}
+}
+
+func (r *RootKeyRepository) NewRootKey(ctx context.Context, systemID uint, expiration time.Time) (*RootKey, error) {
 	secret, err := generateRandomString()
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate macaroon secret: %s", err.Error())
@@ -36,10 +44,16 @@ func NewRootKey(ctx context.Context, systemID uint, expiration time.Time) (*Root
 		SystemID:  systemID,
 	}
 
-	if err := Connection.WithContext(ctx).Create(rk).Error; err != nil {
+	if err := r.db.WithContext(ctx).Create(rk).Error; err != nil {
 		return nil, fmt.Errorf("could not save root key: %s", err.Error())
 	}
 	return rk, nil
+}
+
+func (r *RootKeyRepository) GetRootKey(macID []byte, systemID string) (RootKey, error) {
+	var rootKey RootKey
+	r.db.First(&rootKey, "uuid = ? AND system_id = ? AND deleted_at IS NULL", macID, systemID)
+	return rootKey, nil
 }
 
 func (rk *RootKey) IsExpired() bool {

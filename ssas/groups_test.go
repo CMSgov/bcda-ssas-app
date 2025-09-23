@@ -53,13 +53,27 @@ const SampleXdata string = `"{\"cms_ids\":[\"T67890\",\"T54321\"]}"`
 type GroupsTestSuite struct {
 	suite.Suite
 	db *gorm.DB
+	r  *GroupsRepository
 }
 
-func (s *GroupsTestSuite) SetupSuite() {
-	s.db = Connection
+func (s *GroupsTestSuite) SetupTest() {
+	var err error
+	s.db, err = CreateDB()
+	require.NoError(s.T(), err)
+	s.r = NewGroupsRepository(s.db)
+
 }
 
-func (s *GroupsTestSuite) AfterTest() {
+func (s *GroupsTestSuite) TearDownTest() {
+	db, err := s.db.DB()
+	require.NoError(s.T(), err)
+	err = db.Close()
+	require.NoError(s.T(), err)
+
+}
+
+func TestGroupsTestSuite(t *testing.T) {
+	suite.Run(t, new(GroupsTestSuite))
 }
 
 func (s *GroupsTestSuite) TestCreateGroup() {
@@ -67,7 +81,7 @@ func (s *GroupsTestSuite) TestCreateGroup() {
 	gd := GroupData{}
 	err := json.Unmarshal([]byte(fmt.Sprintf(SampleGroup, gid, SampleXdata)), &gd)
 	assert.Nil(s.T(), err)
-	g, err := CreateGroup(context.Background(), gd)
+	g, err := s.r.CreateGroup(context.Background(), gd)
 
 	require.Nil(s.T(), err)
 	require.NotNil(s.T(), g)
@@ -80,7 +94,7 @@ func (s *GroupsTestSuite) TestCreateGroup() {
 	assert.Equal(s.T(), g.Data.XData, g.XData)
 
 	dbGroup := Group{}
-	if err := Connection.First(&dbGroup, g.ID).Error; errors.Is(err, gorm.ErrRecordNotFound) {
+	if err := s.db.First(&dbGroup, g.ID).Error; errors.Is(err, gorm.ErrRecordNotFound) {
 		assert.FailNow(s.T(), fmt.Sprintf("record not found for id=%d", g.ID))
 	}
 	assert.Equal(s.T(), gid, dbGroup.GroupID)
@@ -92,26 +106,26 @@ func (s *GroupsTestSuite) TestCreateGroup() {
 	err = CleanDatabase(g)
 	assert.Nil(s.T(), err)
 	gd.GroupID = ""
-	_, err = CreateGroup(context.Background(), gd)
+	_, err = s.r.CreateGroup(context.Background(), gd)
 	assert.EqualError(s.T(), err, "group_id cannot be blank")
 }
 
 func (s *GroupsTestSuite) TestListGroups() {
 	var startingCount int64
-	Connection.Table("groups").Count(&startingCount)
+	s.db.Table("groups").Count(&startingCount)
 	groupBytes := []byte(fmt.Sprintf(SampleGroup, RandomHexID(), SampleXdata))
 	gd := GroupData{}
 	err := json.Unmarshal(groupBytes, &gd)
 	require.Nil(s.T(), err)
-	g1, err := CreateGroup(context.Background(), gd)
+	g1, err := s.r.CreateGroup(context.Background(), gd)
 	require.Nil(s.T(), err)
 
 	gd.GroupID = RandomHexID()
 	gd.Name = "some-fake-name"
-	g2, err := CreateGroup(context.Background(), gd)
+	g2, err := s.r.CreateGroup(context.Background(), gd)
 	assert.Nil(s.T(), err)
 
-	groupList, err := ListGroups(context.Background())
+	groupList, err := s.r.ListGroups(context.Background())
 	assert.Nil(s.T(), err)
 	assert.Len(s.T(), groupList.Groups, int(2+startingCount))
 
@@ -120,7 +134,7 @@ func (s *GroupsTestSuite) TestListGroups() {
 	err = CleanDatabase(g2)
 	assert.Nil(s.T(), err)
 
-	groupList, err = ListGroups(context.Background())
+	groupList, err = s.r.ListGroups(context.Background())
 	assert.Nil(s.T(), err)
 	assert.Len(s.T(), groupList.Groups, int(startingCount))
 }
@@ -141,21 +155,21 @@ func (s *GroupsTestSuite) TestListGroups_With_SGA_ADMIN_FEATURE() {
 	gd1 := GroupData{}
 	err := json.Unmarshal(g1Bytes, &gd1)
 	assert.Nil(s.T(), err)
-	g1, err := CreateGroup(context.Background(), gd1)
+	g1, err := s.r.CreateGroup(context.Background(), gd1)
 	assert.Nil(s.T(), err)
 
 	g2Bytes := []byte(fmt.Sprintf(SampleGroup, "group-id-2", SampleXdata))
 	gd2 := GroupData{}
 	err = json.Unmarshal(g2Bytes, &gd2)
 	assert.Nil(s.T(), err)
-	g2, err := CreateGroup(context.Background(), gd2)
+	g2, err := s.r.CreateGroup(context.Background(), gd2)
 	assert.Nil(s.T(), err)
 
 	g3Bytes := []byte(fmt.Sprintf(SampleGroup, "group-id-3", SampleXdata))
 	gd3 := GroupData{}
 	err = json.Unmarshal(g3Bytes, &gd3)
 	assert.Nil(s.T(), err)
-	g3, err := CreateGroup(context.Background(), gd3)
+	g3, err := s.r.CreateGroup(context.Background(), gd3)
 	assert.Nil(s.T(), err)
 
 	// create 3 systems
@@ -184,7 +198,7 @@ func (s *GroupsTestSuite) TestListGroups_With_SGA_ADMIN_FEATURE() {
 	})
 
 	// verify only group 1 is returned, and only has auth system
-	groupList, err := ListGroups(ctx)
+	groupList, err := s.r.ListGroups(ctx)
 	assert.Nil(s.T(), err)
 	assert.Equal(s.T(), len(groupList.Groups), 1)
 	assert.Equal(s.T(), groupList.Groups[0].ID, g1.ID)
@@ -206,7 +220,7 @@ func (s *GroupsTestSuite) TestUpdateGroup() {
 	gd.Scopes = []string{"aScope", "anotherScope"}
 	gd.GroupID = RandomHexID()
 	gd.Name = "aNewGroupName"
-	changed, err := UpdateGroup(context.Background(), fmt.Sprint(orig.ID), gd)
+	changed, err := s.r.UpdateGroup(context.Background(), fmt.Sprint(orig.ID), gd)
 	assert.Nil(s.T(), err)
 
 	assert.Nil(s.T(), err)
@@ -235,12 +249,8 @@ func (s *GroupsTestSuite) TestDeleteGroup() {
 	err = s.db.Create(&encrKey).Error
 	require.Nil(s.T(), err, "unexpected error")
 
-	err = DeleteGroup(context.Background(), fmt.Sprint(group.ID))
+	err = s.r.DeleteGroup(context.Background(), fmt.Sprint(group.ID))
 	assert.Nil(s.T(), err)
 	err = CleanDatabase(group)
 	assert.Nil(s.T(), err)
-}
-
-func TestGroupsTestSuite(t *testing.T) {
-	suite.Run(t, new(GroupsTestSuite))
 }

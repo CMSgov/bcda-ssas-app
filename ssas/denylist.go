@@ -15,7 +15,15 @@ type DenylistEntry struct {
 	CacheExpiration int64  `gorm:"not null" json:"cache_expiration"`
 }
 
-func CreateDenylistEntry(ctx context.Context, key string, entryDate time.Time, cacheExpiration time.Time) (entry DenylistEntry, err error) {
+type DenylistEntryRepository struct {
+	db *gorm.DB
+}
+
+func NewDenylistEntryRepository(db *gorm.DB) *DenylistEntryRepository {
+	return &DenylistEntryRepository{db: db}
+}
+
+func (r *DenylistEntryRepository) CreateDenylistEntry(ctx context.Context, key string, entryDate time.Time, cacheExpiration time.Time) (entry DenylistEntry, err error) {
 	if key == "" {
 		err = fmt.Errorf("key cannot be blank")
 		return
@@ -27,7 +35,7 @@ func CreateDenylistEntry(ctx context.Context, key string, entryDate time.Time, c
 		CacheExpiration: cacheExpiration.UnixNano(),
 	}
 
-	err = Connection.WithContext(ctx).Save(&be).Error
+	err = r.db.WithContext(ctx).Save(&be).Error
 	if err != nil {
 		return
 	}
@@ -36,8 +44,8 @@ func CreateDenylistEntry(ctx context.Context, key string, entryDate time.Time, c
 	return
 }
 
-func GetUnexpiredDenylistEntries(ctx context.Context) (entries []DenylistEntry, err error) {
-	err = Connection.WithContext(ctx).Order("entry_date, cache_expiration").Where("cache_expiration > ?", time.Now().UnixNano()).Find(&entries).Error
+func (r *DenylistEntryRepository) GetUnexpiredDenylistEntries(ctx context.Context) (entries []DenylistEntry, err error) {
+	err = r.db.WithContext(ctx).Order("entry_date, cache_expiration").Where("cache_expiration > ?", time.Now().UnixNano()).Find(&entries).Error
 	if err != nil {
 		return
 	}
