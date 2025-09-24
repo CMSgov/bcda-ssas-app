@@ -21,6 +21,7 @@ import (
 var (
 	db    *gorm.DB
 	dbURL string
+	r     *ssas.GroupsRepository
 )
 
 type SchemaMigration struct {
@@ -59,12 +60,13 @@ func (groupv1) TableName() string {
 
 func TestAllMigrations(t *testing.T) {
 	var err error
-	db, err = CreateDB()
-	require.NoError(s.T(), err)
-	db, err := db.DB()
-	require.NoError(s.T(), err)
-	defer db.Close()
+	db, err = ssas.CreateDB()
+	require.NoError(t, err)
 
+	r = ssas.NewGroupsRepository(db)
+	conn, err := db.DB()
+	require.NoError(t, err)
+	defer conn.Close()
 	dbURL = os.Getenv("DATABASE_URL")
 
 	require.True(t, t.Run("up1", up1))
@@ -136,26 +138,26 @@ func up2(t *testing.T) {
 		assert.Nil(t, err)
 
 		g2.GroupID = "T0001"
-		group2, err := ssas.CreateGroup(context.Background(), g2)
+		group2, err := r.CreateGroup(context.Background(), g2)
 		require.Nil(t, err)
 		assert.Equal(t, group2.GroupID, "T0001")
 
 		g3.GroupID = "T0001"
 		// We still don't let two undeleted groups have the same group_id . . .
-		group3, err := ssas.CreateGroup(context.Background(), g3)
+		group3, err := r.CreateGroup(context.Background(), g3)
 		assert.NotNil(t, err)
 
-		err = ssas.DeleteGroup(context.Background(), strconv.Itoa(int(group2.ID)))
+		err = r.DeleteGroup(context.Background(), strconv.Itoa(int(group2.ID)))
 		assert.Nil(t, err)
 
 		// . . . but one can now share the same group_id as a deleted group
-		group3, err = ssas.CreateGroup(context.Background(), g3)
+		group3, err = r.CreateGroup(context.Background(), g3)
 		require.Nil(t, err)
 		assert.Equal(t, group3.GroupID, "T0001")
 		assert.NotEqual(t, group1.ID, group3.ID)
 
 		// Multiple deleted groups should be able to share the same group_id
-		err = ssas.DeleteGroup(context.Background(), strconv.Itoa(int(group3.ID)))
+		err = r.DeleteGroup(context.Background(), strconv.Itoa(int(group3.ID)))
 		assert.Nil(t, err)
 
 		assert.Nil(t, db.Unscoped().Delete(&s1).Error)
