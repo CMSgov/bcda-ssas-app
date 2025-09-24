@@ -512,8 +512,9 @@ func (r *SystemsRepository) registerSystem(ctx context.Context, input SystemInpu
 	}
 
 	var group Group
-	if err := tx.WithContext(ctx).First(&group, "group_id = ?", input.GroupID).Error; err != nil && errors.Is(err, gorm.ErrRecordNotFound) {
-		err = fmt.Errorf("no Group record found for groupID %s", input.GroupID)
+	err = tx.WithContext(ctx).First(&group, "group_id = ?", input.GroupID).Error
+	if err != nil && errors.Is(err, gorm.ErrRecordNotFound) {
+		return creds, fmt.Errorf("no Group record found for groupID %s", input.GroupID)
 	}
 
 	system := System{

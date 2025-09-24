@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"crypto/rand"
+	"database/sql"
 	"math/big"
 	"strconv"
 	"testing"
@@ -45,9 +46,12 @@ func (s *TokenCacheTestSuite) SetupTest() {
 }
 
 func (s *TokenCacheTestSuite) TearDownTest() {
+	var err error
+	var db *sql.DB
 	s.d.c.Flush()
-	err := s.db.Exec("DELETE FROM denylist_entries;").Error
-	db, err := s.db.DB()
+	err = s.db.Exec("DELETE FROM denylist_entries;").Error
+	require.NoError(s.T(), err)
+	db, err = s.db.DB()
 	require.NoError(s.T(), err)
 	db.Close()
 	assert.Nil(s.T(), err)
