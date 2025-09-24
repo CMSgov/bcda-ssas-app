@@ -59,9 +59,9 @@ func (groupv1) TableName() string {
 
 func TestAllMigrations(t *testing.T) {
 	var err error
-	s.db, err = CreateDB()
+	db, err = CreateDB()
 	require.NoError(s.T(), err)
-	db, err := s.db.DB()
+	db, err := db.DB()
 	require.NoError(s.T(), err)
 	defer db.Close()
 
