@@ -717,7 +717,7 @@ func (s *SystemsTestSuite) TestScopeEnvSuccess() {
 	if err != nil {
 		s.FailNow(err.Error())
 	}
-	getEnvVars()
+	GetSystemsEnvVars()
 
 	assert.Equal(s.T(), newScope, DefaultScope)
 	err = os.Setenv(key, oldScope)
@@ -729,12 +729,12 @@ func (s *SystemsTestSuite) TestEmptyGoPath() {
 	if err != nil {
 		s.FailNow(err.Error())
 	}
-	getEnvVars()
+	GetSystemsEnvVars()
 	assert.Equal(s.T(), "bcda-api", DefaultScope)
 }
 
 func (s *SystemsTestSuite) TestScopeEnvDebug() {
-	getEnvVars()
+	GetSystemsEnvVars()
 	assert.Equal(s.T(), "bcda-api", DefaultScope)
 }
 
@@ -745,7 +745,7 @@ func (s *SystemsTestSuite) TestScopeEnvFailure() {
 		s.FailNow(err.Error())
 	}
 
-	assert.Panics(s.T(), func() { getEnvVars() })
+	assert.Panics(s.T(), func() { GetSystemsEnvVars() })
 }
 
 func makeTestSystem(db *gorm.DB) (Group, System, error) {

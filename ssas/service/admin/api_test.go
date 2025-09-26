@@ -69,6 +69,7 @@ type APITestSuite struct {
 }
 
 func (s *APITestSuite) SetupSuite() {
+	ssas.GetSystemsEnvVars()
 	s.db = ssas.Connection
 	service.StartDenylist()
 	ssas.MaxIPs = 3

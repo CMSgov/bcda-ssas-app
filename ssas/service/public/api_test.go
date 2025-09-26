@@ -44,6 +44,7 @@ type APITestSuite struct {
 }
 
 func (s *APITestSuite) SetupSuite() {
+	ssas.GetSystemsEnvVars()
 	s.db = ssas.Connection
 	s.server = Server()
 	s.badSigningKeyPath = "../../../shared_files/ssas/admin_test_signing_key.pem"

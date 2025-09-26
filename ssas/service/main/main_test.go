@@ -25,6 +25,7 @@ type MainTestSuite struct {
 }
 
 func (s *MainTestSuite) SetupSuite() {
+	ssas.GetSystemsEnvVars()
 	s.db = ssas.Connection
 }
 
