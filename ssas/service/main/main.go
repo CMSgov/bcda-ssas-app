@@ -68,7 +68,7 @@ type Flags struct {
 
 var output io.Writer
 
-func init() {
+func NewNewRelicApp() {
 	output = os.Stdout
 
 	appName := os.Getenv("NEW_RELIC_APP_NAME")
@@ -89,6 +89,8 @@ func main() {
 	ssas.Logger.Info("Home of the System-to-System Authentication Service")
 	var config = parseConfig()
 	handleFlags(config)
+	ssas.GetSystemsEnvVars()
+	NewNewRelicApp()
 }
 
 func parseConfig() Flags {

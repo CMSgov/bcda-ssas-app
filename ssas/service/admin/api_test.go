@@ -73,6 +73,7 @@ type APITestSuite struct {
 }
 
 func (s *APITestSuite) SetupSuite() {
+	ssas.GetSystemsEnvVars()
 	service.StartDenylist()
 	ssas.MaxIPs = 3
 	s.logEntry = MakeTestStructuredLoggerEntry(logrus.Fields{"cms_id": "A9999", "request_id": uuid.NewUUID().String()})

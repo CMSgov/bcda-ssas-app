@@ -25,6 +25,10 @@ type MainTestSuite struct {
 	r  *ssas.SystemRepository
 }
 
+func (s *MainTestSuite) SetupSuite() {
+	ssas.GetSystemsEnvVars()
+}
+
 func (s *MainTestSuite) SetupTest() {
 	var err error
 	s.db, err = ssas.CreateDB()

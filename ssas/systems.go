@@ -29,11 +29,7 @@ var MaxIPs int
 var CredentialExpiration time.Duration
 var MacaroonExpiration time.Duration
 
-func init() {
-	getEnvVars()
-}
-
-func getEnvVars() {
+func GetSystemsEnvVars() {
 	env := os.Getenv("DEPLOYMENT_TARGET")
 	gopath := os.Getenv("GOPATH")
 

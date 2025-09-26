@@ -51,6 +51,7 @@ func (s *APITestSuite) SetupSuite() {
 	s.db, err = ssas.CreateDB()
 	require.NoError(s.T(), err)
 	s.h = NewPublicHandler()
+	ssas.GetSystemsEnvVars()
 	s.server = Server()
 	s.badSigningKeyPath = "../../../shared_files/ssas/admin_test_signing_key.pem"
 	s.assertAud = "http://local.testing.cms.gov/api/v2/Token/auth"
