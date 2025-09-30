@@ -11,9 +11,30 @@ import (
 	"github.com/CMSgov/bcda-ssas-app/ssas/constants"
 	"github.com/CMSgov/bcda-ssas-app/ssas/service"
 	"github.com/sirupsen/logrus"
+	"gorm.io/gorm"
 )
 
-func readGroupID(next http.Handler) http.Handler {
+type publicMiddlewareHandler struct {
+	db *gorm.DB
+	sr *ssas.SystemRepository
+	gr *ssas.GroupRepository
+}
+
+func NewPublicMiddlewareHandler() *publicMiddlewareHandler {
+	h := publicMiddlewareHandler{}
+	var err error
+	h.db, err = ssas.CreateDB()
+	h.sr = ssas.NewSystemRepository(h.db)
+	h.gr = ssas.NewGroupRepository(h.db)
+
+	if err != nil {
+		ssas.Logger.Fatalf("Failed to create db %s", err.Error())
+		return &publicMiddlewareHandler{}
+	}
+	return &h
+}
+
+func (h *publicMiddlewareHandler) readGroupID(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var (
 			rd  ssas.AuthRegData
@@ -44,7 +65,7 @@ func readGroupID(next http.Handler) http.Handler {
 		ssas.SetCtxEntry(r, "rd", rd)
 
 		if os.Getenv("SGA_ADMIN_FEATURE") == "true" {
-			sgaKey, err := ssas.GetSGAKeyByGroupID(r.Context(), rd.GroupID)
+			sgaKey, err := ssas.GetSGAKeyByGroupID(r.Context(), h.db, rd.GroupID)
 			if err == nil {
 				r = r.WithContext(context.WithValue(r.Context(), constants.CtxSGAKey, sgaKey))
 			}
@@ -57,7 +78,7 @@ func readGroupID(next http.Handler) http.Handler {
 // Puts the decoded token, identity, and authorization values into the request context. Decoded values have been
 // verified to be tokens signed by our server and to have not expired. Additional authorization
 // occurs in requireRegTokenAuth() or requireMFATokenAuth().
-func parseToken(next http.Handler) http.Handler {
+func (h *publicMiddlewareHandler) parseToken(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		event := logrus.Fields{"Op": "ParseToken"}
 		logger := ssas.GetCtxLogger(r.Context()).WithFields(event)
@@ -106,15 +127,15 @@ func parseToken(next http.Handler) http.Handler {
 	})
 }
 
-func requireRegTokenAuth(next http.Handler) http.Handler {
-	return tokenAuth(next, "RegistrationToken")
+func (h *publicMiddlewareHandler) requireRegTokenAuth(next http.Handler) http.Handler {
+	return h.tokenAuth(next, "RegistrationToken")
 }
 
-func requireMFATokenAuth(next http.Handler) http.Handler {
-	return tokenAuth(next, "MFAToken")
+func (h *publicMiddlewareHandler) requireMFATokenAuth(next http.Handler) http.Handler {
+	return h.tokenAuth(next, "MFAToken")
 }
 
-func tokenAuth(next http.Handler, tokenType string) http.Handler {
+func (h *publicMiddlewareHandler) tokenAuth(next http.Handler, tokenType string) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var (
 			ts string
@@ -147,6 +168,18 @@ func tokenAuth(next http.Handler, tokenType string) http.Handler {
 	})
 }
 
+// SkipSGAAuthCheck allows requests to skip SGA auth checks, be careful when adding new requests with this middleware!
+// This is needed as certain public requests use some ORM functions that require auth checks.
+func SkipSGAAuthCheck(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if os.Getenv("SGA_ADMIN_FEATURE") == "true" {
+			r = r.WithContext(context.WithValue(r.Context(), constants.CtxSGASkipAuthKey, "true"))
+		}
+
+		next.ServeHTTP(w, r)
+	})
+}
+
 func respond(w http.ResponseWriter, status int) {
 	http.Error(w, http.StatusText(status), status)
 }
@@ -158,16 +191,4 @@ func contains(list []string, target string) bool {
 		}
 	}
 	return false
-}
-
-// SkipSGAAuthCheck allows requests to skip SGA auth checks, be careful when adding new requests with this middleware!
-// This is needed as certain public requests use some ORM functions that require auth checks.
-func SkipSGAAuthCheck(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if os.Getenv("SGA_ADMIN_FEATURE") == "true" {
-			r = r.WithContext(context.WithValue(r.Context(), constants.CtxSGASkipAuthKey, "true"))
-		}
-
-		next.ServeHTTP(w, r)
-	})
 }

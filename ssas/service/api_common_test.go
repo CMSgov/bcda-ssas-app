@@ -9,6 +9,7 @@ import (
 
 	"github.com/CMSgov/bcda-ssas-app/ssas"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"gorm.io/gorm"
 )
@@ -18,8 +19,17 @@ type APICommonTestSuite struct {
 	db *gorm.DB
 }
 
-func (s *APICommonTestSuite) SetupSuite() {
-	s.db = ssas.Connection
+func (s *APICommonTestSuite) SetupTest() {
+	var err error
+	s.db, err = ssas.CreateDB()
+	require.NoError(s.T(), err)
+
+}
+
+func (s *APICommonTestSuite) TearDownTest() {
+	db, err := s.db.DB()
+	require.NoError(s.T(), err)
+	db.Close()
 }
 
 func (s *APICommonTestSuite) TestJSONError() {

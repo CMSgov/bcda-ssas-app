@@ -44,6 +44,8 @@ func Server() *service.Server {
 func routes() *chi.Mux {
 	router := chi.NewRouter()
 	m := monitoring.GetMonitor()
+	h := NewPublicHandler()
+	mh := NewPublicMiddlewareHandler()
 
 	router.Use(
 		gcmw.RequestID,
@@ -55,14 +57,14 @@ func routes() *chi.Mux {
 	)
 
 	//v1 Routes
-	router.Post(m.WrapHandler("/token", token))
-	router.Post(m.WrapHandler("/introspect", introspect))
-	router.With(parseToken, requireRegTokenAuth, readGroupID).Post(m.WrapHandler("/register", RegisterSystem))
-	router.With(parseToken, requireRegTokenAuth, readGroupID).Post(m.WrapHandler("/reset", ResetSecret))
+	router.Post(m.WrapHandler("/token", h.token))
+	router.Post(m.WrapHandler("/introspect", h.introspect))
+	router.With(mh.parseToken, mh.requireRegTokenAuth, mh.readGroupID).Post(m.WrapHandler("/register", h.RegisterSystem))
+	router.With(mh.parseToken, mh.requireRegTokenAuth, mh.readGroupID).Post(m.WrapHandler("/reset", h.ResetSecret))
 
 	//v2 Routes
-	router.Post(m.WrapHandler("/v2/token", tokenV2))
-	router.Post(m.WrapHandler("/v2/token_info", validateAndParseToken))
+	router.Post(m.WrapHandler("/v2/token", h.tokenV2))
+	router.Post(m.WrapHandler("/v2/token_info", h.validateAndParseToken))
 
 	return router
 }

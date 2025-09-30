@@ -10,18 +10,7 @@ import (
 	"gorm.io/gorm"
 )
 
-var Connection *gorm.DB
-
-func init() {
-	var err error
-	Connection, err = createDB()
-
-	if err != nil {
-		Logger.Fatalf("Failed to create db %s", err.Error())
-	}
-}
-
-func createDB() (*gorm.DB, error) {
+func CreateDB() (*gorm.DB, error) {
 	databaseURL := os.Getenv("DATABASE_URL")
 
 	sqlDB, err := sql.Open("pgx", databaseURL)

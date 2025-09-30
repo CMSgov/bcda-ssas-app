@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"gopkg.in/macaroon.v2"
+	"gorm.io/gorm"
 
 	"github.com/CMSgov/bcda-ssas-app/ssas"
 	"github.com/CMSgov/bcda-ssas-app/ssas/cfg"
@@ -36,6 +37,12 @@ type Server struct {
 	info interface{}
 	// router associates handlers to server endpoints
 	router chi.Router
+	// database connection
+	db *gorm.DB
+	// Systems Repository
+	sr *ssas.SystemRepository
+	// RootKey Repository
+	rkr *ssas.RootKeyRepository
 	// notSecure flag; when true, not running in https mode   // TODO set this from HTTP_ONLY envv
 	notSecure bool
 	//useMTLS flag; when true mtls will be used if notSecure is set to false, else it is ignored.
@@ -104,6 +111,12 @@ func NewServer(name, port, version string, info interface{}, routes *chi.Mux, no
 	if routes != nil {
 		s.router.Mount("/", routes)
 	}
+	s.db, err = ssas.CreateDB()
+	if err != nil {
+		fmt.Println(err)
+	}
+	s.rkr = ssas.NewRootKeyRepository(s.db)
+	s.sr = ssas.NewSystemRepository(s.db)
 	s.notSecure = notSecure
 	s.useMTLS = useMTLS
 	s.tokenSigningKey = signingKey
@@ -259,7 +272,7 @@ func (s *Server) getVersion(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) getHealthCheck(w http.ResponseWriter, r *http.Request) {
 	m := make(map[string]string)
-	if doHealthCheck(r.Context()) {
+	if doHealthCheck(r.Context(), s.db) {
 		m["database"] = "ok"
 		w.WriteHeader(http.StatusOK)
 	} else {
@@ -274,15 +287,15 @@ func (s *Server) getHealthCheck(w http.ResponseWriter, r *http.Request) {
 // is there any circumstance where the server could be partially disabled? (e.g., unable to sign tokens but still running)
 // could less than 3 servers be running?
 // since this ping will be run against all servers, isn't this excessive?
-func doHealthCheck(ctx context.Context) bool {
-	db, err := ssas.Connection.WithContext(ctx).DB()
+func doHealthCheck(ctx context.Context, db *gorm.DB) bool {
+	conn, err := db.WithContext(ctx).DB()
 	if err != nil {
 		// TODO health check failed event
 		ssas.Logger.Error("health check: database connection error: ", err.Error())
 		return false
 	}
 
-	if err = db.Ping(); err != nil {
+	if err = conn.Ping(); err != nil {
 		ssas.Logger.Error("health check: database ping error: ", err.Error())
 		return false
 	}
@@ -413,7 +426,7 @@ func (s *Server) VerifyClientSignedToken(ctx context.Context, tokenString string
 			return nil, fmt.Errorf("failed to retrieve systemID from macaroon")
 		}
 
-		system, err := ssas.GetSystemByID(ctx, systemID)
+		system, err := s.sr.GetSystemByID(ctx, systemID)
 		if err != nil {
 			return nil, fmt.Errorf("failed to retrieve system information")
 		}
@@ -423,7 +436,7 @@ func (s *Server) VerifyClientSignedToken(ctx context.Context, tokenString string
 			return nil, fmt.Errorf("missing public key id (kid) in jwt header")
 		}
 
-		key, err := system.FindEncryptionKey(ctx, trackingId, kid.(string))
+		key, err := s.sr.FindEncryptionKey(ctx, system, trackingId, kid.(string))
 		if err != nil {
 			return nil, fmt.Errorf("key not found for system: %v", claims.Issuer)
 		}
@@ -439,8 +452,6 @@ func (s *Server) VerifyClientSignedToken(ctx context.Context, tokenString string
 
 // GetSystemIDFromMacaroon returns the system id from macaroon and verify macaroon
 func (s *Server) GetSystemIDFromMacaroon(issuer string) (string, error) {
-	db := ssas.Connection
-
 	var um macaroon.Macaroon
 	b, _ := b64.StdEncoding.DecodeString(issuer)
 	_ = um.UnmarshalBinary(b)
@@ -455,8 +466,10 @@ func (s *Server) GetSystemIDFromMacaroon(issuer string) (string, error) {
 		return "", err
 	}
 
-	var rootKey ssas.RootKey
-	db.First(&rootKey, "uuid = ? AND system_id = ? AND deleted_at IS NULL", um.Id(), systemId)
+	rootKey, err := s.rkr.GetRootKey(um.Id(), systemId)
+	if err != nil {
+		return "", fmt.Errorf("failed to get root key")
+	}
 
 	if rootKey.IsExpired() {
 		return "", fmt.Errorf("macaroon expired or deleted")

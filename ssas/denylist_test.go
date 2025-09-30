@@ -14,14 +14,26 @@ import (
 type CacheEntriesTestSuite struct {
 	suite.Suite
 	db *gorm.DB
+	r  *DenylistEntryRepository
 }
 
-func (s *CacheEntriesTestSuite) SetupSuite() {
-	s.db = Connection
+func (s *CacheEntriesTestSuite) SetupTest() {
+	var err error
+	s.db, err = CreateDB()
+	require.NoError(s.T(), err)
+	s.r = NewDenylistEntryRepository(s.db)
+
+}
+
+func (s *CacheEntriesTestSuite) TearDownTest() {
+	db, err := s.db.DB()
+	require.NoError(s.T(), err)
+	err = db.Close()
+	require.NoError(s.T(), err)
 }
 
 func (s *CacheEntriesTestSuite) TestGetUnexpiredCacheEntries() {
-	entries, err := GetUnexpiredDenylistEntries(context.Background())
+	entries, err := s.r.GetUnexpiredDenylistEntries(context.Background())
 	require.Nil(s.T(), err)
 	origEntries := len(entries)
 
@@ -37,7 +49,7 @@ func (s *CacheEntriesTestSuite) TestGetUnexpiredCacheEntries() {
 		assert.FailNow(s.T(), err.Error())
 	}
 
-	entries, err = GetUnexpiredDenylistEntries(context.Background())
+	entries, err = s.r.GetUnexpiredDenylistEntries(context.Background())
 	assert.Nil(s.T(), err)
 	assert.True(s.T(), len(entries) == origEntries+2)
 
@@ -51,10 +63,10 @@ func (s *CacheEntriesTestSuite) TestCreateDenylistEntryEmptyKey() {
 	entryDate := time.Now().Add(time.Minute * -5)
 	expiration := time.Now().Add(time.Minute * 5)
 
-	_, err := CreateDenylistEntry(context.Background(), "", entryDate, expiration)
+	_, err := s.r.CreateDenylistEntry(context.Background(), "", entryDate, expiration)
 	assert.NotNil(s.T(), err)
 
-	e, err := CreateDenylistEntry(context.Background(), "another_key", entryDate, expiration)
+	e, err := s.r.CreateDenylistEntry(context.Background(), "another_key", entryDate, expiration)
 	assert.Nil(s.T(), err)
 	assert.Equal(s.T(), "another_key", e.Key)
 
