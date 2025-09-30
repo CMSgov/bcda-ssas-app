@@ -42,8 +42,8 @@ type APITestSuite struct {
 	logEntry          *ssas.APILoggerEntry
 	ctx               context.Context
 	h                 *publicHandler
-	sr                *ssas.SystemsRepository
-	gr                *ssas.GroupsRepository
+	sr                *ssas.SystemRepository
+	gr                *ssas.GroupRepository
 }
 
 func (s *APITestSuite) SetupSuite() {
@@ -69,8 +69,8 @@ func (s *APITestSuite) SetupTest() {
 	var err error
 	s.db, err = ssas.CreateDB()
 	require.NoError(s.T(), err)
-	s.gr = ssas.NewGroupsRepository(s.db)
-	s.sr = ssas.NewSystemsRepository(s.db)
+	s.gr = ssas.NewGroupRepository(s.db)
+	s.sr = ssas.NewSystemRepository(s.db)
 	s.rr = httptest.NewRecorder()
 }
 

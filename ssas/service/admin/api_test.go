@@ -68,8 +68,8 @@ type APITestSuite struct {
 	logEntry *ssas.APILoggerEntry
 	ctx      context.Context
 	h        *adminHandler
-	sr       *ssas.SystemsRepository
-	gr       *ssas.GroupsRepository
+	sr       *ssas.SystemRepository
+	gr       *ssas.GroupRepository
 }
 
 func (s *APITestSuite) SetupSuite() {
@@ -85,8 +85,8 @@ func (s *APITestSuite) SetupSuite() {
 	s.db, err = ssas.CreateDB()
 	require.NoError(s.T(), err)
 	s.h = NewAdminHandler()
-	s.gr = ssas.NewGroupsRepository(s.db)
-	s.sr = ssas.NewSystemsRepository(s.db)
+	s.gr = ssas.NewGroupRepository(s.db)
+	s.sr = ssas.NewSystemRepository(s.db)
 }
 
 func (s *APITestSuite) TearDownSuite() {
@@ -1735,7 +1735,7 @@ func TestSGAAdmin_NoAuth(t *testing.T) {
 	db, err := ssas.CreateDB()
 	require.NoError(t, err)
 	h := NewAdminHandler()
-	r := ssas.NewGroupsRepository(db)
+	r := ssas.NewGroupRepository(db)
 	service.StartDenylist()
 	ssas.MaxIPs = 3
 

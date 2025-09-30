@@ -251,7 +251,7 @@ func makeSystem(db *gorm.DB, groupID, clientID, clientName, scope, hash, sgaKey 
 	HwIDAQAB
 	-----END PUBLIC KEY-----`
 
-	r := ssas.NewGroupsRepository(db)
+	r := ssas.NewGroupRepository(db)
 	g, err := r.GetGroupByGroupID(context.Background(), groupID)
 	if err != nil {
 		ssas.Logger.Warn(err)
@@ -294,7 +294,7 @@ func resetSecret(clientID string) {
 		fmt.Println(err)
 	}
 	defer conn.Close()
-	r := ssas.NewSystemsRepository(db)
+	r := ssas.NewSystemRepository(db)
 	if s, err = r.GetSystemByClientID(context.Background(), clientID); err != nil {
 		ssas.Logger.Warn(err)
 	}
@@ -323,7 +323,7 @@ func newAdminSystem(name string) {
 		fmt.Println(err)
 	}
 	defer conn.Close()
-	r := ssas.NewSystemsRepository(db)
+	r := ssas.NewSystemRepository(db)
 
 	if pk, _, _, err = ssas.GeneratePublicKey(2048); err != nil {
 		ssas.Logger.Errorf("no public key; %s", err)
@@ -450,8 +450,8 @@ func showXData(clientID, auth string) error {
 		fmt.Println(err)
 	}
 	defer conn.Close()
-	r := ssas.NewSystemsRepository(db)
-	g := ssas.NewGroupsRepository(db)
+	r := ssas.NewSystemRepository(db)
+	g := ssas.NewGroupRepository(db)
 
 	// The auth header decoding logic was pulled from Go's request.go#parseBasicAuth func
 	if auth != "" {

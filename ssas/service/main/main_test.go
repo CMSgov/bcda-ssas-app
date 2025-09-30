@@ -22,14 +22,14 @@ import (
 type MainTestSuite struct {
 	suite.Suite
 	db *gorm.DB
-	r  *ssas.SystemsRepository
+	r  *ssas.SystemRepository
 }
 
 func (s *MainTestSuite) SetupTest() {
 	var err error
 	s.db, err = ssas.CreateDB()
 	require.NoError(s.T(), err)
-	s.r = ssas.NewSystemsRepository(s.db)
+	s.r = ssas.NewSystemRepository(s.db)
 }
 
 func (s *MainTestSuite) TearDownTest() {
@@ -204,7 +204,7 @@ func (s *MainTestSuite) TestFixtureData() {
 }
 
 func (s *MainTestSuite) TestListIPs() {
-	r := ssas.NewSystemsRepository(s.db)
+	r := ssas.NewSystemRepository(s.db)
 	fixtureClientID := service.TestGroupID
 	system, err := r.GetSystemByClientID(context.Background(), fixtureClientID)
 	assert.Nil(s.T(), err)
@@ -231,7 +231,7 @@ func (s *MainTestSuite) TestListIPs() {
 
 func (s *MainTestSuite) TestListExpiringCredentials() {
 	var secret ssas.Secret
-	r := ssas.NewSystemsRepository(s.db)
+	r := ssas.NewSystemRepository(s.db)
 	assert.Nil(s.T(), os.Setenv("SSAS_CRED_EXPIRATION_DAYS", "90"))
 	assert.Nil(s.T(), os.Setenv("SSAS_CRED_TIMEOUT_DAYS", "60"))
 	assert.Nil(s.T(), os.Setenv("SSAS_CRED_WARNING_DAYS", "7"))

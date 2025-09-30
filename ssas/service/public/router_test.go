@@ -26,8 +26,8 @@ type PublicRouterTestSuite struct {
 	db           *gorm.DB
 	group        ssas.Group
 	system       ssas.System
-	sr           *ssas.SystemsRepository
-	gr           *ssas.GroupsRepository
+	sr           *ssas.SystemRepository
+	gr           *ssas.GroupRepository
 }
 
 func (s *PublicRouterTestSuite) SetupSuite() {
@@ -41,8 +41,8 @@ func (s *PublicRouterTestSuite) SetupSuite() {
 	gd := ssas.GroupData{}
 	err = json.Unmarshal(groupBytes, &gd)
 	assert.Nil(s.T(), err)
-	s.gr = ssas.NewGroupsRepository(s.db)
-	s.sr = ssas.NewSystemsRepository(s.db)
+	s.gr = ssas.NewGroupRepository(s.db)
+	s.sr = ssas.NewSystemRepository(s.db)
 	s.group, err = s.gr.CreateGroup(context.Background(), gd)
 	if err != nil {
 		s.FailNow("unable to create group: " + err.Error())

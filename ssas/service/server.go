@@ -40,7 +40,7 @@ type Server struct {
 	// database connection
 	db *gorm.DB
 	// Systems Repository
-	sr *ssas.SystemsRepository
+	sr *ssas.SystemRepository
 	// RootKey Repository
 	rkr *ssas.RootKeyRepository
 	// notSecure flag; when true, not running in https mode   // TODO set this from HTTP_ONLY envv
@@ -116,7 +116,7 @@ func NewServer(name, port, version string, info interface{}, routes *chi.Mux, no
 		fmt.Println(err)
 	}
 	s.rkr = ssas.NewRootKeyRepository(s.db)
-	s.sr = ssas.NewSystemsRepository(s.db)
+	s.sr = ssas.NewSystemRepository(s.db)
 	s.notSecure = notSecure
 	s.useMTLS = useMTLS
 	s.tokenSigningKey = signingKey

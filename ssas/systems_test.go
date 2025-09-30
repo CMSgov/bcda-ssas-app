@@ -29,7 +29,7 @@ type SystemsTestSuite struct {
 	suite.Suite
 	db       *gorm.DB
 	logEntry *APILoggerEntry
-	r        *SystemsRepository
+	r        *SystemRepository
 }
 
 func (s *SystemsTestSuite) SetupSuite() {
@@ -42,7 +42,7 @@ func (s *SystemsTestSuite) SetupTest() {
 	var err error
 	s.db, err = CreateDB()
 	require.NoError(s.T(), err)
-	s.r = NewSystemsRepository(s.db)
+	s.r = NewSystemRepository(s.db)
 }
 
 func (s *SystemsTestSuite) TearDownTest() {

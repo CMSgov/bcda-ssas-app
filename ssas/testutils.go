@@ -21,7 +21,7 @@ import (
 )
 
 func ResetCreds(db *gorm.DB, clientID string, groupID string) (encSecret string, err error) {
-	r := NewSystemsRepository(db)
+	r := NewSystemRepository(db)
 	err = RevokeActiveCreds(db, groupID)
 	if err != nil {
 		return
@@ -50,7 +50,7 @@ func ExpireAdminCreds(db *gorm.DB) {
 
 // RevokeActiveCreds revokes all credentials for the specified GroupID
 func RevokeActiveCreds(db *gorm.DB, groupID string) error {
-	r := NewSystemsRepository(db)
+	r := NewSystemRepository(db)
 	systems, err := GetSystemsByGroupIDString(context.Background(), groupID)
 	if err != nil {
 		return err
@@ -141,7 +141,7 @@ func someRandomBytes(n int) ([]byte, error) {
 }
 
 func CreateTestXData(t *testing.T, db *gorm.DB) (creds Credentials, group Group) {
-	r := NewSystemsRepository(db)
+	r := NewSystemRepository(db)
 	groupID := RandomHexID()[0:4]
 
 	group = Group{GroupID: groupID, XData: `{"group":"1"}`}
@@ -162,7 +162,7 @@ func CreateTestXData(t *testing.T, db *gorm.DB) (creds Credentials, group Group)
 }
 
 func CreateTestXDataV2(t *testing.T, ctx context.Context, db *gorm.DB) (creds Credentials, group Group) {
-	r := NewSystemsRepository(db)
+	r := NewSystemRepository(db)
 	groupID := RandomHexID()[0:4]
 
 	group = Group{GroupID: groupID, XData: `{"group":"1"}`}

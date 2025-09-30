@@ -106,15 +106,15 @@ type Resource struct {
 	Scopes []string `json:"scopes"`
 }
 
-type GroupsRepository struct {
+type GroupRepository struct {
 	db *gorm.DB
 }
 
-func NewGroupsRepository(db *gorm.DB) *GroupsRepository {
-	return &GroupsRepository{db: db}
+func NewGroupRepository(db *gorm.DB) *GroupRepository {
+	return &GroupRepository{db: db}
 }
 
-func (g *GroupsRepository) CreateGroup(ctx context.Context, gd GroupData) (Group, error) {
+func (g *GroupRepository) CreateGroup(ctx context.Context, gd GroupData) (Group, error) {
 	if gd.GroupID == "" {
 		err := fmt.Errorf("group_id cannot be blank")
 		return Group{}, err
@@ -137,7 +137,7 @@ func (g *GroupsRepository) CreateGroup(ctx context.Context, gd GroupData) (Group
 	return group, nil
 }
 
-func (g *GroupsRepository) ListGroups(ctx context.Context) (list GroupList, err error) {
+func (g *GroupRepository) ListGroups(ctx context.Context) (list GroupList, err error) {
 	groups := []GroupSummary{}
 	err = g.db.WithContext(ctx).Table("groups").Where("deleted_at IS NULL").Preload("Systems").Find(&groups).Error
 	if err != nil {
@@ -164,7 +164,7 @@ func (g *GroupsRepository) ListGroups(ctx context.Context) (list GroupList, err 
 	return list, nil
 }
 
-func (g *GroupsRepository) UpdateGroup(ctx context.Context, id string, gd GroupData) (Group, error) {
+func (g *GroupRepository) UpdateGroup(ctx context.Context, id string, gd GroupData) (Group, error) {
 	group, err := g.GetGroupByID(ctx, id)
 	if err != nil {
 		err := fmt.Errorf("record not found for id=%s", id)
@@ -180,7 +180,7 @@ func (g *GroupsRepository) UpdateGroup(ctx context.Context, id string, gd GroupD
 	return group, nil
 }
 
-func (g *GroupsRepository) DeleteGroup(ctx context.Context, id string) error {
+func (g *GroupRepository) DeleteGroup(ctx context.Context, id string) error {
 	group, err := g.GetGroupByID(ctx, id)
 	if err != nil {
 		return err
@@ -192,7 +192,7 @@ func (g *GroupsRepository) DeleteGroup(ctx context.Context, id string) error {
 	return nil
 }
 
-func (g *GroupsRepository) cascadeDeleteGroup(ctx context.Context, group Group) error {
+func (g *GroupRepository) cascadeDeleteGroup(ctx context.Context, group Group) error {
 	var (
 		system        System
 		encryptionKey EncryptionKey
@@ -221,7 +221,7 @@ func (g *GroupsRepository) cascadeDeleteGroup(ctx context.Context, group Group) 
 	return nil
 }
 
-func (g *GroupsRepository) GetGroupByGroupID(ctx context.Context, groupID string) (Group, error) {
+func (g *GroupRepository) GetGroupByGroupID(ctx context.Context, groupID string) (Group, error) {
 	var (
 		group Group
 		err   error
@@ -235,7 +235,7 @@ func (g *GroupsRepository) GetGroupByGroupID(ctx context.Context, groupID string
 }
 
 // GetGroupByID returns the group associated with the provided ID
-func (g *GroupsRepository) GetGroupByID(ctx context.Context, id string) (Group, error) {
+func (g *GroupRepository) GetGroupByID(ctx context.Context, id string) (Group, error) {
 	var (
 		group Group
 		err   error
@@ -264,7 +264,7 @@ func (g *GroupsRepository) GetGroupByID(ctx context.Context, id string) (Group, 
 }
 
 // DataForSystem returns the group extra data associated with this system
-func (g *GroupsRepository) XDataFor(ctx context.Context, system System) (string, error) {
+func (g *GroupRepository) XDataFor(ctx context.Context, system System) (string, error) {
 	if system.GID > math.MaxInt {
 		return "", fmt.Errorf("group id uint overflow converting to int")
 	}

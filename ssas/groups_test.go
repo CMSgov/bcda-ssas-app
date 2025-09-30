@@ -53,14 +53,14 @@ const SampleXdata string = `"{\"cms_ids\":[\"T67890\",\"T54321\"]}"`
 type GroupsTestSuite struct {
 	suite.Suite
 	db *gorm.DB
-	r  *GroupsRepository
+	r  *GroupRepository
 }
 
 func (s *GroupsTestSuite) SetupTest() {
 	var err error
 	s.db, err = CreateDB()
 	require.NoError(s.T(), err)
-	s.r = NewGroupsRepository(s.db)
+	s.r = NewGroupRepository(s.db)
 
 }
 

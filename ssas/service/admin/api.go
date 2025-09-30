@@ -16,16 +16,16 @@ import (
 
 type adminHandler struct {
 	db *gorm.DB
-	sr *ssas.SystemsRepository
-	gr *ssas.GroupsRepository
+	sr *ssas.SystemRepository
+	gr *ssas.GroupRepository
 }
 
 func NewAdminHandler() *adminHandler {
 	h := adminHandler{}
 	var err error
 	h.db, err = ssas.CreateDB()
-	h.sr = ssas.NewSystemsRepository(h.db)
-	h.gr = ssas.NewGroupsRepository(h.db)
+	h.sr = ssas.NewSystemRepository(h.db)
+	h.gr = ssas.NewGroupRepository(h.db)
 
 	if err != nil {
 		ssas.Logger.Fatalf("Failed to create db %s", err.Error())
