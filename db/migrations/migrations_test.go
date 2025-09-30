@@ -21,7 +21,7 @@ import (
 var (
 	db    *gorm.DB
 	dbURL string
-	r     *ssas.GroupsRepository
+	r     *ssas.GroupRepository
 )
 
 type SchemaMigration struct {
@@ -63,7 +63,7 @@ func TestAllMigrations(t *testing.T) {
 	db, err = ssas.CreateDB()
 	require.NoError(t, err)
 
-	r = ssas.NewGroupsRepository(db)
+	r = ssas.NewGroupRepository(db)
 	conn, err := db.DB()
 	require.NoError(t, err)
 	defer conn.Close()
