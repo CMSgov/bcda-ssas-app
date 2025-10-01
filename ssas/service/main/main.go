@@ -91,7 +91,6 @@ func main() {
 	NewNewRelicApp()
 	cfg.LoadEnvConfigs()
 	handleFlags(config)
-
 }
 
 func parseFlags() Flags {
