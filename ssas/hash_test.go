@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/CMSgov/bcda-ssas-app/ssas/cfg"
 	"github.com/pborman/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
@@ -14,6 +15,10 @@ import (
 
 type HashTestSuite struct {
 	suite.Suite
+}
+
+func (s *HashTestSuite) SetupSuite() {
+	cfg.LoadEnvConfigs()
 }
 
 func (s *HashTestSuite) TestHashComparable() {
@@ -72,13 +77,17 @@ func TestHashIterTime(t *testing.T) {
 	// iterations needed to reach a 1 second duration. To invoke the test use:
 	// DEBUG=true  go test -v github.com/CMSgov/bcda-ssas-app/ssas -run TestHashIterTime
 
+	cfg.LoadEnvConfigs()
+
+	origHash := cfg.HashCfg.HashIter
+
 	if os.Getenv("DEBUG") != "true" {
 		t.SkipNow()
 	}
 
 	var totalTime time.Duration
 	runCount := 5
-	hashIter = 1650000
+	cfg.HashCfg.HashIter = 1650000
 	for i := 0; i < runCount; i++ {
 		start := time.Now()
 
@@ -94,6 +103,10 @@ func TestHashIterTime(t *testing.T) {
 
 	avgDur := totalTime / time.Duration(runCount)
 	fmt.Printf("The average is: %s\n", avgDur.String())
+	t.Cleanup(func() {
+		cfg.HashCfg.HashIter = origHash
+	})
+
 }
 
 func TestHashTestSuite(t *testing.T) {

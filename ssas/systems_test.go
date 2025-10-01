@@ -15,6 +15,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/CMSgov/bcda-ssas-app/ssas/cfg"
 	"github.com/CMSgov/bcda-ssas-app/ssas/constants"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
@@ -33,6 +34,7 @@ type SystemsTestSuite struct {
 }
 
 func (s *SystemsTestSuite) SetupSuite() {
+	cfg.LoadEnvConfigs()
 	SetupLogger()
 
 	s.logEntry = MakeTestStructuredLoggerEntry(logrus.Fields{"cms_id": "A9999", "request_id": uuid.NewUUID().String()})
@@ -386,7 +388,7 @@ func (s *SystemsTestSuite) TestRegisterSystemSuccess() {
 	pubKey, _, _, err := generatePublicKey(2048)
 	assert.Nil(err)
 
-	creds, err := s.r.RegisterSystem(context.WithValue(context.Background(), CtxLoggerKey, s.logEntry), "Create System Test", groupID, DefaultScope, pubKey, []string{}, trackingID)
+	creds, err := s.r.RegisterSystem(context.WithValue(context.Background(), CtxLoggerKey, s.logEntry), "Create System Test", groupID, cfg.SystemCfg.DefaultScope, pubKey, []string{}, trackingID)
 	assert.Nil(err)
 	assert.Equal("Create System Test", creds.ClientName)
 	assert.NotEqual("", creds.ClientSecret)
@@ -412,7 +414,7 @@ func (s *SystemsTestSuite) TestRegisterSystem_SetsSGAKey() {
 	pubKey, _, _, err := generatePublicKey(2048)
 	assert.Nil(err)
 
-	creds, err := s.r.RegisterSystem(context.WithValue(ctx, CtxLoggerKey, s.logEntry), "Create System Test", groupID, DefaultScope, pubKey, []string{}, trackingID)
+	creds, err := s.r.RegisterSystem(context.WithValue(ctx, CtxLoggerKey, s.logEntry), "Create System Test", groupID, cfg.SystemCfg.DefaultScope, pubKey, []string{}, trackingID)
 	assert.Nil(err)
 
 	gotSystem, err := s.r.GetSystemByID(ctx, creds.SystemID)
@@ -437,7 +439,7 @@ func (s *SystemsTestSuite) TestUpdateSystemSuccess() {
 	pubKey, _, _, err := generatePublicKey(2048)
 	assert.Nil(err)
 
-	creds, err := s.r.RegisterSystem(context.WithValue(context.Background(), CtxLoggerKey, s.logEntry), "Create System Test", groupID, DefaultScope, pubKey, []string{}, trackingID)
+	creds, err := s.r.RegisterSystem(context.WithValue(context.Background(), CtxLoggerKey, s.logEntry), "Create System Test", groupID, cfg.SystemCfg.DefaultScope, pubKey, []string{}, trackingID)
 	assert.Nil(err)
 	assert.Equal("Create System Test", creds.ClientName)
 	assert.NotEqual("", creds.ClientSecret)
@@ -491,7 +493,7 @@ func (s *SystemsTestSuite) TestRegisterSystemMissingData() {
 	assert.Nil(err)
 
 	// No clientName
-	creds, err := s.r.RegisterSystem(context.WithValue(context.Background(), CtxLoggerKey, s.logEntry), "", groupID, DefaultScope, pubKey, []string{}, trackingID)
+	creds, err := s.r.RegisterSystem(context.WithValue(context.Background(), CtxLoggerKey, s.logEntry), "", groupID, cfg.SystemCfg.DefaultScope, pubKey, []string{}, trackingID)
 	assert.EqualError(err, "clientName is required")
 	assert.Empty(creds)
 
@@ -548,7 +550,7 @@ func (s *SystemsTestSuite) TestRegisterSystemIps() {
 
 	for _, tc := range tests {
 		if tc.valid {
-			creds, err := s.r.RegisterSystem(context.WithValue(context.Background(), CtxLoggerKey, s.logEntry), "Test system with "+tc.ip, groupID, DefaultScope, pubKey, []string{tc.ip}, trackingID)
+			creds, err := s.r.RegisterSystem(context.WithValue(context.Background(), CtxLoggerKey, s.logEntry), "Test system with "+tc.ip, groupID, cfg.SystemCfg.DefaultScope, pubKey, []string{tc.ip}, trackingID)
 			assert.Nil(err, fmt.Sprintf("%s should be a good IP, but was not allowed", tc.ip))
 			assert.NotEmpty(creds, tc.ip+"should have been a valid IP")
 			system, err := s.r.GetSystemByID(context.Background(), creds.SystemID)
@@ -560,7 +562,7 @@ func (s *SystemsTestSuite) TestRegisterSystemIps() {
 			assert.Nil(err)
 			assert.Contains(ips, tc.ip)
 		} else {
-			creds, err := s.r.RegisterSystem(context.WithValue(context.Background(), CtxLoggerKey, s.logEntry), "Test system with "+tc.ip, groupID, DefaultScope, pubKey, []string{tc.ip}, trackingID)
+			creds, err := s.r.RegisterSystem(context.WithValue(context.Background(), CtxLoggerKey, s.logEntry), "Test system with "+tc.ip, groupID, cfg.SystemCfg.DefaultScope, pubKey, []string{tc.ip}, trackingID)
 			if err == nil {
 				assert.Fail(fmt.Sprintf("%s should be a bad IP, but was allowed; creds: %v", tc.ip, creds))
 			} else {
@@ -573,7 +575,7 @@ func (s *SystemsTestSuite) TestRegisterSystemIps() {
 	}
 
 	//We have no limit on the number of IP addresses that can be registered with a system
-	creds, err := s.r.RegisterSystem(context.WithValue(context.Background(), CtxLoggerKey, s.logEntry), "Test system with all good IPs", groupID, DefaultScope, pubKey, goodIps, trackingID)
+	creds, err := s.r.RegisterSystem(context.WithValue(context.Background(), CtxLoggerKey, s.logEntry), "Test system with all good IPs", groupID, cfg.SystemCfg.DefaultScope, pubKey, goodIps, trackingID)
 	assert.Nil(err, "An array of good IP's should be a allowed, but was not")
 	assert.NotEmpty(creds)
 
@@ -608,7 +610,7 @@ func (s *SystemsTestSuite) TestRegisterSystemBadKey() {
 	}
 
 	for _, tc := range tests {
-		creds, err := s.r.RegisterSystem(context.WithValue(context.Background(), CtxLoggerKey, s.logEntry), "Register System Failure", groupID, DefaultScope, tc.key, []string{}, trackingID)
+		creds, err := s.r.RegisterSystem(context.WithValue(context.Background(), CtxLoggerKey, s.logEntry), "Register System Failure", groupID, cfg.SystemCfg.DefaultScope, tc.key, []string{}, trackingID)
 		if tc.empty {
 			assert.Empty(creds)
 		} else {
@@ -739,9 +741,9 @@ func (s *SystemsTestSuite) TestScopeEnvSuccess() {
 	if err != nil {
 		s.FailNow(err.Error())
 	}
-	GetSystemsEnvVars()
+	cfg.LoadEnvConfigs()
 
-	assert.Equal(s.T(), newScope, DefaultScope)
+	assert.Equal(s.T(), newScope, cfg.SystemCfg.DefaultScope)
 	err = os.Setenv(key, oldScope)
 	assert.Nil(s.T(), err)
 }
@@ -751,13 +753,13 @@ func (s *SystemsTestSuite) TestEmptyGoPath() {
 	if err != nil {
 		s.FailNow(err.Error())
 	}
-	GetSystemsEnvVars()
-	assert.Equal(s.T(), "bcda-api", DefaultScope)
+	cfg.LoadEnvConfigs()
+	assert.Equal(s.T(), "bcda-api", cfg.SystemCfg.DefaultScope)
 }
 
 func (s *SystemsTestSuite) TestScopeEnvDebug() {
-	GetSystemsEnvVars()
-	assert.Equal(s.T(), "bcda-api", DefaultScope)
+	cfg.LoadEnvConfigs()
+	assert.Equal(s.T(), "bcda-api", cfg.SystemCfg.DefaultScope)
 }
 
 func (s *SystemsTestSuite) TestScopeEnvFailure() {
@@ -767,7 +769,7 @@ func (s *SystemsTestSuite) TestScopeEnvFailure() {
 		s.FailNow(err.Error())
 	}
 
-	assert.Panics(s.T(), func() { GetSystemsEnvVars() })
+	assert.Panics(s.T(), func() { cfg.LoadEnvConfigs() })
 }
 
 func makeTestSystem(db *gorm.DB) (Group, System, error) {

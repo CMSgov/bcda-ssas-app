@@ -87,13 +87,14 @@ func NewNewRelicApp() {
 func main() {
 	ssas.SetupLogger()
 	ssas.Logger.Info("Home of the System-to-System Authentication Service")
-	var config = parseConfig()
-	handleFlags(config)
-	ssas.GetSystemsEnvVars()
+	var config = parseFlags()
 	NewNewRelicApp()
+	cfg.LoadEnvConfigs()
+	handleFlags(config)
+
 }
 
-func parseConfig() Flags {
+func parseFlags() Flags {
 	var flags Flags
 	const usageAddFixtureData = "unconditionally add fixture data"
 	flag.BoolVar(&flags.doAddFixtureData, "add-fixture-data", false, usageAddFixtureData)

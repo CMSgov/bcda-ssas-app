@@ -12,6 +12,7 @@ import (
 	"testing"
 
 	"github.com/CMSgov/bcda-ssas-app/ssas"
+	"github.com/CMSgov/bcda-ssas-app/ssas/cfg"
 	"github.com/CMSgov/bcda-ssas-app/ssas/constants"
 	"github.com/CMSgov/bcda-ssas-app/ssas/service"
 	"github.com/go-chi/chi/v5"
@@ -42,7 +43,10 @@ func (s *AdminMiddlewareTestSuite) CreateRouter(handlers ...func(http.Handler) h
 
 	return router
 }
+func (s *AdminMiddlewareTestSuite) SetupSuite() {
+	cfg.LoadEnvConfigs()
 
+}
 func (s *AdminMiddlewareTestSuite) TearDownTest() {
 	db, err := s.db.DB()
 	require.NoError(s.T(), err)

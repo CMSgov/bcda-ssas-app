@@ -17,6 +17,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/CMSgov/bcda-ssas-app/ssas"
+	"github.com/CMSgov/bcda-ssas-app/ssas/cfg"
 )
 
 type PublicRouterTestSuite struct {
@@ -33,6 +34,7 @@ type PublicRouterTestSuite struct {
 func (s *PublicRouterTestSuite) SetupSuite() {
 	var err error
 	os.Setenv("DEBUG", "true")
+	cfg.LoadEnvConfigs()
 	s.publicRouter = routes()
 	s.db, err = ssas.CreateDB()
 	require.NoError(s.T(), err)
@@ -56,6 +58,10 @@ func (s *PublicRouterTestSuite) SetupSuite() {
 func (s *PublicRouterTestSuite) TearDownSuite() {
 	err := ssas.CleanDatabase(s.group)
 	assert.Nil(s.T(), err)
+}
+
+func TestPublicRouterTestSuite(t *testing.T) {
+	suite.Run(t, new(PublicRouterTestSuite))
 }
 
 func (s *PublicRouterTestSuite) reqPublicRoute(verb string, route string, body io.Reader, token string) *http.Response {
@@ -107,8 +113,4 @@ func (s *PublicRouterTestSuite) TestResetRouteNoToken() {
 	rb := strings.NewReader(fmt.Sprintf(`{"client_id":"%s"}`, s.system.ClientID))
 	res := s.reqPublicRoute("POST", "/reset", rb, "")
 	assert.Equal(s.T(), http.StatusUnauthorized, res.StatusCode)
-}
-
-func TestPublicRouterTestSuite(t *testing.T) {
-	suite.Run(t, new(PublicRouterTestSuite))
 }
