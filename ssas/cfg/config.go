@@ -9,19 +9,15 @@ import (
 	"github.com/joho/godotenv"
 )
 
-// SystemCfg is used to retrieve environment or configuration values. Set in main().
-var SystemCfg *SystemsConfig
+var (
+	SystemCfg *SystemsConfig
+	HashCfg   *HashConfig
+)
 
-// HashCfg is used to retrieve environment or configuration values. Set in main().
-var HashCfg *HashConfig
-
-type Config struct {
-	Systems SystemsConfig
-	Hash    HashConfig
-}
-
-func NewConfig() *Config {
-	return &Config{Systems: *NewSystemsConfig()}
+// Get configuration/environment variables for Hashes and Systems.
+func LoadEnvConfigs() {
+	SystemCfg = loadSystemConfig()
+	HashCfg = loadHashConfig()
 }
 
 type SystemsConfig struct {
@@ -31,8 +27,8 @@ type SystemsConfig struct {
 	MacaroonExpiration   time.Duration
 }
 
-func NewSystemsConfig() *SystemsConfig {
-	sysConfig := &SystemsConfig{}
+func loadSystemConfig() *SystemsConfig {
+	sysCfg := &SystemsConfig{}
 	env := os.Getenv("DEPLOYMENT_TARGET")
 	if env == "" {
 		env = "local"
@@ -54,18 +50,18 @@ func NewSystemsConfig() *SystemsConfig {
 		panic(msg)
 	}
 
-	sysConfig.DefaultScope = os.Getenv("SSAS_DEFAULT_SYSTEM_SCOPE")
-	if sysConfig.DefaultScope == "" {
+	sysCfg.DefaultScope = os.Getenv("SSAS_DEFAULT_SYSTEM_SCOPE")
+	if sysCfg.DefaultScope == "" {
 		panic("Unable to source default system scope; check env files")
 	}
 
 	expirationDays := GetEnvInt("SSAS_CRED_EXPIRATION_DAYS", 90)
-	sysConfig.CredentialExpiration = time.Duration(expirationDays*24) * time.Hour
-	sysConfig.MaxIPs = GetEnvInt("SSAS_MAX_SYSTEM_IPS", 8)
+	sysCfg.CredentialExpiration = time.Duration(expirationDays*24) * time.Hour
+	sysCfg.MaxIPs = GetEnvInt("SSAS_MAX_SYSTEM_IPS", 8)
 	macaroonExpirationDays := GetEnvInt("SSAS_MACAROON_EXPIRATION_DAYS", 365)
-	sysConfig.MacaroonExpiration = time.Duration(macaroonExpirationDays*24) * time.Hour
+	sysCfg.MacaroonExpiration = time.Duration(macaroonExpirationDays*24) * time.Hour
 
-	return sysConfig
+	return sysCfg
 }
 
 type HashConfig struct {
@@ -74,21 +70,22 @@ type HashConfig struct {
 	SaltSize   int
 }
 
-// SetHashConfig will set environment variables needed for creating a Hash.
-func SetHashConfig() {
-	HashCfg = &HashConfig{}
+// loadHashConfig will set environment variables needed for creating a Hash.
+func loadHashConfig() *HashConfig {
+	hashCfg := &HashConfig{}
 	if os.Getenv("DEBUG") == "true" {
-		HashCfg.HashIter = GetEnvInt("SSAS_HASH_ITERATIONS", 130000)
-		HashCfg.HashKeyLen = GetEnvInt("SSAS_HASH_KEY_LENGTH", 64)
-		HashCfg.SaltSize = GetEnvInt("SSAS_HASH_SALT_SIZE", 32)
+		hashCfg.HashIter = GetEnvInt("SSAS_HASH_ITERATIONS", 130000)
+		hashCfg.HashKeyLen = GetEnvInt("SSAS_HASH_KEY_LENGTH", 64)
+		hashCfg.SaltSize = GetEnvInt("SSAS_HASH_SALT_SIZE", 32)
 	} else {
-		HashCfg.HashIter = GetEnvInt("SSAS_HASH_ITERATIONS", 0)
-		HashCfg.HashKeyLen = GetEnvInt("SSAS_HASH_KEY_LENGTH", 0)
-		HashCfg.SaltSize = GetEnvInt("SSAS_HASH_SALT_SIZE", 0)
+		hashCfg.HashIter = GetEnvInt("SSAS_HASH_ITERATIONS", 0)
+		hashCfg.HashKeyLen = GetEnvInt("SSAS_HASH_KEY_LENGTH", 0)
+		hashCfg.SaltSize = GetEnvInt("SSAS_HASH_SALT_SIZE", 0)
 	}
 
-	if HashCfg.HashIter == 0 || HashCfg.HashKeyLen == 0 || HashCfg.SaltSize == 0 {
+	if hashCfg.HashIter == 0 || hashCfg.HashKeyLen == 0 || hashCfg.SaltSize == 0 {
 		// ServiceHalted(Event{Help:"SSAS_HASH_ITERATIONS, SSAS_HASH_KEY_LENGTH and SSAS_HASH_SALT_SIZE environment values must be set"})
 		panic("SSAS_HASH_ITERATIONS, SSAS_HASH_KEY_LENGTH and SSAS_HASH_SALT_SIZE environment values must be set")
 	}
+	return hashCfg
 }

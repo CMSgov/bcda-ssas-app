@@ -9,7 +9,6 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
-	"go/build"
 	"io"
 	"net"
 	"os"
@@ -19,52 +18,9 @@ import (
 
 	"github.com/CMSgov/bcda-ssas-app/ssas/cfg"
 	"github.com/CMSgov/bcda-ssas-app/ssas/constants"
-	"github.com/joho/godotenv"
 	"github.com/pborman/uuid"
 	"gorm.io/gorm"
 )
-
-var DefaultScope string
-var MaxIPs int
-var CredentialExpiration time.Duration
-var MacaroonExpiration time.Duration
-
-func init() {
-	getEnvVars()
-}
-
-func getEnvVars() {
-	env := os.Getenv("DEPLOYMENT_TARGET")
-	gopath := os.Getenv("GOPATH")
-
-	if gopath == "" {
-		gopath = build.Default.GOPATH
-		//when GOROOT==gopath, it'll still be empty. Thus, we specify what's in our Dockerfile.
-		if gopath == "" {
-			gopath = "/go"
-		}
-
-	}
-
-	envPath := fmt.Sprintf(gopath+"/src/github.com/CMSgov/bcda-ssas-app/ssas/cfg/configs/%s.env", env)
-	err := godotenv.Load(envPath)
-
-	if err != nil {
-		msg := fmt.Sprintf("Unable to load environment variables in env %s; message: %s", env, err.Error())
-		Logger.Fatal(msg)
-		panic(msg)
-	}
-	DefaultScope = os.Getenv("SSAS_DEFAULT_SYSTEM_SCOPE")
-	if DefaultScope == "" {
-		panic("Unable to source default system scope; check env files")
-	}
-
-	expirationDays := cfg.GetEnvInt("SSAS_CRED_EXPIRATION_DAYS", 90)
-	CredentialExpiration = time.Duration(expirationDays*24) * time.Hour
-	MaxIPs = cfg.GetEnvInt("SSAS_MAX_SYSTEM_IPS", 8)
-	macaroonExpirationDays := cfg.GetEnvInt("SSAS_MACAROON_EXPIRATION_DAYS", 365)
-	MacaroonExpiration = time.Duration(macaroonExpirationDays*24) * time.Hour
-}
 
 type IP struct {
 	gorm.Model
@@ -95,7 +51,7 @@ type Secret struct {
 
 // IsExpired tests whether this secret has expired
 func (secret *Secret) IsExpired() bool {
-	return secret.UpdatedAt.Add(CredentialExpiration).Before(time.Now())
+	return secret.UpdatedAt.Add(cfg.SystemCfg.CredentialExpiration).Before(time.Now())
 }
 
 type ClientToken struct {
@@ -408,7 +364,7 @@ func (r *SystemRepository) ResetSecret(ctx context.Context, system System) (Cred
 	creds.ClientID = system.ClientID
 	creds.ClientSecret = secretString
 	creds.ClientName = system.ClientName
-	creds.ExpiresAt = time.Now().Add(CredentialExpiration)
+	creds.ExpiresAt = time.Now().Add(cfg.SystemCfg.CredentialExpiration)
 	return creds, nil
 }
 
@@ -429,7 +385,7 @@ func (r *SystemRepository) RegisterIP(ctx context.Context, system System, addres
 
 	count = int64(0)
 	r.db.WithContext(ctx).Model(&IP{}).Where("ips.system_id = ? AND ips.deleted_at IS NULL", system.ID).Count(&count)
-	if count >= int64(MaxIPs) {
+	if count >= int64(cfg.SystemCfg.MaxIPs) {
 		return IP{}, fmt.Errorf("could not add ip, max number of ips reached. Max %d", count)
 	}
 	err := r.db.WithContext(ctx).Create(&ip).Error
@@ -506,9 +462,9 @@ func (r *SystemRepository) registerSystem(ctx context.Context, input SystemInput
 	scope := input.Scope
 
 	if scope == "" {
-		scope = DefaultScope
-	} else if input.Scope != DefaultScope {
-		return creds, errors.New("scope must be: " + DefaultScope)
+		scope = cfg.SystemCfg.DefaultScope
+	} else if input.Scope != cfg.SystemCfg.DefaultScope {
+		return creds, errors.New("scope must be: " + cfg.SystemCfg.DefaultScope)
 	}
 
 	var group Group
@@ -564,7 +520,7 @@ func (r *SystemRepository) registerSystem(ctx context.Context, input SystemInput
 	}
 
 	if isV2 {
-		expiration := time.Now().Add(MacaroonExpiration)
+		expiration := time.Now().Add(cfg.SystemCfg.MacaroonExpiration)
 		_, ct, err := r.SaveClientToken(ctx, system, "Initial Token", group.XData, expiration)
 		if err != nil {
 			tx.Rollback()
@@ -601,7 +557,7 @@ func (r *SystemRepository) registerSystem(ctx context.Context, input SystemInput
 			return creds, errors.New(errmsg)
 		}
 		creds.ClientSecret = clientSecret
-		creds.ExpiresAt = time.Now().Add(CredentialExpiration)
+		creds.ExpiresAt = time.Now().Add(cfg.SystemCfg.CredentialExpiration)
 	}
 
 	err = tx.Commit().Error
@@ -765,7 +721,7 @@ func GetAllIPs(db *gorm.DB) ([]string, error) {
 	// Only include addresses registered to active, unexpired systems
 	where := "deleted_at IS NULL AND system_id IN (SELECT systems.id FROM secrets JOIN systems ON secrets.system_id = systems.id JOIN groups ON systems.g_id = groups.id " +
 		"WHERE secrets.deleted_at IS NULL AND systems.deleted_at IS NULL AND groups.deleted_at IS NULL AND secrets.updated_at > ?)"
-	exp := time.Now().Add(-1 * CredentialExpiration)
+	exp := time.Now().Add(-1 * cfg.SystemCfg.CredentialExpiration)
 
 	if err = db.Order("address").Model(&IP{}).Where(where, exp).Distinct("address").Pluck(
 		"address", &ips).Error; err != nil {
