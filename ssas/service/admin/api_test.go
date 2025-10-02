@@ -76,7 +76,7 @@ type APITestSuite struct {
 func (s *APITestSuite) SetupSuite() {
 	service.StartDenylist()
 	cfg.LoadEnvConfigs()
-	cfg.SystemCfg.MaxIPs = 3
+	cfg.MaxIPs = 3
 	s.logEntry = MakeTestStructuredLoggerEntry(logrus.Fields{"cms_id": "A9999", "request_id": uuid.NewUUID().String()})
 	if os.Getenv("SGA_ADMIN_FEATURE") == "true" {
 		s.ctx = context.WithValue(context.Background(), constants.CtxSGAKey, "test-sga")
@@ -1739,7 +1739,7 @@ func TestSGAAdmin_NoAuth(t *testing.T) {
 	h := NewAdminHandler()
 	r := ssas.NewGroupRepository(db)
 	service.StartDenylist()
-	cfg.SystemCfg.MaxIPs = 3
+	cfg.MaxIPs = 3
 
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, constants.CtxSGAKey, "test-sga")

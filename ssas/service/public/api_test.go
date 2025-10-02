@@ -117,7 +117,7 @@ func (s *APITestSuite) TestAuthRegisterSuccess() {
 	}
 
 	regBody := strings.NewReader(fmt.Sprintf(`{"client_id":"my_client_id","client_name":"my_client_name","scope":"%s","jwks":{"keys":[{"e":"AAEAAQ","n":"ok6rvXu95337IxsDXrKzlIqw_I_zPDG8JyEw2CTOtNMoDi1QzpXQVMGj2snNEmvNYaCTmFf51I-EDgeFLLexr40jzBXlg72quV4aw4yiNuxkigW0gMA92OmaT2jMRIdDZM8mVokoxyPfLub2YnXHFq0XuUUgkX_TlutVhgGbyPN0M12teYZtMYo2AUzIRggONhHvnibHP0CPWDjCwSfp3On1Recn4DPxbn3DuGslF2myalmCtkujNcrhHLhwYPP-yZFb8e0XSNTcQvXaQxAqmnWH6NXcOtaeWMQe43PNTAyNinhndgI8ozG3Hz-1NzHssDH_yk6UYFSszhDbWAzyqw","kty":"RSA"}]}}`,
-		cfg.SystemCfg.DefaultScope))
+		cfg.DefaultScope))
 
 	req, err := http.NewRequestWithContext(s.ctx, "GET", "/auth/register", regBody)
 	assert.Nil(s.T(), err)
@@ -144,7 +144,7 @@ func (s *APITestSuite) TestAuthRegisterJSON() {
 	}
 
 	regBody := strings.NewReader(fmt.Sprintf(`{"client_id":"my_client_id","client_name":"My\\Name\\Has\"Escaped Chars\"","scope":"%s","jwks":{"keys":[{"e":"AAEAAQ","n":"ok6rvXu95337IxsDXrKzlIqw_I_zPDG8JyEw2CTOtNMoDi1QzpXQVMGj2snNEmvNYaCTmFf51I-EDgeFLLexr40jzBXlg72quV4aw4yiNuxkigW0gMA92OmaT2jMRIdDZM8mVokoxyPfLub2YnXHFq0XuUUgkX_TlutVhgGbyPN0M12teYZtMYo2AUzIRggONhHvnibHP0CPWDjCwSfp3On1Recn4DPxbn3DuGslF2myalmCtkujNcrhHLhwYPP-yZFb8e0XSNTcQvXaQxAqmnWH6NXcOtaeWMQe43PNTAyNinhndgI8ozG3Hz-1NzHssDH_yk6UYFSszhDbWAzyqw","kty":"RSA"}]}}`,
-		cfg.SystemCfg.DefaultScope))
+		cfg.DefaultScope))
 
 	req, err := http.NewRequestWithContext(s.ctx, "GET", "/auth/register", regBody)
 	assert.Nil(s.T(), err)
@@ -172,7 +172,7 @@ func (s *APITestSuite) TestAuthRegisterNoKey() {
 	}
 
 	regBody := strings.NewReader(fmt.Sprintf(`{"client_id":"my_client_id","client_name":"my_client_name","scope":"%s"}`,
-		cfg.SystemCfg.DefaultScope))
+		cfg.DefaultScope))
 
 	req, err := http.NewRequestWithContext(s.ctx, "GET", "/auth/register", regBody)
 	assert.Nil(s.T(), err)
@@ -399,7 +399,7 @@ func (s *APITestSuite) TestTokenSuccess() {
 	require.Nil(s.T(), err)
 	loggerctx := context.WithValue(s.ctx, ssas.CtxLoggerKey, s.logEntry)
 
-	creds, err := s.sr.RegisterSystem(loggerctx, constants.TestSystemName, groupID, cfg.SystemCfg.DefaultScope, pemString, []string{}, uuid.NewRandom().String())
+	creds, err := s.sr.RegisterSystem(loggerctx, constants.TestSystemName, groupID, cfg.DefaultScope, pemString, []string{}, uuid.NewRandom().String())
 	assert.Nil(s.T(), err)
 	assert.Equal(s.T(), constants.TestSystemName, creds.ClientName)
 	assert.NotNil(s.T(), creds.ClientSecret)
@@ -432,7 +432,7 @@ func (s *APITestSuite) TestTokenErrAtGenerateTokenReturn401() {
 	pemString, err := ssas.ConvertPublicKeyToPEMString(&pubKey)
 	require.Nil(s.T(), err)
 	loggerctx := context.WithValue(s.ctx, ssas.CtxLoggerKey, s.logEntry)
-	creds, err := s.sr.RegisterSystem(loggerctx, constants.TestSystemName, groupID, cfg.SystemCfg.DefaultScope, pemString, []string{}, uuid.NewRandom().String())
+	creds, err := s.sr.RegisterSystem(loggerctx, constants.TestSystemName, groupID, cfg.DefaultScope, pemString, []string{}, uuid.NewRandom().String())
 	assert.Nil(s.T(), err)
 	assert.Equal(s.T(), constants.TestSystemName, creds.ClientName)
 	assert.NotNil(s.T(), creds.ClientSecret)
@@ -473,7 +473,7 @@ func (s *APITestSuite) TestTokenEmptySecretProduces401() {
 	pemString, err := ssas.ConvertPublicKeyToPEMString(&pubKey)
 	require.Nil(s.T(), err)
 	loggerctx := context.WithValue(s.ctx, ssas.CtxLoggerKey, s.logEntry)
-	creds, err := s.sr.RegisterSystem(loggerctx, constants.TestSystemName, groupID, cfg.SystemCfg.DefaultScope, pemString, []string{}, uuid.NewRandom().String())
+	creds, err := s.sr.RegisterSystem(loggerctx, constants.TestSystemName, groupID, cfg.DefaultScope, pemString, []string{}, uuid.NewRandom().String())
 	assert.Nil(s.T(), err)
 	assert.Equal(s.T(), constants.TestSystemName, creds.ClientName)
 	assert.NotNil(s.T(), creds.ClientSecret)
@@ -505,7 +505,7 @@ func (s *APITestSuite) TestTokenWrongSecretProduces401() {
 	pemString, err := ssas.ConvertPublicKeyToPEMString(&pubKey)
 	require.Nil(s.T(), err)
 	loggerctx := context.WithValue(s.ctx, ssas.CtxLoggerKey, s.logEntry)
-	creds, err := s.sr.RegisterSystem(loggerctx, constants.TestSystemName, groupID, cfg.SystemCfg.DefaultScope, pemString, []string{}, uuid.NewRandom().String())
+	creds, err := s.sr.RegisterSystem(loggerctx, constants.TestSystemName, groupID, cfg.DefaultScope, pemString, []string{}, uuid.NewRandom().String())
 	assert.Nil(s.T(), err)
 	assert.Equal(s.T(), constants.TestSystemName, creds.ClientName)
 	assert.NotNil(s.T(), creds.ClientSecret)
@@ -537,7 +537,7 @@ func (s *APITestSuite) TestTokenEmptyClientIdProduces401() {
 	pemString, err := ssas.ConvertPublicKeyToPEMString(&pubKey)
 	require.Nil(s.T(), err)
 	loggerctx := context.WithValue(s.ctx, ssas.CtxLoggerKey, s.logEntry)
-	creds, err := s.sr.RegisterSystem(loggerctx, constants.TestSystemName, groupID, cfg.SystemCfg.DefaultScope, pemString, []string{}, uuid.NewRandom().String())
+	creds, err := s.sr.RegisterSystem(loggerctx, constants.TestSystemName, groupID, cfg.DefaultScope, pemString, []string{}, uuid.NewRandom().String())
 	assert.Nil(s.T(), err)
 	assert.Equal(s.T(), constants.TestSystemName, creds.ClientName)
 	assert.NotNil(s.T(), creds.ClientSecret)
@@ -664,7 +664,7 @@ func (s *APITestSuite) TestSaveTokenTime() {
 	err := s.db.Create(&group).Error
 	require.Nil(s.T(), err)
 
-	creds, err := s.sr.RegisterSystem(context.WithValue(s.ctx, ssas.CtxLoggerKey, s.logEntry), "Introspect Test", groupID, cfg.SystemCfg.DefaultScope, "", []string{}, uuid.NewRandom().String())
+	creds, err := s.sr.RegisterSystem(context.WithValue(s.ctx, ssas.CtxLoggerKey, s.logEntry), "Introspect Test", groupID, cfg.DefaultScope, "", []string{}, uuid.NewRandom().String())
 	assert.Nil(s.T(), err)
 	assert.Equal(s.T(), "Introspect Test", creds.ClientName)
 	assert.NotNil(s.T(), creds.ClientSecret)
@@ -731,7 +731,7 @@ func (s *APITestSuite) SetupClientAssertionTest() (ssas.Credentials, ssas.Group,
 	si := ssas.SystemInput{
 		ClientName: constants.TestSystemName,
 		GroupID:    groupID,
-		Scope:      cfg.SystemCfg.DefaultScope,
+		Scope:      cfg.DefaultScope,
 		PublicKey:  pemString,
 		IPs:        []string{},
 		TrackingID: uuid.NewRandom().String(),

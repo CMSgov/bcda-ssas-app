@@ -154,7 +154,7 @@ func CreateTestXData(t *testing.T, db *gorm.DB) (creds Credentials, group Group)
 	pemString, err := ConvertPublicKeyToPEMString(&pubKey)
 	require.Nil(t, err)
 
-	creds, err = r.RegisterSystem(context.WithValue(context.Background(), CtxLoggerKey, MakeTestStructuredLoggerEntry(logrus.Fields{"cms_id": "A9999", "request_id": uuid.NewUUID().String()})), "Test Client Name", groupID, cfg.SystemCfg.DefaultScope, pemString, []string{}, uuid.NewRandom().String())
+	creds, err = r.RegisterSystem(context.WithValue(context.Background(), CtxLoggerKey, MakeTestStructuredLoggerEntry(logrus.Fields{"cms_id": "A9999", "request_id": uuid.NewUUID().String()})), "Test Client Name", groupID, cfg.DefaultScope, pemString, []string{}, uuid.NewRandom().String())
 	assert.Nil(t, err)
 	assert.Equal(t, "Test Client Name", creds.ClientName)
 	assert.NotNil(t, creds.ClientSecret)
@@ -178,7 +178,7 @@ func CreateTestXDataV2(t *testing.T, ctx context.Context, db *gorm.DB) (creds Cr
 	s := SystemInput{
 		ClientName: "Test Client Name",
 		GroupID:    groupID,
-		Scope:      cfg.SystemCfg.DefaultScope,
+		Scope:      cfg.DefaultScope,
 		PublicKey:  pemString,
 		IPs:        []string{"47.189.63.100"},
 		TrackingID: uuid.NewRandom().String(),

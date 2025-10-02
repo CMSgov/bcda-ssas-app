@@ -25,18 +25,18 @@ func NewHash(source string) (Hash, error) {
 		return Hash(""), errors.New("empty string provided to hash function")
 	}
 
-	salt := make([]byte, cfg.HashCfg.SaltSize)
+	salt := make([]byte, cfg.SaltSize)
 	_, err := rand.Read(salt)
 	if err != nil {
 		return Hash(""), err
 	}
 
 	start := time.Now()
-	h := pbkdf2.Key([]byte(source), salt, cfg.HashCfg.HashIter, cfg.HashCfg.HashKeyLen, sha512.New)
+	h := pbkdf2.Key([]byte(source), salt, cfg.HashIter, cfg.HashKeyLen, sha512.New)
 	hashCreationTime := time.Since(start)
 	Logger.Info("elapsed: ", hashCreationTime)
 
-	hashValue := fmt.Sprintf("%s:%s:%d", base64.StdEncoding.EncodeToString(salt), base64.StdEncoding.EncodeToString(h), cfg.HashCfg.HashIter)
+	hashValue := fmt.Sprintf("%s:%s:%d", base64.StdEncoding.EncodeToString(salt), base64.StdEncoding.EncodeToString(h), cfg.HashIter)
 	return Hash(hashValue), nil
 }
 
@@ -57,7 +57,7 @@ func (h Hash) IsHashOf(source string) bool {
 	case 2:
 		saltEnc, hash = vals[0], vals[1]
 		// We do not have a iteration count specified
-		iterCount = cfg.HashCfg.HashIter
+		iterCount = cfg.HashIter
 	case 3:
 		saltEnc, hash = vals[0], vals[1]
 		if iterCount, err = strconv.Atoi(vals[2]); err != nil {
@@ -72,7 +72,7 @@ func (h Hash) IsHashOf(source string) bool {
 		return false
 	}
 
-	sourceHash := pbkdf2.Key([]byte(source), salt, iterCount, cfg.HashCfg.HashKeyLen, sha512.New)
+	sourceHash := pbkdf2.Key([]byte(source), salt, iterCount, cfg.HashKeyLen, sha512.New)
 	return hash == base64.StdEncoding.EncodeToString(sourceHash)
 }
 

@@ -810,7 +810,7 @@ func (h *adminHandler) createToken(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	expiration := time.Now().Add(cfg.SystemCfg.MacaroonExpiration)
+	expiration := time.Now().Add(cfg.MacaroonExpiration)
 	ct, m, err := h.sr.SaveClientToken(r.Context(), system, body["label"], group.XData, expiration)
 	if err != nil {
 		logger.Error("failed to save client token: ", err)

@@ -76,14 +76,14 @@ func TestHashIterTime(t *testing.T) {
 	// DEBUG=true  go test -v github.com/CMSgov/bcda-ssas-app/ssas -run TestHashIterTime
 	cfg.LoadEnvConfigs()
 
-	origHash := cfg.HashCfg.HashIter
+	origHash := cfg.HashIter
 	if os.Getenv("DEBUG") != "true" {
 		t.SkipNow()
 	}
 
 	var totalTime time.Duration
 	runCount := 5
-	cfg.HashCfg.HashIter = 1650000
+	cfg.HashIter = 1650000
 	for i := 0; i < runCount; i++ {
 		start := time.Now()
 
@@ -100,7 +100,7 @@ func TestHashIterTime(t *testing.T) {
 	avgDur := totalTime / time.Duration(runCount)
 	fmt.Printf("The average is: %s\n", avgDur.String())
 	t.Cleanup(func() {
-		cfg.HashCfg.HashIter = origHash
+		cfg.HashIter = origHash
 	})
 }
 
