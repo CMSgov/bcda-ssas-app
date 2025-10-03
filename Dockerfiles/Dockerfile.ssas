@@ -1,5 +1,5 @@
 ### OpenAPI docs
-FROM golang:1.24.4-alpine3.22 AS documentation
+FROM golang:1.25.1-alpine3.22 AS documentation
 
 RUN apk update upgrade && apk add \
     binutils-gold \
@@ -10,8 +10,10 @@ RUN apk update upgrade && apk add \
 WORKDIR /go/src/github.com/CMSgov/bcda-ssas-app
 COPY . .
 
+# Go 1.25 requires x/tools to be upgraded to at least 0.25.  Go-swagger is locked to 0.21 however.
+# RUN go install github.com/x/tools/...@v0.25.0
 RUN dir=$(mktemp -d) && \
-    git clone -b v0.31.0 https://github.com/go-swagger/go-swagger "$dir" && \
+    git clone -b master https://github.com/go-swagger/go-swagger "$dir" && \
     cd "$dir" && \
     go install ./cmd/swagger
 
@@ -20,7 +22,7 @@ RUN swagger generate spec -i ../../swaggerui/tags.yml -o ../../swaggerui/swagger
 
 
 ### Builder/compilation
-FROM golang:1.24.4-alpine3.22 AS builder
+FROM golang:1.25.1-alpine3.22 AS builder
 
 ARG VERSION
 
@@ -36,7 +38,7 @@ RUN go build -ldflags "-X github.com/CMSgov/bcda-ssas-app/ssas/constants.Version
 
 
 ### Final image
-FROM golang:1.24.4-alpine3.22
+FROM golang:1.25.1-alpine3.22
 
 RUN apk update upgrade && apk --no-cache add \
     aws-cli \
