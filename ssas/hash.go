@@ -6,7 +6,6 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
-	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -15,34 +14,8 @@ import (
 	"golang.org/x/crypto/pbkdf2"
 )
 
-var (
-	hashIter   int
-	hashKeyLen int
-	saltSize   int
-)
-
 // Hash is a cryptographically hashed string
 type Hash string
-
-// The time for hash comparison should be about 1s.  Increase hashIter if this is significantly faster in production.
-// Use the TestHashIterTime test to determine the amount required to reach 1s.
-// Note that changing hashKeyLen will result in invalidating existing stored hashes (e.g. credentials).
-func init() {
-	if os.Getenv("DEBUG") == "true" {
-		hashIter = cfg.GetEnvInt("SSAS_HASH_ITERATIONS", 130000)
-		hashKeyLen = cfg.GetEnvInt("SSAS_HASH_KEY_LENGTH", 64)
-		saltSize = cfg.GetEnvInt("SSAS_HASH_SALT_SIZE", 32)
-	} else {
-		hashIter = cfg.GetEnvInt("SSAS_HASH_ITERATIONS", 0)
-		hashKeyLen = cfg.GetEnvInt("SSAS_HASH_KEY_LENGTH", 0)
-		saltSize = cfg.GetEnvInt("SSAS_HASH_SALT_SIZE", 0)
-	}
-
-	if hashIter == 0 || hashKeyLen == 0 || saltSize == 0 {
-		// ServiceHalted(Event{Help:"SSAS_HASH_ITERATIONS, SSAS_HASH_KEY_LENGTH and SSAS_HASH_SALT_SIZE environment values must be set"})
-		panic("SSAS_HASH_ITERATIONS, SSAS_HASH_KEY_LENGTH and SSAS_HASH_SALT_SIZE environment values must be set")
-	}
-}
 
 // NewHash creates a Hash value from a source string
 // The HashValue consists of the salt and hash separated by a colon ( : )
@@ -52,18 +25,18 @@ func NewHash(source string) (Hash, error) {
 		return Hash(""), errors.New("empty string provided to hash function")
 	}
 
-	salt := make([]byte, saltSize)
+	salt := make([]byte, cfg.SaltSize)
 	_, err := rand.Read(salt)
 	if err != nil {
 		return Hash(""), err
 	}
 
 	start := time.Now()
-	h := pbkdf2.Key([]byte(source), salt, hashIter, hashKeyLen, sha512.New)
+	h := pbkdf2.Key([]byte(source), salt, cfg.HashIter, cfg.HashKeyLen, sha512.New)
 	hashCreationTime := time.Since(start)
 	Logger.Info("elapsed: ", hashCreationTime)
 
-	hashValue := fmt.Sprintf("%s:%s:%d", base64.StdEncoding.EncodeToString(salt), base64.StdEncoding.EncodeToString(h), hashIter)
+	hashValue := fmt.Sprintf("%s:%s:%d", base64.StdEncoding.EncodeToString(salt), base64.StdEncoding.EncodeToString(h), cfg.HashIter)
 	return Hash(hashValue), nil
 }
 
@@ -84,7 +57,7 @@ func (h Hash) IsHashOf(source string) bool {
 	case 2:
 		saltEnc, hash = vals[0], vals[1]
 		// We do not have a iteration count specified
-		iterCount = hashIter
+		iterCount = cfg.HashIter
 	case 3:
 		saltEnc, hash = vals[0], vals[1]
 		if iterCount, err = strconv.Atoi(vals[2]); err != nil {
@@ -99,7 +72,7 @@ func (h Hash) IsHashOf(source string) bool {
 		return false
 	}
 
-	sourceHash := pbkdf2.Key([]byte(source), salt, iterCount, hashKeyLen, sha512.New)
+	sourceHash := pbkdf2.Key([]byte(source), salt, iterCount, cfg.HashKeyLen, sha512.New)
 	return hash == base64.StdEncoding.EncodeToString(sourceHash)
 }
 

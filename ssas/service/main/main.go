@@ -68,7 +68,7 @@ type Flags struct {
 
 var output io.Writer
 
-func init() {
+func NewNewRelicApp() {
 	output = os.Stdout
 
 	appName := os.Getenv("NEW_RELIC_APP_NAME")
@@ -87,11 +87,13 @@ func init() {
 func main() {
 	ssas.SetupLogger()
 	ssas.Logger.Info("Home of the System-to-System Authentication Service")
-	var config = parseConfig()
+	var config = parseFlags()
+	NewNewRelicApp()
+	cfg.LoadEnvConfigs()
 	handleFlags(config)
 }
 
-func parseConfig() Flags {
+func parseFlags() Flags {
 	var flags Flags
 	const usageAddFixtureData = "unconditionally add fixture data"
 	flag.BoolVar(&flags.doAddFixtureData, "add-fixture-data", false, usageAddFixtureData)

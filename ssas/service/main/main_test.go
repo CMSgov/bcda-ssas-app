@@ -16,6 +16,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/CMSgov/bcda-ssas-app/ssas"
+	"github.com/CMSgov/bcda-ssas-app/ssas/cfg"
 	"github.com/CMSgov/bcda-ssas-app/ssas/service"
 )
 
@@ -23,6 +24,10 @@ type MainTestSuite struct {
 	suite.Suite
 	db *gorm.DB
 	r  *ssas.SystemRepository
+}
+
+func (s *MainTestSuite) SetupSuite() {
+	cfg.LoadEnvConfigs()
 }
 
 func (s *MainTestSuite) SetupTest() {

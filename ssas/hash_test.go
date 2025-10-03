@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/CMSgov/bcda-ssas-app/ssas/cfg"
 	"github.com/pborman/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
@@ -23,7 +24,9 @@ func (s *HashTestSuite) TestHashComparable() {
 	assert.True(s.T(), hash.IsHashOf(uuidString))
 	assert.False(s.T(), hash.IsHashOf(uuid.NewRandom().String()))
 }
-
+func (s *HashTestSuite) SetupSuite() {
+	cfg.LoadEnvConfigs()
+}
 func (s *HashTestSuite) TestHashUnique() {
 	uuidString := uuid.NewRandom().String()
 	hash1, _ := NewHash(uuidString)
@@ -71,14 +74,16 @@ func TestHashIterTime(t *testing.T) {
 	// This test is not intended to run with the remain suite.  Is is solely used to determine the number of hash
 	// iterations needed to reach a 1 second duration. To invoke the test use:
 	// DEBUG=true  go test -v github.com/CMSgov/bcda-ssas-app/ssas -run TestHashIterTime
+	cfg.LoadEnvConfigs()
 
+	origHash := cfg.HashIter
 	if os.Getenv("DEBUG") != "true" {
 		t.SkipNow()
 	}
 
 	var totalTime time.Duration
 	runCount := 5
-	hashIter = 1650000
+	cfg.HashIter = 1650000
 	for i := 0; i < runCount; i++ {
 		start := time.Now()
 
@@ -94,6 +99,9 @@ func TestHashIterTime(t *testing.T) {
 
 	avgDur := totalTime / time.Duration(runCount)
 	fmt.Printf("The average is: %s\n", avgDur.String())
+	t.Cleanup(func() {
+		cfg.HashIter = origHash
+	})
 }
 
 func TestHashTestSuite(t *testing.T) {

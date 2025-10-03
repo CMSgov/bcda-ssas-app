@@ -14,6 +14,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/CMSgov/bcda-ssas-app/ssas/cfg"
 	"github.com/CMSgov/bcda-ssas-app/ssas/constants"
 	"github.com/CMSgov/bcda-ssas-app/ssas/service"
 	"github.com/pborman/uuid"
@@ -74,7 +75,8 @@ type APITestSuite struct {
 
 func (s *APITestSuite) SetupSuite() {
 	service.StartDenylist()
-	ssas.MaxIPs = 3
+	cfg.LoadEnvConfigs()
+	cfg.MaxIPs = 3
 	s.logEntry = MakeTestStructuredLoggerEntry(logrus.Fields{"cms_id": "A9999", "request_id": uuid.NewUUID().String()})
 	if os.Getenv("SGA_ADMIN_FEATURE") == "true" {
 		s.ctx = context.WithValue(context.Background(), constants.CtxSGAKey, "test-sga")
@@ -1737,7 +1739,7 @@ func TestSGAAdmin_NoAuth(t *testing.T) {
 	h := NewAdminHandler()
 	r := ssas.NewGroupRepository(db)
 	service.StartDenylist()
-	ssas.MaxIPs = 3
+	cfg.MaxIPs = 3
 
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, constants.CtxSGAKey, "test-sga")
