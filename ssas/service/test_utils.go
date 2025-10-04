@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/CMSgov/bcda-ssas-app/ssas"
-	"github.com/golang-jwt/jwt/v4"
+	"github.com/golang-jwt/jwt/v5"
 )
 
 type TokenFlaw int
@@ -31,35 +31,34 @@ func BadToken(claims *CommonClaims, flaw TokenFlaw, keyPath string) (token *jwt.
 	}
 	signingMethod := jwt.SigningMethodRS512
 	tokenID := newTokenID()
-	claims.IssuedAt = time.Now().Unix()
-	claims.ExpiresAt = time.Now().Add(20 * time.Minute).Unix()
-	claims.Id = tokenID
+	claims.IssuedAt = jwt.NewNumericDate(time.Now())
+	claims.ExpiresAt = jwt.NewNumericDate(time.Now().Add(20 * time.Minute))
+	claims.ID = tokenID
 	claims.Issuer = "ssas"
 
 	switch flaw {
 	case Postdated:
-		claims.IssuedAt = time.Now().Add(time.Hour).Unix()
-		claims.ExpiresAt = time.Now().Add(time.Hour).Add(time.Minute).Unix()
+		claims.IssuedAt = jwt.NewNumericDate(time.Now().Add(time.Hour))
+		claims.ExpiresAt = jwt.NewNumericDate(time.Now().Add(time.Hour).Add(time.Minute))
 	case Expired:
-		claims.IssuedAt = time.Now().Add(-2 * time.Minute).Unix()
-		claims.ExpiresAt = time.Now().Add(-1 * time.Minute).Unix()
+		claims.IssuedAt = jwt.NewNumericDate(time.Now().Add(-2 * time.Minute))
+		claims.ExpiresAt = jwt.NewNumericDate(time.Now().Add(-1 * time.Minute))
 	case ExtremelyExpired:
-		claims.IssuedAt = time.Now().Add(-30 * 24 * time.Hour).Unix()
-		claims.ExpiresAt = time.Now().Add(-30 * 24 * time.Hour).Add(time.Minute).Unix()
+		claims.IssuedAt = jwt.NewNumericDate(time.Now().Add(-30 * 24 * time.Hour))
+		claims.ExpiresAt = jwt.NewNumericDate(time.Now().Add(-30 * 24 * time.Hour).Add(time.Minute))
 	case BadSigner:
 		// No-op; the signer is managed by the caller
 	case BadIssuer:
 		claims.Issuer = "bad_actor"
 	case MissingID:
-		claims.Id = ""
+		claims.ID = ""
 	default:
 		signedString = "this_is_a_bad_signed_string"
 		err = errors.New("unknown token flaw")
 		return
 	}
 
-	token = jwt.New(signingMethod)
-	token.Claims = claims
+	token = jwt.NewWithClaims(signingMethod, claims)
 	signedString, err = token.SignedString(signingKey)
 	if err != nil {
 		ssas.Logger.Error("token signing error " + err.Error())

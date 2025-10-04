@@ -22,7 +22,7 @@ import (
 	"github.com/CMSgov/bcda-ssas-app/ssas/constants"
 	"github.com/CMSgov/bcda-ssas-app/ssas/service"
 	"github.com/go-chi/chi/v5"
-	"github.com/golang-jwt/jwt/v4"
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/pborman/uuid"
 	"github.com/sirupsen/logrus"
 	"github.com/sirupsen/logrus/hooks/test"
@@ -576,6 +576,10 @@ func (s *APITestSuite) testIntrospectFlaw(flaw service.TokenFlaw, errorText stri
 	}
 
 	creds, group := ssas.CreateTestXData(s.T(), s.db)
+	s.T().Cleanup(func() {
+		err := ssas.CleanDatabase(group)
+		assert.Nil(s.T(), err)
+	})
 
 	system, err := s.sr.GetSystemByClientID(s.ctx, creds.ClientID)
 	assert.Nil(s.T(), err)
@@ -748,7 +752,11 @@ func (s *APITestSuite) SetupClientAssertionTest() (ssas.Credentials, ssas.Group,
 // Authenticate and generate access token using JWT (v2/token/)
 func (s *APITestSuite) TestAuthenticatingWithJWT() {
 	creds, group, privateKey := s.SetupClientAssertionTest()
-	_, clientAssertion, errors := mintClientAssertion(creds.ClientToken, creds.ClientToken, s.assertAud, time.Now().Unix(), time.Now().Add(time.Minute*5).Unix(), privateKey, creds.PublicKeyID)
+	s.T().Cleanup(func() {
+		err := ssas.CleanDatabase(group)
+		assert.Nil(s.T(), err)
+	})
+	_, clientAssertion, errors := mintClientAssertion(creds.ClientToken, creds.ClientToken, s.assertAud, time.Now(), time.Now().Add(time.Minute*5), privateKey, creds.PublicKeyID)
 	assert.Nil(s.T(), errors)
 
 	form := url.Values{}
@@ -770,19 +778,20 @@ func (s *APITestSuite) TestAuthenticatingWithJWT() {
 	assert.NotEmpty(s.T(), t.AccessToken)
 	assert.NotEmpty(s.T(), t.Scope)
 	assert.Equal(s.T(), "system/*.*", t.Scope)
-
-	err := ssas.CleanDatabase(group)
-	assert.Nil(s.T(), err)
 }
 
 // Authenticate and generate access token using JWT (v2/token/)
 func (s *APITestSuite) TestAuthenticatingWithJWTUsingSecondPublicKey() {
 	creds, group, _ := s.SetupClientAssertionTest()
+	s.T().Cleanup(func() {
+		err := ssas.CleanDatabase(group)
+		assert.Nil(s.T(), err)
+	})
 	system, _ := s.sr.GetSystemByID(s.ctx, creds.SystemID)
 	pubK, sig, newPrivateKey, _ := ssas.GeneratePublicKey(2048)
 	secondKey, _ := s.sr.SavePublicKey(s.db, system, strings.NewReader(pubK), sig, false)
 
-	_, clientAssertion, errors := mintClientAssertion(creds.ClientToken, creds.ClientToken, s.assertAud, time.Now().Unix(), time.Now().Add(time.Minute*5).Unix(), newPrivateKey, secondKey.UUID)
+	_, clientAssertion, errors := mintClientAssertion(creds.ClientToken, creds.ClientToken, s.assertAud, time.Now(), time.Now().Add(time.Minute*5), newPrivateKey, secondKey.UUID)
 	assert.Nil(s.T(), errors)
 
 	form := buildClientAssertionForm(clientAssertion)
@@ -798,18 +807,19 @@ func (s *APITestSuite) TestAuthenticatingWithJWTUsingSecondPublicKey() {
 	assert.NotEmpty(s.T(), t.AccessToken)
 	assert.NotEmpty(s.T(), t.Scope)
 	assert.Equal(s.T(), "system/*.*", t.Scope)
-
-	err := ssas.CleanDatabase(group)
-	assert.Nil(s.T(), err)
 }
 
 func (s *APITestSuite) TestAuthenticatingWithJWTUsingWrongPrivateKey() {
 	creds, group, firstPrivateKey := s.SetupClientAssertionTest()
+	s.T().Cleanup(func() {
+		err := ssas.CleanDatabase(group)
+		assert.Nil(s.T(), err)
+	})
 	system, _ := s.sr.GetSystemByID(s.ctx, creds.SystemID)
 	pubK, sig, _, _ := ssas.GeneratePublicKey(2048)
 	secondKey, _ := s.sr.SavePublicKey(s.db, system, strings.NewReader(pubK), sig, false)
 
-	_, clientAssertion, errors := mintClientAssertion(creds.ClientToken, creds.ClientToken, s.assertAud, time.Now().Unix(), time.Now().Add(time.Minute*5).Unix(), firstPrivateKey, secondKey.UUID)
+	_, clientAssertion, errors := mintClientAssertion(creds.ClientToken, creds.ClientToken, s.assertAud, time.Now(), time.Now().Add(time.Minute*5), firstPrivateKey, secondKey.UUID)
 	assert.Nil(s.T(), errors)
 
 	form := buildClientAssertionForm(clientAssertion)
@@ -820,16 +830,18 @@ func (s *APITestSuite) TestAuthenticatingWithJWTUsingWrongPrivateKey() {
 	handler.ServeHTTP(s.rr, req)
 
 	s.verifyErrorResponse(http.StatusBadRequest, "crypto/rsa: verification error")
-	err := ssas.CleanDatabase(group)
-	assert.Nil(s.T(), err)
 }
 
 func (s *APITestSuite) TestAuthenticatingWithMismatchLocation() {
 	os.Setenv("SSAS_MACAROON_LOCATION", "localpost")
 	creds, group, privateKey := s.SetupClientAssertionTest()
+	s.T().Cleanup(func() {
+		err := ssas.CleanDatabase(group)
+		assert.Nil(s.T(), err)
+	})
 	os.Unsetenv("SSAS_MACAROON_LOCATION")
 
-	_, clientAssertion, errors := mintClientAssertion(creds.ClientToken, creds.ClientToken, s.assertAud, time.Now().Unix(), time.Now().Add(time.Minute*5).Unix(), privateKey, creds.PublicKeyID)
+	_, clientAssertion, errors := mintClientAssertion(creds.ClientToken, creds.ClientToken, s.assertAud, time.Now(), time.Now().Add(time.Minute*5), privateKey, creds.PublicKeyID)
 	assert.Nil(s.T(), errors)
 
 	form := url.Values{}
@@ -846,14 +858,16 @@ func (s *APITestSuite) TestAuthenticatingWithMismatchLocation() {
 	//handler := http.HandlerFunc(s.h.tokenV2)
 	handler.ServeHTTP(s.rr, req)
 	assert.Equal(s.T(), http.StatusBadRequest, s.rr.Code)
-	err := ssas.CleanDatabase(group)
-	assert.Nil(s.T(), err)
 }
 
 func (s *APITestSuite) TestAuthenticatingWithJWTWithExpBeforeIssuedTime() {
 	creds, group, privateKey := s.SetupClientAssertionTest()
-	expiresAt := time.Now().Unix() + 200
-	issuedAt := expiresAt + 1
+	s.T().Cleanup(func() {
+		err := ssas.CleanDatabase(group)
+		assert.Nil(s.T(), err)
+	})
+	expiresAt := time.Now().Add(time.Second * 200)
+	issuedAt := expiresAt.Add(time.Second * 1)
 	_, clientAssertion, errors := mintClientAssertion(creds.ClientToken, creds.ClientToken, s.assertAud, issuedAt, expiresAt, privateKey, creds.PublicKeyID)
 	assert.Nil(s.T(), errors)
 
@@ -871,15 +885,17 @@ func (s *APITestSuite) TestAuthenticatingWithJWTWithExpBeforeIssuedTime() {
 	handler := service.NewCtxLogger(http.HandlerFunc(s.h.tokenV2))
 	handler.ServeHTTP(s.rr, req)
 
-	s.verifyErrorResponse(http.StatusBadRequest, "token used before issued")
-	err := ssas.CleanDatabase(group)
-	assert.Nil(s.T(), err)
+	s.verifyErrorResponse(http.StatusBadRequest, "IssuedAt (iat) claim marked as AFTER ExpiresAt (exp) claim")
 }
 
 func (s *APITestSuite) TestAuthenticatingWithJWTWithMoreThan5MinutesExpTime() {
 	creds, group, privateKey := s.SetupClientAssertionTest()
-	issuedAt := time.Now().Unix()
-	expiresAt := issuedAt + 350
+	s.T().Cleanup(func() {
+		err := ssas.CleanDatabase(group)
+		assert.Nil(s.T(), err)
+	})
+	issuedAt := time.Now()
+	expiresAt := issuedAt.Add(time.Second * 350)
 
 	_, clientAssertion, errors := mintClientAssertion(creds.ClientToken, creds.ClientToken, s.assertAud, issuedAt, expiresAt, privateKey, creds.PublicKeyID)
 	assert.Nil(s.T(), errors)
@@ -899,14 +915,16 @@ func (s *APITestSuite) TestAuthenticatingWithJWTWithMoreThan5MinutesExpTime() {
 	handler.ServeHTTP(s.rr, req)
 
 	s.verifyErrorResponse(http.StatusBadRequest, "IssuedAt (iat) and ExpiresAt (exp) claims are more than 5 minutes apart")
-	err := ssas.CleanDatabase(group)
-	assert.Nil(s.T(), err)
 }
 
 func (s *APITestSuite) TestAuthenticatingWithJWTWithExpiredToken() {
 	creds, group, privateKey := s.SetupClientAssertionTest()
-	issuedAt := time.Now().Unix() - 3600 //simulate token issued an hour ago.
-	expiresAt := issuedAt + 200          //exp within 5 min of iat time
+	s.T().Cleanup(func() {
+		err := ssas.CleanDatabase(group)
+		assert.Nil(s.T(), err)
+	})
+	issuedAt := time.Now().Add(time.Second * -3600) //simulate token issued an hour ago.
+	expiresAt := issuedAt.Add(time.Second * 200)    //exp within 5 min of iat time
 
 	_, clientAssertion, errors := mintClientAssertion(creds.ClientToken, creds.ClientToken, s.assertAud, issuedAt, expiresAt, privateKey, creds.PublicKeyID)
 	assert.Nil(s.T(), errors)
@@ -925,14 +943,16 @@ func (s *APITestSuite) TestAuthenticatingWithJWTWithExpiredToken() {
 	handler.ServeHTTP(s.rr, req)
 
 	s.verifyErrorResponse(http.StatusBadRequest, "token is expired")
-	err := ssas.CleanDatabase(group)
-	assert.Nil(s.T(), err)
 }
 
 func (s *APITestSuite) TestAuthenticatingWithJWTSignedWithWrongKey() {
 	creds, group, _ := s.SetupClientAssertionTest() //Correct private key is created and uploaded here
-	issuedAt := time.Now().Unix()
-	expiresAt := issuedAt + 200
+	s.T().Cleanup(func() {
+		err := ssas.CleanDatabase(group)
+		assert.Nil(s.T(), err)
+	})
+	issuedAt := time.Now()
+	expiresAt := issuedAt.Add(200)
 
 	wrongPrivateKey, _, err := ssas.GenerateTestKeys(2048)
 	require.Nil(s.T(), err)
@@ -955,14 +975,16 @@ func (s *APITestSuite) TestAuthenticatingWithJWTSignedWithWrongKey() {
 	handler.ServeHTTP(s.rr, req)
 
 	s.verifyErrorResponse(http.StatusBadRequest, "crypto/rsa: verification error")
-	err = ssas.CleanDatabase(group)
-	assert.Nil(s.T(), err)
 }
 
 func (s *APITestSuite) TestAuthenticatingWithJWTWithSoftDeletedPublicKey() {
 	creds, group, privateKey := s.SetupClientAssertionTest()
-	issuedAt := time.Now().Unix()
-	expiresAt := issuedAt + 200
+	s.T().Cleanup(func() {
+		err := ssas.CleanDatabase(group)
+		assert.Nil(s.T(), err)
+	})
+	issuedAt := time.Now()
+	expiresAt := issuedAt.Add(200)
 
 	_, clientAssertion, errors := mintClientAssertion(creds.ClientToken, creds.ClientToken, s.assertAud, issuedAt, expiresAt, privateKey, creds.PublicKeyID)
 	assert.Nil(s.T(), errors)
@@ -998,13 +1020,15 @@ func (s *APITestSuite) TestAuthenticatingWithJWTWithSoftDeletedPublicKey() {
 	handler.ServeHTTP(s.rr, req)
 
 	s.verifyErrorResponse(http.StatusBadRequest, "key not found for system: "+creds.ClientToken)
-	err = ssas.CleanDatabase(group)
-	assert.Nil(s.T(), err)
 }
 
 func (s *APITestSuite) TestAuthenticatingWithJWTWithMissingIssuerClaim() {
 	creds, group, privateKey := s.SetupClientAssertionTest()
-	_, clientAssertion, errors := mintClientAssertion("", creds.SystemID, s.assertAud, time.Now().Unix(), time.Now().Add(time.Minute*5).Unix(), privateKey, creds.PublicKeyID)
+	s.T().Cleanup(func() {
+		err := ssas.CleanDatabase(group)
+		assert.Nil(s.T(), err)
+	})
+	_, clientAssertion, errors := mintClientAssertion("", creds.SystemID, s.assertAud, time.Now(), time.Now().Add(time.Minute*5), privateKey, creds.PublicKeyID)
 	assert.Nil(s.T(), errors)
 
 	form := url.Values{}
@@ -1022,13 +1046,15 @@ func (s *APITestSuite) TestAuthenticatingWithJWTWithMissingIssuerClaim() {
 	handler.ServeHTTP(s.rr, req)
 
 	s.verifyErrorResponse(http.StatusBadRequest, "missing issuer (iss) in jwt claims")
-	err := ssas.CleanDatabase(group)
-	assert.Nil(s.T(), err)
 }
 
 func (s *APITestSuite) TestAuthenticatingWithJWTWithBadAudienceClaim() {
 	creds, group, privateKey := s.SetupClientAssertionTest()
-	_, clientAssertion, errors := mintClientAssertion(creds.ClientToken, creds.ClientToken, "https://invalid.url.com", time.Now().Unix(), time.Now().Add(time.Minute*5).Unix(), privateKey, creds.PublicKeyID)
+	s.T().Cleanup(func() {
+		err := ssas.CleanDatabase(group)
+		assert.Nil(s.T(), err)
+	})
+	_, clientAssertion, errors := mintClientAssertion(creds.ClientToken, creds.ClientToken, "https://invalid.url.com", time.Now(), time.Now().Add(time.Minute*5), privateKey, creds.PublicKeyID)
 	assert.Nil(s.T(), errors)
 
 	form := url.Values{}
@@ -1046,21 +1072,23 @@ func (s *APITestSuite) TestAuthenticatingWithJWTWithBadAudienceClaim() {
 	handler.ServeHTTP(s.rr, req)
 
 	s.verifyErrorResponse(http.StatusBadRequest, "invalid audience (aud) claim")
-	err := ssas.CleanDatabase(group)
-	assert.Nil(s.T(), err)
 }
 
 func (s *APITestSuite) TestAuthenticatingWithJWTWithMissingKID() {
 	creds, group, privateKey := s.SetupClientAssertionTest()
+	s.T().Cleanup(func() {
+		err := ssas.CleanDatabase(group)
+		assert.Nil(s.T(), err)
+	})
 	claims := service.CommonClaims{}
 
 	token := jwt.New(jwt.SigningMethodRS512)
 	claims.TokenType = "ClientAssertion"
-	claims.IssuedAt = time.Now().Unix()
-	claims.ExpiresAt = time.Now().Add(time.Minute * 5).Unix()
+	claims.IssuedAt = jwt.NewNumericDate(time.Now())
+	claims.ExpiresAt = jwt.NewNumericDate(time.Now().Add(time.Minute * 5))
 	claims.Subject = creds.ClientToken
 	claims.Issuer = creds.ClientToken
-	claims.Audience = s.assertAud
+	claims.Audience = jwt.ClaimStrings{s.assertAud}
 	token.Claims = claims
 	var signedString, err = token.SignedString(privateKey)
 	assert.Nil(s.T(), err)
@@ -1080,21 +1108,23 @@ func (s *APITestSuite) TestAuthenticatingWithJWTWithMissingKID() {
 	handler.ServeHTTP(s.rr, req)
 
 	s.verifyErrorResponse(http.StatusBadRequest, "missing public key id (kid) in jwt header")
-	err = ssas.CleanDatabase(group)
-	assert.Nil(s.T(), err)
 }
 
 func (s *APITestSuite) TestAuthenticatingWithJWTWithMissingJTI() {
 	creds, group, privateKey := s.SetupClientAssertionTest()
+	s.T().Cleanup(func() {
+		err := ssas.CleanDatabase(group)
+		assert.Nil(s.T(), err)
+	})
 	claims := service.CommonClaims{}
 
 	token := jwt.New(jwt.SigningMethodRS512)
 	claims.TokenType = "ClientAssertion"
-	claims.IssuedAt = time.Now().Unix()
-	claims.ExpiresAt = time.Now().Add(time.Minute * 5).Unix()
+	claims.IssuedAt = jwt.NewNumericDate(time.Now())
+	claims.ExpiresAt = jwt.NewNumericDate(time.Now().Add(time.Minute * 5))
 	claims.Subject = creds.ClientToken
 	claims.Issuer = creds.ClientToken
-	claims.Audience = s.assertAud
+	claims.Audience = jwt.ClaimStrings{s.assertAud}
 	token.Header["kid"] = creds.PublicKeyID
 	token.Claims = claims
 	var signedString, err = token.SignedString(privateKey)
@@ -1108,13 +1138,15 @@ func (s *APITestSuite) TestAuthenticatingWithJWTWithMissingJTI() {
 	handler.ServeHTTP(s.rr, req)
 
 	s.verifyErrorResponse(http.StatusBadRequest, "missing Token ID (jti) claim")
-	err = ssas.CleanDatabase(group)
-	assert.Nil(s.T(), err)
 }
 
 func (s *APITestSuite) TestAuthenticatingWithJWTWithMissingSubjectClaim() {
 	creds, group, privateKey := s.SetupClientAssertionTest()
-	_, clientAssertion, errors := mintClientAssertion(creds.ClientToken, "", s.assertAud, time.Now().Unix(), time.Now().Add(time.Minute*5).Unix(), privateKey, creds.PublicKeyID)
+	s.T().Cleanup(func() {
+		err := ssas.CleanDatabase(group)
+		assert.Nil(s.T(), err)
+	})
+	_, clientAssertion, errors := mintClientAssertion(creds.ClientToken, "", s.assertAud, time.Now(), time.Now().Add(time.Minute*5), privateKey, creds.PublicKeyID)
 	assert.Nil(s.T(), errors)
 
 	form := buildClientAssertionForm(clientAssertion)
@@ -1125,8 +1157,6 @@ func (s *APITestSuite) TestAuthenticatingWithJWTWithMissingSubjectClaim() {
 	handler.ServeHTTP(s.rr, req)
 
 	s.verifyErrorResponse(http.StatusBadRequest, "subject (sub) and issuer (iss) claims do not match")
-	err := ssas.CleanDatabase(group)
-	assert.Nil(s.T(), err)
 }
 
 func buildClientAssertionRequest(ctx context.Context, form url.Values) *http.Request {
@@ -1230,15 +1260,15 @@ func (s *APITestSuite) TestClientAssertionAuthWithMissingClientAssertionParam() 
 	//Create system and valid client assertion token
 	form := buildClientAssertionForm("value_does_not_matter_for_this_test")
 	form.Del("client_assertion")
-	//handler := http.HandlerFunc(s.h.tokenV2)
-	handler := service.NewCtxLogger(http.HandlerFunc(s.h.tokenV2))
 
 	//Missing client_assertion param
 	req := httptest.NewRequestWithContext(s.ctx, "POST", "/v2/token", strings.NewReader(form.Encode()))
 	req.Header.Set("Accept", constants.HeaderApplicationJSON)
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 
+	handler := service.NewCtxLogger(http.HandlerFunc(s.h.tokenV2))
 	handler.ServeHTTP(s.rr, req)
+
 	s.verifyErrorResponse(http.StatusBadRequest, "missing client_assertion")
 }
 
@@ -1250,17 +1280,17 @@ func (s *APITestSuite) verifyErrorResponse(expectedStatus interface{}, expectedM
 	assert.Regexp(s.T(), regexp.MustCompile(regexp.QuoteMeta(expectedMsg)), t.Error)
 }
 
-func mintClientAssertion(issuer, subject, aud string, issuedAt, expiresAt int64, privateKey *rsa.PrivateKey, kid string) (*jwt.Token, string, error) {
+func mintClientAssertion(issuer, subject, aud string, issuedAt, expiresAt time.Time, privateKey *rsa.PrivateKey, kid string) (*jwt.Token, string, error) {
 	claims := service.CommonClaims{}
 
 	token := jwt.New(jwt.SigningMethodRS512)
 	tokenID := uuid.NewRandom().String()
-	claims.IssuedAt = issuedAt
-	claims.ExpiresAt = expiresAt
-	claims.Id = tokenID
+	claims.IssuedAt = jwt.NewNumericDate(issuedAt)
+	claims.ExpiresAt = jwt.NewNumericDate(expiresAt)
+	claims.ID = tokenID
 	claims.Subject = subject
 	claims.Issuer = issuer
-	claims.Audience = aud
+	claims.Audience = jwt.ClaimStrings{aud}
 	token.Claims = claims
 	token.Header["kid"] = kid
 	var signedString, err = token.SignedString(privateKey)
