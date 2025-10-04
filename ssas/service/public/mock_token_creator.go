@@ -3,7 +3,7 @@
 package public
 
 import (
-	jwt "github.com/golang-jwt/jwt/v4"
+	jwt "github.com/golang-jwt/jwt/v5"
 	mock "github.com/stretchr/testify/mock"
 
 	service "github.com/CMSgov/bcda-ssas-app/ssas/service"

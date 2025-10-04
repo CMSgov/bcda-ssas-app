@@ -8,7 +8,7 @@ import (
 	"github.com/CMSgov/bcda-ssas-app/ssas"
 	"github.com/CMSgov/bcda-ssas-app/ssas/cfg"
 	"github.com/CMSgov/bcda-ssas-app/ssas/service"
-	"github.com/golang-jwt/jwt/v4"
+	"github.com/golang-jwt/jwt/v5"
 )
 
 var accessTokenCreator TokenCreator
@@ -98,6 +98,11 @@ func tokenValidity(ctx context.Context, tokenString string, requiredTokenType st
 		logger.Error(err)
 		return err
 	}
+	if !t.Valid {
+		err = fmt.Errorf("token is not valid")
+		logger.Error(err)
+		return err
+	}
 
 	c := t.Claims.(*service.CommonClaims)
 
@@ -107,13 +112,7 @@ func tokenValidity(ctx context.Context, tokenString string, requiredTokenType st
 		return err
 	}
 
-	err = c.Valid()
-	if err != nil {
-		logger.Error(err)
-		return err
-	}
-
-	if service.TokenDenylist.IsTokenDenylisted(c.Id) {
+	if service.TokenDenylist.IsTokenDenylisted(c.ID) {
 		err = fmt.Errorf("token has been revoked")
 		logger.Error(err)
 		return err

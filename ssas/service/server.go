@@ -22,7 +22,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	gcmw "github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/render"
-	"github.com/golang-jwt/jwt/v4"
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/pborman/uuid"
 )
 
@@ -350,7 +350,7 @@ func GetFirstPartyCaveat(um macaroon.Macaroon, caveatName string) (string, error
 
 // CommonClaims contains the superset of claims that may be found in the token
 type CommonClaims struct {
-	jwt.StandardClaims
+	jwt.RegisteredClaims
 	// AccessToken, MFAToken, ClientAssertion, or RegistrationToken
 	TokenType string `json:"use,omitempty"`
 	// In an MFA token, presence of an OktaID is taken as proof of username/password authentication
@@ -371,20 +371,20 @@ type CommonClaims struct {
 // MintTokenWithDuration generates a tokenstring that expires after a specific duration from now.
 // If duration is <= 0, the token will be expired upon creation
 func (s *Server) MintTokenWithDuration(claims *CommonClaims, duration time.Duration) (*jwt.Token, string, error) {
-	return s.mintToken(claims, time.Now().Unix(), time.Now().Add(duration).Unix())
+	return s.mintToken(claims, time.Now(), time.Now().Add(duration))
 }
 
 // MintToken generates a tokenstring that expires in tokenTTL time
 func (s *Server) MintToken(claims *CommonClaims) (*jwt.Token, string, error) {
-	return s.mintToken(claims, time.Now().Unix(), time.Now().Add(s.tokenTTL).Unix())
+	return s.mintToken(claims, time.Now(), time.Now().Add(s.tokenTTL))
 }
 
-func (s *Server) mintToken(claims *CommonClaims, issuedAt int64, expiresAt int64) (*jwt.Token, string, error) {
+func (s *Server) mintToken(claims *CommonClaims, issuedAt time.Time, expiresAt time.Time) (*jwt.Token, string, error) {
 	token := jwt.New(jwt.SigningMethodRS512)
 	tokenID := newTokenID()
-	claims.IssuedAt = issuedAt
-	claims.ExpiresAt = expiresAt
-	claims.Id = tokenID
+	claims.IssuedAt = jwt.NewNumericDate(issuedAt)
+	claims.ExpiresAt = jwt.NewNumericDate(expiresAt)
+	claims.ID = tokenID
 	claims.Issuer = "ssas"
 	token.Claims = claims
 	var signedString, err = token.SignedString(s.tokenSigningKey)
@@ -408,7 +408,7 @@ func (s *Server) VerifyToken(tokenString string) (*jwt.Token, error) {
 		return &s.tokenSigningKey.PublicKey, nil
 	}
 
-	return jwt.ParseWithClaims(tokenString, &CommonClaims{}, keyFunc)
+	return jwt.ParseWithClaims(tokenString, &CommonClaims{}, keyFunc, jwt.WithIssuedAt(), jwt.WithExpirationRequired())
 }
 
 func (s *Server) VerifyClientSignedToken(ctx context.Context, tokenString string, trackingId string) (*jwt.Token, error) {
@@ -484,10 +484,10 @@ func (s *Server) GetSystemIDFromMacaroon(issuer string) (string, error) {
 }
 
 func (s *Server) CheckRequiredClaims(claims *CommonClaims, requiredTokenType string) error {
-	if claims.ExpiresAt == 0 ||
-		claims.IssuedAt == 0 ||
+	if claims.ExpiresAt.IsZero() ||
+		claims.IssuedAt.IsZero() ||
 		claims.Issuer != "ssas" ||
-		claims.Id == "" ||
+		claims.ID == "" ||
 		claims.TokenType == "" {
 		return fmt.Errorf("missing one or more claims")
 	}

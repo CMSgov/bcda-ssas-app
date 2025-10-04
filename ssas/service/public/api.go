@@ -12,13 +12,14 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"slices"
 	"strconv"
 
 	"github.com/CMSgov/bcda-ssas-app/ssas"
 	"github.com/CMSgov/bcda-ssas-app/ssas/constants"
 	"github.com/CMSgov/bcda-ssas-app/ssas/service"
 	"github.com/go-chi/render"
-	"github.com/golang-jwt/jwt/v4"
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/pborman/uuid"
 	"gorm.io/gorm"
 )
@@ -313,8 +314,8 @@ func (h *publicHandler) token(w http.ResponseWriter, r *http.Request) {
 
 	// https://tools.ietf.org/html/rfc6749#section-5.1
 	// expires_in is duration in seconds
-	expiresIn := token.Claims.(*service.CommonClaims).ExpiresAt - token.Claims.(*service.CommonClaims).IssuedAt
-	m := TokenResponse{AccessToken: ts, TokenType: "bearer", ExpiresIn: strconv.FormatInt(expiresIn, 10)}
+	expiresIn := token.Claims.(*service.CommonClaims).ExpiresAt.Sub(token.Claims.(*service.CommonClaims).IssuedAt.Time)
+	m := TokenResponse{AccessToken: ts, TokenType: "bearer", ExpiresIn: strconv.FormatFloat(expiresIn.Seconds(), 'f', 0, 64)}
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Cache-Control", "no-store")
 	w.Header().Set("Pragma", "no-cache")
@@ -358,19 +359,24 @@ func (h *publicHandler) tokenV2(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if claims.Id == "" {
+	if claims.ID == "" {
 		service.JSONError(w, http.StatusBadRequest, "missing Token ID (jti) claim", "")
 		return
 	}
 
-	if claims.Audience != server.GetClientAssertionAudience() {
+	if !slices.Contains(claims.Audience, server.GetClientAssertionAudience()) {
 		service.JSONError(w, http.StatusBadRequest, "invalid audience (aud) claim", "")
 		return
 	}
 
-	tokenDuration := claims.ExpiresAt - claims.IssuedAt
-	if tokenDuration > 300 { //5 minute max duration
+	tokenDuration := claims.ExpiresAt.Sub(claims.IssuedAt.Time)
+	if tokenDuration.Seconds() > 300 { // 5 minute max duration
 		service.JSONError(w, http.StatusBadRequest, "IssuedAt (iat) and ExpiresAt (exp) claims are more than 5 minutes apart", "")
+		return
+	}
+
+	if tokenDuration.Seconds() < 0 { // issued at AFTER expires at
+		service.JSONError(w, http.StatusBadRequest, "IssuedAt (iat) claim marked as AFTER ExpiresAt (exp) claim", "")
 		return
 	}
 
@@ -409,8 +415,8 @@ func (h *publicHandler) tokenV2(w http.ResponseWriter, r *http.Request) {
 
 	// https://tools.ietf.org/html/rfc6749#section-5.1
 	// expires_in is duration in seconds
-	expiresIn := accessToken.Claims.(*service.CommonClaims).ExpiresAt - accessToken.Claims.(*service.CommonClaims).IssuedAt
-	m := TokenResponse{Scope: "system/*.*", AccessToken: ts, TokenType: "bearer", ExpiresIn: strconv.FormatInt(expiresIn, 10)}
+	expiresIn := accessToken.Claims.(*service.CommonClaims).ExpiresAt.Sub(accessToken.Claims.(*service.CommonClaims).IssuedAt.Time)
+	m := TokenResponse{Scope: "system/*.*", AccessToken: ts, TokenType: "bearer", ExpiresIn: strconv.FormatFloat(expiresIn.Seconds(), 'f', 0, 64)}
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Cache-Control", "no-store")
 	w.Header().Set("Pragma", "no-cache")
