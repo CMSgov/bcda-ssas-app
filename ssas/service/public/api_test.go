@@ -52,8 +52,7 @@ func (s *APITestSuite) SetupSuite() {
 	s.db, err = ssas.CreateDB()
 	require.NoError(s.T(), err)
 	cfg.LoadEnvConfigs()
-	s.h = NewPublicHandler()
-	SetAccessTokenCreator()
+	s.h = NewPublicHandler(s.db, AccessTokenCreator{})
 	s.server = Server()
 	s.badSigningKeyPath = "../../../shared_files/ssas/admin_test_signing_key.pem"
 	s.assertAud = "http://local.testing.cms.gov/api/v2/Token/auth"
@@ -440,8 +439,9 @@ func (s *APITestSuite) TestTokenErrAtGenerateTokenReturn401() {
 
 	//setup mocks
 	mock := &MockTokenCreator{}
+	origAT := s.h.tc
+	s.h.tc = mock
 	mock.On("GenerateToken", m.MatchedBy(func(req service.CommonClaims) bool { return true })).Return(&jwt.Token{Raw: ""}, "", errors.New("ERROR!"))
-	SetMockAccessTokenCreator(s.T(), mock)
 
 	//setup API request
 	req := httptest.NewRequestWithContext(s.ctx, "POST", constants.TokenEndpoint, nil)
@@ -458,7 +458,11 @@ func (s *APITestSuite) TestTokenErrAtGenerateTokenReturn401() {
 	mock.AssertExpectations(s.T())
 
 	//cleanup
-	err = ssas.CleanDatabase(group)
+	s.T().Cleanup(func() {
+		err = ssas.CleanDatabase(group)
+		s.h.tc = origAT
+	})
+
 	assert.Nil(s.T(), err)
 }
 

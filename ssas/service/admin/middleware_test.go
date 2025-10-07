@@ -60,7 +60,7 @@ func (s *AdminMiddlewareTestSuite) SetupTest() {
 
 	badAuth := fmt.Sprintf("%s:This_is_not_the_secret", service.TestAdminClientID)
 	s.badAuth = base64.StdEncoding.EncodeToString([]byte(badAuth))
-	s.h = NewAdminMiddlewareHandler()
+	s.h = NewAdminMiddlewareHandler(s.db)
 }
 
 func (s *AdminMiddlewareTestSuite) TestRequireBasicAuthSuccess() {

@@ -44,8 +44,12 @@ func Server() *service.Server {
 func routes() *chi.Mux {
 	router := chi.NewRouter()
 	m := monitoring.GetMonitor()
-	h := NewPublicHandler()
-	mh := NewPublicMiddlewareHandler()
+	db, err := ssas.CreateDB()
+	if err != nil {
+		panic(fmt.Sprintf("failed to connect to database: %s", err))
+	}
+	h := NewPublicHandler(db, AccessTokenCreator{})
+	mh := NewPublicMiddlewareHandler(db)
 
 	router.Use(
 		gcmw.RequestID,

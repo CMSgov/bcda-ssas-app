@@ -86,7 +86,7 @@ func (s *APITestSuite) SetupSuite() {
 	var err error
 	s.db, err = ssas.CreateDB()
 	require.NoError(s.T(), err)
-	s.h = NewAdminHandler()
+	s.h = NewAdminHandler(s.db)
 	s.gr = ssas.NewGroupRepository(s.db)
 	s.sr = ssas.NewSystemRepository(s.db)
 }
@@ -1736,7 +1736,7 @@ func TestSGAAdmin_NoAuth(t *testing.T) {
 
 	db, err := ssas.CreateDB()
 	require.NoError(t, err)
-	h := NewAdminHandler()
+	h := NewAdminHandler(db)
 	r := ssas.NewGroupRepository(db)
 	service.StartDenylist()
 	cfg.MaxIPs = 3

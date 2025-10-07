@@ -45,8 +45,12 @@ func Server() *service.Server {
 func routes() *chi.Mux {
 	r := chi.NewRouter()
 	m := monitoring.GetMonitor()
-	h := NewAdminHandler()
-	mh := NewAdminMiddlewareHandler()
+	db, err := ssas.CreateDB()
+	if err != nil {
+		panic(fmt.Sprintf("failed to connect to database: %s", err))
+	}
+	h := NewAdminHandler(db)
+	mh := NewAdminMiddlewareHandler(db)
 
 	r.Use(gcmw.RequestID, service.GetTransactionID, service.NewAPILogger(), service.ConnectionClose, service.NewCtxLogger)
 

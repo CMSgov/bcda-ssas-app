@@ -17,18 +17,12 @@ type adminMiddlewareHandler struct {
 	gr *ssas.GroupRepository
 }
 
-func NewAdminMiddlewareHandler() *adminMiddlewareHandler {
-	h := adminMiddlewareHandler{}
-	var err error
-	h.db, err = ssas.CreateDB()
-	h.sr = ssas.NewSystemRepository(h.db)
-	h.gr = ssas.NewGroupRepository(h.db)
-
-	if err != nil {
-		ssas.Logger.Fatalf("Failed to create db %s", err.Error())
-		return &adminMiddlewareHandler{}
+func NewAdminMiddlewareHandler(db *gorm.DB) *adminMiddlewareHandler {
+	return &adminMiddlewareHandler{
+		sr: ssas.NewSystemRepository(db),
+		gr: ssas.NewGroupRepository(db),
+		db: db,
 	}
-	return &h
 }
 
 func (h *adminMiddlewareHandler) requireBasicAuth(next http.Handler) http.Handler {

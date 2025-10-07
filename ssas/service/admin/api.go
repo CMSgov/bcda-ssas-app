@@ -21,18 +21,12 @@ type adminHandler struct {
 	gr *ssas.GroupRepository
 }
 
-func NewAdminHandler() *adminHandler {
-	h := adminHandler{}
-	var err error
-	h.db, err = ssas.CreateDB()
-	h.sr = ssas.NewSystemRepository(h.db)
-	h.gr = ssas.NewGroupRepository(h.db)
-
-	if err != nil {
-		ssas.Logger.Fatalf("Failed to create db %s", err.Error())
-		return &adminHandler{}
+func NewAdminHandler(db *gorm.DB) *adminHandler {
+	return &adminHandler{
+		sr: ssas.NewSystemRepository(db),
+		gr: ssas.NewGroupRepository(db),
+		db: db,
 	}
-	return &h
 }
 
 /*

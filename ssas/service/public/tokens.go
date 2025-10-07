@@ -10,27 +10,9 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
-var accessTokenCreator TokenCreator
-
-func SetAccessTokenCreator() {
-	accessTokenCreator = AccessTokenCreator{}
-}
-
-func GetAccessTokenCreator() TokenCreator {
-	return accessTokenCreator
-}
-
-// TokenCreator provides methods for the creation of tokens.
-// Currently only AccessTokenCreator implements this interface.
-// TO DO:
-// Define a MFATokenCreator & a RegistrationTokenCreator that will implement TokenCreator interface,
-// then add CreateCommonClaims to this interface that all 3 can share.
 type TokenCreator interface {
 	GenerateToken(claims service.CommonClaims) (*jwt.Token, string, error)
 }
-
-// validates that AccessTokenCreator implements the TokenCreator interface
-var _ TokenCreator = AccessTokenCreator{}
 
 // MintRegistrationToken generates a tokenstring for system self-registration endpoints
 func MintRegistrationToken(oktaID string, groupIDs []string) (*jwt.Token, string, error) {
@@ -52,7 +34,7 @@ type AccessTokenCreator struct {
 }
 
 // GenerateToken generates a tokenstring that expires in server.tokenTTL time
-func (accessTokenCreator AccessTokenCreator) GenerateToken(claims service.CommonClaims) (*jwt.Token, string, error) {
+func (a AccessTokenCreator) GenerateToken(claims service.CommonClaims) (*jwt.Token, string, error) {
 	if err := checkTokenClaims(&claims); err != nil {
 		return nil, "", err
 	}

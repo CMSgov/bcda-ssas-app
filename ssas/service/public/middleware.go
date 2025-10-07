@@ -20,18 +20,12 @@ type publicMiddlewareHandler struct {
 	gr *ssas.GroupRepository
 }
 
-func NewPublicMiddlewareHandler() *publicMiddlewareHandler {
-	h := publicMiddlewareHandler{}
-	var err error
-	h.db, err = ssas.CreateDB()
-	h.sr = ssas.NewSystemRepository(h.db)
-	h.gr = ssas.NewGroupRepository(h.db)
-
-	if err != nil {
-		ssas.Logger.Fatalf("Failed to create db %s", err.Error())
-		return &publicMiddlewareHandler{}
+func NewPublicMiddlewareHandler(db *gorm.DB) *publicMiddlewareHandler {
+	return &publicMiddlewareHandler{
+		sr: ssas.NewSystemRepository(db),
+		gr: ssas.NewGroupRepository(db),
+		db: db,
 	}
-	return &h
 }
 
 func (h *publicMiddlewareHandler) readGroupID(next http.Handler) http.Handler {
