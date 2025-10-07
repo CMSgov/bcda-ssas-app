@@ -3,7 +3,6 @@ package public
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"github.com/CMSgov/bcda-ssas-app/ssas"
 	"github.com/CMSgov/bcda-ssas-app/ssas/cfg"
@@ -13,12 +12,7 @@ import (
 
 var accessTokenCreator TokenCreator
 
-var selfRegistrationTokenDuration time.Duration
-
-func init() {
-	minutes := cfg.GetEnvInt("SSAS_MFA_TOKEN_TIMEOUT_MINUTES", 60)
-	selfRegistrationTokenDuration = time.Duration(int64(time.Minute) * int64(minutes))
-
+func SetAccessTokenCreator() {
 	accessTokenCreator = AccessTokenCreator{}
 }
 
@@ -33,10 +27,6 @@ func GetAccessTokenCreator() TokenCreator {
 // then add CreateCommonClaims to this interface that all 3 can share.
 type TokenCreator interface {
 	GenerateToken(claims service.CommonClaims) (*jwt.Token, string, error)
-}
-
-// AccessTokenCreator is an implementation of TokenCreator that creates access tokens.
-type AccessTokenCreator struct {
 }
 
 // validates that AccessTokenCreator implements the TokenCreator interface
@@ -54,7 +44,11 @@ func MintRegistrationToken(oktaID string, groupIDs []string) (*jwt.Token, string
 		return nil, "", err
 	}
 
-	return server.MintTokenWithDuration(&claims, selfRegistrationTokenDuration)
+	return server.MintTokenWithDuration(&claims, cfg.SelfRegistrationTokenDuration)
+}
+
+// AccessTokenCreator is an implementation of TokenCreator that creates access tokens.
+type AccessTokenCreator struct {
 }
 
 // GenerateToken generates a tokenstring that expires in server.tokenTTL time

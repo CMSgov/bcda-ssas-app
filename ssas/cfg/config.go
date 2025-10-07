@@ -10,13 +10,14 @@ import (
 )
 
 var (
-	DefaultScope         string
-	MaxIPs               int
-	CredentialExpiration time.Duration
-	MacaroonExpiration   time.Duration
-	HashIter             int
-	HashKeyLen           int
-	SaltSize             int
+	DefaultScope                  string
+	MaxIPs                        int
+	CredentialExpiration          time.Duration
+	MacaroonExpiration            time.Duration
+	HashIter                      int
+	HashKeyLen                    int
+	SaltSize                      int
+	SelfRegistrationTokenDuration time.Duration
 )
 
 // Get configuration/environment variables for Hashes and Systems.
@@ -67,4 +68,7 @@ func LoadEnvConfigs() {
 		// ServiceHalted(Event{Help:"SSAS_HASH_ITERATIONS, SSAS_HASH_KEY_LENGTH and SSAS_HASH_SALT_SIZE environment values must be set"})
 		panic("SSAS_HASH_ITERATIONS, SSAS_HASH_KEY_LENGTH and SSAS_HASH_SALT_SIZE environment values must be set")
 	}
+
+	minutes := GetEnvInt("SSAS_MFA_TOKEN_TIMEOUT_MINUTES", 60)
+	SelfRegistrationTokenDuration = time.Duration(int64(time.Minute) * int64(minutes))
 }
