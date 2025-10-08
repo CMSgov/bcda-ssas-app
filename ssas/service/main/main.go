@@ -90,7 +90,6 @@ func main() {
 	var config = parseFlags()
 	NewNewRelicApp()
 	cfg.LoadEnvConfigs()
-	public.SetAccessTokenCreator()
 	handleFlags(config)
 }
 

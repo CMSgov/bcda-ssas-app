@@ -9,10 +9,12 @@ import (
 	"os"
 	"testing"
 
+	"github.com/CMSgov/bcda-ssas-app/ssas"
 	"github.com/CMSgov/bcda-ssas-app/ssas/constants"
 	"github.com/CMSgov/bcda-ssas-app/ssas/service"
 	"github.com/go-chi/chi/v5"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -26,7 +28,9 @@ type PublicMiddlewareTestSuite struct {
 }
 
 func (s *PublicMiddlewareTestSuite) SetupTest() {
-	s.h = NewPublicMiddlewareHandler()
+	db, err := ssas.CreateDB()
+	require.NoError(s.T(), err)
+	s.h = NewPublicMiddlewareHandler(db)
 	s.rr = httptest.NewRecorder()
 }
 

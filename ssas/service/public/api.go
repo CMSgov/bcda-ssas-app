@@ -28,20 +28,16 @@ type publicHandler struct {
 	db *gorm.DB
 	sr *ssas.SystemRepository
 	gr *ssas.GroupRepository
+	tc TokenCreator
 }
 
-func NewPublicHandler() *publicHandler {
-	h := publicHandler{}
-	var err error
-	h.db, err = ssas.CreateDB()
-	h.sr = ssas.NewSystemRepository(h.db)
-	h.gr = ssas.NewGroupRepository(h.db)
-
-	if err != nil {
-		ssas.Logger.Fatalf("Failed to create db %s", err.Error())
-		return &publicHandler{}
+func NewPublicHandler(db *gorm.DB, tc TokenCreator) *publicHandler {
+	return &publicHandler{
+		sr: ssas.NewSystemRepository(db),
+		gr: ssas.NewGroupRepository(db),
+		tc: tc,
+		db: db,
 	}
-	return &h
 }
 
 type Key struct {
@@ -299,7 +295,7 @@ func (h *publicHandler) token(w http.ResponseWriter, r *http.Request) {
 
 	claims := CreateCommonClaims("AccessToken", "", fmt.Sprintf("%d", system.ID), system.ClientID, data, "", nil)
 
-	token, ts, err := GetAccessTokenCreator().GenerateToken(claims)
+	token, ts, err := h.tc.GenerateToken(claims)
 	if err != nil {
 		logger.Error("failure minting token")
 		service.JSONError(w, http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized), "failure minting token")
@@ -401,7 +397,7 @@ func (h *publicHandler) tokenV2(w http.ResponseWriter, r *http.Request) {
 
 	commonClaims := CreateCommonClaims("AccessToken", "", fmt.Sprintf("%d", system.ID), system.ClientID, data, system.XData, nil)
 
-	accessToken, ts, err := GetAccessTokenCreator().GenerateToken(commonClaims)
+	accessToken, ts, err := h.tc.GenerateToken(commonClaims)
 	if err != nil {
 		logger.Error(err)
 		service.JSONError(w, http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized), "")
