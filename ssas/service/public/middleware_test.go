@@ -272,7 +272,6 @@ func (s *PublicMiddlewareTestSuite) TestVerifySGAAuthSkip() {
 	assert.Equal(s.T(), http.StatusOK, resp.StatusCode)
 }
 
-
 func (s *PublicMiddlewareTestSuite) TestContains() {
 	list := []string{"abc", "def", "hij", "hij"}
 	assert.True(s.T(), contains(list, "abc"))

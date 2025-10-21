@@ -711,7 +711,6 @@ func (s *APITestSuite) TestJSONError() {
 	assert.Equal(s.T(), "unauthorized", error.ErrorDescription)
 }
 
-
 func (s *APITestSuite) SetupClientAssertionTest() (ssas.Credentials, ssas.Group, *rsa.PrivateKey) {
 	groupID := ssas.RandomHexID()[0:4]
 	group := ssas.Group{GroupID: groupID, XData: "x_data"}

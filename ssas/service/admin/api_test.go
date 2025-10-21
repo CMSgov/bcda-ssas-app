@@ -97,7 +97,6 @@ func TestAPITestSuite(t *testing.T) {
 
 }
 
-
 func (s *APITestSuite) TestCreateGroup() {
 
 	gid := ssas.RandomBase64(16)
