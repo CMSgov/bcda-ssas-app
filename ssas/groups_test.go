@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"os"
 	"testing"
 
 	"github.com/CMSgov/bcda-ssas-app/ssas/constants"
@@ -15,7 +14,7 @@ import (
 	"gorm.io/gorm"
 )
 
-const SampleGroup string = `{  
+const SampleGroup string = `{
   "group_id":"%s",
   "name": "ACO Corp Systems",
   "resources": [
@@ -139,13 +138,9 @@ func (s *GroupsTestSuite) TestListGroups() {
 	assert.Len(s.T(), groupList.Groups, int(startingCount))
 }
 
-func (s *GroupsTestSuite) TestListGroups_With_SGA_ADMIN_FEATURE() {
+func (s *GroupsTestSuite) TestListGroups_WithSGA() {
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, constants.CtxSGAKey, "unique-sga")
-
-	newFF := "true"
-	oldFF := os.Getenv("SGA_ADMIN_FEATURE")
-	os.Setenv("SGA_ADMIN_FEATURE", newFF)
 
 	// create 3 groups
 	// group 1 multiple systems, some unauth
@@ -194,7 +189,6 @@ func (s *GroupsTestSuite) TestListGroups_With_SGA_ADMIN_FEATURE() {
 		assert.Nil(s.T(), err)
 		err = CleanDatabase(g3)
 		assert.Nil(s.T(), err)
-		os.Setenv("SGA_ADMIN_FEATURE", oldFF)
 	})
 
 	// verify only group 1 is returned, and only has auth system

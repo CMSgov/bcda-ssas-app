@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"math"
-	"os"
 	"slices"
 	"strconv"
 	"time"
@@ -146,19 +145,17 @@ func (g *GroupRepository) ListGroups(ctx context.Context) (list GroupList, err e
 	list.Count = len(groups)
 	list.ReportedAt = time.Now()
 
-	if os.Getenv("SGA_ADMIN_FEATURE") == "true" {
-		requesterSGAKey := fmt.Sprintf("%v", ctx.Value(constants.CtxSGAKey))
+	requesterSGAKey := fmt.Sprintf("%v", ctx.Value(constants.CtxSGAKey))
 
-		groups = slices.DeleteFunc(groups, func(group GroupSummary) bool {
-			// remove all unauthorized systems
-			group.Systems = slices.DeleteFunc(group.Systems, func(system SystemSummary) bool {
-				return system.SGAKey != requesterSGAKey
-			})
-
-			// remove group if no authorized systems
-			return len(group.Systems) == 0
+	groups = slices.DeleteFunc(groups, func(group GroupSummary) bool {
+		// remove all unauthorized systems
+		group.Systems = slices.DeleteFunc(group.Systems, func(system SystemSummary) bool {
+			return system.SGAKey != requesterSGAKey
 		})
-	}
+
+		// remove group if no authorized systems
+		return len(group.Systems) == 0
+	})
 
 	list.Groups = groups
 	return list, nil
@@ -251,7 +248,7 @@ func (g *GroupRepository) GetGroupByID(ctx context.Context, id string) (Group, e
 	}
 
 	skipSGAAuthCheck := fmt.Sprintf("%v", ctx.Value(constants.CtxSGASkipAuthKey))
-	if os.Getenv("SGA_ADMIN_FEATURE") == "true" && skipSGAAuthCheck != "true" {
+	if skipSGAAuthCheck != "true" {
 		sgaKeyFromGroupID, err := GetSGAKeyByGroupID(ctx, g.db, group.GroupID)
 		requesterSGAKey := fmt.Sprintf("%v", ctx.Value(constants.CtxSGAKey))
 
