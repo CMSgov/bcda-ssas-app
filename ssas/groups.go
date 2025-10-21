@@ -145,17 +145,20 @@ func (g *GroupRepository) ListGroups(ctx context.Context) (list GroupList, err e
 	list.Count = len(groups)
 	list.ReportedAt = time.Now()
 
-	requesterSGAKey := fmt.Sprintf("%v", ctx.Value(constants.CtxSGAKey))
+	skipSGAAuthCheck := fmt.Sprintf("%v", ctx.Value(constants.CtxSGASkipAuthKey))
+	if skipSGAAuthCheck != "true" {
+		requesterSGAKey := fmt.Sprintf("%v", ctx.Value(constants.CtxSGAKey))
 
-	groups = slices.DeleteFunc(groups, func(group GroupSummary) bool {
-		// remove all unauthorized systems
-		group.Systems = slices.DeleteFunc(group.Systems, func(system SystemSummary) bool {
-			return system.SGAKey != requesterSGAKey
+		groups = slices.DeleteFunc(groups, func(group GroupSummary) bool {
+			// remove all unauthorized systems
+			group.Systems = slices.DeleteFunc(group.Systems, func(system SystemSummary) bool {
+				return system.SGAKey != requesterSGAKey
+			})
+
+			// remove group if no authorized systems
+			return len(group.Systems) == 0
 		})
-
-		// remove group if no authorized systems
-		return len(group.Systems) == 0
-	})
+	}
 
 	list.Groups = groups
 	return list, nil
