@@ -60,7 +60,11 @@ func (s *GroupsTestSuite) SetupTest() {
 	s.db, err = CreateDB()
 	require.NoError(s.T(), err)
 	s.r = NewGroupRepository(s.db)
+}
 
+// skipAuthContext returns a context that skips SGA authorization for tests
+func (s *GroupsTestSuite) skipAuthContext() context.Context {
+	return context.WithValue(context.Background(), constants.CtxSGASkipAuthKey, "true")
 }
 
 func (s *GroupsTestSuite) TearDownTest() {
@@ -80,7 +84,8 @@ func (s *GroupsTestSuite) TestCreateGroup() {
 	gd := GroupData{}
 	err := json.Unmarshal([]byte(fmt.Sprintf(SampleGroup, gid, SampleXdata)), &gd)
 	assert.Nil(s.T(), err)
-	g, err := s.r.CreateGroup(context.Background(), gd)
+
+	g, err := s.r.CreateGroup(s.skipAuthContext(), gd)
 
 	require.Nil(s.T(), err)
 	require.NotNil(s.T(), g)
@@ -116,15 +121,16 @@ func (s *GroupsTestSuite) TestListGroups() {
 	gd := GroupData{}
 	err := json.Unmarshal(groupBytes, &gd)
 	require.Nil(s.T(), err)
-	g1, err := s.r.CreateGroup(context.Background(), gd)
+
+	g1, err := s.r.CreateGroup(s.skipAuthContext(), gd)
 	require.Nil(s.T(), err)
 
 	gd.GroupID = RandomHexID()
 	gd.Name = "some-fake-name"
-	g2, err := s.r.CreateGroup(context.Background(), gd)
+	g2, err := s.r.CreateGroup(s.skipAuthContext(), gd)
 	assert.Nil(s.T(), err)
 
-	groupList, err := s.r.ListGroups(context.Background())
+	groupList, err := s.r.ListGroups(s.skipAuthContext())
 	assert.Nil(s.T(), err)
 	assert.Len(s.T(), groupList.Groups, int(2+startingCount))
 
@@ -133,7 +139,7 @@ func (s *GroupsTestSuite) TestListGroups() {
 	err = CleanDatabase(g2)
 	assert.Nil(s.T(), err)
 
-	groupList, err = s.r.ListGroups(context.Background())
+	groupList, err = s.r.ListGroups(s.skipAuthContext())
 	assert.Nil(s.T(), err)
 	assert.Len(s.T(), groupList.Groups, int(startingCount))
 }
@@ -150,21 +156,21 @@ func (s *GroupsTestSuite) TestListGroups_WithSGA() {
 	gd1 := GroupData{}
 	err := json.Unmarshal(g1Bytes, &gd1)
 	assert.Nil(s.T(), err)
-	g1, err := s.r.CreateGroup(context.Background(), gd1)
+	g1, err := s.r.CreateGroup(s.skipAuthContext(), gd1)
 	assert.Nil(s.T(), err)
 
 	g2Bytes := []byte(fmt.Sprintf(SampleGroup, "group-id-2", SampleXdata))
 	gd2 := GroupData{}
 	err = json.Unmarshal(g2Bytes, &gd2)
 	assert.Nil(s.T(), err)
-	g2, err := s.r.CreateGroup(context.Background(), gd2)
+	g2, err := s.r.CreateGroup(s.skipAuthContext(), gd2)
 	assert.Nil(s.T(), err)
 
 	g3Bytes := []byte(fmt.Sprintf(SampleGroup, "group-id-3", SampleXdata))
 	gd3 := GroupData{}
 	err = json.Unmarshal(g3Bytes, &gd3)
 	assert.Nil(s.T(), err)
-	g3, err := s.r.CreateGroup(context.Background(), gd3)
+	g3, err := s.r.CreateGroup(s.skipAuthContext(), gd3)
 	assert.Nil(s.T(), err)
 
 	// create 3 systems
@@ -214,7 +220,8 @@ func (s *GroupsTestSuite) TestUpdateGroup() {
 	gd.Scopes = []string{"aScope", "anotherScope"}
 	gd.GroupID = RandomHexID()
 	gd.Name = "aNewGroupName"
-	changed, err := s.r.UpdateGroup(context.Background(), fmt.Sprint(orig.ID), gd)
+
+	changed, err := s.r.UpdateGroup(s.skipAuthContext(), fmt.Sprint(orig.ID), gd)
 	assert.Nil(s.T(), err)
 
 	assert.Nil(s.T(), err)
@@ -243,7 +250,7 @@ func (s *GroupsTestSuite) TestDeleteGroup() {
 	err = s.db.Create(&encrKey).Error
 	require.Nil(s.T(), err, "unexpected error")
 
-	err = s.r.DeleteGroup(context.Background(), fmt.Sprint(group.ID))
+	err = s.r.DeleteGroup(s.skipAuthContext(), fmt.Sprint(group.ID))
 	assert.Nil(s.T(), err)
 	err = CleanDatabase(group)
 	assert.Nil(s.T(), err)
