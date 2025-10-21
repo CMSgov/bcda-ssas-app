@@ -8,7 +8,6 @@ import (
 	"log"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"testing"
 
 	"github.com/CMSgov/bcda-ssas-app/ssas"
@@ -119,13 +118,7 @@ func TestAdminMiddlewareTestSuite(t *testing.T) {
 }
 
 func (s *AdminMiddlewareTestSuite) TestRequireBasicAuthContext() {
-	oldFFVal := os.Getenv("SGA_ADMIN_FEATURE")
-	os.Setenv("SGA_ADMIN_FEATURE", "true")
-
 	testAuth(s.basicAuth, http.StatusOK, s, verifyContext)
-
-	err := os.Setenv("SGA_ADMIN_FEATURE", oldFFVal)
-	assert.Nil(s.T(), err)
 }
 
 func verifyContext(next http.Handler) http.Handler {
@@ -150,13 +143,7 @@ func (s *AdminMiddlewareTestSuite) TestRequireBasicAuthContext_NoSGA() {
 	assert.NoError(s.T(), err)
 	s.basicAuth = encCreds
 
-	oldFFVal := os.Getenv("SGA_ADMIN_FEATURE")
-	os.Setenv("SGA_ADMIN_FEATURE", "true")
-
 	testAuth(s.basicAuth, http.StatusOK, s, verifyNoContext)
-
-	err = os.Setenv("SGA_ADMIN_FEATURE", oldFFVal)
-	assert.Nil(s.T(), err)
 }
 
 func verifyNoContext(next http.Handler) http.Handler {
