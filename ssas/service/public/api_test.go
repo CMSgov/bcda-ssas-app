@@ -59,12 +59,8 @@ func (s *APITestSuite) SetupSuite() {
 	service.StartDenylist()
 	s.logEntry = MakeTestStructuredLoggerEntry(logrus.Fields{"cms_id": "A9999", "request_id": uuid.NewUUID().String()})
 
-	if os.Getenv("SGA_ADMIN_FEATURE") == "true" {
-		s.ctx = context.WithValue(context.Background(), constants.CtxSGAKey, "test-sga")
-		s.ctx = context.WithValue(context.Background(), constants.CtxSGASkipAuthKey, "true")
-	} else {
-		s.ctx = context.Background()
-	}
+	s.ctx = context.WithValue(context.Background(), constants.CtxSGAKey, "test-sga")
+	s.ctx = context.WithValue(context.Background(), constants.CtxSGASkipAuthKey, "true")
 }
 
 func (s *APITestSuite) SetupTest() {
@@ -715,15 +711,6 @@ func (s *APITestSuite) TestJSONError() {
 	assert.Equal(s.T(), "unauthorized", error.ErrorDescription)
 }
 
-func TestAPITestSuite_With_SGA_ADMIN_FEATURE(t *testing.T) {
-	newFF := "true"
-	oldFF := os.Getenv("SGA_ADMIN_FEATURE")
-	os.Setenv("SGA_ADMIN_FEATURE", newFF)
-
-	suite.Run(t, new(APITestSuite))
-
-	os.Setenv("SGA_ADMIN_FEATURE", oldFF)
-}
 
 func (s *APITestSuite) SetupClientAssertionTest() (ssas.Credentials, ssas.Group, *rsa.PrivateKey) {
 	groupID := ssas.RandomHexID()[0:4]
