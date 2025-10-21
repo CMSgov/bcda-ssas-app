@@ -828,13 +828,9 @@ func (s *SystemsTestSuite) TestGetSystemByClientIDWithNonNumberID() {
 	require.NotNil(s.T(), err, "found system for non-number id")
 }
 
-func (s *SystemsTestSuite) TestGetSystemByID_With_SGA_ADMIN_FEATURE_Success() {
+func (s *SystemsTestSuite) TestGetSystemByID_WithSGA_Success() {
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, constants.CtxSGAKey, "test-sga")
-
-	newFF := "true"
-	oldFF := os.Getenv("SGA_ADMIN_FEATURE")
-	os.Setenv("SGA_ADMIN_FEATURE", newFF)
 
 	g, expSystem, err := makeTestSystem(s.db)
 	assert.Nil(s.T(), err, "unexpected error")
@@ -845,17 +841,11 @@ func (s *SystemsTestSuite) TestGetSystemByID_With_SGA_ADMIN_FEATURE_Success() {
 	assert.Equal(s.T(), expSystem.ID, gotSystem.ID)
 	assert.Equal(s.T(), expSystem.GID, gotSystem.GID)
 	_ = CleanDatabase(g)
-
-	os.Setenv("SGA_ADMIN_FEATURE", oldFF)
 }
 
-func (s *SystemsTestSuite) TestGetSystemByID_With_SGA_ADMIN_FEATURE_UnauthorizedRequester() {
+func (s *SystemsTestSuite) TestGetSystemByID_WithSGA_UnauthorizedRequester() {
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, constants.CtxSGAKey, "different-sga")
-
-	newFF := "true"
-	oldFF := os.Getenv("SGA_ADMIN_FEATURE")
-	os.Setenv("SGA_ADMIN_FEATURE", newFF)
 
 	g, expSystem, err := makeTestSystem(s.db)
 	assert.Nil(s.T(), err, "unexpected error")
@@ -866,16 +856,11 @@ func (s *SystemsTestSuite) TestGetSystemByID_With_SGA_ADMIN_FEATURE_Unauthorized
 	assert.Equal(s.T(), System{}.ID, gotSystem.ID)
 
 	_ = CleanDatabase(g)
-	os.Setenv("SGA_ADMIN_FEATURE", oldFF)
 }
 
-func (s *SystemsTestSuite) TestGetSystemByClientID_With_SGA_ADMIN_FEATURE_Success() {
+func (s *SystemsTestSuite) TestGetSystemByClientID_WithSGA_Success() {
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, constants.CtxSGAKey, "test-sga")
-
-	newFF := "true"
-	oldFF := os.Getenv("SGA_ADMIN_FEATURE")
-	os.Setenv("SGA_ADMIN_FEATURE", newFF)
 
 	group := Group{GroupID: "abcdef123456"}
 	err := s.db.Create(&group).Error
@@ -895,16 +880,11 @@ func (s *SystemsTestSuite) TestGetSystemByClientID_With_SGA_ADMIN_FEATURE_Succes
 	assert.Equal(s.T(), expSystem.GID, gotSystem.GID)
 
 	_ = CleanDatabase(group)
-	os.Setenv("SGA_ADMIN_FEATURE", oldFF)
 }
 
-func (s *SystemsTestSuite) TestGetSystemsByGroupIDString_With_SGA_ADMIN_FEATURE_Success() {
+func (s *SystemsTestSuite) TestGetSystemsByGroupIDString_WithSGA_Success() {
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, constants.CtxSGAKey, "test-sga")
-
-	newFF := "true"
-	oldFF := os.Getenv("SGA_ADMIN_FEATURE")
-	os.Setenv("SGA_ADMIN_FEATURE", newFF)
 
 	g, expSystem, err := makeTestSystem(s.db)
 	assert.Nil(s.T(), err, "unexpected error")
@@ -916,7 +896,6 @@ func (s *SystemsTestSuite) TestGetSystemsByGroupIDString_With_SGA_ADMIN_FEATURE_
 	assert.Equal(s.T(), expSystem.GID, gotSystems[0].GID)
 
 	_ = CleanDatabase(g)
-	os.Setenv("SGA_ADMIN_FEATURE", oldFF)
 }
 
 func (s *SystemsTestSuite) TestGetSGAKeyByGroupID() {
