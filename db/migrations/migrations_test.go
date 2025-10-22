@@ -13,6 +13,7 @@ import (
 	"testing"
 
 	"github.com/CMSgov/bcda-ssas-app/ssas"
+	"github.com/CMSgov/bcda-ssas-app/ssas/constants"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
@@ -23,6 +24,11 @@ var (
 	dbURL string
 	r     *ssas.GroupRepository
 )
+
+// skipAuthContext returns a context that skips SGA authorization for tests
+func skipAuthContext() context.Context {
+	return context.WithValue(context.Background(), constants.CtxSGASkipAuthKey, "true")
+}
 
 type SchemaMigration struct {
 	Version int
@@ -138,26 +144,26 @@ func up2(t *testing.T) {
 		assert.Nil(t, err)
 
 		g2.GroupID = "T0001"
-		group2, err := r.CreateGroup(context.Background(), g2)
+		group2, err := r.CreateGroup(skipAuthContext(), g2)
 		require.Nil(t, err)
 		assert.Equal(t, group2.GroupID, "T0001")
 
 		g3.GroupID = "T0001"
 		// We still don't let two undeleted groups have the same group_id . . .
-		group3, err := r.CreateGroup(context.Background(), g3)
+		group3, err := r.CreateGroup(skipAuthContext(), g3)
 		assert.NotNil(t, err)
 
-		err = r.DeleteGroup(context.Background(), strconv.Itoa(int(group2.ID)))
+		err = r.DeleteGroup(skipAuthContext(), strconv.Itoa(int(group2.ID)))
 		assert.Nil(t, err)
 
 		// . . . but one can now share the same group_id as a deleted group
-		group3, err = r.CreateGroup(context.Background(), g3)
+		group3, err = r.CreateGroup(skipAuthContext(), g3)
 		require.Nil(t, err)
 		assert.Equal(t, group3.GroupID, "T0001")
 		assert.NotEqual(t, group1.ID, group3.ID)
 
 		// Multiple deleted groups should be able to share the same group_id
-		err = r.DeleteGroup(context.Background(), strconv.Itoa(int(group3.ID)))
+		err = r.DeleteGroup(skipAuthContext(), strconv.Itoa(int(group3.ID)))
 		assert.Nil(t, err)
 
 		assert.Nil(t, db.Unscoped().Delete(&s1).Error)

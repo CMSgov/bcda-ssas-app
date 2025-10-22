@@ -46,6 +46,11 @@ func (s *SystemsTestSuite) SetupTest() {
 	s.r = NewSystemRepository(s.db)
 }
 
+// skipAuthContext returns a context that skips SGA authorization for tests
+func (s *SystemsTestSuite) skipAuthContext() context.Context {
+	return context.WithValue(context.Background(), constants.CtxSGASkipAuthKey, "true")
+}
+
 func (s *SystemsTestSuite) TearDownTest() {
 	db, err := s.db.DB()
 	require.NoError(s.T(), err)
@@ -60,7 +65,7 @@ func TestSystemsTestSuite(t *testing.T) {
 func (s *SystemsTestSuite) TestGetEncryptionKey() {
 	sys, group, pubKey, _ := s.createSystemWithPubKey()
 
-	key, err := s.r.GetEncryptionKey(context.Background(), sys)
+	key, err := s.r.GetEncryptionKey(s.skipAuthContext(), sys)
 	assert.Nil(s.T(), err)
 	assert.Equal(s.T(), pubKey, key.Body)
 
@@ -71,7 +76,7 @@ func (s *SystemsTestSuite) TestFindEncryptionKey() {
 	assert := s.Assert()
 	sys, group, pubKey, pubKeyId := s.createSystemWithPubKey()
 
-	key, err := s.r.FindEncryptionKey(context.Background(), sys, "", pubKeyId)
+	key, err := s.r.FindEncryptionKey(s.skipAuthContext(), sys, "", pubKeyId)
 	assert.Nil(err)
 	assert.Equal(pubKey, key.Body)
 	err = CleanDatabase(group)
@@ -82,7 +87,7 @@ func (s *SystemsTestSuite) TestFindEncryptionKeyNotFound() {
 	assert := s.Assert()
 	sys, group, _, _ := s.createSystemWithPubKey()
 
-	_, err := s.r.FindEncryptionKey(context.Background(), sys, "", uuid.NewRandom().String())
+	_, err := s.r.FindEncryptionKey(s.skipAuthContext(), sys, "", uuid.NewRandom().String())
 	assert.NotNil(err)
 	assert.Contains(err.Error(), "cannot find key for systemId")
 
@@ -189,7 +194,7 @@ func (s *SystemsTestSuite) TestSystemSavePublicKey() {
 		Bytes: publicKeyPKIX,
 	})
 	_, _ = s.r.SavePublicKey(s.db, system, bytes.NewReader(publicKeyBytes), "", true)
-	keys, _ := s.r.GetEncryptionKeys(context.Background(), system)
+	keys, _ := s.r.GetEncryptionKeys(s.skipAuthContext(), system)
 	assert.Len(keys, 1)
 
 	err = CleanDatabase(group)
@@ -268,21 +273,21 @@ func (s *SystemsTestSuite) TestSystemPublicKeyEmpty() {
 	_, err = s.r.SavePublicKey(s.db, system, strings.NewReader(""), "", true)
 	assert.EqualError(err, fmt.Sprintf("invalid public key for clientID %s: not able to decode PEM-formatted public key", clientID))
 
-	k, err := s.r.GetEncryptionKey(context.Background(), system)
+	k, err := s.r.GetEncryptionKey(s.skipAuthContext(), system)
 	assert.EqualError(err, fmt.Sprintf("cannot find key for clientID %s: record not found", clientID))
 	assert.Empty(k, "Empty string does not yield empty encryption key!")
 
 	_, err = s.r.SavePublicKey(s.db, system, strings.NewReader(emptyPEM), "", true)
 	assert.EqualError(err, fmt.Sprintf("invalid public key for clientID %s: not able to decode PEM-formatted public key", clientID))
 
-	k, err = s.r.GetEncryptionKey(context.Background(), system)
+	k, err = s.r.GetEncryptionKey(s.skipAuthContext(), system)
 	assert.EqualError(err, fmt.Sprintf("cannot find key for clientID %s: record not found", clientID))
 	assert.Empty(k, "Empty PEM key does not yield empty encryption key!")
 
 	_, err = s.r.SavePublicKey(s.db, system, strings.NewReader(validPEM), "", true)
 	assert.Nil(err)
 
-	k, err = s.r.GetEncryptionKey(context.Background(), system)
+	k, err = s.r.GetEncryptionKey(s.skipAuthContext(), system)
 	assert.Nil(err)
 	assert.NotEmpty(k, "Valid PEM key yields empty public key!")
 
@@ -327,7 +332,7 @@ func (s *SystemsTestSuite) TestGetSystemByClientIDSuccess() {
 		s.FailNow(err.Error())
 	}
 
-	sys, err := s.r.GetSystemByClientID(context.Background(), system.ClientID)
+	sys, err := s.r.GetSystemByClientID(s.skipAuthContext(), system.ClientID)
 	assert.Nil(err)
 	assert.NotEmpty(sys)
 	assert.Equal("Client with System", sys.ClientName)
@@ -361,7 +366,7 @@ func (s *SystemsTestSuite) TestSystemClientGroupDuplicate() {
 	err = s.db.Create(&system).Error
 	assert.EqualError(err, "ERROR: duplicate key value violates unique constraint \"idx_client\" (SQLSTATE 23505)")
 
-	sys, err := s.r.GetSystemByClientID(context.Background(), system.ClientID)
+	sys, err := s.r.GetSystemByClientID(s.skipAuthContext(), system.ClientID)
 	assert.Nil(err)
 	assert.NotEmpty(sys)
 	assert.Equal("First Client", sys.ClientName)
@@ -444,23 +449,23 @@ func (s *SystemsTestSuite) TestUpdateSystemSuccess() {
 	assert.NotEqual("", creds.ClientSecret)
 
 	var input = map[string]string{"client_name": "updated client name"}
-	_, err = s.r.UpdateSystem(context.Background(), creds.SystemID, input)
+	_, err = s.r.UpdateSystem(s.skipAuthContext(), creds.SystemID, input)
 	assert.Nil(err)
-	sys, err := s.r.GetSystemByID(context.Background(), creds.SystemID)
+	sys, err := s.r.GetSystemByID(s.skipAuthContext(), creds.SystemID)
 	assert.Nil(err)
 	assert.Equal("updated client name", sys.ClientName)
 
 	input = map[string]string{"api_scope": "modified-scope"}
-	_, err = s.r.UpdateSystem(context.Background(), creds.SystemID, input)
+	_, err = s.r.UpdateSystem(s.skipAuthContext(), creds.SystemID, input)
 	assert.Nil(err)
-	sys, err = s.r.GetSystemByID(context.Background(), creds.SystemID)
+	sys, err = s.r.GetSystemByID(s.skipAuthContext(), creds.SystemID)
 	assert.Nil(err)
 	assert.Equal("modified-scope", sys.APIScope)
 
 	input = map[string]string{"software_id": "modified-software-id"}
-	_, err = s.r.UpdateSystem(context.Background(), creds.SystemID, input)
+	_, err = s.r.UpdateSystem(s.skipAuthContext(), creds.SystemID, input)
 	assert.Nil(err)
-	sys, err = s.r.GetSystemByID(context.Background(), creds.SystemID)
+	sys, err = s.r.GetSystemByID(s.skipAuthContext(), creds.SystemID)
 	assert.Nil(err)
 	assert.Equal("modified-software-id", sys.SoftwareID)
 
@@ -472,7 +477,7 @@ func (s *SystemsTestSuite) TestUpdateNonExistingSystem() {
 	assert := s.Assert()
 
 	var input = map[string]string{"client_name": "updated client name"}
-	_, err := s.r.UpdateSystem(context.Background(), "non-existing-system-id", input)
+	_, err := s.r.UpdateSystem(s.skipAuthContext(), "non-existing-system-id", input)
 	assert.NotNil(err)
 	assert.Equal("record not found for id=non-existing-system-id", err.Error())
 }
@@ -552,7 +557,7 @@ func (s *SystemsTestSuite) TestRegisterSystemIps() {
 			creds, err := s.r.RegisterSystem(context.WithValue(context.Background(), CtxLoggerKey, s.logEntry), "Test system with "+tc.ip, groupID, cfg.DefaultScope, pubKey, []string{tc.ip}, trackingID)
 			assert.Nil(err, fmt.Sprintf("%s should be a good IP, but was not allowed", tc.ip))
 			assert.NotEmpty(creds, tc.ip+"should have been a valid IP")
-			system, err := s.r.GetSystemByID(context.Background(), creds.SystemID)
+			system, err := s.r.GetSystemByID(s.skipAuthContext(), creds.SystemID)
 			assert.Nil(err)
 			ips, err := s.r.GetIPs(system)
 			assert.Nil(err)
@@ -655,7 +660,7 @@ func (s *SystemsTestSuite) TestSaveSecret() {
 	if err != nil {
 		s.FailNow("cannot hash random secret")
 	}
-	err = s.r.SaveSecret(context.Background(), system, hashedSecret1.String())
+	err = s.r.SaveSecret(s.skipAuthContext(), system, hashedSecret1.String())
 	if err != nil {
 		s.FailNow(err.Error())
 	}
@@ -670,14 +675,14 @@ func (s *SystemsTestSuite) TestSaveSecret() {
 	if err != nil {
 		s.FailNow("cannot hash random secret")
 	}
-	err = s.r.SaveSecret(context.Background(), system, hashedSecret2.String())
+	err = s.r.SaveSecret(s.skipAuthContext(), system, hashedSecret2.String())
 	if err != nil {
 		s.FailNow(err.Error())
 	}
 
 	// Verify we now retrieve second secret
 	// Note that this also tests GetSecret()
-	savedSecret, err := s.r.GetSecret(context.Background(), system)
+	savedSecret, err := s.r.GetSecret(s.skipAuthContext(), system)
 	if err != nil {
 		s.FailNow(err.Error())
 	}
@@ -699,7 +704,7 @@ func (s *SystemsTestSuite) TestRevokeSecrets() {
 	s.db.Find(&systemSecrets, "system_id = ?", system.ID)
 	assert.NotEmpty(s.T(), systemSecrets)
 
-	err := s.r.RevokeSecret(context.Background(), system)
+	err := s.r.RevokeSecret(s.skipAuthContext(), system)
 	assert.Nil(s.T(), err)
 	s.db.Find(&systemSecrets, "system_id = ?", system.ID)
 	assert.Empty(s.T(), systemSecrets)
@@ -719,7 +724,7 @@ func (s *SystemsTestSuite) TestResetSecret() {
 	s.db.Where("system_id = ?", system.ID).First(&secret1)
 	assert.Equal(s.T(), secret1.Hash, secret.Hash)
 
-	credentials, err := s.r.ResetSecret(context.Background(), system)
+	credentials, err := s.r.ResetSecret(s.skipAuthContext(), system)
 	if err != nil {
 		s.FailNow("Error from ResetSecret()", err.Error())
 		return
@@ -788,7 +793,7 @@ func (s *SystemsTestSuite) TestGetSystemByIDWithKnownSystem() {
 	g, system, err := makeTestSystem(s.db)
 	assert.Nil(s.T(), err, "unexpected error")
 	require.Nil(s.T(), err, "unexpected error ", err)
-	systemFromID, err := s.r.GetSystemByID(context.Background(), fmt.Sprint(system.ID))
+	systemFromID, err := s.r.GetSystemByID(s.skipAuthContext(), fmt.Sprint(system.ID))
 	assert.Nil(s.T(), err, "unexpected error ", err)
 	assert.Equal(s.T(), system.ID, systemFromID.ID)
 	assert.Equal(s.T(), system.GID, systemFromID.GID)
@@ -803,38 +808,34 @@ func (s *SystemsTestSuite) TestGetSystemByIDWithNonExistentID() {
 	row := s.db.Table("systems").Select("MAX(id)").Row()
 	err = row.Scan(&max)
 	assert.Nil(s.T(), err, "no max id?")
-	_, err = s.r.GetSystemByID(context.Background(), fmt.Sprint(max+1))
+	_, err = s.r.GetSystemByID(s.skipAuthContext(), fmt.Sprint(max+1))
 	require.NotEmpty(s.T(), err, "should not have found system for ID: ", max+1)
 	_ = CleanDatabase(g)
 }
 
 func (s *SystemsTestSuite) TestGetSystemByIDWithEmptyID() {
-	_, err := s.r.GetSystemByID(context.Background(), "")
+	_, err := s.r.GetSystemByID(s.skipAuthContext(), "")
 	require.NotNil(s.T(), err, "found system for empty id")
 }
 
 func (s *SystemsTestSuite) TestGetSystemByIDWithNonNumberID() {
-	_, err := s.r.GetSystemByID(context.Background(), "i am not a number")
+	_, err := s.r.GetSystemByID(s.skipAuthContext(), "i am not a number")
 	require.NotNil(s.T(), err, "found system for non-number id")
 }
 
 func (s *SystemsTestSuite) TestGetSystemByClientIDWithEmptyID() {
-	_, err := s.r.GetSystemByClientID(context.Background(), "")
+	_, err := s.r.GetSystemByClientID(s.skipAuthContext(), "")
 	require.NotNil(s.T(), err, "found system for empty id")
 }
 
 func (s *SystemsTestSuite) TestGetSystemByClientIDWithNonNumberID() {
-	_, err := s.r.GetSystemByClientID(context.Background(), "i am not a number")
+	_, err := s.r.GetSystemByClientID(s.skipAuthContext(), "i am not a number")
 	require.NotNil(s.T(), err, "found system for non-number id")
 }
 
-func (s *SystemsTestSuite) TestGetSystemByID_With_SGA_ADMIN_FEATURE_Success() {
+func (s *SystemsTestSuite) TestGetSystemByID_WithSGA_Success() {
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, constants.CtxSGAKey, "test-sga")
-
-	newFF := "true"
-	oldFF := os.Getenv("SGA_ADMIN_FEATURE")
-	os.Setenv("SGA_ADMIN_FEATURE", newFF)
 
 	g, expSystem, err := makeTestSystem(s.db)
 	assert.Nil(s.T(), err, "unexpected error")
@@ -845,17 +846,11 @@ func (s *SystemsTestSuite) TestGetSystemByID_With_SGA_ADMIN_FEATURE_Success() {
 	assert.Equal(s.T(), expSystem.ID, gotSystem.ID)
 	assert.Equal(s.T(), expSystem.GID, gotSystem.GID)
 	_ = CleanDatabase(g)
-
-	os.Setenv("SGA_ADMIN_FEATURE", oldFF)
 }
 
-func (s *SystemsTestSuite) TestGetSystemByID_With_SGA_ADMIN_FEATURE_UnauthorizedRequester() {
+func (s *SystemsTestSuite) TestGetSystemByID_WithSGA_UnauthorizedRequester() {
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, constants.CtxSGAKey, "different-sga")
-
-	newFF := "true"
-	oldFF := os.Getenv("SGA_ADMIN_FEATURE")
-	os.Setenv("SGA_ADMIN_FEATURE", newFF)
 
 	g, expSystem, err := makeTestSystem(s.db)
 	assert.Nil(s.T(), err, "unexpected error")
@@ -866,16 +861,11 @@ func (s *SystemsTestSuite) TestGetSystemByID_With_SGA_ADMIN_FEATURE_Unauthorized
 	assert.Equal(s.T(), System{}.ID, gotSystem.ID)
 
 	_ = CleanDatabase(g)
-	os.Setenv("SGA_ADMIN_FEATURE", oldFF)
 }
 
-func (s *SystemsTestSuite) TestGetSystemByClientID_With_SGA_ADMIN_FEATURE_Success() {
+func (s *SystemsTestSuite) TestGetSystemByClientID_WithSGA_Success() {
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, constants.CtxSGAKey, "test-sga")
-
-	newFF := "true"
-	oldFF := os.Getenv("SGA_ADMIN_FEATURE")
-	os.Setenv("SGA_ADMIN_FEATURE", newFF)
 
 	group := Group{GroupID: "abcdef123456"}
 	err := s.db.Create(&group).Error
@@ -895,16 +885,11 @@ func (s *SystemsTestSuite) TestGetSystemByClientID_With_SGA_ADMIN_FEATURE_Succes
 	assert.Equal(s.T(), expSystem.GID, gotSystem.GID)
 
 	_ = CleanDatabase(group)
-	os.Setenv("SGA_ADMIN_FEATURE", oldFF)
 }
 
-func (s *SystemsTestSuite) TestGetSystemsByGroupIDString_With_SGA_ADMIN_FEATURE_Success() {
+func (s *SystemsTestSuite) TestGetSystemsByGroupIDString_WithSGA_Success() {
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, constants.CtxSGAKey, "test-sga")
-
-	newFF := "true"
-	oldFF := os.Getenv("SGA_ADMIN_FEATURE")
-	os.Setenv("SGA_ADMIN_FEATURE", newFF)
 
 	g, expSystem, err := makeTestSystem(s.db)
 	assert.Nil(s.T(), err, "unexpected error")
@@ -916,7 +901,6 @@ func (s *SystemsTestSuite) TestGetSystemsByGroupIDString_With_SGA_ADMIN_FEATURE_
 	assert.Equal(s.T(), expSystem.GID, gotSystems[0].GID)
 
 	_ = CleanDatabase(g)
-	os.Setenv("SGA_ADMIN_FEATURE", oldFF)
 }
 
 func (s *SystemsTestSuite) TestGetSGAKeyByGroupID() {
@@ -924,7 +908,7 @@ func (s *SystemsTestSuite) TestGetSGAKeyByGroupID() {
 	assert.Nil(s.T(), err, "unexpected error")
 	require.Nil(s.T(), err, "unexpected error ", err)
 
-	sgaKey, err := GetSGAKeyByGroupID(context.Background(), s.db, fmt.Sprint(g.GroupID))
+	sgaKey, err := GetSGAKeyByGroupID(s.skipAuthContext(), s.db, fmt.Sprint(g.GroupID))
 	assert.Nil(s.T(), err, "unexpected error ", err)
 	assert.Equal(s.T(), expSystem.SGAKey, sgaKey)
 
@@ -936,7 +920,7 @@ func (s *SystemsTestSuite) TestGetSGAKeyByGroupID_BadGroupID() {
 	assert.Nil(s.T(), err, "unexpected error")
 	require.Nil(s.T(), err, "unexpected error ", err)
 
-	sgaKey, err := GetSGAKeyByGroupID(context.Background(), s.db, "different-group-id")
+	sgaKey, err := GetSGAKeyByGroupID(s.skipAuthContext(), s.db, "different-group-id")
 	assert.Equal(s.T(), "", sgaKey)
 	assert.Nil(s.T(), err)
 
