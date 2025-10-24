@@ -14,12 +14,18 @@ import (
 	"testing"
 
 	"github.com/CMSgov/bcda-ssas-app/ssas/cfg"
+	"github.com/CMSgov/bcda-ssas-app/ssas/constants"
 	"github.com/pborman/uuid"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
 )
+
+// skipAuthContext returns a context that skips SGA authorization for tests
+func skipAuthContext() context.Context {
+	return context.WithValue(context.Background(), constants.CtxSGASkipAuthKey, "true")
+}
 
 func ResetCreds(db *gorm.DB, clientID string, groupID string) (encSecret string, err error) {
 	r := NewSystemRepository(db)
@@ -28,12 +34,12 @@ func ResetCreds(db *gorm.DB, clientID string, groupID string) (encSecret string,
 		return
 	}
 
-	system, err := r.GetSystemByClientID(context.Background(), clientID)
+	system, err := r.GetSystemByClientID(skipAuthContext(), clientID)
 	if err != nil {
 		return
 	}
 
-	creds, err := r.ResetSecret(context.Background(), system)
+	creds, err := r.ResetSecret(skipAuthContext(), system)
 	if err != nil {
 		return
 	}
@@ -52,12 +58,12 @@ func ExpireAdminCreds(db *gorm.DB) {
 // RevokeActiveCreds revokes all credentials for the specified GroupID
 func RevokeActiveCreds(db *gorm.DB, groupID string) error {
 	r := NewSystemRepository(db)
-	systems, err := GetSystemsByGroupIDString(context.Background(), groupID)
+	systems, err := GetSystemsByGroupIDString(skipAuthContext(), groupID)
 	if err != nil {
 		return err
 	}
 	for _, system := range systems {
-		err = r.RevokeSecret(context.Background(), system)
+		err = r.RevokeSecret(skipAuthContext(), system)
 		if err != nil {
 			return err
 		}

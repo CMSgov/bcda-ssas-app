@@ -9,7 +9,6 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"strconv"
 	"strings"
 	"testing"
@@ -78,11 +77,7 @@ func (s *APITestSuite) SetupSuite() {
 	cfg.LoadEnvConfigs()
 	cfg.MaxIPs = 3
 	s.logEntry = MakeTestStructuredLoggerEntry(logrus.Fields{"cms_id": "A9999", "request_id": uuid.NewUUID().String()})
-	if os.Getenv("SGA_ADMIN_FEATURE") == "true" {
-		s.ctx = context.WithValue(context.Background(), constants.CtxSGAKey, "test-sga")
-	} else {
-		s.ctx = context.Background()
-	}
+	s.ctx = context.WithValue(context.Background(), constants.CtxSGAKey, "test-sga")
 	var err error
 	s.db, err = ssas.CreateDB()
 	require.NoError(s.T(), err)
@@ -100,16 +95,6 @@ func (s *APITestSuite) TearDownSuite() {
 func TestAPITestSuite(t *testing.T) {
 	suite.Run(t, new(APITestSuite))
 
-}
-
-func TestAPITestSuite_With_SGA_ADMIN_FEATURE(t *testing.T) {
-	newFF := "true"
-	oldFF := os.Getenv("SGA_ADMIN_FEATURE")
-	os.Setenv("SGA_ADMIN_FEATURE", newFF)
-
-	suite.Run(t, new(APITestSuite))
-
-	os.Setenv("SGA_ADMIN_FEATURE", oldFF)
 }
 
 func (s *APITestSuite) TestCreateGroup() {
@@ -1730,10 +1715,6 @@ func MakeTestStructuredLoggerEntry(logFields logrus.Fields) *ssas.APILoggerEntry
 }
 
 func TestSGAAdmin_NoAuth(t *testing.T) {
-	newFF := "true"
-	oldFF := os.Getenv("SGA_ADMIN_FEATURE")
-	os.Setenv("SGA_ADMIN_FEATURE", newFF)
-
 	db, err := ssas.CreateDB()
 	require.NoError(t, err)
 	h := NewAdminHandler(db)
@@ -1760,7 +1741,6 @@ func TestSGAAdmin_NoAuth(t *testing.T) {
 	t.Cleanup(func() {
 		err = ssas.CleanDatabase(g)
 		assert.Nil(t, err)
-		os.Setenv("SGA_ADMIN_FEATURE", oldFF)
 		conn, err := db.DB()
 		require.NoError(t, err)
 		err = conn.Close()

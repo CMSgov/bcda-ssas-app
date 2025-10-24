@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"math"
-	"os"
 	"slices"
 	"strconv"
 	"time"
@@ -146,7 +145,8 @@ func (g *GroupRepository) ListGroups(ctx context.Context) (list GroupList, err e
 	list.Count = len(groups)
 	list.ReportedAt = time.Now()
 
-	if os.Getenv("SGA_ADMIN_FEATURE") == "true" {
+	skipSGAAuthCheck := fmt.Sprintf("%v", ctx.Value(constants.CtxSGASkipAuthKey))
+	if skipSGAAuthCheck != "true" {
 		requesterSGAKey := fmt.Sprintf("%v", ctx.Value(constants.CtxSGAKey))
 
 		groups = slices.DeleteFunc(groups, func(group GroupSummary) bool {
@@ -251,7 +251,7 @@ func (g *GroupRepository) GetGroupByID(ctx context.Context, id string) (Group, e
 	}
 
 	skipSGAAuthCheck := fmt.Sprintf("%v", ctx.Value(constants.CtxSGASkipAuthKey))
-	if os.Getenv("SGA_ADMIN_FEATURE") == "true" && skipSGAAuthCheck != "true" {
+	if skipSGAAuthCheck != "true" {
 		sgaKeyFromGroupID, err := GetSGAKeyByGroupID(ctx, g.db, group.GroupID)
 		requesterSGAKey := fmt.Sprintf("%v", ctx.Value(constants.CtxSGAKey))
 

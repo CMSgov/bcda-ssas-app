@@ -52,8 +52,12 @@ WORKDIR /go/src/github.com/CMSgov/bcda-ssas-app
 COPY --from=builder /go/src/github.com/CMSgov/bcda-ssas-app/ssas/cfg/configs ssas/cfg/configs
 WORKDIR /usr/local/bin
 COPY --from=builder /go/src/github.com/CMSgov/bcda-ssas-app/ssas/ssas .
+COPY --from=builder /go/src/github.com/CMSgov/bcda-ssas-app/entrypoint.sh .
 COPY --from=documentation /go/src/github.com/CMSgov/bcda-ssas-app/ssas/swaggerui ./swaggerui
 
 EXPOSE 3003 3004 3005
 
+ENV APP_NAME="ssas"
+
+ENTRYPOINT ["./entrypoint.sh"]
 CMD ["ssas", "--start"]
