@@ -43,7 +43,7 @@ func TestGetValidIPAddressesFailure(t *testing.T) {
 
 func TestGetValidIPAddresses_Integration(t *testing.T) {
 	// insert valid and invalid ip addresses into actual DB
-	dbURL, err := getDBURL()
+	dbURL, err := getDBURL(context.Background())
 	assert.Nil(t, err)
 
 	ctx := context.Background()

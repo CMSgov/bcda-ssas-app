@@ -6,12 +6,11 @@ import (
 	"os"
 	"time"
 
+	"github.com/CMSgov/bcda-app/bcda/constants"
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/wafv2"
-	"github.com/aws/aws-sdk-go/service/wafv2/wafv2iface"
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/service/wafv2"
 	"github.com/jackc/pgx/v5"
 
 	log "github.com/sirupsen/logrus"
@@ -29,7 +28,7 @@ func handler(ctx context.Context, event events.S3Event) error {
 		TimestampFormat:   time.RFC3339Nano,
 	})
 
-	dbURL, err := getDBURL()
+	dbURL, err := getDBURL(ctx)
 	if err != nil {
 		log.Errorf("Unable to extract DB URL from parameter store: %+v", err)
 		return err
@@ -42,12 +41,16 @@ func handler(ctx context.Context, event events.S3Event) error {
 	}
 	defer conn.Close(ctx)
 
-	sess := session.Must(session.NewSession())
-	wafsvc := wafv2.New(sess, &aws.Config{
-		Region: aws.String("us-east-1"),
-	})
+	cfg, err := config.LoadDefaultConfig(ctx,
+		config.WithRegion(constants.DefaultRegion),
+	)
+	if err != nil {
+		log.Errorf("Unable to load default config: %+v", err)
+		return err
+	}
+	wafClient := wafv2.NewFromConfig(cfg)
 
-	_, err = updateIpSet(ctx, conn, wafsvc)
+	_, err = updateIpSet(ctx, conn, wafClient)
 	if err != nil {
 		return err
 	}
@@ -57,7 +60,7 @@ func handler(ctx context.Context, event events.S3Event) error {
 	return nil
 }
 
-func updateIpSet(ctx context.Context, conn PgxConnection, wafsvc wafv2iface.WAFV2API) ([]string, error) {
+func updateIpSet(ctx context.Context, conn PgxConnection, wafClient *wafv2.Client) ([]string, error) {
 	// get valid IPv4 and IPv6 addresses
 	ipAddresses, ipv6Addresses, err := getValidIPAddresses(ctx, conn)
 	if err != nil {
@@ -67,7 +70,7 @@ func updateIpSet(ctx context.Context, conn PgxConnection, wafsvc wafv2iface.WAFV
 
 	// update IPv4 WAF IP set
 	ipSetName := fmt.Sprintf("bcda-%s-api-customers", os.Getenv("ENV"))
-	ipv4Addrs, err := fetchAndUpdateIpAddresses(wafsvc, ipSetName, ipAddresses)
+	ipv4Addrs, err := fetchAndUpdateIpAddresses(ctx, wafClient, ipSetName, ipAddresses)
 	if err != nil {
 		log.Errorf("Error updating IP addresses: %+v", err)
 		return nil, err
@@ -75,7 +78,7 @@ func updateIpSet(ctx context.Context, conn PgxConnection, wafsvc wafv2iface.WAFV
 
 	// update IPv6 IP set
 	ipv6SetName := fmt.Sprintf("bcda-%s-ipv6-api-customers", os.Getenv("ENV"))
-	ipv6Addrs, err := fetchAndUpdateIpAddresses(wafsvc, ipv6SetName, ipv6Addresses)
+	ipv6Addrs, err := fetchAndUpdateIpAddresses(ctx, wafClient, ipv6SetName, ipv6Addresses)
 	if err != nil {
 		log.Errorf("Error updating IP addresses: %+v", err)
 		return nil, err
