@@ -1,27 +1,20 @@
 package main
 
 import (
+	"context"
 	"fmt"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/wafv2"
-	"github.com/aws/aws-sdk-go/service/wafv2/wafv2iface"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/wafv2"
+
 	log "github.com/sirupsen/logrus"
 )
 
-type Parameters struct {
-	Id        string
-	Name      string
-	Scope     string
-	LockToken string
-	Addresses []string
-}
-
-func fetchAndUpdateIpAddresses(waf wafv2iface.WAFV2API, ipSetName string, ipAddresses []string) ([]string, error) {
+func fetchAndUpdateIpAddresses(ctx context.Context, client *wafv2.Client, ipSetName string, ipAddresses []string) ([]string, error) {
 	listParams := &wafv2.ListIPSetsInput{
-		Scope: aws.String("REGIONAL"),
+		Scope: "REGIONAL",
 	}
-	ipSetList, err := waf.ListIPSets(listParams)
+	ipSetList, err := client.ListIPSets(ctx, listParams)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch ip address sets, %v", err)
 	}
@@ -29,7 +22,7 @@ func fetchAndUpdateIpAddresses(waf wafv2iface.WAFV2API, ipSetName string, ipAddr
 	log.WithField("name", ipSetName).Info("Fetching IP set")
 	getParams := &wafv2.GetIPSetInput{
 		Name:  &ipSetName,
-		Scope: aws.String("REGIONAL"),
+		Scope: "REGIONAL",
 	}
 	for _, ipSet := range ipSetList.IPSets {
 		if *ipSet.Name == ipSetName {
@@ -37,7 +30,7 @@ func fetchAndUpdateIpAddresses(waf wafv2iface.WAFV2API, ipSetName string, ipAddr
 			break
 		}
 	}
-	ipSet, err := waf.GetIPSet(getParams)
+	ipSet, err := client.GetIPSet(ctx, getParams)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get expected ip address set, %+v", err)
 	}
@@ -45,23 +38,23 @@ func fetchAndUpdateIpAddresses(waf wafv2iface.WAFV2API, ipSetName string, ipAddr
 	updateParams := &wafv2.UpdateIPSetInput{
 		Id:          ipSet.IPSet.Id,
 		Name:        aws.String(ipSetName),
-		Scope:       aws.String("REGIONAL"),
+		Scope:       "REGIONAL",
 		LockToken:   ipSet.LockToken,
-		Addresses:   aws.StringSlice(ipAddresses),
+		Addresses:   ipAddresses,
 		Description: aws.String("IP ranges for customers of this API"),
 	}
-	_, err = waf.UpdateIPSet(updateParams)
+	_, err = client.UpdateIPSet(ctx, updateParams)
 	if err != nil {
 		return nil, fmt.Errorf("failed to update ip address set, %+v", err)
 	}
 
 	addrs := []string{}
-	ipSet, err = waf.GetIPSet(getParams)
+	ipSet, err = client.GetIPSet(ctx, getParams)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get expected ip address set, %+v", err)
 	}
 	for _, addr := range ipSet.IPSet.Addresses {
-		addrs = append(addrs, *addr)
+		addrs = append(addrs, addr)
 	}
 
 	return addrs, nil
