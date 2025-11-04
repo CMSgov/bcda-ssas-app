@@ -1,7 +1,7 @@
 version: '3'
 
 services:
-  localstack-unit-test:
+  localstack-ssas-test:
     image: localstack/localstack:latest
     environment:
       - AWS_DEFAULT_REGION=us-east-1
@@ -11,8 +11,10 @@ services:
     volumes:
       - "./.localstack_volume:/var/lib/localstack"
       - "/var/run/docker.sock:/var/run/docker.sock"
+    ports:
+      - "4566-4583:4566-4583"
     healthcheck:
-      test: 'curl --silent --fail localstack-unit-test:4566/_localstack/health | grep -E ''"s3": "(available|running)"'''
+      test: 'curl --silent --fail localstack-ssas-test:4566/_localstack/init/ready | grep -E "\"completed\": true"'
       interval: 10s
       retries: 5
       start_period: 30s
@@ -28,7 +30,7 @@ services:
       - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID:-foobar}
       - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY:-foobar}
       - AWS_DEFAULT_REGION=us-east-1
-      - AWS_ENDPOINT_URL=http://localstack:4566
+      - AWS_ENDPOINT_URL=http://localstack-ssas-test:4566
       # other env vars
       - DB=postgresql://postgres:toor@db:5432
       - DATABASE_URL=postgresql://postgres:toor@db:5432/bcda?sslmode=disable
@@ -53,7 +55,7 @@ services:
     volumes:
       - .:/go/src/github.com/CMSgov/bcda-ssas-app
     depends_on:
-      localstack-unit-test:
+      localstack-ssas-test:
         condition: service_healthy
   postman_test:
     build:
