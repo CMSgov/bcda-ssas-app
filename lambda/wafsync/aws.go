@@ -53,9 +53,7 @@ func fetchAndUpdateIpAddresses(ctx context.Context, client *wafv2.Client, ipSetN
 	if err != nil {
 		return nil, fmt.Errorf("failed to get expected ip address set, %+v", err)
 	}
-	for _, addr := range ipSet.IPSet.Addresses {
-		addrs = append(addrs, addr)
-	}
+	addrs = append(addrs, ipSet.IPSet.Addresses...)
 
 	return addrs, nil
 }
