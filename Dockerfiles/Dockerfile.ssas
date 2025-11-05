@@ -46,7 +46,6 @@ RUN apk update upgrade && apk --no-cache add \
     curl
 
 RUN addgroup -S ssas-group && adduser -S ssas-user -G ssas-group
-USER ssas-user
 
 WORKDIR /go/src/github.com/CMSgov/bcda-ssas-app
 COPY --from=builder /go/src/github.com/CMSgov/bcda-ssas-app/ssas/cfg/configs ssas/cfg/configs
@@ -55,7 +54,12 @@ COPY --from=builder /go/src/github.com/CMSgov/bcda-ssas-app/ssas/ssas .
 COPY --from=builder /go/src/github.com/CMSgov/bcda-ssas-app/entrypoint.sh .
 COPY --from=documentation /go/src/github.com/CMSgov/bcda-ssas-app/ssas/swaggerui ./swaggerui
 
+RUN mkdir -p /etc/sv/ssas/env \
+    && chown -R ssas-user:ssas-group /etc/sv/ssas/env 
+
 EXPOSE 3003 3004 3005
+VOLUME [ "/etc/sv/ssas/env" ]
+USER ssas-user
 
 ENV APP_NAME="ssas"
 
