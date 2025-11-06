@@ -82,9 +82,6 @@ func getValidIPAddresses(ctx context.Context, conn PgxConnection) ([]string, []s
 
 func getDBURL(ctx context.Context) (string, error) {
 	env := os.Getenv("ENV")
-	if env == "local" {
-		return os.Getenv("DATABASE_URL"), nil
-	}
 
 	cfg, err := config.LoadDefaultConfig(ctx,
 		config.WithRegion(constants.DefaultRegion),

@@ -16,7 +16,12 @@ func TestFetchAndUpdateIpAddresses(t *testing.T) {
 	ctx := context.Background()
 	wafClient := wafv2.NewFromConfig(testUtils.TestAWSConfig(t))
 
-	input := &wafv2.CreateIPSetInput{Addresses: []string{}, Name: aws.String("test-ip-set"), Scope: "REGIONAL"}
+	input := &wafv2.CreateIPSetInput{
+		Addresses:        []string{},
+		IPAddressVersion: "IPV4",
+		Name:             aws.String("test-ip-set"),
+		Scope:            "REGIONAL",
+	}
 	output, err := wafClient.CreateIPSet(ctx, input)
 	assert.Nil(t, err)
 	t.Cleanup(func() {
