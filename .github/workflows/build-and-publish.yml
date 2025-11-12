@@ -42,7 +42,7 @@ jobs:
         with:
           aws-region: ${{ vars.AWS_REGION }}
           role-to-assume: arn:aws:iam::${{ secrets[matrix.vars.account_id] }}:role/delegatedadmin/developer/${{ matrix.vars.role_to_assume }}
-      - name: Checkout BCDA
+      - name: Checkout SSAS
         uses: actions/checkout@v4
         with:
           repository: CMSgov/bcda-ssas-app
