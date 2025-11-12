@@ -45,11 +45,11 @@ jobs:
       - name: Checkout BCDA
         uses: actions/checkout@v4
         with:
-          repository: CMSgov/bcda-app
+          repository: CMSgov/bcda-ssas-app
           ref: ${{ inputs.ssas_release_version }}
       - name: Set ECR_URL
         run: echo "ECR_URL=${{ secrets[matrix.vars.account_id] }}.dkr.ecr.us-east-1.amazonaws.com/bcda-ssas" >> $GITHUB_ENV
-      - name: Build BCDA
+      - name: Build SSAS
         # Dont release main to prod, also makes sure 'latest' in prod aligns with the latest release tag
         # if: ${{ matrix.vars.account_id == 'NON_PROD_ACCOUNT_ID' || inputs.release_version != 'main' }} TODO: restore when ECR exists in prod
         if: ${{ matrix.vars.account_id == 'NON_PROD_ACCOUNT_ID' }}
