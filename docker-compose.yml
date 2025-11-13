@@ -23,7 +23,6 @@ services:
       dockerfile: Dockerfiles/Dockerfile.ssas
       args:
         VERSION: latest
-    image: bcda-ssas:latest
     environment:
       - DATABASE_URL=postgresql://postgres:toor@db:5432/bcda?sslmode=disable
       - ATO_PUBLIC_KEY_FILE=../shared_files/ATO_public.pem
