@@ -1113,6 +1113,8 @@
 							"listen": "test",
 							"script": {
 								"exec": [
+									"// slow down this verification request to allow for above DELETE request to process properly",
+									"setTimeout(function(){}, 3000);",
 									"var schema = {",
 									"    \"properties\": {",
 									"        \"active\": { \"type\": \"string\" }",
