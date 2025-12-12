@@ -101,13 +101,8 @@ jobs:
         run: echo "ECR_URL=${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.us-east-1.amazonaws.com/bcda-${{ env.RELEASE_ENV }}-ssas" >> $GITHUB_ENV
       - name: Build SSAS
         # Dont release main to prod, also makes sure 'latest' in prod aligns with the latest release tag
-<<<<<<< Updated upstream
-        # if: ${{ env.RELEASE_ENV == 'dev' || env.RELEASE_ENV == 'test' || inputs.release_version != 'main' }} TODO: restore when ECR exists in prod
-        if: ${{ env.RELEASE_ENV == 'dev' || env.RELEASE_ENV == 'test' || env.RELEASE_ENV == 'sandbox' }}
-=======
         # if: ${{ env.RELEASE_ENV == 'dev' || env.RELEASE_ENV == 'test' || startsWith(env.VERSION, 'r') }} TODO: restore when ECR exists in prod
-        if: ${{ env.RELEASE_ENV == 'dev' }}
->>>>>>> Stashed changes
+        if: ${{ env.RELEASE_ENV == 'dev' || env.RELEASE_ENV == 'test' || env.RELEASE_ENV == 'sandbox' }}
         run: |
           docker build \
             --build-arg RELEASE_VERSION=${{ env.VERSION }} \
@@ -115,13 +110,8 @@ jobs:
             -t ${{ env.ECR_URL }}:${{ env.VERSION }} \
             -f Dockerfiles/Dockerfile.ssas .
       - name: Push to ECR
-<<<<<<< Updated upstream
-        # if: ${{ env.RELEASE_ENV == 'dev' || env.RELEASE_ENV == 'test' || inputs.release_version != 'main' }} TODO: restore when ECR exists in prod
-        if: ${{ env.RELEASE_ENV == 'dev' || env.RELEASE_ENV == 'test' || env.RELEASE_ENV == 'sandbox' }}
-=======
         # if: ${{ env.RELEASE_ENV == 'dev' || env.RELEASE_ENV == 'test' || startsWith(env.VERSION, 'r') }} TODO: restore when ECR exists in prod
-        if: ${{ env.RELEASE_ENV == 'dev' }}
->>>>>>> Stashed changes
+        if: ${{ env.RELEASE_ENV == 'dev' || env.RELEASE_ENV == 'test' || env.RELEASE_ENV == 'sandbox' }}
         run: |
           aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin '${{ env.ECR_URL }}'
           docker image push '${{ env.ECR_URL }}' -a
