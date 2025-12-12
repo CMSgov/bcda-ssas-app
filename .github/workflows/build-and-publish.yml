@@ -3,8 +3,8 @@ name: Build and publish SSAS
 on:
   workflow_call:
     inputs:
-      ssas_release_version:
-        description: 'Release version (or branch name)'
+      revision:
+        description: 'Revision to release (tag or branch name)'
         required: true
         type: string
       env:
@@ -19,8 +19,8 @@ on:
         default: dev
   workflow_dispatch:
     inputs:
-      ssas_release_version:
-        description: 'Release version (or branch name)'
+      revision:
+        description: 'Revision to release for SSAS (tag or branch name)'
         required: true
         type: string
       env:
@@ -51,6 +51,8 @@ permissions:
 env:
   RELEASE_ENV: ${{ inputs.env || 'dev' }}
   CONFIRM_RELEASE_ENV: ${{ inputs.confirm_env || 'dev' }}
+  VERSION: ${{ inputs.revision }} # version to be released; starts with 'r' for tags and 'f' for everything else
+
 
 jobs:
   # FARGATE FIXME: unnecessary and causes errors when running ci_checks more than once for a single build
@@ -58,7 +60,7 @@ jobs:
   # ci_checks:
   #   uses: ./.github/workflows/ci-checks.yml
   #   with:
-  #     ssas_release_version: ${{ inputs.ssas_release_version || 'main' }}
+  #     ssas_release_version: ${{ inputs.revision || 'main' }}
   #   secrets: inherit
 
   build_and_publish:
@@ -82,22 +84,44 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: CMSgov/bcda-ssas-app
-          ref: ${{ inputs.ssas_release_version }}
+          ref: ${{ inputs.revision }}
+      - name: Set Version
+        run: |
+          RV="${{ inputs.revision }}"
+          LENGTH=${#RV}
+          if [[ $rv == r* && $LENGTH -lt 6 ]]; then
+            echo "Revision is a tag; setting version to tag name"
+            echo "VERSION=${{ inputs.revision }}" >> $GITHUB_ENV
+          else
+            echo "Revision is not a tag; setting version to revision shorthand"
+            rev=$(git rev-parse --short HEAD)
+            echo "VERSION=f$rev" >> $GITHUB_ENV
+          fi
       - name: Set ECR_URL
         run: echo "ECR_URL=${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.us-east-1.amazonaws.com/bcda-${{ env.RELEASE_ENV }}-ssas" >> $GITHUB_ENV
       - name: Build SSAS
         # Dont release main to prod, also makes sure 'latest' in prod aligns with the latest release tag
+<<<<<<< Updated upstream
         # if: ${{ env.RELEASE_ENV == 'dev' || env.RELEASE_ENV == 'test' || inputs.release_version != 'main' }} TODO: restore when ECR exists in prod
         if: ${{ env.RELEASE_ENV == 'dev' || env.RELEASE_ENV == 'test' || env.RELEASE_ENV == 'sandbox' }}
+=======
+        # if: ${{ env.RELEASE_ENV == 'dev' || env.RELEASE_ENV == 'test' || startsWith(env.VERSION, 'r') }} TODO: restore when ECR exists in prod
+        if: ${{ env.RELEASE_ENV == 'dev' }}
+>>>>>>> Stashed changes
         run: |
           docker build \
-            --build-arg RELEASE_VERSION=${{ inputs.ssas_release_version || 'main' }} \
+            --build-arg RELEASE_VERSION=${{ env.VERSION }} \
             -t ${{ env.ECR_URL }}:latest \
-            -t ${{ env.ECR_URL }}:${{ inputs.ssas_release_version || 'main' }} \
+            -t ${{ env.ECR_URL }}:${{ env.VERSION }} \
             -f Dockerfiles/Dockerfile.ssas .
       - name: Push to ECR
+<<<<<<< Updated upstream
         # if: ${{ env.RELEASE_ENV == 'dev' || env.RELEASE_ENV == 'test' || inputs.release_version != 'main' }} TODO: restore when ECR exists in prod
         if: ${{ env.RELEASE_ENV == 'dev' || env.RELEASE_ENV == 'test' || env.RELEASE_ENV == 'sandbox' }}
+=======
+        # if: ${{ env.RELEASE_ENV == 'dev' || env.RELEASE_ENV == 'test' || startsWith(env.VERSION, 'r') }} TODO: restore when ECR exists in prod
+        if: ${{ env.RELEASE_ENV == 'dev' }}
+>>>>>>> Stashed changes
         run: |
           aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin '${{ env.ECR_URL }}'
           docker image push '${{ env.ECR_URL }}' -a
