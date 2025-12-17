@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/wafv2"
@@ -26,6 +27,8 @@ func fetchAndUpdateIpAddresses(waf wafv2iface.WAFV2API, ipSetName string, ipAddr
 		return nil, fmt.Errorf("failed to fetch ip address sets, %v", err)
 	}
 
+	time.Sleep(1100 * time.Millisecond)
+
 	log.WithField("name", ipSetName).Info("Fetching IP set")
 	getParams := &wafv2.GetIPSetInput{
 		Name:  &ipSetName,
@@ -42,6 +45,9 @@ func fetchAndUpdateIpAddresses(waf wafv2iface.WAFV2API, ipSetName string, ipAddr
 		return nil, fmt.Errorf("failed to get expected ip address set, %+v", err)
 	}
 
+	time.Sleep(1100 * time.Millisecond)
+
+	log.WithField("name", ipSetName).Info("Updating IP set")
 	updateParams := &wafv2.UpdateIPSetInput{
 		Id:          ipSet.IPSet.Id,
 		Name:        aws.String(ipSetName),
@@ -54,6 +60,8 @@ func fetchAndUpdateIpAddresses(waf wafv2iface.WAFV2API, ipSetName string, ipAddr
 	if err != nil {
 		return nil, fmt.Errorf("failed to update ip address set, %+v", err)
 	}
+
+	time.Sleep(1100 * time.Millisecond)
 
 	addrs := []string{}
 	ipSet, err = waf.GetIPSet(getParams)
