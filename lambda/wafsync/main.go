@@ -73,6 +73,9 @@ func updateIpSet(ctx context.Context, conn PgxConnection, wafsvc wafv2iface.WAFV
 		return nil, err
 	}
 
+	// need to sleep between requests to WAF see: https://docs.aws.amazon.com/waf/latest/developerguide/limits.html
+	time.Sleep(1100 * time.Millisecond)
+
 	// update IPv6 IP set
 	ipv6SetName := fmt.Sprintf("bcda-%s-ipv6-api-customers", os.Getenv("ENV"))
 	ipv6Addrs, err := fetchAndUpdateIpAddresses(wafsvc, ipv6SetName, ipv6Addresses)
