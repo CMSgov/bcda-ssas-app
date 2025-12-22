@@ -36,11 +36,12 @@ PACKAGES_TO_COVER=$(go list ./... ./lambda/... | egrep -v 'test|mock|db/migratio
 gotestsum \
     --debug \
     --junitfile test_results/${timestamp}/junit.xml -- \
+    -covermode atomic \
     -cover \
     -coverpkg ${PACKAGES_TO_COVER} \
-    -p 1 \
-    -race ./ssas/... \
+    -race ./... \
     -coverprofile test_results/${timestamp}/testcoverage-ssas.out 2>&1 | tee test_results/${timestamp}/testresults.out
+
 go tool cover -func test_results/${timestamp}/testcoverage-ssas.out > test_results/${timestamp}/testcov_byfunc.out
 echo TOTAL COVERAGE:  $(tail -1 test_results/${timestamp}/testcov_byfunc.out | head -1)
 go tool cover -html=test_results/${timestamp}/testcoverage-ssas.out -o test_results/${timestamp}/testcoverage.html
