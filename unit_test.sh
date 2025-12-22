@@ -32,7 +32,7 @@ echo "Successfully loaded SSAS fixture data"
 
 echo "Running SSAS unit tests and placing results/coverage in test_results/${timestamp} on host..."
 DATABASE_URL=$TEST_DB_URL QUEUE_DATABASE_URL=$TEST_DB_URL 
-PACKAGES_TO_COVER=$(go list ./... ./lambda | egrep -v 'test|mock|db/migrations' | tr "\n" "," | sed -e 's/,$//g')
+PACKAGES_TO_COVER=$(go list ./... ./lambda/... | egrep -v 'test|mock|db/migrations' | tr "\n" "," | sed -e 's/,$//g')
 gotestsum \
     --debug \
     --junitfile test_results/${timestamp}/junit.xml -- \
