@@ -20,7 +20,6 @@ import (
 	"github.com/CMSgov/bcda-ssas-app/ssas"
 	"github.com/CMSgov/bcda-ssas-app/ssas/cfg"
 	"github.com/go-chi/chi/v5"
-	gcmw "github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/render"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/pborman/uuid"
@@ -31,8 +30,6 @@ type Server struct {
 	name string
 	// port server is running on; must have leading :, as in ":3000"
 	port string
-	// version of code running this server
-	version string
 	// info contains json metadata about server
 	info interface{}
 	// router associates handlers to server endpoints
@@ -89,7 +86,7 @@ func ChooseSigningKey(signingKeyPath, signingKey string) (*rsa.PrivateKey, error
 }
 
 // NewServer correctly initializes an instance of the Server type.
-func NewServer(name, port, version string, info interface{}, routes *chi.Mux, notSecure bool, useMTLS bool, signingKey *rsa.PrivateKey, ttl time.Duration, clientAssertAud string) *Server {
+func NewServer(name, port string, routes *chi.Mux, notSecure bool, useMTLS bool, signingKey *rsa.PrivateKey, ttl time.Duration, clientAssertAud string) *Server {
 
 	if signingKey == nil {
 		ssas.Logger.Error("Private Key is nil")
@@ -105,9 +102,7 @@ func NewServer(name, port, version string, info interface{}, routes *chi.Mux, no
 	s := Server{}
 	s.name = name
 	s.port = port
-	s.version = version
-	s.info = info
-	s.router = s.newBaseRouter()
+	s.router = chi.NewRouter()
 	if routes != nil {
 		s.router.Mount("/", routes)
 	}
@@ -245,49 +240,12 @@ func (s *Server) Stop() {
 	ssas.Logger.Infof("closing server %s; %+v", s.name, s.server.Close())
 }
 
-func (s *Server) newBaseRouter() *chi.Mux {
-	r := chi.NewRouter()
-	r.Use(
-		gcmw.RequestID,
-		NewAPILogger(),
-		render.SetContentType(render.ContentTypeJSON),
-		ConnectionClose,
-		NewCtxLogger,
-	)
-	r.Get("/_version", s.getVersion)
-	r.Get("/_health", s.getHealthCheck)
-	r.Get("/_info", s.getInfo)
-	return r
-}
-
-func (s *Server) getInfo(w http.ResponseWriter, r *http.Request) {
-	render.JSON(w, r, s.info)
-}
-
-func (s *Server) getVersion(w http.ResponseWriter, r *http.Request) {
-	respMap := make(map[string]string)
-	respMap["version"] = fmt.Sprintf("%v", s.version)
-	render.JSON(w, r, respMap)
-}
-
-func (s *Server) getHealthCheck(w http.ResponseWriter, r *http.Request) {
-	m := make(map[string]string)
-	if doHealthCheck(r.Context(), s.db) {
-		m["database"] = "ok"
-		w.WriteHeader(http.StatusOK)
-	} else {
-		m["database"] = "error"
-		w.WriteHeader(http.StatusBadGateway)
-	}
-	render.JSON(w, r, m)
-}
-
 // is this the right health check for a service? the db could be up but the service down
 // is there any condition under which the server could be running but become invalid?
 // is there any circumstance where the server could be partially disabled? (e.g., unable to sign tokens but still running)
 // could less than 3 servers be running?
 // since this ping will be run against all servers, isn't this excessive?
-func doHealthCheck(ctx context.Context, db *gorm.DB) bool {
+func DoHealthCheck(ctx context.Context, db *gorm.DB) bool {
 	conn, err := db.WithContext(ctx).DB()
 	if err != nil {
 		// TODO health check failed event

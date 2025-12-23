@@ -104,7 +104,7 @@ func (s *ServerTestSuite) SetupSuite() {
 }
 
 func (s *ServerTestSuite) SetupTest() {
-	s.server = NewServer(serverName, port, version, s.info, nil, true, false, s.privateKey, 37*time.Minute, "")
+	s.server = NewServer(serverName, port, nil, true, false, s.privateKey, 37*time.Minute, "")
 }
 
 func (s *ServerTestSuite) TestNewServer() {
@@ -112,8 +112,6 @@ func (s *ServerTestSuite) TestNewServer() {
 	assert.NotNil(s.T(), s.server.tokenSigningKey)
 	assert.NotEmpty(s.T(), s.server.name)
 	assert.NotEmpty(s.T(), s.server.port)
-	assert.NotEmpty(s.T(), s.server.version)
-	assert.NotEmpty(s.T(), s.server.info)
 	assert.NotEmpty(s.T(), s.server.router)
 	assert.True(s.T(), s.server.notSecure)
 	assert.NotNil(s.T(), s.server.tokenSigningKey)
@@ -123,12 +121,12 @@ func (s *ServerTestSuite) TestNewServer() {
 	r.Get("/test", func(w http.ResponseWriter, r *http.Request) {
 		_, _ = w.Write([]byte("test"))
 	})
-	ts := NewServer(serverName, port, version, s.info, r, true, false, s.privateKey, 37*time.Minute, "")
+	ts := NewServer(serverName, port, r, true, false, s.privateKey, 37*time.Minute, "")
 	assert.NotEmpty(s.T(), ts.router)
 	routes, err := ts.ListRoutes()
 	assert.Nil(s.T(), err)
 	assert.NotNil(s.T(), routes)
-	expected := []string{"GET /_health", "GET /_info", "GET /_version", "GET /test"}
+	expected := []string{"GET /test"}
 	assert.Equal(s.T(), expected, routes)
 }
 
@@ -137,8 +135,6 @@ func (s *ServerTestSuite) TestNewServerNilPrivateKey() {
 	assert.NotNil(s.T(), s.server.tokenSigningKey)
 	assert.NotEmpty(s.T(), s.server.name)
 	assert.NotEmpty(s.T(), s.server.port)
-	assert.NotEmpty(s.T(), s.server.version)
-	assert.NotEmpty(s.T(), s.server.info)
 	assert.NotEmpty(s.T(), s.server.router)
 	assert.True(s.T(), s.server.notSecure)
 	assert.NotNil(s.T(), s.server.tokenSigningKey)
@@ -148,7 +144,7 @@ func (s *ServerTestSuite) TestNewServerNilPrivateKey() {
 	r.Get("/test", func(w http.ResponseWriter, r *http.Request) {
 		_, _ = w.Write([]byte("test"))
 	})
-	ts := NewServer(serverName, port, version, s.info, r, true, false, nil, 37*time.Minute, "")
+	ts := NewServer(serverName, port, r, true, false, nil, 37*time.Minute, "")
 	assert.Nil(s.T(), ts)
 }
 
@@ -157,8 +153,6 @@ func (s *ServerTestSuite) TestNewServerInvalidPrivateKey() {
 	assert.NotNil(s.T(), s.server.tokenSigningKey)
 	assert.NotEmpty(s.T(), s.server.name)
 	assert.NotEmpty(s.T(), s.server.port)
-	assert.NotEmpty(s.T(), s.server.version)
-	assert.NotEmpty(s.T(), s.server.info)
 	assert.NotEmpty(s.T(), s.server.router)
 	assert.True(s.T(), s.server.notSecure)
 	assert.NotNil(s.T(), s.server.tokenSigningKey)
@@ -172,41 +166,8 @@ func (s *ServerTestSuite) TestNewServerInvalidPrivateKey() {
 	// invalid key because it has len(Primes < 2)
 	invalidPrivateKey := rsa.PrivateKey{}
 
-	ts := NewServer(serverName, port, version, s.info, r, true, false, &invalidPrivateKey, 37*time.Minute, "")
+	ts := NewServer(serverName, port, r, true, false, &invalidPrivateKey, 37*time.Minute, "")
 	assert.Nil(s.T(), ts)
-}
-
-func (s *ServerTestSuite) TestGetInfo() {
-	req := httptest.NewRequest("GET", "/_info", nil)
-	handler := http.HandlerFunc(s.server.getInfo)
-	rr := httptest.NewRecorder()
-	handler.ServeHTTP(rr, req)
-
-	assert.Equal(s.T(), http.StatusOK, rr.Result().StatusCode)
-	b, _ := io.ReadAll(rr.Result().Body)
-	assert.Contains(s.T(), string(b), `{"public":["token","register"]}`)
-}
-
-func (s *ServerTestSuite) TestGetVersion() {
-	req := httptest.NewRequest("GET", "/_version", nil)
-	handler := http.HandlerFunc(s.server.getVersion)
-	rr := httptest.NewRecorder()
-	handler.ServeHTTP(rr, req)
-
-	assert.Equal(s.T(), http.StatusOK, rr.Result().StatusCode)
-	b, _ := io.ReadAll(rr.Result().Body)
-	assert.Contains(s.T(), string(b), `{"version":"9.99.999"}`)
-}
-
-func (s *ServerTestSuite) TestGetHealthCheck() {
-	req := httptest.NewRequest("GET", "/_health", nil)
-	handler := http.HandlerFunc(s.server.getHealthCheck)
-	rr := httptest.NewRecorder()
-	handler.ServeHTTP(rr, req)
-
-	assert.Equal(s.T(), http.StatusOK, rr.Result().StatusCode)
-	b, _ := io.ReadAll(rr.Result().Body)
-	assert.Contains(s.T(), string(b), `{"database":"ok"}`)
 }
 
 func (s *ServerTestSuite) TestNYI() {
@@ -353,7 +314,7 @@ func (s *ServerTestSuite) TestMTLCertParsingWithInvalidCertKeyValue() {
 // MintToken(), MintTokenWithDuration()
 
 func (s *ServerTestSuite) TestNewServerWithBadSigningKey() {
-	ts := NewServer(serverName, port, version, s.info, nil, true, false, nil, 37*time.Minute, "")
+	ts := NewServer(serverName, port, nil, true, false, nil, 37*time.Minute, "")
 	assert.Nil(s.T(), ts)
 }
 

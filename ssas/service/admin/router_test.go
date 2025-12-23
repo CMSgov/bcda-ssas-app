@@ -50,7 +50,6 @@ func (s *RouterTestSuite) TearDownSuite() {
 	db, err := s.db.DB()
 	require.NoError(s.T(), err)
 	db.Close()
-
 }
 
 func (s *RouterTestSuite) TestUnauthorized() {
@@ -172,7 +171,7 @@ func (s *RouterTestSuite) TestPutSystemCredentials() {
 	assert.Equal(s.T(), http.StatusCreated, res.StatusCode)
 
 	logs := logHook.AllEntries()
-	assert.Contains(s.T(), logs[3].Message, "A9999")
+	assert.Contains(s.T(), logs[2].Message, "A9999")
 
 	err := ssas.CleanDatabase(group)
 	assert.Nil(s.T(), err)

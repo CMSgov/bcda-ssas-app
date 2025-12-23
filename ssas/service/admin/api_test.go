@@ -94,7 +94,40 @@ func (s *APITestSuite) TearDownSuite() {
 
 func TestAPITestSuite(t *testing.T) {
 	suite.Run(t, new(APITestSuite))
+}
 
+func (s *APITestSuite) TestGetInfo() {
+	server = Server()
+	req := httptest.NewRequest("GET", "/_info", nil)
+	handler := http.HandlerFunc(s.h.getInfo)
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+
+	assert.Equal(s.T(), http.StatusOK, rr.Result().StatusCode)
+	b, _ := io.ReadAll(rr.Result().Body)
+	assert.Contains(s.T(), string(b), `"routes":["GET /_health","GET /_info","GET /_version"`)
+}
+
+func (s *APITestSuite) TestGetVersion() {
+	req := httptest.NewRequest("GET", "/_version", nil)
+	handler := http.HandlerFunc(s.h.getVersion)
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+
+	assert.Equal(s.T(), http.StatusOK, rr.Result().StatusCode)
+	b, _ := io.ReadAll(rr.Result().Body)
+	assert.Contains(s.T(), string(b), `{"version":"latest"}`)
+}
+
+func (s *APITestSuite) TestGetHealthCheck() {
+	req := httptest.NewRequest("GET", "/_health", nil)
+	handler := http.HandlerFunc(s.h.getHealthCheck)
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+
+	assert.Equal(s.T(), http.StatusOK, rr.Result().StatusCode)
+	b, _ := io.ReadAll(rr.Result().Body)
+	assert.Contains(s.T(), string(b), `{"database":"ok"}`)
 }
 
 func (s *APITestSuite) TestCreateGroup() {
