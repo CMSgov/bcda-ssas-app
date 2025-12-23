@@ -30,8 +30,6 @@ type Server struct {
 	name string
 	// port server is running on; must have leading :, as in ":3000"
 	port string
-	// info contains json metadata about server
-	info interface{}
 	// router associates handlers to server endpoints
 	router chi.Router
 	// database connection
