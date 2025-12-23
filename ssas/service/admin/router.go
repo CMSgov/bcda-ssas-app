@@ -33,7 +33,7 @@ func Server() *service.Server {
 		return nil
 	}
 
-	server := service.NewServer("admin", ":3004", routes(), unsafeMode, useMTLS, signingKey, 20*time.Minute, "")
+	server = service.NewServer("admin", ":3004", routes(), unsafeMode, useMTLS, signingKey, 20*time.Minute, "")
 
 	return server
 }

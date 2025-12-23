@@ -97,7 +97,6 @@ func TestAPITestSuite(t *testing.T) {
 }
 
 func (s *APITestSuite) TestGetInfo() {
-	server = Server()
 	req := httptest.NewRequest("GET", "/_info", nil)
 	handler := http.HandlerFunc(s.h.getInfo)
 	rr := httptest.NewRecorder()
