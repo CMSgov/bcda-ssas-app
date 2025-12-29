@@ -74,6 +74,7 @@ func TestLoadEnvConfigsHashDefaults(t *testing.T) {
 	err = os.Setenv("SSAS_HASH_KEY_LENGTH", "origHashKeyLen")
 	require.NoError(t, err)
 	err = os.Setenv("SSAS_HASH_SALT_SIZE", "20")
+	require.NoError(t, err)
 	assert.Panics(t, func() {
 		LoadEnvConfigs()
 	}, "LoadEnvConfigs should have panicked")
