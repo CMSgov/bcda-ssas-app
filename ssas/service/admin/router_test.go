@@ -50,7 +50,6 @@ func (s *RouterTestSuite) TearDownSuite() {
 	db, err := s.db.DB()
 	require.NoError(s.T(), err)
 	db.Close()
-
 }
 
 func (s *RouterTestSuite) TestUnauthorized() {
@@ -142,6 +141,10 @@ func (s *RouterTestSuite) TestDeactivateSystemCredentials() {
 	system := ssas.System{GID: group.ID, ClientID: "delete-system-credentials-test-system"}
 	s.db.Create(&system)
 	systemID := strconv.FormatUint(uint64(system.ID), 10)
+	s.T().Cleanup(func() {
+		err := ssas.CleanDatabase(group)
+		assert.Nil(s.T(), err)
+	})
 
 	req := httptest.NewRequest("DELETE", "/system/"+systemID+"/credentials", nil)
 	req.Header.Add("Authorization", "Basic "+s.basicAuth)
@@ -149,20 +152,21 @@ func (s *RouterTestSuite) TestDeactivateSystemCredentials() {
 	s.router.ServeHTTP(rr, req)
 	res := rr.Result()
 	assert.Equal(s.T(), http.StatusOK, res.StatusCode)
-
-	err := ssas.CleanDatabase(group)
-	assert.Nil(s.T(), err)
 }
 
 func (s *RouterTestSuite) TestPutSystemCredentials() {
 	logger := ssas.GetLogger(ssas.Logger)
 	logHook := test.NewLocal(logger)
 
-	group := ssas.Group{GroupID: "put-system-credentials-test-group", XData: string(`{"cms_ids":["A9999"]}`)}
+	group := ssas.Group{GroupID: "put-system-credentials-test-group-2", XData: string(`{"cms_ids":["A9999"]}`)}
 	s.db.Create(&group)
-	system := ssas.System{GID: group.ID, ClientID: "put-system-credentials-test-system"}
+	system := ssas.System{GID: group.ID, ClientID: "put-system-credentials-test-system-2"}
 	s.db.Create(&system)
 	systemID := strconv.FormatUint(uint64(system.ID), 10)
+	s.T().Cleanup(func() {
+		err := ssas.CleanDatabase(group)
+		assert.Nil(s.T(), err)
+	})
 
 	req := httptest.NewRequest("PUT", "/system/"+systemID+"/credentials", nil)
 	req.Header.Add("Authorization", "Basic "+s.basicAuth)
@@ -173,9 +177,6 @@ func (s *RouterTestSuite) TestPutSystemCredentials() {
 
 	logs := logHook.AllEntries()
 	assert.Contains(s.T(), logs[3].Message, "A9999")
-
-	err := ssas.CleanDatabase(group)
-	assert.Nil(s.T(), err)
 }
 
 func (s *RouterTestSuite) TestPostV2Group() {

@@ -150,7 +150,7 @@ func verifyNoContext(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		sgaKey := r.Context().Value(constants.CtxSGAKey)
 		skipAuth := r.Context().Value(constants.CtxSGASkipAuthKey)
-		fmt.Printf("\n--- vals found: %+v, %+v\n", sgaKey, skipAuth)
+
 		if sgaKey != "test-sga" {
 			w.WriteHeader(http.StatusNotFound)
 		}

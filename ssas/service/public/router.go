@@ -6,12 +6,12 @@ import (
 	"time"
 
 	"github.com/CMSgov/bcda-ssas-app/ssas"
-	"github.com/CMSgov/bcda-ssas-app/ssas/constants"
 	"github.com/CMSgov/bcda-ssas-app/ssas/monitoring"
 	"github.com/CMSgov/bcda-ssas-app/ssas/service"
 	"github.com/go-chi/chi/v5"
 	gcmw "github.com/go-chi/chi/v5/middleware"
-	"gorm.io/gorm"
+	"github.com/go-chi/render"
+
 )
 
 var server *service.Server
@@ -19,7 +19,6 @@ var server *service.Server
 func Server() *service.Server {
 	unsafeMode := os.Getenv("HTTP_ONLY") == "true"
 	useMTLS := os.Getenv("PUBLIC_USE_MTLS") == "true"
-	infoMap := make(map[string][]string)
 	publicSigningKeyPath := os.Getenv("SSAS_PUBLIC_SIGNING_KEY_PATH")
 	publicSigningKey := os.Getenv("SSAS_PUBLIC_SIGNING_KEY")
 	ssas.Logger.Info("public signing key sourced from ", publicSigningKeyPath)
@@ -33,19 +32,9 @@ func Server() *service.Server {
 		return nil
 	}
 
-	db, err := ssas.CreateDB()
-	if err != nil {
-		panic(fmt.Sprintf("failed to connect to database: %s", err))
-	}
+	server = service.NewServer("public", ":3003", routes(), unsafeMode, useMTLS, signingKey, 20*time.Minute, clientAssertAud)
 
-	router := routes(db)
 
-	server = service.NewServer("public", ":3003", constants.Version, infoMap, router, unsafeMode, useMTLS, signingKey, 20*time.Minute, clientAssertAud)
-	if server != nil {
-		r, _ := server.ListRoutes()
-		infoMap["banner"] = []string{fmt.Sprintf("%s server running on port %s", "public", ":3003")}
-		infoMap["routes"] = r
-	}
 	return server
 }
 
@@ -65,13 +54,18 @@ func routes(db *gorm.DB) *chi.Mux {
 		SkipSGAAuthCheck,
 	)
 
-	//v1 Routes
+	// public routes
+	router.With(render.SetContentType((render.ContentTypeJSON))).Get("/_version", h.getVersion)
+	router.With(render.SetContentType((render.ContentTypeJSON))).Get("/_health", h.getHealthCheck)
+	router.With(render.SetContentType((render.ContentTypeJSON))).Get("/_info", h.getInfo)
+
+	// v1 Routes
 	router.Post(m.WrapHandler("/token", h.token))
 	router.Post(m.WrapHandler("/introspect", h.introspect))
 	router.With(mh.parseToken, mh.requireRegTokenAuth, mh.readGroupID).Post(m.WrapHandler("/register", h.RegisterSystem))
 	router.With(mh.parseToken, mh.requireRegTokenAuth, mh.readGroupID).Post(m.WrapHandler("/reset", h.ResetSecret))
 
-	//v2 Routes
+	// v2 Routes
 	router.Post(m.WrapHandler("/v2/token", h.tokenV2))
 	router.Post(m.WrapHandler("/v2/token_info", h.validateAndParseToken))
 

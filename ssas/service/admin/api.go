@@ -10,8 +10,10 @@ import (
 
 	"github.com/CMSgov/bcda-ssas-app/ssas"
 	"github.com/CMSgov/bcda-ssas-app/ssas/cfg"
+	"github.com/CMSgov/bcda-ssas-app/ssas/constants"
 	"github.com/CMSgov/bcda-ssas-app/ssas/service"
 	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/render"
 	"gorm.io/gorm"
 )
 
@@ -27,6 +29,28 @@ func NewAdminHandler(s ssas.SystemRepository, g ssas.GroupRepository, db *gorm.D
 		gr: g,
 		db: db,
 	}
+}
+
+func (h *adminHandler) getInfo(w http.ResponseWriter, r *http.Request) {
+	render.JSON(w, r, adminInfo())
+}
+
+func (h *adminHandler) getVersion(w http.ResponseWriter, r *http.Request) {
+	respMap := make(map[string]string)
+	respMap["version"] = fmt.Sprintf("%v", constants.Version)
+	render.JSON(w, r, respMap)
+}
+
+func (h *adminHandler) getHealthCheck(w http.ResponseWriter, r *http.Request) {
+	m := make(map[string]string)
+	if service.DoHealthCheck(r.Context(), h.db) {
+		m["database"] = "ok"
+		w.WriteHeader(http.StatusOK)
+	} else {
+		m["database"] = "error"
+		w.WriteHeader(http.StatusBadGateway)
+	}
+	render.JSON(w, r, m)
 }
 
 /*
@@ -456,21 +480,24 @@ func (h *adminHandler) resetCredentials(w http.ResponseWriter, r *http.Request) 
 	systemID := chi.URLParam(r, "systemID")
 	ssas.SetCtxEntry(r, "Op", "ResetSecret")
 	logger := ssas.GetCtxLogger(r.Context())
+
 	system, err := h.sr.GetSystemByID(r.Context(), systemID)
 	if err != nil {
 		logger.Error()
 		service.JSONError(w, http.StatusNotFound, http.StatusText(http.StatusNotFound), "Invalid system ID")
 		return
 	}
+
 	xdata, err := h.gr.XDataFor(r.Context(), system)
 	if err != nil {
 		logger.Errorf("could not get group XData for clientID %s: %s", system.ClientID, err.Error())
 		service.JSONError(w, http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError), "")
 		return
 	}
-	logger.Infof("Operation Called: admin.resetCredentials()")
-	creds, err := h.sr.ResetSecret(r.Context(), system)
 
+	logger.Infof("Operation Called: admin.resetCredentials()")
+
+	creds, err := h.sr.ResetSecret(r.Context(), system)
 	if err != nil {
 		logger.Errorf("failed to reset secret: %s", err)
 		service.JSONError(w, http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError), "")
@@ -488,6 +515,7 @@ func (h *adminHandler) resetCredentials(w http.ResponseWriter, r *http.Request) 
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
+
 	_, err = w.Write(credsJSON)
 	if err != nil {
 		logger.Error("failed to write response: ", err)
@@ -915,4 +943,18 @@ func (h *adminHandler) deleteKey(w http.ResponseWriter, r *http.Request) {
 
 type IPAddressInput struct {
 	Address string `json:"address"`
+}
+
+func adminInfo() map[string][]string {
+	infoMap := make(map[string][]string)
+	infoMap["banner"] = []string{fmt.Sprintf("%s server running on port %s", "public", ":3003")}
+
+	routes, err := server.ListRoutes()
+	if err != nil {
+		infoMap["routes"] = []string{"error listing routes"}
+	} else {
+		infoMap["routes"] = routes
+	}
+
+	return infoMap
 }
