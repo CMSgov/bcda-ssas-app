@@ -23,6 +23,7 @@ import (
 	"github.com/CMSgov/bcda-ssas-app/ssas"
 	"github.com/go-chi/chi/v5"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"gorm.io/gorm"
@@ -68,8 +69,8 @@ type APITestSuite struct {
 	logEntry *ssas.APILoggerEntry
 	ctx      context.Context
 	h        *adminHandler
-	sr       *ssas.SystemRepository
-	gr       *ssas.GroupRepository
+	sr       *ssas.GormSystemRepository
+	gr       *ssas.GormGroupRepository
 }
 
 func (s *APITestSuite) SetupSuite() {
@@ -81,9 +82,9 @@ func (s *APITestSuite) SetupSuite() {
 	var err error
 	s.db, err = ssas.CreateDB()
 	require.NoError(s.T(), err)
-	s.h = NewAdminHandler(s.db)
 	s.gr = ssas.NewGroupRepository(s.db)
 	s.sr = ssas.NewSystemRepository(s.db)
+	s.h = NewAdminHandler(s.sr, s.gr, s.db)
 }
 
 func (s *APITestSuite) TearDownSuite() {
@@ -1409,6 +1410,113 @@ func (s *APITestSuite) TestGetV2System() {
 	assert.Equal(s.T(), system.IPs[0].IP, creds.IPs[0])
 }
 
+func (s *APITestSuite) TestGetV2SystemNoIPs() {
+	logEntry := MakeTestStructuredLoggerEntry(logrus.Fields{"cms_id": "A9999", "request_id": uuid.NewUUID().String()})
+
+	ctx := context.WithValue(context.Background(), constants.CtxSGAKey, "test-sga")
+	sr := new(ssas.SystemRepositoryMock)
+	gr := ssas.NewGroupRepository(s.db)
+	sr.On("GetSystemByID", mock.Anything, mock.Anything).Return(ssas.System{}, nil)
+	sr.On("GetIPsData", mock.Anything, mock.Anything).Return([]ssas.IP{}, errors.New("no entries returned"))
+	h := NewAdminHandler(sr, gr, s.db)
+
+	creds, _ := ssas.CreateTestXDataV2(s.T(), ctx, s.db)
+
+	req := httptest.NewRequestWithContext(ctx, "GET", fmt.Sprintf("/v2/system/%s", creds.SystemID), nil)
+	rctx := chi.NewRouteContext()
+	rctx.URLParams.Add("id", creds.SystemID)
+	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+
+	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, logEntry))
+	l := ssas.GetCtxLogger(req.Context())
+	logger := ssas.GetLogger(l)
+	logHook := test.NewLocal(logger)
+
+	handler := http.HandlerFunc(h.getSystem)
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+	entries := logHook.AllEntries()
+	assert.Len(s.T(), entries, 1)
+	assert.Contains(s.T(), entries[0].Message, "no entries returned")
+
+	resp := rr.Result()
+	assert.Equal(s.T(), resp.StatusCode, 404)
+}
+
+func (s *APITestSuite) TestGetV2SystemClientToken() {
+
+	logEntry := MakeTestStructuredLoggerEntry(logrus.Fields{"cms_id": "A9999", "request_id": uuid.NewUUID().String()})
+
+	ctx := context.WithValue(context.Background(), constants.CtxSGAKey, "test-sga")
+	sr := new(ssas.SystemRepositoryMock)
+	sr.On("GetSystemByID", mock.Anything, mock.Anything).Return(ssas.System{}, nil)
+	sr.On("GetIPsData", mock.Anything, mock.Anything).Return([]ssas.IP{}, nil)
+	gr := ssas.NewGroupRepository(s.db)
+	h := NewAdminHandler(sr, gr, s.db)
+	sr.On("GetClientTokens", mock.Anything, mock.Anything).Return([]ssas.ClientToken{}, errors.New("failed to find token(s)"))
+
+	creds, _ := ssas.CreateTestXDataV2(s.T(), ctx, s.db)
+
+	req := httptest.NewRequestWithContext(ctx, "GET", fmt.Sprintf("/v2/system/%s", creds.SystemID), nil)
+	rctx := chi.NewRouteContext()
+	rctx.URLParams.Add("id", creds.SystemID)
+	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, logEntry))
+	l := ssas.GetCtxLogger(req.Context())
+
+	logger := ssas.GetLogger(l)
+	logHook := test.NewLocal(logger)
+
+	handler := http.HandlerFunc(h.getSystem)
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+	entries := logHook.AllEntries()
+
+	s.T().Log(entries[0])
+	s.T().Log(entries[0].Message)
+	assert.Len(s.T(), entries, 1)
+	assert.Contains(s.T(), entries[0].Message, "failed to find token(s)")
+	resp := rr.Result()
+	assert.Equal(s.T(), resp.StatusCode, 404)
+}
+
+func (s *APITestSuite) TestGetV2SystemEncryptionKeys() {
+	logEntry := MakeTestStructuredLoggerEntry(logrus.Fields{"cms_id": "A9999", "request_id": uuid.NewUUID().String()})
+
+	ctx := context.WithValue(context.Background(), constants.CtxSGAKey, "test-sga")
+	sr := new(ssas.SystemRepositoryMock)
+	sr.On("GetSystemByID", mock.Anything, mock.Anything).Return(ssas.System{}, nil)
+	sr.On("GetIPsData", mock.Anything, mock.Anything).Return([]ssas.IP{}, nil)
+	gr := ssas.NewGroupRepository(s.db)
+	h := NewAdminHandler(sr, gr, s.db)
+	sr.On("GetClientTokens", mock.Anything, mock.Anything).Return([]ssas.ClientToken{}, nil)
+	sr.On("GetEncryptionKeys", mock.Anything, mock.Anything).Return([]ssas.EncryptionKey{}, errors.New("failed to find encryption keys"))
+
+	creds, _ := ssas.CreateTestXDataV2(s.T(), ctx, s.db)
+
+	req := httptest.NewRequestWithContext(ctx, "GET", fmt.Sprintf("/v2/system/%s", creds.SystemID), nil)
+	rctx := chi.NewRouteContext()
+	rctx.URLParams.Add("id", creds.SystemID)
+	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, logEntry))
+	l := ssas.GetCtxLogger(req.Context())
+
+	logger := ssas.GetLogger(l)
+	logHook := test.NewLocal(logger)
+
+	handler := http.HandlerFunc(h.getSystem)
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+	entries := logHook.AllEntries()
+
+	s.T().Log(entries[0])
+	s.T().Log(entries[0].Message)
+	assert.Len(s.T(), entries, 1)
+	assert.Contains(s.T(), entries[0].Message, "failed to find encryption keys")
+	resp := rr.Result()
+	assert.Equal(s.T(), resp.StatusCode, 404)
+}
+
 func (s *APITestSuite) TestGetV2SystemInactive() {
 	creds, group := ssas.CreateTestXDataV2(s.T(), s.ctx, s.db)
 
@@ -1709,7 +1817,7 @@ func (s *APITestSuite) TestDeletePublicKeySystemNotFound() {
 }
 
 func MakeTestStructuredLoggerEntry(logFields logrus.Fields) *ssas.APILoggerEntry {
-	var lggr logrus.Logger
+	lggr := logrus.New()
 	newLogEntry := &ssas.APILoggerEntry{Logger: lggr.WithFields(logFields)}
 	return newLogEntry
 }
@@ -1717,7 +1825,7 @@ func MakeTestStructuredLoggerEntry(logFields logrus.Fields) *ssas.APILoggerEntry
 func TestSGAAdmin_NoAuth(t *testing.T) {
 	db, err := ssas.CreateDB()
 	require.NoError(t, err)
-	h := NewAdminHandler(db)
+	h := NewAdminHandler(ssas.NewSystemRepository(db), ssas.NewGroupRepository(db), db)
 	r := ssas.NewGroupRepository(db)
 	service.StartDenylist()
 	cfg.MaxIPs = 3

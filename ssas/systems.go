@@ -62,14 +62,6 @@ type ClientToken struct {
 	ExpiresAt time.Time `json:"expires_at"`
 }
 
-type SystemRepository struct {
-	db *gorm.DB
-}
-
-func NewSystemRepository(db *gorm.DB) *SystemRepository {
-	return &SystemRepository{db: db}
-}
-
 type System struct {
 	gorm.Model
 	GID            uint            `json:"g_id"`
@@ -85,8 +77,45 @@ type System struct {
 	SGAKey         string          `json:"sga_key"`
 }
 
+// TODO change this name
+type SystemRepository interface {
+	DeleteClientToken(ctx context.Context, system System, tokenID string) error
+	DeleteEncryptionKey(ctx context.Context, system System, keyID string) error
+	DeleteIP(ctx context.Context, system System, ipID string) error
+	FindEncryptionKey(ctx context.Context, system System, trackingID string, keyId string) (EncryptionKey, error)
+	GetClientTokens(ctx context.Context, system System) ([]ClientToken, error)
+	GetEncryptionKey(ctx context.Context, system System) (EncryptionKey, error)
+	GetEncryptionKeys(ctx context.Context, system System) ([]EncryptionKey, error)
+	GetIPs(system System) ([]string, error)
+	GetIPsData(ctx context.Context, system System) ([]IP, error)
+	GetIps(ctx context.Context, system System) ([]IP, error)
+	GetSecret(ctx context.Context, system System) (Secret, error)
+	GetSystemByClientID(ctx context.Context, clientID string) (System, error)
+	GetSystemByID(ctx context.Context, id string) (System, error)
+	RegisterIP(ctx context.Context, system System, address string) (IP, error)
+	RegisterSystem(ctx context.Context, clientName string, groupID string, scope string, publicKeyPEM string, ips []string, trackingID string) (Credentials, error)
+	RegisterV2System(ctx context.Context, input SystemInput) (Credentials, error)
+	ResetSecret(ctx context.Context, system System) (Credentials, error)
+	RevokeSecret(ctx context.Context, system System) error
+	SaveClientToken(ctx context.Context, system System, label string, groupXData string, expiration time.Time) (*ClientToken, string, error)
+	SavePublicKey(tx *gorm.DB, system System, publicKey io.Reader, signature string, onlyOne bool) (*EncryptionKey, error)
+	SaveSecret(ctx context.Context, system System, hashedSecret string) error
+	SaveTokenTime(ctx context.Context, system System) (err error)
+	UpdateSystem(ctx context.Context, id string, v map[string]string) (System, error)
+	deactivateSecrets(ctx context.Context, system System) error
+	registerSystem(ctx context.Context, input SystemInput, isV2 bool) (Credentials, error)
+}
+
+type GormSystemRepository struct {
+	db *gorm.DB
+}
+
+func NewSystemRepository(db *gorm.DB) *GormSystemRepository {
+	return &GormSystemRepository{db: db}
+}
+
 // SaveClientToken should be provided with a token label and token uuid, which will be saved to the client tokens table and associated with the current system.
-func (r *SystemRepository) SaveClientToken(ctx context.Context, system System, label string, groupXData string, expiration time.Time) (*ClientToken, string, error) {
+func (r *GormSystemRepository) SaveClientToken(ctx context.Context, system System, label string, groupXData string, expiration time.Time) (*ClientToken, string, error) {
 	keyRepo := NewRootKeyRepository(r.db)
 	rk, err := keyRepo.NewRootKey(ctx, system.ID, expiration)
 	if err != nil {
@@ -115,7 +144,7 @@ func (r *SystemRepository) SaveClientToken(ctx context.Context, system System, l
 	return &ct, token, nil
 }
 
-func (r *SystemRepository) GetClientTokens(ctx context.Context, system System) ([]ClientToken, error) {
+func (r *GormSystemRepository) GetClientTokens(ctx context.Context, system System) ([]ClientToken, error) {
 	var tokens []ClientToken
 	err := r.db.WithContext(ctx).Find(&tokens, "system_id=? AND deleted_at IS NULL", system.ID).Error
 	if err != nil {
@@ -124,7 +153,7 @@ func (r *SystemRepository) GetClientTokens(ctx context.Context, system System) (
 	return tokens, nil
 }
 
-func (r *SystemRepository) DeleteClientToken(ctx context.Context, system System, tokenID string) error {
+func (r *GormSystemRepository) DeleteClientToken(ctx context.Context, system System, tokenID string) error {
 	tx := r.db.WithContext(ctx).Begin()
 	defer func() {
 		if r := recover(); r != nil {
@@ -144,7 +173,7 @@ func (r *SystemRepository) DeleteClientToken(ctx context.Context, system System,
 }
 
 // SaveSecret should be provided with a secret hashed with ssas.NewHash(), which will be saved to the secrets table and associated with the current system.
-func (r *SystemRepository) SaveSecret(ctx context.Context, system System, hashedSecret string) error {
+func (r *GormSystemRepository) SaveSecret(ctx context.Context, system System, hashedSecret string) error {
 	secret := Secret{
 		Hash:     hashedSecret,
 		SystemID: system.ID,
@@ -162,7 +191,7 @@ func (r *SystemRepository) SaveSecret(ctx context.Context, system System, hashed
 }
 
 // GetSecret will retrieve the hashed secret associated with the current system.
-func (r *SystemRepository) GetSecret(ctx context.Context, system System) (Secret, error) {
+func (r *GormSystemRepository) GetSecret(ctx context.Context, system System) (Secret, error) {
 	secret := Secret{}
 	err := r.db.WithContext(ctx).Where("system_id = ?", system.ID).First(&secret).Error
 	if err != nil {
@@ -178,7 +207,7 @@ func (r *SystemRepository) GetSecret(ctx context.Context, system System) (Secret
 }
 
 // SaveTokenTime puts the current time in systems.last_token_at
-func (r *SystemRepository) SaveTokenTime(ctx context.Context, system System) (err error) {
+func (r *GormSystemRepository) SaveTokenTime(ctx context.Context, system System) (err error) {
 	err = r.db.WithContext(ctx).Model(&system).UpdateColumn("last_token_at", time.Now()).Error
 	if err != nil {
 		return err
@@ -187,7 +216,7 @@ func (r *SystemRepository) SaveTokenTime(ctx context.Context, system System) (er
 }
 
 // RevokeSecret revokes a system's secret
-func (r *SystemRepository) RevokeSecret(ctx context.Context, system System) error {
+func (r *GormSystemRepository) RevokeSecret(ctx context.Context, system System) error {
 	err := r.deactivateSecrets(ctx, system)
 	if err != nil {
 		return fmt.Errorf("unable to revoke credentials for clientID %s", system.ClientID)
@@ -196,7 +225,7 @@ func (r *SystemRepository) RevokeSecret(ctx context.Context, system System) erro
 }
 
 // DeactivateSecrets soft deletes secrets associated with the system.
-func (r *SystemRepository) deactivateSecrets(ctx context.Context, system System) error {
+func (r *GormSystemRepository) deactivateSecrets(ctx context.Context, system System) error {
 	err := r.db.WithContext(ctx).Where("system_id = ?", system.ID).Delete(&Secret{}).Error
 	if err != nil {
 		return fmt.Errorf("unable to soft delete previous secrets for clientID %s: %s", system.ClientID, err.Error())
@@ -205,7 +234,7 @@ func (r *SystemRepository) deactivateSecrets(ctx context.Context, system System)
 }
 
 // GetEncryptionKey retrieves the key associated with the current system.
-func (r *SystemRepository) GetEncryptionKey(ctx context.Context, system System) (EncryptionKey, error) {
+func (r *GormSystemRepository) GetEncryptionKey(ctx context.Context, system System) (EncryptionKey, error) {
 	var encryptionKey EncryptionKey
 	err := r.db.WithContext(ctx).First(&encryptionKey, "system_id = ?", system.ID).Error
 	if err != nil {
@@ -215,7 +244,7 @@ func (r *SystemRepository) GetEncryptionKey(ctx context.Context, system System) 
 }
 
 // FindEncryptionKey retrieves the key by id associated with the current system.
-func (r *SystemRepository) FindEncryptionKey(ctx context.Context, system System, trackingID string, keyId string) (EncryptionKey, error) {
+func (r *GormSystemRepository) FindEncryptionKey(ctx context.Context, system System, trackingID string, keyId string) (EncryptionKey, error) {
 	var encryptionKey EncryptionKey
 	err := r.db.WithContext(ctx).First(&encryptionKey, "system_id = ? AND uuid=?", system.ID, keyId).Error
 	if err != nil {
@@ -226,7 +255,7 @@ func (r *SystemRepository) FindEncryptionKey(ctx context.Context, system System,
 }
 
 // GetEncryptionKeys retrieves the keys associated with the current system.
-func (r *SystemRepository) GetEncryptionKeys(ctx context.Context, system System) ([]EncryptionKey, error) {
+func (r *GormSystemRepository) GetEncryptionKeys(ctx context.Context, system System) ([]EncryptionKey, error) {
 	var encryptionKeys []EncryptionKey
 	err := r.db.WithContext(ctx).Where("system_id = ?", system.ID).Find(&encryptionKeys).Error
 	if err != nil {
@@ -237,7 +266,7 @@ func (r *SystemRepository) GetEncryptionKeys(ctx context.Context, system System)
 }
 
 // DeleteEncryptionKey deletes the key associated with the current system.
-func (r *SystemRepository) DeleteEncryptionKey(ctx context.Context, system System, keyID string) error {
+func (r *GormSystemRepository) DeleteEncryptionKey(ctx context.Context, system System, keyID string) error {
 	if keyID == "" {
 		return fmt.Errorf("requires keyID to delete key for clientID %s", system.ClientID)
 	}
@@ -251,7 +280,7 @@ func (r *SystemRepository) DeleteEncryptionKey(ctx context.Context, system Syste
 }
 
 // SavePublicKey creates a public key for the current system. `onlyOne` == true will soft delete an existing key, effectively replacing it with a new one.
-func (r *SystemRepository) SavePublicKey(tx *gorm.DB, system System, publicKey io.Reader, signature string, onlyOne bool) (*EncryptionKey, error) {
+func (r *GormSystemRepository) SavePublicKey(tx *gorm.DB, system System, publicKey io.Reader, signature string, onlyOne bool) (*EncryptionKey, error) {
 	k, err := io.ReadAll(publicKey)
 	if err != nil {
 		return nil, fmt.Errorf("cannot read public key for clientID %s: %s", system.ClientID, err.Error())
@@ -294,7 +323,7 @@ func (r *SystemRepository) SavePublicKey(tx *gorm.DB, system System, publicKey i
 }
 
 // DeleteIP soft-deletes an IP associated with a specific system
-func (r *SystemRepository) DeleteIP(ctx context.Context, system System, ipID string) error {
+func (r *GormSystemRepository) DeleteIP(ctx context.Context, system System, ipID string) error {
 	var (
 		ip  IP
 		err error
@@ -316,7 +345,7 @@ func (r *SystemRepository) DeleteIP(ctx context.Context, system System, ipID str
 	return nil
 }
 
-func (r *SystemRepository) GetIPs(system System) ([]string, error) {
+func (r *GormSystemRepository) GetIPs(system System) ([]string, error) {
 	var (
 		ips []string
 		err error
@@ -328,7 +357,7 @@ func (r *SystemRepository) GetIPs(system System) ([]string, error) {
 	return ips, err
 }
 
-func (r *SystemRepository) GetIPsData(ctx context.Context, system System) ([]IP, error) {
+func (r *GormSystemRepository) GetIPsData(ctx context.Context, system System) ([]IP, error) {
 	var (
 		ips []IP
 		err error
@@ -341,7 +370,7 @@ func (r *SystemRepository) GetIPsData(ctx context.Context, system System) ([]IP,
 }
 
 // ResetSecret creates a new secret for the current system.
-func (r *SystemRepository) ResetSecret(ctx context.Context, system System) (Credentials, error) {
+func (r *GormSystemRepository) ResetSecret(ctx context.Context, system System) (Credentials, error) {
 	creds := Credentials{}
 
 	secretString, err := GenerateSecret()
@@ -367,7 +396,7 @@ func (r *SystemRepository) ResetSecret(ctx context.Context, system System) (Cred
 	return creds, nil
 }
 
-func (r *SystemRepository) RegisterIP(ctx context.Context, system System, address string) (IP, error) {
+func (r *GormSystemRepository) RegisterIP(ctx context.Context, system System, address string) (IP, error) {
 	if !ValidAddress(address) {
 		return IP{}, errors.New("invalid ip address")
 	}
@@ -394,7 +423,7 @@ func (r *SystemRepository) RegisterIP(ctx context.Context, system System, addres
 	return ip, nil
 }
 
-func (r *SystemRepository) GetIps(ctx context.Context, system System) ([]IP, error) {
+func (r *GormSystemRepository) GetIps(ctx context.Context, system System) ([]IP, error) {
 	var ips []IP
 	err := r.db.WithContext(ctx).Find(&ips, "system_id=? AND deleted_at IS NULL", system.ID).Error
 	if err != nil {
@@ -419,7 +448,7 @@ type Credentials struct {
 RegisterSystem will save a new system and public key after verifying provided details for validity.  It returns
 a ssas.Credentials struct including the generated clientID and secret.
 */
-func (r *SystemRepository) RegisterSystem(ctx context.Context, clientName string, groupID string, scope string, publicKeyPEM string, ips []string, trackingID string) (Credentials, error) {
+func (r *GormSystemRepository) RegisterSystem(ctx context.Context, clientName string, groupID string, scope string, publicKeyPEM string, ips []string, trackingID string) (Credentials, error) {
 	systemInput := SystemInput{
 		ClientName: clientName,
 		GroupID:    groupID,
@@ -432,11 +461,11 @@ func (r *SystemRepository) RegisterSystem(ctx context.Context, clientName string
 	return r.registerSystem(ctx, systemInput, false)
 }
 
-func (r *SystemRepository) RegisterV2System(ctx context.Context, input SystemInput) (Credentials, error) {
+func (r *GormSystemRepository) RegisterV2System(ctx context.Context, input SystemInput) (Credentials, error) {
 	return r.registerSystem(ctx, input, true)
 }
 
-func (r *SystemRepository) registerSystem(ctx context.Context, input SystemInput, isV2 bool) (Credentials, error) {
+func (r *GormSystemRepository) registerSystem(ctx context.Context, input SystemInput, isV2 bool) (Credentials, error) {
 	// The public key and hashed secret are stored separately in the encryption_keys and secrets tables, requiring
 	// multiple INSERT statements.  To ensure we do not get into an invalid state, wrap the two INSERT statements in a transaction.
 	var err error
@@ -631,7 +660,7 @@ func GetSGAKeyByGroupID(ctx context.Context, db *gorm.DB, groupID string) (strin
 }
 
 // GetSystemByClientID returns the system associated with the provided clientID
-func (r *SystemRepository) GetSystemByClientID(ctx context.Context, clientID string) (System, error) {
+func (r *GormSystemRepository) GetSystemByClientID(ctx context.Context, clientID string) (System, error) {
 	var (
 		system System
 		err    error
@@ -645,7 +674,7 @@ func (r *SystemRepository) GetSystemByClientID(ctx context.Context, clientID str
 }
 
 // GetSystemByID returns the system associated with the provided ID
-func (r *SystemRepository) GetSystemByID(ctx context.Context, id string) (System, error) {
+func (r *GormSystemRepository) GetSystemByID(ctx context.Context, id string) (System, error) {
 	var (
 		system System
 		err    error
@@ -672,7 +701,7 @@ func (r *SystemRepository) GetSystemByID(ctx context.Context, id string) (System
 	return system, err
 }
 
-func (r *SystemRepository) UpdateSystem(ctx context.Context, id string, v map[string]string) (System, error) {
+func (r *GormSystemRepository) UpdateSystem(ctx context.Context, id string, v map[string]string) (System, error) {
 	sys, err := r.GetSystemByID(ctx, id)
 	if err != nil {
 		return System{}, fmt.Errorf("record not found for id=%s", id)

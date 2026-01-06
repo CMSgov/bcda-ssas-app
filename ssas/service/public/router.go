@@ -11,6 +11,7 @@ import (
 	"github.com/CMSgov/bcda-ssas-app/ssas/service"
 	"github.com/go-chi/chi/v5"
 	gcmw "github.com/go-chi/chi/v5/middleware"
+	"gorm.io/gorm"
 )
 
 var server *service.Server
@@ -32,7 +33,14 @@ func Server() *service.Server {
 		return nil
 	}
 
-	server = service.NewServer("public", ":3003", constants.Version, infoMap, routes(), unsafeMode, useMTLS, signingKey, 20*time.Minute, clientAssertAud)
+	db, err := ssas.CreateDB()
+	if err != nil {
+		panic(fmt.Sprintf("failed to connect to database: %s", err))
+	}
+
+	router := routes(db)
+
+	server = service.NewServer("public", ":3003", constants.Version, infoMap, router, unsafeMode, useMTLS, signingKey, 20*time.Minute, clientAssertAud)
 	if server != nil {
 		r, _ := server.ListRoutes()
 		infoMap["banner"] = []string{fmt.Sprintf("%s server running on port %s", "public", ":3003")}
@@ -41,13 +49,10 @@ func Server() *service.Server {
 	return server
 }
 
-func routes() *chi.Mux {
+func routes(db *gorm.DB) *chi.Mux {
 	router := chi.NewRouter()
 	m := monitoring.GetMonitor()
-	db, err := ssas.CreateDB()
-	if err != nil {
-		panic(fmt.Sprintf("failed to connect to database: %s", err))
-	}
+
 	h := NewPublicHandler(db, AccessTokenCreator{})
 	mh := NewPublicMiddlewareHandler(db)
 

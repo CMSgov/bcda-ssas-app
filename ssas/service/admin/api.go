@@ -17,14 +17,14 @@ import (
 
 type adminHandler struct {
 	db *gorm.DB
-	sr *ssas.SystemRepository
-	gr *ssas.GroupRepository
+	sr ssas.SystemRepository
+	gr ssas.GroupRepository
 }
 
-func NewAdminHandler(db *gorm.DB) *adminHandler {
+func NewAdminHandler(s ssas.SystemRepository, g ssas.GroupRepository, db *gorm.DB) *adminHandler {
 	return &adminHandler{
-		sr: ssas.NewSystemRepository(db),
-		gr: ssas.NewGroupRepository(db),
+		sr: s,
+		gr: g,
 		db: db,
 	}
 }
@@ -207,7 +207,7 @@ func (h *adminHandler) getSystem(w http.ResponseWriter, r *http.Request) {
 
 	ips, err := h.sr.GetIPsData(r.Context(), s)
 	if err != nil {
-		logger.Errorf("failed to find system", err)
+		logger.Errorf("failed to find IPs for system: %s", err)
 		service.JSONError(w, http.StatusNotFound, http.StatusText(http.StatusNotFound), "")
 		return
 	}

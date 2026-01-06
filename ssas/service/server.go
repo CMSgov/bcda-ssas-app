@@ -40,7 +40,7 @@ type Server struct {
 	// database connection
 	db *gorm.DB
 	// Systems Repository
-	sr *ssas.SystemRepository
+	sr ssas.SystemRepository
 	// RootKey Repository
 	rkr *ssas.RootKeyRepository
 	// notSecure flag; when true, not running in https mode   // TODO set this from HTTP_ONLY envv

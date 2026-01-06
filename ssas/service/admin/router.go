@@ -49,7 +49,9 @@ func routes() *chi.Mux {
 	if err != nil {
 		panic(fmt.Sprintf("failed to connect to database: %s", err))
 	}
-	h := NewAdminHandler(db)
+	sr := ssas.NewSystemRepository(db)
+	gr := ssas.NewGroupRepository(db)
+	h := NewAdminHandler(sr, gr, db)
 	mh := NewAdminMiddlewareHandler(db)
 
 	r.Use(gcmw.RequestID, service.GetTransactionID, service.NewAPILogger(), service.ConnectionClose, service.NewCtxLogger)
