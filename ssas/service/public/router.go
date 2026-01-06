@@ -11,7 +11,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	gcmw "github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/render"
-
+	"gorm.io/gorm"
 )
 
 var server *service.Server
@@ -32,8 +32,14 @@ func Server() *service.Server {
 		return nil
 	}
 
-	server = service.NewServer("public", ":3003", routes(), unsafeMode, useMTLS, signingKey, 20*time.Minute, clientAssertAud)
+	db, err := ssas.CreateDB()
+	if err != nil {
+		panic(fmt.Sprintf("failed to connect to database: %s", err))
+	}
 
+	router := routes(db)
+
+	server = service.NewServer("public", ":3003", router, unsafeMode, useMTLS, signingKey, 20*time.Minute, clientAssertAud)
 
 	return server
 }

@@ -9,6 +9,7 @@ import (
 
 	"github.com/CMSgov/bcda-ssas-app/ssas"
 	"github.com/CMSgov/bcda-ssas-app/ssas/monitoring"
+	"gorm.io/gorm"
 
 	"github.com/go-chi/chi/v5"
 	gcmw "github.com/go-chi/chi/v5/middleware"
@@ -32,19 +33,20 @@ func Server() *service.Server {
 		ssas.Logger.Error(msg)
 		return nil
 	}
-
-	server = service.NewServer("admin", ":3004", routes(), unsafeMode, useMTLS, signingKey, 20*time.Minute, "")
-
-	return server
-}
-
-func routes() *chi.Mux {
-	r := chi.NewRouter()
-	m := monitoring.GetMonitor()
 	db, err := ssas.CreateDB()
 	if err != nil {
 		panic(fmt.Sprintf("failed to connect to database: %s", err))
 	}
+	router := routes(db)
+
+	server = service.NewServer("admin", ":3004", router, unsafeMode, useMTLS, signingKey, 20*time.Minute, "")
+
+	return server
+}
+
+func routes(db *gorm.DB) *chi.Mux {
+	r := chi.NewRouter()
+	m := monitoring.GetMonitor()
 	sr := ssas.NewSystemRepository(db)
 	gr := ssas.NewGroupRepository(db)
 	h := NewAdminHandler(sr, gr, db)
