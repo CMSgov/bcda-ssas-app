@@ -95,7 +95,7 @@ jobs:
             -Dsonar.sources=.
             -Dsonar.working.directory=./sonar_workspace
             -Dsonar.go.coverage.reportPaths=./testcoverage-ssas.out
-            -Dsonar.coverage.exclusions=**/*test.go,**/test/**/*,**/testUtils/*,**/scripts/*,**/ops/*,**/mock*.go,**/mock/**/*
+            -Dsonar.coverage.exclusions=**/*test.go,**/test/**/*,**/testUtils/*,**/scripts/*,**/ops/*,**/mock*.go,**/mock/**/*,**/*_mock.go
             -Dsonar.branch.name=${{ env.RELEASE_VERSION }}
             -Dsonar.projectVersion=${{ github.sha }}
             -Dsonar.qualitygate.wait=true
