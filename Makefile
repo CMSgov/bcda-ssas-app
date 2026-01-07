@@ -1,17 +1,3 @@
-package:
-	# This target should be executed by passing in an argument representing the version of the artifacts we are packaging
-	# For example: make package version=r1
-	docker compose run --rm documentation swagger generate spec -i ../../swaggerui/tags.yml -o ../../swaggerui/swagger.json -m
-	docker build -t packaging -f Dockerfiles/Dockerfile.package .
-	docker run --rm \
-	-e BCDA_GPG_RPM_PASSPHRASE='${BCDA_GPG_RPM_PASSPHRASE}' \
-	-e GPG_RPM_USER='${GPG_RPM_USER}' \
-	-e GPG_RPM_EMAIL='${GPG_RPM_EMAIL}' \
-	-e GPG_PUB_FILE_PATH='${GPG_PUB_FILE_PATH}' \
-	-e GPG_SEC_FILE_PATH='${GPG_SEC_FILE_PATH}' \
-	-v ${PWD}:/go/src/github.com/CMSgov/bcda-ssas-app packaging $(version)
-
-# -D(isabling) errcheck and staticcheck linters for now due to v2 upgrade, see: https://jira.cms.gov/browse/BCDA-8911
 lint:
 	docker compose -f docker-compose.test.yml run --rm tests golangci-lint --timeout 10m0s -v run --new-from-merge-base=main
 	docker compose -f docker-compose.test.yml run --rm tests gosec ./...
