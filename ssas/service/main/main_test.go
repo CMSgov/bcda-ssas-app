@@ -23,7 +23,7 @@ import (
 type MainTestSuite struct {
 	suite.Suite
 	db *gorm.DB
-	r  *ssas.SystemRepository
+	r  *ssas.GormSystemRepository
 }
 
 func (s *MainTestSuite) SetupSuite() {

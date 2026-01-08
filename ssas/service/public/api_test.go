@@ -43,8 +43,8 @@ type APITestSuite struct {
 	logEntry          *ssas.APILoggerEntry
 	ctx               context.Context
 	h                 *publicHandler
-	sr                *ssas.SystemRepository
-	gr                *ssas.GroupRepository
+	sr                ssas.SystemRepository
+	gr                ssas.GroupRepository
 }
 
 func (s *APITestSuite) SetupSuite() {

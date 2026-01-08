@@ -19,15 +19,32 @@ import (
 
 type adminHandler struct {
 	db *gorm.DB
-	sr *ssas.SystemRepository
-	gr *ssas.GroupRepository
+	sr ssas.SystemRepository
+	gr ssas.GroupRepository
+	m  Marshaler
 }
 
-func NewAdminHandler(db *gorm.DB) *adminHandler {
+type Marshaler interface {
+	Marshal(v interface{}) ([]byte, error)
+	Unmarshal(data []byte, v any) error
+}
+
+type JSONMarshaler struct{}
+
+func (j JSONMarshaler) Marshal(v interface{}) ([]byte, error) {
+	return json.Marshal(v)
+}
+
+func (j JSONMarshaler) Unmarshal(data []byte, v any) error {
+	return json.Unmarshal(data, v)
+}
+
+func NewAdminHandler(s ssas.SystemRepository, g ssas.GroupRepository, db *gorm.DB, m Marshaler) *adminHandler {
 	return &adminHandler{
-		sr: ssas.NewSystemRepository(db),
-		gr: ssas.NewGroupRepository(db),
+		sr: s,
+		gr: g,
 		db: db,
+		m:  m,
 	}
 }
 
@@ -81,7 +98,7 @@ func (h *adminHandler) createGroup(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 	body, _ := io.ReadAll(r.Body)
 	gd := ssas.GroupData{}
-	err := json.Unmarshal(body, &gd)
+	err := h.m.Unmarshal(body, &gd)
 	if err != nil {
 		logger.Errorf("error in request to create group; raw request: %v; error: %v", body, err.Error())
 		service.JSONError(w, http.StatusBadRequest, http.StatusText(http.StatusBadRequest), "")
@@ -96,7 +113,7 @@ func (h *adminHandler) createGroup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	groupJSON, err := json.Marshal(g)
+	groupJSON, err := h.m.Marshal(g)
 	if err != nil {
 		logger.Error("failed to marshal JSON: ", err)
 		service.JSONError(w, http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError), "")
@@ -231,7 +248,7 @@ func (h *adminHandler) getSystem(w http.ResponseWriter, r *http.Request) {
 
 	ips, err := h.sr.GetIPsData(r.Context(), s)
 	if err != nil {
-		logger.Errorf("failed to find system", err)
+		logger.Errorf("failed to find IPs for system: %s", err)
 		service.JSONError(w, http.StatusNotFound, http.StatusText(http.StatusNotFound), "")
 		return
 	}
