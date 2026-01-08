@@ -49,7 +49,8 @@ func routes(db *gorm.DB) *chi.Mux {
 	m := monitoring.GetMonitor()
 	sr := ssas.NewSystemRepository(db)
 	gr := ssas.NewGroupRepository(db)
-	h := NewAdminHandler(sr, gr, db)
+
+	h := NewAdminHandler(sr, gr, db, JSONMarshaler{})
 	mh := NewAdminMiddlewareHandler(db)
 
 	r.Use(

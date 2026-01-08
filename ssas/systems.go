@@ -77,7 +77,6 @@ type System struct {
 	SGAKey         string          `json:"sga_key"`
 }
 
-// TODO change this name
 type SystemRepository interface {
 	DeleteClientToken(ctx context.Context, system System, tokenID string) error
 	DeleteEncryptionKey(ctx context.Context, system System, keyID string) error
