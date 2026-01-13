@@ -68,13 +68,13 @@ type MarshalerMock struct {
 }
 
 func (m *MarshalerMock) Marshal(v interface{}) ([]byte, error) {
-	args := m.Called()
+	args := m.Called(v)
 	return args.Get(0).([]byte), args.Error(1)
 	//return []byte{}, nil
 }
 
 func (m *MarshalerMock) Unmarshal(data []byte, v any) error {
-	args := m.Called()
+	args := m.Called(data, v)
 	return args.Error(0)
 }
 
@@ -218,7 +218,7 @@ func (s *APITestSuite) TestCreateGroupUnMarshalErr() {
 	gr := new(ssas.GroupRepositoryMock)
 	sr := new(ssas.SystemRepositoryMock)
 	h := NewAdminHandler(sr, gr, s.db, m)
-	m.On("Unmarshal", mock.Anything).Return(errors.New("error in request to create group"))
+	m.On("Unmarshal", mock.Anything, mock.Anything).Return(errors.New("error in request to create group"))
 	testInput := fmt.Sprintf(SampleGroup, "", SampleXdata)
 	req := httptest.NewRequestWithContext(s.ctx, "POST", "/group", strings.NewReader(testInput))
 	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry))
@@ -341,12 +341,12 @@ func (s *APITestSuite) TestListGroupsNoGroups() {
 
 func (s *APITestSuite) TestListGroupsMarshalErr() {
 	m := new(MarshalerMock)
-	m.On("Marshal", mock.Anything).Return("failed to marshal JSON")
 	gr := new(ssas.GroupRepositoryMock)
-	gr.On("ListGroups", mock.Anything).Return(ssas.GroupList{}, errors.New("failed to execute sql"))
-	sr := ssas.NewSystemRepository(s.db)
-	h := NewAdminHandler(sr, gr, s.db, m)
 
+	h := NewAdminHandler(s.sr, gr, s.db, m)
+
+	gr.On("ListGroups", mock.Anything).Return(ssas.GroupList{}, errors.New("failed to marshal JSON"))
+	m.On("Marshal", mock.Anything).Return([]byte{}, errors.New("failed to marshal JSON"))
 	req := httptest.NewRequestWithContext(s.ctx, "GET", "/group", nil)
 	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry))
 	l := ssas.GetCtxLogger(req.Context())
@@ -356,13 +356,10 @@ func (s *APITestSuite) TestListGroupsMarshalErr() {
 	rr := httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
 	assert.Equal(s.T(), http.StatusInternalServerError, rr.Result().StatusCode)
-	groupList := ssas.GroupList{}
-	err := json.Unmarshal(rr.Body.Bytes(), &groupList)
-	assert.Nil(s.T(), err)
 
 	entries := logHook.AllEntries()
 	assert.GreaterOrEqual(s.T(), len(entries), 0)
-	assert.Contains(s.T(), entries[1].Message, "failed to execute sql")
+	assert.Contains(s.T(), entries[1].Message, "failed to marshal JSON")
 
 }
 
@@ -415,6 +412,63 @@ func (s *APITestSuite) TestUpdateGroupBadGroupID() {
 	rr := httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
 	assert.Equal(s.T(), http.StatusBadRequest, rr.Result().StatusCode)
+}
+
+func (s *APITestSuite) TestUpdateGroupUnmarshalErr() {
+	gr := new(ssas.GroupRepositoryMock)
+	m := new(MarshalerMock)
+	h := NewAdminHandler(s.sr, gr, s.db, m)
+	m.On("Unmarshal", mock.Anything, mock.Anything).Return(errors.New("failed to unmarshal JSON")).Once()
+	gr.On("UpdateGroup", mock.Anything, mock.Anything, mock.Anything).Return(ssas.Group{}, nil)
+
+	gid := ssas.RandomBase64(16)
+	testInput := fmt.Sprintf(SampleGroup, gid, SampleXdata)
+	url := fmt.Sprintf("/group/%v", gid)
+	req := httptest.NewRequestWithContext(s.ctx, "PUT", url, strings.NewReader(testInput))
+	rctx := chi.NewRouteContext()
+	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry))
+	rctx.URLParams.Add("id", "1")
+	l := ssas.GetCtxLogger(req.Context())
+	logger := ssas.GetLogger(l)
+	logHook := test.NewLocal(logger)
+	handler := http.HandlerFunc(h.updateGroup)
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+	assert.Equal(s.T(), http.StatusBadRequest, rr.Result().StatusCode)
+	entries := logHook.AllEntries()
+	assert.GreaterOrEqual(s.T(), len(entries), 0)
+	assert.Contains(s.T(), entries[0].Message, "failed to unmarshal JSON")
+
+}
+
+func (s *APITestSuite) TestUpdateGroupMarshalErr() {
+	gr := new(ssas.GroupRepositoryMock)
+	m := new(MarshalerMock)
+	h := NewAdminHandler(s.sr, gr, s.db, m)
+	m.On("Unmarshal", mock.Anything, mock.Anything).Return(nil)
+	gr.On("UpdateGroup", mock.Anything, mock.Anything, mock.Anything).Return(ssas.Group{}, nil)
+	m.On("Marshal", mock.Anything).Return([]byte{}, errors.New("failed to marshal JSON"))
+
+	gid := ssas.RandomBase64(16)
+	testInput := fmt.Sprintf(SampleGroup, gid, SampleXdata)
+	url := fmt.Sprintf("/group/%v", gid)
+	req := httptest.NewRequestWithContext(s.ctx, "PUT", url, strings.NewReader(testInput))
+	rctx := chi.NewRouteContext()
+	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry))
+	rctx.URLParams.Add("id", "1")
+	l := ssas.GetCtxLogger(req.Context())
+	logger := ssas.GetLogger(l)
+	logHook := test.NewLocal(logger)
+	handler := http.HandlerFunc(h.updateGroup)
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+
+	assert.Equal(s.T(), http.StatusInternalServerError, rr.Result().StatusCode)
+	entries := logHook.AllEntries()
+	assert.GreaterOrEqual(s.T(), len(entries), 0)
+	assert.Contains(s.T(), entries[1].Message, "failed to marshal JSON")
 }
 
 func (s *APITestSuite) TestRevokeToken() {
@@ -728,6 +782,65 @@ func (s *APITestSuite) TestResetCredentials() {
 	assert.True(s.T(), alertLog)
 }
 
+func (s *APITestSuite) TestResetCredentialsNoXData() {
+	logger := ssas.GetLogger(ssas.Logger)
+	logHook := test.NewLocal(logger)
+	gr := new(ssas.GroupRepositoryMock)
+	sr := new(ssas.SystemRepositoryMock)
+	m := new(MarshalerMock)
+	h := NewAdminHandler(sr, gr, s.db, m)
+	sr.On("GetSystemByID", mock.Anything, mock.Anything).Return(ssas.System{}, nil)
+	gr.On("XDataFor", mock.Anything, mock.Anything).Return("", errors.New("could not get group XData for clientID"))
+
+	systemID := strconv.FormatUint(uint64(1234), 10)
+	req := httptest.NewRequestWithContext(s.ctx, "PUT", "/system/"+systemID+"/credentials", nil)
+	rctx := chi.NewRouteContext()
+	rctx.URLParams.Add("systemID", systemID)
+
+	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry.Logger))
+	handler := http.Handler(service.NewCtxLogger(http.HandlerFunc(h.resetCredentials)))
+
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+
+	assert.Equal(s.T(), http.StatusInternalServerError, rr.Result().StatusCode)
+	entries := logHook.AllEntries()
+	assert.Contains(s.T(), entries[0].Message, "could not get group XData for clientID")
+
+}
+
+func (s *APITestSuite) TestResetCredentialsResetSecretErr() {
+	logger := ssas.GetLogger(ssas.Logger)
+	logHook := test.NewLocal(logger)
+	gr := new(ssas.GroupRepositoryMock)
+	sr := new(ssas.SystemRepositoryMock)
+	m := new(MarshalerMock)
+	h := NewAdminHandler(sr, gr, s.db, m)
+
+	sr.On("GetSystemByID", mock.Anything, mock.Anything).Return(ssas.System{}, nil)
+	sr.On("ResetSecret", mock.Anything, mock.Anything).Return(ssas.Credentials{}, errors.New("failed to reset secret:"))
+	gr.On("XDataFor", mock.Anything, mock.Anything).Return("", nil)
+
+	systemID := strconv.FormatUint(uint64(1234), 10)
+	req := httptest.NewRequestWithContext(s.ctx, "PUT", "/system/"+systemID+"/credentials", nil)
+	rctx := chi.NewRouteContext()
+	rctx.URLParams.Add("systemID", systemID)
+
+	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry.Logger))
+	handler := http.Handler(service.NewCtxLogger(http.HandlerFunc(h.resetCredentials)))
+
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+
+	assert.Equal(s.T(), http.StatusInternalServerError, rr.Result().StatusCode)
+
+	entries := logHook.AllEntries()
+	assert.Contains(s.T(), entries[1].Message, "failed to reset secret:")
+
+}
+
 func (s *APITestSuite) TestResetCredentialsInvalidSystemID() {
 	systemID := "999"
 	req := httptest.NewRequestWithContext(s.ctx, "PUT", "/system/"+systemID+"/credentials", nil)
@@ -741,27 +854,6 @@ func (s *APITestSuite) TestResetCredentialsInvalidSystemID() {
 
 	assert.Equal(s.T(), http.StatusNotFound, rr.Result().StatusCode)
 }
-
-// func (s *APITestSuite) TestResetCredentialsNoXData() {
-// 	sr := new(ssas.SystemRepositoryMock)
-// 	gr := new(ssas.GroupRepositoryMock)
-// 	sr.On("RegisterSystem", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(ssas.Credentials{}, nil)
-// 	//sr.On("RegisterSystem", mock.Anything, mock.Anything).Return(ssas.Credentials{}, nil)
-// 	gr.On("GetGroupByGroupID", mock.Anything, mock.Anything).Return(ssas.Group{}, errors.New("could not get group XData"))
-// 	h := NewAdminHandler(sr, gr, s.db, JSONMarshaler{})
-
-// 	systemID := "999"
-// 	req := httptest.NewRequestWithContext(s.ctx, "PUT", "/system/"+systemID+"/credentials", nil)
-// 	rctx := chi.NewRouteContext()
-// 	rctx.URLParams.Add("systemID", systemID)
-// 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
-// 	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry))
-// 	handler := http.HandlerFunc(s.h.resetCredentials)
-// 	rr := httptest.NewRecorder()
-// 	handler.ServeHTTP(rr, req)
-
-// 	assert.Equal(s.T(), http.StatusNotFound, rr.Result().StatusCode)
-// }
 
 func (s *APITestSuite) TestGetPublicKeyBadSystemID() {
 	systemID := strconv.FormatUint(uint64(9999), 10)
@@ -937,6 +1029,59 @@ func (s *APITestSuite) TestDeactivateSystemCredentials() {
 	assert.True(s.T(), alertLog)
 }
 
+func (s *APITestSuite) TestDeactivateSystemCredentialsNoXData() {
+	logger := ssas.GetLogger(ssas.Logger)
+	logHook := test.NewLocal(logger)
+	gr := new(ssas.GroupRepositoryMock)
+	sr := new(ssas.SystemRepositoryMock)
+	m := new(MarshalerMock)
+	h := NewAdminHandler(sr, gr, s.db, m)
+
+	sr.On("GetSystemByID", mock.Anything, mock.Anything).Return(ssas.System{}, nil)
+	gr.On("XDataFor", mock.Anything, mock.Anything).Return("", errors.New("could not get group XData for clientID"))
+
+	systemID := strconv.FormatUint(uint64(1234), 10)
+	req := httptest.NewRequestWithContext(s.ctx, "DELETE", "/system/"+systemID+"/credentials", nil)
+	rctx := chi.NewRouteContext()
+	rctx.URLParams.Add("systemID", systemID)
+	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry))
+	handler := http.Handler(service.NewCtxLogger(http.HandlerFunc(h.deactivateSystemCredentials)))
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+
+	assert.Equal(s.T(), http.StatusInternalServerError, rr.Result().StatusCode)
+	entries := logHook.AllEntries()
+	assert.Contains(s.T(), entries[0].Message, "could not get group XData for clientID")
+}
+
+func (s *APITestSuite) TestDeactivateSystemCredentialsRevokeSecretErr() {
+	logger := ssas.GetLogger(ssas.Logger)
+	logHook := test.NewLocal(logger)
+	gr := new(ssas.GroupRepositoryMock)
+	sr := new(ssas.SystemRepositoryMock)
+	m := new(MarshalerMock)
+	h := NewAdminHandler(sr, gr, s.db, m)
+
+	sr.On("GetSystemByID", mock.Anything, mock.Anything).Return(ssas.System{}, nil)
+	gr.On("XDataFor", mock.Anything, mock.Anything).Return("", nil)
+	sr.On("RevokeSecret", mock.Anything, mock.Anything).Return(errors.New("failed to revoke secret"))
+
+	systemID := strconv.FormatUint(uint64(1234), 10)
+	req := httptest.NewRequestWithContext(s.ctx, "DELETE", "/system/"+systemID+"/credentials", nil)
+	rctx := chi.NewRouteContext()
+	rctx.URLParams.Add("systemID", systemID)
+	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry))
+	handler := http.Handler(service.NewCtxLogger(http.HandlerFunc(h.deactivateSystemCredentials)))
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+
+	assert.Equal(s.T(), http.StatusInternalServerError, rr.Result().StatusCode)
+	entries := logHook.AllEntries()
+	assert.Contains(s.T(), entries[0].Message, "failed to revoke secret")
+}
+
 func (s *APITestSuite) TestJSONError() {
 	rr := httptest.NewRecorder()
 	service.JSONError(rr, http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized), "unauthorized")
@@ -1018,6 +1163,32 @@ func (s *APITestSuite) TestGetSystemIPsBadSystem() {
 	rr := httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
 	assert.Equal(s.T(), http.StatusNotFound, rr.Result().StatusCode)
+}
+
+func (s *APITestSuite) TestGetSystemIPsGetIpsErr() {
+	sr := new(ssas.SystemRepositoryMock)
+	h := NewAdminHandler(sr, s.gr, s.db, s.h.m)
+
+	sr.On("GetSystemByID", mock.Anything, mock.Anything).Return(ssas.System{}, nil)
+	sr.On("GetIps", mock.Anything, mock.Anything).Return([]ssas.IP{}, errors.New("Could not retrieve system ips"))
+
+	systemID := strconv.FormatUint(uint64(1234), 10) // #nosec G115
+	req := httptest.NewRequestWithContext(s.ctx, "GET", "/system/"+systemID+"/ip", nil)
+	rctx := chi.NewRouteContext()
+	rctx.URLParams.Add("systemID", systemID)
+	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry))
+	l := ssas.GetCtxLogger(req.Context())
+	logger := ssas.GetLogger(l)
+	logHook := test.NewLocal(logger)
+	handler := http.HandlerFunc(h.getSystemIPs)
+
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+	assert.Equal(s.T(), http.StatusNotFound, rr.Result().StatusCode)
+
+	entries := logHook.AllEntries()
+	assert.Contains(s.T(), entries[1].Message, "Could not retrieve system ips")
 }
 
 func (s *APITestSuite) TestRegisterSystemIP() {
