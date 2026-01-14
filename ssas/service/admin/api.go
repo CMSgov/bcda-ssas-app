@@ -25,17 +25,17 @@ type adminHandler struct {
 }
 
 type Marshaler interface {
-	Marshal(v interface{}) ([]byte, error)
+	Marshal(any) ([]byte, error)
 	Unmarshal(data []byte, v any) error
 }
 
-type JSONMarshaler struct{}
+type JsonMarshaler struct{}
 
-func (j JSONMarshaler) Marshal(v interface{}) ([]byte, error) {
+func (j JsonMarshaler) Marshal(v any) ([]byte, error) {
 	return json.Marshal(v)
 }
 
-func (j JSONMarshaler) Unmarshal(data []byte, v any) error {
+func (j JsonMarshaler) Unmarshal(data []byte, v any) error {
 	return json.Unmarshal(data, v)
 }
 

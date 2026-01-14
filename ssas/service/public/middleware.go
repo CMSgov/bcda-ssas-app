@@ -15,8 +15,8 @@ import (
 
 type publicMiddlewareHandler struct {
 	db *gorm.DB
-	sr *ssas.GormSystemRepository
-	gr *ssas.GormGroupRepository
+	sr ssas.SystemRepository
+	gr ssas.GroupRepository
 }
 
 func NewPublicMiddlewareHandler(db *gorm.DB) *publicMiddlewareHandler {

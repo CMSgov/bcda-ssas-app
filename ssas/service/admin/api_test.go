@@ -99,7 +99,7 @@ func (s *APITestSuite) SetupSuite() {
 	require.NoError(s.T(), err)
 	s.gr = ssas.NewGroupRepository(s.db)
 	s.sr = ssas.NewSystemRepository(s.db)
-	s.h = NewAdminHandler(s.sr, s.gr, s.db, JSONMarshaler{})
+	s.h = NewAdminHandler(s.sr, s.gr, s.db, JsonMarshaler{})
 }
 
 func (s *APITestSuite) TearDownSuite() {
@@ -318,7 +318,7 @@ func (s *APITestSuite) TestListGroupsNoGroups() {
 	gr := new(ssas.GroupRepositoryMock)
 	gr.On("ListGroups", mock.Anything).Return(ssas.GroupList{}, errors.New("failed to execute sql"))
 	sr := ssas.NewSystemRepository(s.db)
-	h := NewAdminHandler(sr, gr, s.db, JSONMarshaler{})
+	h := NewAdminHandler(sr, gr, s.db, JsonMarshaler{})
 
 	req := httptest.NewRequestWithContext(s.ctx, "GET", "/group", nil)
 	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry))
@@ -591,7 +591,7 @@ func (s *APITestSuite) TestCreateSystemNoGroup() {
 	gr := new(ssas.GroupRepositoryMock)
 	sr.On("RegisterSystem", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(ssas.Credentials{}, nil)
 	gr.On("GetGroupByGroupID", mock.Anything, mock.Anything).Return(ssas.Group{}, errors.New("could not get group XData"))
-	h := NewAdminHandler(sr, gr, s.db, JSONMarshaler{})
+	h := NewAdminHandler(sr, gr, s.db, JsonMarshaler{})
 
 	req := httptest.NewRequestWithContext(s.ctx, "POST", "/system", strings.NewReader(`{"client_name": "Test Client", "group_id": "test-group-id", "scope": "bcda-api", "public_key": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEArhxobShmNifzW3xznB+L\nI8+hgaePpSGIFCtFz2IXGU6EMLdeufhADaGPLft9xjwdN1ts276iXQiaChKPA2CK\n/CBpuKcnU3LhU8JEi7u/db7J4lJlh6evjdKVKlMuhPcljnIKAiGcWln3zwYrFCeL\ncN0aTOt4xnQpm8OqHawJ18y0WhsWT+hf1DeBDWvdfRuAPlfuVtl3KkrNYn1yqCgQ\nlT6v/WyzptJhSR1jxdR7XLOhDGTZUzlHXh2bM7sav2n1+sLsuCkzTJqWZ8K7k7cI\nXK354CNpCdyRYUAUvr4rORIAUmcIFjaR3J4y/Dh2JIyDToOHg7vjpCtNnNoS+ON2\nHwIDAQAB\n-----END PUBLIC KEY-----", "tracking_id": "T00000"}`))
 	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry))
@@ -1906,7 +1906,7 @@ func (s *APITestSuite) TestGetV2SystemNoIPs() {
 	gr := ssas.NewGroupRepository(s.db)
 	sr.On("GetSystemByID", mock.Anything, mock.Anything).Return(ssas.System{}, nil)
 	sr.On("GetIPsData", mock.Anything, mock.Anything).Return([]ssas.IP{}, errors.New("no entries returned"))
-	h := NewAdminHandler(sr, gr, s.db, JSONMarshaler{})
+	h := NewAdminHandler(sr, gr, s.db, JsonMarshaler{})
 
 	creds, _ := ssas.CreateTestXDataV2(s.T(), ctx, s.db)
 
@@ -1940,7 +1940,7 @@ func (s *APITestSuite) TestGetV2SystemClientToken() {
 	sr.On("GetSystemByID", mock.Anything, mock.Anything).Return(ssas.System{}, nil)
 	sr.On("GetIPsData", mock.Anything, mock.Anything).Return([]ssas.IP{}, nil)
 	gr := ssas.NewGroupRepository(s.db)
-	h := NewAdminHandler(sr, gr, s.db, JSONMarshaler{})
+	h := NewAdminHandler(sr, gr, s.db, JsonMarshaler{})
 	sr.On("GetClientTokens", mock.Anything, mock.Anything).Return([]ssas.ClientToken{}, errors.New("failed to find token(s)"))
 
 	creds, _ := ssas.CreateTestXDataV2(s.T(), ctx, s.db)
@@ -1976,7 +1976,7 @@ func (s *APITestSuite) TestGetV2SystemEncryptionKeys() {
 	sr.On("GetSystemByID", mock.Anything, mock.Anything).Return(ssas.System{}, nil)
 	sr.On("GetIPsData", mock.Anything, mock.Anything).Return([]ssas.IP{}, nil)
 	gr := ssas.NewGroupRepository(s.db)
-	h := NewAdminHandler(sr, gr, s.db, JSONMarshaler{})
+	h := NewAdminHandler(sr, gr, s.db, JsonMarshaler{})
 	sr.On("GetClientTokens", mock.Anything, mock.Anything).Return([]ssas.ClientToken{}, nil)
 	sr.On("GetEncryptionKeys", mock.Anything, mock.Anything).Return([]ssas.EncryptionKey{}, errors.New("failed to find encryption keys"))
 
@@ -2313,7 +2313,7 @@ func MakeTestStructuredLoggerEntry(logFields logrus.Fields) *ssas.APILoggerEntry
 func TestSGAAdmin_NoAuth(t *testing.T) {
 	db, err := ssas.CreateDB()
 	require.NoError(t, err)
-	h := NewAdminHandler(ssas.NewSystemRepository(db), ssas.NewGroupRepository(db), db, JSONMarshaler{})
+	h := NewAdminHandler(ssas.NewSystemRepository(db), ssas.NewGroupRepository(db), db, JsonMarshaler{})
 	r := ssas.NewGroupRepository(db)
 	service.StartDenylist()
 	cfg.MaxIPs = 3

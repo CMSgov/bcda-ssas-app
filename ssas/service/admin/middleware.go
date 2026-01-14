@@ -12,8 +12,8 @@ import (
 
 type adminMiddlewareHandler struct {
 	db *gorm.DB
-	sr *ssas.GormSystemRepository
-	gr *ssas.GormGroupRepository
+	sr ssas.SystemRepository
+	gr ssas.GroupRepository
 }
 
 func NewAdminMiddlewareHandler(db *gorm.DB) *adminMiddlewareHandler {

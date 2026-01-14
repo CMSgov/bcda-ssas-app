@@ -50,7 +50,7 @@ func routes(db *gorm.DB) *chi.Mux {
 	sr := ssas.NewSystemRepository(db)
 	gr := ssas.NewGroupRepository(db)
 
-	h := NewAdminHandler(sr, gr, db, JSONMarshaler{})
+	h := NewAdminHandler(sr, gr, db, JsonMarshaler{})
 	mh := NewAdminMiddlewareHandler(db)
 
 	r.Use(
