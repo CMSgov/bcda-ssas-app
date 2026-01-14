@@ -803,6 +803,37 @@ func (s *APITestSuite) TestResetCredentials() {
 	assert.True(s.T(), alertLog)
 }
 
+func (s *APITestSuite) TestResetCredentialsMarshalErr() {
+	logger := ssas.GetLogger(ssas.Logger)
+	logHook := test.NewLocal(logger)
+	gr := new(ssas.GroupRepositoryMock)
+	sr := new(ssas.SystemRepositoryMock)
+	m := new(MarshalerMock)
+	h := NewAdminHandler(sr, gr, s.db, m)
+	sr.On("GetSystemByID", mock.Anything, mock.Anything).Return(ssas.System{}, nil)
+	gr.On("XDataFor", mock.Anything, mock.Anything).Return("", nil)
+	sr.On("ResetSecret", mock.Anything, mock.Anything).Return(ssas.Credentials{}, nil)
+
+	m.On("Marshal", mock.Anything).Return([]byte{}, errors.New("failed to marshal JSON"))
+
+	systemID := strconv.FormatUint(uint64(1234), 10)
+	req := httptest.NewRequestWithContext(s.ctx, "PUT", "/system/"+systemID+"/credentials", nil)
+	rctx := chi.NewRouteContext()
+	rctx.URLParams.Add("systemID", systemID)
+
+	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry.Logger))
+	handler := http.Handler(service.NewCtxLogger(http.HandlerFunc(h.resetCredentials)))
+
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+
+	assert.Equal(s.T(), http.StatusInternalServerError, rr.Result().StatusCode)
+	entries := logHook.AllEntries()
+	assert.GreaterOrEqual(s.T(), len(entries), 0)
+	assert.Contains(s.T(), entries[2].Message, "failed to marshal JSON")
+}
+
 func (s *APITestSuite) TestResetCredentialsNoXData() {
 	logger := ssas.GetLogger(ssas.Logger)
 	logHook := test.NewLocal(logger)
@@ -1252,6 +1283,63 @@ func (s *APITestSuite) TestRegisterSystemIP() {
 	var ips []ssas.IP
 	_ = json.Unmarshal(rr.Body.Bytes(), &ips)
 	assert.Len(s.T(), ips, 1)
+}
+
+func (s *APITestSuite) TestRegisterSystemIPRegisterIPErr() {
+
+	sr := new(ssas.SystemRepositoryMock)
+	m := new(MarshalerMock)
+	h := NewAdminHandler(sr, s.gr, s.db, m)
+	sr.On("GetSystemByID", mock.Anything, mock.Anything).Return(ssas.System{}, nil)
+	sr.On("RegisterIP", mock.Anything, mock.Anything, mock.Anything).Return(ssas.IP{}, errors.New("foo"))
+
+	systemID := strconv.FormatUint(uint64(1234), 10)
+	body := `{"address":"2.5.22.81"}`
+	req := httptest.NewRequestWithContext(s.ctx, "POST", "/system/"+systemID+"/ip", strings.NewReader(body))
+	rctx := chi.NewRouteContext()
+	rctx.URLParams.Add("systemID", systemID)
+	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry))
+	l := ssas.GetCtxLogger(req.Context())
+	logger := ssas.GetLogger(l)
+	logHook := test.NewLocal(logger)
+	handler := http.HandlerFunc(h.registerIP)
+
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+	assert.Equal(s.T(), http.StatusInternalServerError, rr.Result().StatusCode)
+	entries := logHook.AllEntries()
+	assert.GreaterOrEqual(s.T(), len(entries), 0)
+	assert.Contains(s.T(), entries[1].Message, "foo")
+}
+
+func (s *APITestSuite) TestRegisterSystemIPMarshalErr() {
+
+	sr := new(ssas.SystemRepositoryMock)
+	m := new(MarshalerMock)
+	h := NewAdminHandler(sr, s.gr, s.db, m)
+	sr.On("GetSystemByID", mock.Anything, mock.Anything).Return(ssas.System{}, nil)
+	sr.On("RegisterIP", mock.Anything, mock.Anything, mock.Anything).Return(ssas.IP{}, nil)
+	m.On("Marshal", mock.Anything).Return([]byte{}, errors.New("failed to marshal JSON"))
+
+	systemID := strconv.FormatUint(uint64(1234), 10)
+	body := `{"address":"2.5.22.81"}`
+	req := httptest.NewRequestWithContext(s.ctx, "POST", "/system/"+systemID+"/ip", strings.NewReader(body))
+	rctx := chi.NewRouteContext()
+	rctx.URLParams.Add("systemID", systemID)
+	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
+	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry))
+	l := ssas.GetCtxLogger(req.Context())
+	logger := ssas.GetLogger(l)
+	logHook := test.NewLocal(logger)
+	handler := http.HandlerFunc(h.registerIP)
+
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+	assert.Equal(s.T(), http.StatusInternalServerError, rr.Result().StatusCode)
+	entries := logHook.AllEntries()
+	assert.GreaterOrEqual(s.T(), len(entries), 0)
+	assert.Contains(s.T(), entries[2].Message, "failed to marshal JSON")
 }
 
 func (s *APITestSuite) TestRegisterInvalidIP() {
