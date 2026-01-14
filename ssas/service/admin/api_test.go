@@ -342,10 +342,9 @@ func (s *APITestSuite) TestListGroupsNoGroups() {
 func (s *APITestSuite) TestListGroupsMarshalErr() {
 	m := new(MarshalerMock)
 	gr := new(ssas.GroupRepositoryMock)
-
 	h := NewAdminHandler(s.sr, gr, s.db, m)
 
-	gr.On("ListGroups", mock.Anything).Return(ssas.GroupList{}, errors.New("failed to marshal JSON"))
+	gr.On("ListGroups", mock.Anything).Return(ssas.GroupList{}, nil)
 	m.On("Marshal", mock.Anything).Return([]byte{}, errors.New("failed to marshal JSON"))
 	req := httptest.NewRequestWithContext(s.ctx, "GET", "/group", nil)
 	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry))
@@ -591,7 +590,6 @@ func (s *APITestSuite) TestCreateSystemNoGroup() {
 	sr := new(ssas.SystemRepositoryMock)
 	gr := new(ssas.GroupRepositoryMock)
 	sr.On("RegisterSystem", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(ssas.Credentials{}, nil)
-	//sr.On("RegisterSystem", mock.Anything, mock.Anything).Return(ssas.Credentials{}, nil)
 	gr.On("GetGroupByGroupID", mock.Anything, mock.Anything).Return(ssas.Group{}, errors.New("could not get group XData"))
 	h := NewAdminHandler(sr, gr, s.db, JSONMarshaler{})
 
@@ -604,6 +602,29 @@ func (s *APITestSuite) TestCreateSystemNoGroup() {
 	assert.Equal(s.T(), http.StatusInternalServerError, rr.Result().StatusCode)
 	entries := logHook.AllEntries()
 	assert.Contains(s.T(), entries[1].Message, "could not get group XData")
+}
+
+func (s *APITestSuite) TestCreateSystemMarshalErr() {
+	logger := ssas.GetLogger(ssas.Logger)
+	logHook := test.NewLocal(logger)
+	gr := new(ssas.GroupRepositoryMock)
+	sr := new(ssas.SystemRepositoryMock)
+	m := new(MarshalerMock)
+	h := NewAdminHandler(sr, gr, s.db, m)
+	sr.On("RegisterSystem", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(ssas.Credentials{}, nil)
+	gr.On("GetGroupByGroupID", mock.Anything, mock.Anything).Return(ssas.Group{}, nil)
+	m.On("Marshal", mock.Anything).Return([]byte{}, errors.New("failed to marshal JSON"))
+
+	req := httptest.NewRequestWithContext(s.ctx, "POST", "/system", strings.NewReader(`{"client_name": "Test Client", "group_id": "test-group-id", "scope": "bcda-api", "public_key": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEArhxobShmNifzW3xznB+L\nI8+hgaePpSGIFCtFz2IXGU6EMLdeufhADaGPLft9xjwdN1ts276iXQiaChKPA2CK\n/CBpuKcnU3LhU8JEi7u/db7J4lJlh6evjdKVKlMuhPcljnIKAiGcWln3zwYrFCeL\ncN0aTOt4xnQpm8OqHawJ18y0WhsWT+hf1DeBDWvdfRuAPlfuVtl3KkrNYn1yqCgQ\nlT6v/WyzptJhSR1jxdR7XLOhDGTZUzlHXh2bM7sav2n1+sLsuCkzTJqWZ8K7k7cI\nXK354CNpCdyRYUAUvr4rORIAUmcIFjaR3J4y/Dh2JIyDToOHg7vjpCtNnNoS+ON2\nHwIDAQAB\n-----END PUBLIC KEY-----", "tracking_id": "T00000"}`))
+	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry))
+	handler := http.Handler(service.NewCtxLogger(http.HandlerFunc(h.createSystem)))
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+
+	assert.Equal(s.T(), http.StatusInternalServerError, rr.Result().StatusCode)
+	entries := logHook.AllEntries()
+	assert.GreaterOrEqual(s.T(), len(entries), 0)
+	assert.Contains(s.T(), entries[2].Message, "failed to marshal JSON")
 }
 
 func (s *APITestSuite) TestCreateSystemMultipleIps() {
@@ -1597,6 +1618,30 @@ func (s *APITestSuite) TestCreateV2System() {
 	assert.NotEmpty(s.T(), result["client_token"])
 	assert.Empty(s.T(), result["client_secret"])
 	assert.Equal(s.T(), "Test Client", result["client_name"])
+}
+
+func (s *APITestSuite) TestCreateV2SystemMarshalErr() {
+	gr := new(ssas.GroupRepositoryMock)
+	sr := new(ssas.SystemRepositoryMock)
+	m := new(MarshalerMock)
+	h := NewAdminHandler(sr, gr, s.db, m)
+	sr.On("RegisterV2System", mock.Anything, mock.Anything).Return(ssas.Credentials{}, nil)
+	m.On("Marshal", mock.Anything).Return([]byte{}, errors.New("failed to marshal JSON"))
+
+	req := httptest.NewRequestWithContext(s.ctx, "POST", "/v2/system", strings.NewReader(`{"client_name": "Test Client", "group_id": "test-group-id","xdata":"{\"org\":\"testOrgID\"}", "scope": "bcda-api", "public_key": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEArhxobShmNifzW3xznB+L\nI8+hgaePpSGIFCtFz2IXGU6EMLdeufhADaGPLft9xjwdN1ts276iXQiaChKPA2CK\n/CBpuKcnU3LhU8JEi7u/db7J4lJlh6evjdKVKlMuhPcljnIKAiGcWln3zwYrFCeL\ncN0aTOt4xnQpm8OqHawJ18y0WhsWT+hf1DeBDWvdfRuAPlfuVtl3KkrNYn1yqCgQ\nlT6v/WyzptJhSR1jxdR7XLOhDGTZUzlHXh2bM7sav2n1+sLsuCkzTJqWZ8K7k7cI\nXK354CNpCdyRYUAUvr4rORIAUmcIFjaR3J4y/Dh2JIyDToOHg7vjpCtNnNoS+ON2\nHwIDAQAB\n-----END PUBLIC KEY-----", "tracking_id": "T00000"}`))
+	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry))
+	l := ssas.GetCtxLogger(req.Context())
+	logger := ssas.GetLogger(l)
+	logHook := test.NewLocal(logger)
+
+	handler := http.HandlerFunc(h.createV2System)
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+
+	assert.Equal(s.T(), http.StatusInternalServerError, rr.Result().StatusCode)
+	entries := logHook.AllEntries()
+	assert.GreaterOrEqual(s.T(), len(entries), 0)
+	assert.Contains(s.T(), entries[1].Message, "failed to marshal JSON")
 }
 
 func (s *APITestSuite) TestCreateV2SystemWithMissingPublicKey() {
