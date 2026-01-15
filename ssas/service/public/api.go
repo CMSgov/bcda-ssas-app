@@ -26,8 +26,8 @@ import (
 
 type publicHandler struct {
 	db *gorm.DB
-	sr *ssas.SystemRepository
-	gr *ssas.GroupRepository
+	sr ssas.SystemRepository
+	gr ssas.GroupRepository
 	tc TokenCreator
 }
 

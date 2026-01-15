@@ -73,12 +73,27 @@ func (s *PublicTokenTestSuite) TestMintAccessToken() {
 }
 
 func (s *PublicTokenTestSuite) TestCheckTokenClaimsMissingType() {
-	c := service.CommonClaims{}
-	err := checkTokenClaims(&c)
-	if err == nil {
-		assert.FailNow(s.T(), "must have error with missing token type")
+	tests := []struct {
+		name  string
+		claim service.CommonClaims
+		err   string
+	}{
+		{"No token type", service.CommonClaims{}, "missing token type claim"},
+		{"MFAToken", service.CommonClaims{TokenType: "MFAToken"}, "MFA token must have OktaID claim"},
+		{"RegistrationToken", service.CommonClaims{TokenType: "RegistrationToken"}, "registration token must have GroupIDs claim"},
+		{"AccessToken", service.CommonClaims{TokenType: "AccessToken"}, "access token must have Data claim"},
 	}
-	assert.Contains(s.T(), err.Error(), "missing token type claim")
+
+	for _, tt := range tests {
+		s.T().Run(tt.name, func(t *testing.T) {
+			err := checkTokenClaims(&tt.claim)
+			if err == nil {
+				assert.FailNow(s.T(), "must have error with missing token type")
+			}
+			assert.Contains(s.T(), err.Error(), tt.err)
+		})
+	}
+
 }
 
 func (s *PublicTokenTestSuite) TestEmpty() {
