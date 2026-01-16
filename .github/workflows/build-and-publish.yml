@@ -1,22 +1,6 @@
 name: Build and publish SSAS
 
 on:
-  workflow_call:
-    inputs:
-      revision:
-        description: 'Revision to checkout (e.g. tag or branch name)'
-        required: true
-        type: string
-      env:
-        description: 'Environment you want to deploy to (dev, test, sandbox, prod)'
-        required: true
-        type: string
-        default: dev
-      confirm_env:
-        description: 'Confirm the environment you want to deploy to'
-        required: true
-        type: string
-        default: dev
   workflow_dispatch:
     inputs:
       revision:
@@ -43,6 +27,27 @@ on:
           - test
           - sandbox
           - prod
+  workflow_call:
+    inputs:
+      revision:
+        description: 'Revision to checkout (e.g. tag or branch name)'
+        required: true
+        type: string
+      env:
+        description: 'Environment you want to deploy to (dev, test, sandbox, prod)'
+        required: true
+        type: string
+        default: dev
+      confirm_env:
+        description: 'Confirm the environment you want to deploy to'
+        required: true
+        type: string
+        default: dev
+    outputs:
+        version:
+          description: 'The version of the published docker tag'
+          value: ${{ jobs.build_and_publish.outputs.version }}
+
 
 permissions:
   id-token: write
@@ -56,14 +61,15 @@ jobs:
   ci_checks:
     uses: ./.github/workflows/ci-checks.yml
     with:
-      revision: ${{ inputs.revision || 'main' }}
+      revision: ${{ inputs.revision }}
     secrets: inherit
 
   build_and_publish:
     needs: [ci_checks]
     environment: ${{ inputs.env || 'dev' }}
     runs-on: codebuild-bcda-app-${{github.run_id}}-${{github.run_attempt}}
-
+    outputs:
+      version: ${{ steps.version.outputs.version }}
     steps:
       - name: Get Workflow Inputs
         run: echo "${{ toJSON(inputs) }}"
@@ -82,29 +88,31 @@ jobs:
           repository: CMSgov/bcda-ssas-app
           ref: ${{ inputs.revision }}
       - name: Set Version
+        id: version
         run: |
           TAG=$(git describe --tags --exact-match)
           if [[ $? -eq 0 ]]; then
             echo "Revision is a tag; setting version to tag name"
-            echo "VERSION=$TAG" >> $GITHUB_ENV
+            echo "version=$TAG" >> $GITHUB_OUTPUT
           else
             echo "Revision is not a tag; setting version to revision shorthand"
-            REV_SHORT=$(git rev-parse --short HEAD)
-            echo "VERSION=f$REV_SHORT" >> $GITHUB_ENV
+            REV_SHORT=$(git rev-parse --short=8 HEAD)
+            echo "version=$REV_SHORT" >> $GITHUB_OUTPUT
+            if [[ ${{ env.RELEASE_ENV }} != 'dev' && ${{ env.RELEASE_ENV }} != 'test']]; then
+              echo "Publishing non-tag versions to prod account is forbidden; exiting process"
+              exit 1
+            fi
           fi
       - name: Set ECR_URL
         run: echo "ECR_URL=${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.us-east-1.amazonaws.com/bcda-${{ env.RELEASE_ENV }}-ssas" >> $GITHUB_ENV
       - name: Build SSAS
-        # Don't release non-tag versions to prod/sandbox, also makes sure 'latest' in prod aligns with the latest release tag
-        if: ${{ env.RELEASE_ENV == 'dev' || env.RELEASE_ENV == 'test' || startsWith(env.VERSION, 'r') }}
         run: |
           docker build \
-            --build-arg RELEASE_VERSION=${{ env.VERSION }} \
-            -t ${{ env.ECR_URL }}:latest \
-            -t ${{ env.ECR_URL }}:${{ env.VERSION }} \
+            --build-arg RELEASE_VERSION=${{ steps.version.outputs.version }} \
+            -t ${{ steps.version.outputs.version }}:latest \
+            -t ${{ env.ECR_URL }}:${{ steps.version.outputs.version }} \
             -f Dockerfiles/Dockerfile.ssas .
       - name: Push to ECR
-        if: ${{ env.RELEASE_ENV == 'dev' || env.RELEASE_ENV == 'test' || startsWith(env.VERSION, 'r') }}
         run: |
           aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin '${{ env.ECR_URL }}'
-          docker image push ${{ env.ECR_URL }}:${{ env.VERSION }}
+          docker image push ${{ env.ECR_URL }}:${{ steps.version.outputs.version }}
