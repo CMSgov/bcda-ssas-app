@@ -117,7 +117,7 @@ func (s *RouterTestSuite) TestPutGroup() {
 }
 
 func (s *RouterTestSuite) TestDeleteGroup() {
-	req := httptest.NewRequest("DELETE", "/group/101", nil)
+	req := httptest.NewRequest("DELETE", "/group/49871", nil)
 	req.Header.Add("Authorization", "Basic "+s.basicAuth)
 	rr := httptest.NewRecorder()
 	s.router.ServeHTTP(rr, req)
