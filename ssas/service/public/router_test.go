@@ -26,15 +26,15 @@ type PublicRouterTestSuite struct {
 	db           *gorm.DB
 	group        ssas.Group
 	system       ssas.System
-	sr           *ssas.SystemRepository
-	gr           *ssas.GroupRepository
+	sr           ssas.SystemRepository
+	gr           ssas.GroupRepository
 }
 
 func (s *PublicRouterTestSuite) SetupSuite() {
 	var err error
 	os.Setenv("DEBUG", "true")
-	s.publicRouter = routes()
 	s.db, err = ssas.CreateDB()
+	s.publicRouter = routes(s.db)
 	require.NoError(s.T(), err)
 	s.rr = httptest.NewRecorder()
 	groupBytes := []byte(`{"group_id":"T1234","users":["fake_okta_id","abcdefg"]}`)

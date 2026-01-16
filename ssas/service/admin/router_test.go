@@ -41,7 +41,7 @@ func (s *RouterTestSuite) SetupSuite() {
 }
 
 func (s *RouterTestSuite) SetupTest() {
-	s.router = routes()
+	s.router = routes(s.db)
 }
 
 func (s *RouterTestSuite) TearDownSuite() {
