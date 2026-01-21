@@ -4,8 +4,8 @@ on:
   push:
   workflow_dispatch:
     inputs:
-      revision:
-        description: 'Revision to checkout (e.g. tag or branch name)'
+      ref:
+        description: 'Ref of ssas-app to checkout (tag, branch name, or full SHA)'
         required: true
         type: string
 
@@ -18,7 +18,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: CMSgov/bcda-ssas-app
-          ref: ${{ inputs.revision }}
+          ref: ${{ inputs.ref }}
       - name: Get Go
         uses: actions/setup-go@v5
         with:
@@ -41,7 +41,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: CMSgov/bcda-ssas-app 
-          ref: ${{ inputs.revision }}
+          ref: ${{ inputs.ref }}
       - name: Get Go
         uses: actions/setup-go@v5
         with:
@@ -93,7 +93,7 @@ jobs:
             -Dsonar.working.directory=./sonar_workspace
             -Dsonar.go.coverage.reportPaths=./testcoverage-ssas.out
             -Dsonar.coverage.exclusions=**/*test.go,**/test/**/*,**/testUtils/*,**/scripts/*,**/ops/*,**/mock*.go,**/mock/**/*,**/*_mock.go,**/testutils.go
-            -Dsonar.branch.name=${{ inputs.revision }}
+            -Dsonar.branch.name=${{ inputs.ref }}
             -Dsonar.projectVersion=${{ github.sha }}
             -Dsonar.qualitygate.wait=true
             -Dsonar.ci.autoconfig.disabled=true 
