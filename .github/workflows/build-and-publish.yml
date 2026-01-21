@@ -90,15 +90,15 @@ jobs:
       - name: Set Version
         id: version
         run: |
-          TAG=$(git describe --tags --exact-match)
-          if [[ $? -eq 0 ]]; then
+          TAG=$(git describe --tags --exact-match 2>/dev/null || echo "undefined")
+          if [[ "$TAG" != "undefined" ]]; then
             echo "Revision is a tag; setting version to tag name"
             echo "version=$TAG" >> $GITHUB_OUTPUT
           else
             echo "Revision is not a tag; setting version to revision shorthand"
             REV_SHORT=$(git rev-parse --short=8 HEAD)
             echo "version=$REV_SHORT" >> $GITHUB_OUTPUT
-            if [[ ${{ env.RELEASE_ENV }} != 'dev' && ${{ env.RELEASE_ENV }} != 'test']]; then
+            if [[ ${{ env.RELEASE_ENV }} != 'dev' && ${{ env.RELEASE_ENV }} != 'test' ]]; then
               echo "Publishing non-tag versions to prod account is forbidden; exiting process"
               exit 1
             fi
