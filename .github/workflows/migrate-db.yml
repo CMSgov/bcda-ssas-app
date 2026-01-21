@@ -51,7 +51,7 @@ jobs:
           aws-region: ${{ vars.AWS_REGION }}
           role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/delegatedadmin/developer/bcda-${{ env.ENV }}-github-actions
       - name: Get AWS params
-        uses: cmsgov/cdap/actions/aws-params-env-action@38711d86419b9d91a003f4eea4931287d546b55b
+        uses: cmsgov/cdap/actions/aws-params-env-action@main
         env:
           AWS_REGION: ${{ vars.AWS_REGION }}
         with:
