@@ -4,13 +4,13 @@ on:
   workflow_dispatch:
     inputs:
       ref:
-        description: 'Ref of bcda-app to checkout (tag, branch name, or full SHA)'
+        description: 'Ref of bcda-ssas-app to checkout (tag, branch name, or full SHA)'
         required: true
         type: string
   workflow_call:
     inputs:
       ref:
-        description: 'Ref of bcda-app to checkout (tag, branch name, or full SHA)'
+        description: 'Ref of bcda-ssas-app to checkout (tag, branch name, or full SHA)'
         required: true
         type: string
 
@@ -19,8 +19,17 @@ permissions:
   contents: read
 
 jobs:
+  ci_checks:
+    uses: ./.github/workflows/ci-checks.yml
+    with:
+      ref: ${{ inputs.ref }}
+    secrets: inherit
+
   build_and_publish:
+    needs: [ci_checks]
     runs-on: codebuild-bcda-app-${{github.run_id}}-${{github.run_attempt}}
+    outputs:
+      version: ${{ steps.version.outputs.version }}
     steps:
       - name: Get Workflow Inputs
         run: echo "${{ toJSON(inputs) }}"
@@ -31,7 +40,7 @@ jobs:
       - name: Checkout BCDA
         uses: actions/checkout@v4
         with:
-          repository: CMSgov/bcda-app
+          repository: CMSgov/bcda-ssas-app
           ref: ${{ inputs.ref }}
       - name: Set Version
         id: version
