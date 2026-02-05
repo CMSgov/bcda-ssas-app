@@ -1,11 +1,11 @@
 FROM golang:1.25.4-alpine3.22
 
-RUN apk add \
+RUN apk --no-cache add \
     bash \
     build-base \
     curl \
     && \
-    apk update upgrade
+    apk update upgrade --no-cache
 
 RUN curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/HEAD/install.sh | sh -s -- -b $(go env GOPATH)/bin v2.5.0
 
