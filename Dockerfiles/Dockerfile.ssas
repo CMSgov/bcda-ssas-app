@@ -41,12 +41,11 @@ RUN go build -ldflags "-X github.com/CMSgov/bcda-ssas-app/ssas/constants.Version
 FROM golang:1.25.4-alpine3.22
 
 RUN addgroup -S ssas-group && adduser -S ssas-user -G ssas-group && \
-    apk --no-cache add \
+    apk update upgrade --no-cache && \
+    apk add --no-cache \
         aws-cli \
         ca-certificates \
-        curl \
-        && \
-    apk update upgrade --no-cache
+        curl
 
 WORKDIR /go/src/github.com/CMSgov/bcda-ssas-app
 COPY --from=builder /go/src/github.com/CMSgov/bcda-ssas-app/ssas/cfg/configs ssas/cfg/configs
