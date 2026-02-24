@@ -4,15 +4,13 @@ import (
 	"context"
 	"testing"
 
-	"github.com/CMSgov/bcda-app/bcda/testUtils"
-	"github.com/aws/aws-sdk-go-v2/service/wafv2"
 	"github.com/pashagolub/pgxmock/v4"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestUpdateIpSet(t *testing.T) {
 	ctx := context.Background()
-	wafClient := wafv2.NewFromConfig(testUtils.TestAWSConfig(t))
+	wafClient := &mockWAFV2Client{}
 	mock, err := pgxmock.NewConn()
 	assert.Nil(t, err)
 	defer mock.Close(ctx)

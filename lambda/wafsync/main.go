@@ -60,7 +60,7 @@ func handler(ctx context.Context, event events.S3Event) error {
 	return nil
 }
 
-func updateIpSet(ctx context.Context, conn PgxConnection, wafClient *wafv2.Client) ([]string, error) {
+func updateIpSet(ctx context.Context, conn PgxConnection, wafClient mockWAFV2) ([]string, error) {
 	// get valid IPv4 and IPv6 addresses
 	ipAddresses, ipv6Addresses, err := getValidIPAddresses(ctx, conn)
 	if err != nil {
