@@ -1,24 +1,24 @@
 version: '3'
 
 services:
-  localstack-ssas-test:
-    image: localstack/localstack:latest
-    environment:
-      - AWS_DEFAULT_REGION=us-east-1
-      - GATEWAY_LISTEN=0.0.0.0:4566
-      - SERVICES=
-      - DEBUG=1
-    volumes:
-      - "./.localstack_volume:/var/lib/localstack"
-      - "/var/run/docker.sock:/var/run/docker.sock"
-    ports:
-      - "4566-4583:4566-4583"
-    healthcheck:
-      test: 'curl --silent --fail localstack-ssas-test:4566/_localstack/init/ready | grep -E "\"completed\": true"'
-      interval: 10s
-      retries: 5
-      start_period: 30s
-      timeout: 10s
+  # localstack-ssas-test:
+  #   image: localstack/localstack:latest
+  #   environment:
+  #     - AWS_DEFAULT_REGION=us-east-1
+  #     - GATEWAY_LISTEN=0.0.0.0:4566
+  #     - SERVICES=
+  #     - DEBUG=1
+  #   volumes:
+  #     - "./.localstack_volume:/var/lib/localstack"
+  #     - "/var/run/docker.sock:/var/run/docker.sock"
+  #   ports:
+  #     - "4566-4583:4566-4583"
+  #   healthcheck:
+  #     test: 'curl --silent --fail localstack-ssas-test:4566/_localstack/init/ready | grep -E "\"completed\": true"'
+  #     interval: 10s
+  #     retries: 5
+  #     start_period: 30s
+  #     timeout: 10s
   tests:
     build:
       context: .
@@ -27,10 +27,10 @@ services:
         VERSION: latest
     environment:
       # Set default values for Localstack to work
-      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID:-foobar}
-      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY:-foobar}
-      - AWS_DEFAULT_REGION=us-east-1
-      - AWS_ENDPOINT_URL=http://localstack-ssas-test:4566
+      # - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID:-foobar}
+      # - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY:-foobar}
+      # - AWS_DEFAULT_REGION=us-east-1
+      # - AWS_ENDPOINT_URL=http://localstack-ssas-test:4566
       # other env vars
       - DB=postgresql://postgres:toor@db:5432
       - DATABASE_URL=postgresql://postgres:toor@db:5432/bcda?sslmode=disable
@@ -54,9 +54,9 @@ services:
       - SSAS_CLIENT_ASSERTION_AUD=http://local.testing.cms.gov/api/v2/Token/auth
     volumes:
       - .:/go/src/github.com/CMSgov/bcda-ssas-app
-    depends_on:
-      localstack-ssas-test:
-        condition: service_healthy
+    # depends_on:
+    #   localstack-ssas-test:
+    #     condition: service_healthy
   postman_test:
     build:
       context: .
