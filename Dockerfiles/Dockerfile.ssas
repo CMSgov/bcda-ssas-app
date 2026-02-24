@@ -1,7 +1,7 @@
 ### OpenAPI docs
-FROM golang:1.25.1-alpine3.22 AS documentation
+FROM golang:1.25.4-alpine3.22 AS documentation
 
-RUN apk update upgrade && apk add \
+RUN apk update upgrade --no-cache  && apk add \
     binutils-gold \
     build-base \
     gcc \
@@ -22,11 +22,11 @@ RUN swagger generate spec -i ../../swaggerui/tags.yml -o ../../swaggerui/swagger
 
 
 ### Builder/compilation
-FROM golang:1.25.1-alpine3.22 AS builder
+FROM golang:1.25.4-alpine3.22 AS builder
 
 ARG RELEASE_VERSION=main
 
-RUN apk update upgrade && apk add \
+RUN apk update upgrade --no-cache  && apk add \
     git
 
 WORKDIR /go/src/github.com/CMSgov/bcda-ssas-app
@@ -38,15 +38,14 @@ RUN go build -ldflags "-X github.com/CMSgov/bcda-ssas-app/ssas/constants.Version
 
 
 ### Final image
-FROM golang:1.25.1-alpine3.22
+FROM golang:1.25.4-alpine3.22
 
-RUN apk update upgrade && apk --no-cache add \
-    aws-cli \
-    ca-certificates \
-    curl
-
-RUN addgroup -S ssas-group && adduser -S ssas-user -G ssas-group
-USER ssas-user
+RUN addgroup -S ssas-group && adduser -S ssas-user -G ssas-group && \
+    apk update upgrade --no-cache && \
+    apk add --no-cache \
+        aws-cli \
+        ca-certificates \
+        curl
 
 WORKDIR /go/src/github.com/CMSgov/bcda-ssas-app
 COPY --from=builder /go/src/github.com/CMSgov/bcda-ssas-app/ssas/cfg/configs ssas/cfg/configs
@@ -55,7 +54,12 @@ COPY --from=builder /go/src/github.com/CMSgov/bcda-ssas-app/ssas/ssas .
 COPY --from=builder /go/src/github.com/CMSgov/bcda-ssas-app/entrypoint.sh .
 COPY --from=documentation /go/src/github.com/CMSgov/bcda-ssas-app/ssas/swaggerui ./swaggerui
 
+RUN mkdir -p /etc/sv/ssas/env \
+    && chown -R ssas-user:ssas-group /etc/sv/ssas/env 
+
 EXPOSE 3003 3004 3005
+VOLUME [ "/etc/sv/ssas/env" ]
+USER ssas-user
 
 ENV APP_NAME="ssas"
 

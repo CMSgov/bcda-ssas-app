@@ -4,13 +4,10 @@ on:
   push:
   workflow_dispatch:
     inputs:
-      ssas_release_version:
-        description: 'Release version (or branch name)'
+      ref:
+        description: 'Ref of ssas-app to checkout (tag, branch name, or full SHA)'
         required: true
         type: string
-
-env:
-  RELEASE_VERSION: ${{ inputs.ssas_release_version || github.sha }}
 
 jobs:
   go_mod_tidy:
@@ -21,7 +18,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: CMSgov/bcda-ssas-app
-          ref: ${{ env.RELEASE_VERSION }}
+          ref: ${{ inputs.ref }}
       - name: Get Go
         uses: actions/setup-go@v5
         with:
@@ -44,7 +41,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: CMSgov/bcda-ssas-app 
-          ref: ${{ env.RELEASE_VERSION }}
+          ref: ${{ inputs.ref }}
       - name: Get Go
         uses: actions/setup-go@v5
         with:
@@ -95,8 +92,8 @@ jobs:
             -Dsonar.sources=.
             -Dsonar.working.directory=./sonar_workspace
             -Dsonar.go.coverage.reportPaths=./testcoverage-ssas.out
-            -Dsonar.coverage.exclusions=**/*test.go,**/test/**/*,**/testUtils/*,**/scripts/*,**/ops/*,**/mock*.go,**/mock/**/*
-            -Dsonar.branch.name=${{ env.RELEASE_VERSION }}
+            -Dsonar.coverage.exclusions=**/*test.go,**/test/**/*,**/testUtils/*,**/scripts/*,**/ops/*,**/mock*.go,**/mock/**/*,**/*_mock.go,**/testutils.go
+            -Dsonar.branch.name=${{ inputs.ref }}
             -Dsonar.projectVersion=${{ github.sha }}
             -Dsonar.qualitygate.wait=true
             -Dsonar.ci.autoconfig.disabled=true 

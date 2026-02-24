@@ -9,13 +9,16 @@ import (
 
 	"github.com/CMSgov/bcda-ssas-app/ssas"
 	"github.com/CMSgov/bcda-ssas-app/ssas/monitoring"
+	"gorm.io/gorm"
 
 	"github.com/go-chi/chi/v5"
 	gcmw "github.com/go-chi/chi/v5/middleware"
+	"github.com/go-chi/render"
 
-	"github.com/CMSgov/bcda-ssas-app/ssas/constants"
 	"github.com/CMSgov/bcda-ssas-app/ssas/service"
 )
+
+var server *service.Server
 
 // Server creates an SSAS admin server
 func Server() *service.Server {
@@ -24,36 +27,46 @@ func Server() *service.Server {
 	adminSigningKeyPath := os.Getenv("SSAS_ADMIN_SIGNING_KEY_PATH")
 	adminSigningKey := os.Getenv("SSAS_ADMIN_SIGNING_KEY")
 
-	infoMap := make(map[string][]string)
-
 	signingKey, err := service.ChooseSigningKey(adminSigningKeyPath, adminSigningKey)
 	if err != nil {
 		msg := fmt.Sprintf("Unable to get admin server signing key %v", err)
 		ssas.Logger.Error(msg)
 		return nil
 	}
-
-	server := service.NewServer("admin", ":3004", constants.Version, infoMap, routes(), unsafeMode, useMTLS, signingKey, 20*time.Minute, "")
-	if server != nil {
-		r, _ := server.ListRoutes()
-		infoMap["banner"] = []string{fmt.Sprintf("%s server running on port %s", "admin", ":3004")}
-		infoMap["routes"] = r
-	}
-	return server
-}
-
-func routes() *chi.Mux {
-	r := chi.NewRouter()
-	m := monitoring.GetMonitor()
 	db, err := ssas.CreateDB()
 	if err != nil {
 		panic(fmt.Sprintf("failed to connect to database: %s", err))
 	}
-	h := NewAdminHandler(db)
+	router := routes(db)
+
+	server = service.NewServer("admin", ":3004", router, unsafeMode, useMTLS, signingKey, 20*time.Minute, "")
+
+	return server
+}
+
+func routes(db *gorm.DB) *chi.Mux {
+	r := chi.NewRouter()
+	m := monitoring.GetMonitor()
+	sr := ssas.NewSystemRepository(db)
+	gr := ssas.NewGroupRepository(db)
+
+	h := NewAdminHandler(sr, gr, db, JsonMarshaler{})
 	mh := NewAdminMiddlewareHandler(db)
 
-	r.Use(gcmw.RequestID, service.GetTransactionID, service.NewAPILogger(), service.ConnectionClose, service.NewCtxLogger)
+	r.Use(
+		gcmw.RequestID,
+		service.GetTransactionID,
+		service.NewAPILogger(),
+		service.ConnectionClose,
+		service.NewCtxLogger,
+	)
 
+	// public routes
+	r.With(render.SetContentType((render.ContentTypeJSON))).Get("/_version", h.getVersion)
+	r.With(render.SetContentType((render.ContentTypeJSON))).Get("/_health", h.getHealthCheck)
+	r.With(render.SetContentType((render.ContentTypeJSON))).Get("/_info", h.getInfo)
+
+	// v1 routes
 	r.With(mh.requireBasicAuth).Post(m.WrapHandler("/group", h.createGroup))
 	r.With(mh.requireBasicAuth).Get(m.WrapHandler("/group", h.listGroups))
 	r.With(mh.requireBasicAuth).Put(m.WrapHandler("/group/{id}", h.updateGroup))

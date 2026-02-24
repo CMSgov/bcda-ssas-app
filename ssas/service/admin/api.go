@@ -10,23 +10,64 @@ import (
 
 	"github.com/CMSgov/bcda-ssas-app/ssas"
 	"github.com/CMSgov/bcda-ssas-app/ssas/cfg"
+	"github.com/CMSgov/bcda-ssas-app/ssas/constants"
 	"github.com/CMSgov/bcda-ssas-app/ssas/service"
 	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/render"
 	"gorm.io/gorm"
 )
 
 type adminHandler struct {
 	db *gorm.DB
-	sr *ssas.SystemRepository
-	gr *ssas.GroupRepository
+	sr ssas.SystemRepository
+	gr ssas.GroupRepository
+	m  Marshaler
 }
 
-func NewAdminHandler(db *gorm.DB) *adminHandler {
+type Marshaler interface {
+	Marshal(any) ([]byte, error)
+	Unmarshal(data []byte, v any) error
+}
+
+type JsonMarshaler struct{}
+
+func (j JsonMarshaler) Marshal(v any) ([]byte, error) {
+	return json.Marshal(v)
+}
+
+func (j JsonMarshaler) Unmarshal(data []byte, v any) error {
+	return json.Unmarshal(data, v)
+}
+
+func NewAdminHandler(s ssas.SystemRepository, g ssas.GroupRepository, db *gorm.DB, m Marshaler) *adminHandler {
 	return &adminHandler{
-		sr: ssas.NewSystemRepository(db),
-		gr: ssas.NewGroupRepository(db),
+		sr: s,
+		gr: g,
 		db: db,
+		m:  m,
 	}
+}
+
+func (h *adminHandler) getInfo(w http.ResponseWriter, r *http.Request) {
+	render.JSON(w, r, adminInfo())
+}
+
+func (h *adminHandler) getVersion(w http.ResponseWriter, r *http.Request) {
+	respMap := make(map[string]string)
+	respMap["version"] = fmt.Sprintf("%v", constants.Version)
+	render.JSON(w, r, respMap)
+}
+
+func (h *adminHandler) getHealthCheck(w http.ResponseWriter, r *http.Request) {
+	m := make(map[string]string)
+	if service.DoHealthCheck(r.Context(), h.db) {
+		m["database"] = "ok"
+		w.WriteHeader(http.StatusOK)
+	} else {
+		m["database"] = "error"
+		w.WriteHeader(http.StatusBadGateway)
+	}
+	render.JSON(w, r, m)
 }
 
 /*
@@ -57,7 +98,7 @@ func (h *adminHandler) createGroup(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 	body, _ := io.ReadAll(r.Body)
 	gd := ssas.GroupData{}
-	err := json.Unmarshal(body, &gd)
+	err := h.m.Unmarshal(body, &gd)
 	if err != nil {
 		logger.Errorf("error in request to create group; raw request: %v; error: %v", body, err.Error())
 		service.JSONError(w, http.StatusBadRequest, http.StatusText(http.StatusBadRequest), "")
@@ -72,7 +113,7 @@ func (h *adminHandler) createGroup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	groupJSON, err := json.Marshal(g)
+	groupJSON, err := h.m.Marshal(g)
 	if err != nil {
 		logger.Error("failed to marshal JSON: ", err)
 		service.JSONError(w, http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError), "")
@@ -119,7 +160,7 @@ func (h *adminHandler) listGroups(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	groupsJSON, err := json.Marshal(groups)
+	groupsJSON, err := h.m.Marshal(groups)
 	if err != nil {
 		logger.Error("failed to marshal JSON: ", err)
 		service.JSONError(w, http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError), "")
@@ -163,7 +204,7 @@ func (h *adminHandler) updateGroup(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 	body, _ := io.ReadAll(r.Body)
 	gd := ssas.GroupData{}
-	err := json.Unmarshal(body, &gd)
+	err := h.m.Unmarshal(body, &gd)
 	if err != nil {
 		logger.Error("failed to unmarshal JSON: ", err)
 		service.JSONError(w, http.StatusBadRequest, "invalid request body", "")
@@ -178,7 +219,7 @@ func (h *adminHandler) updateGroup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	groupJSON, err := json.Marshal(g)
+	groupJSON, err := h.m.Marshal(g)
 	if err != nil {
 		logger.Error("failed to marshal JSON: ", err)
 		service.JSONError(w, http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError), "")
@@ -207,7 +248,7 @@ func (h *adminHandler) getSystem(w http.ResponseWriter, r *http.Request) {
 
 	ips, err := h.sr.GetIPsData(r.Context(), s)
 	if err != nil {
-		logger.Errorf("failed to find system", err)
+		logger.Errorf("failed to find IPs for system: %s", err)
 		service.JSONError(w, http.StatusNotFound, http.StatusText(http.StatusNotFound), "")
 		return
 	}
@@ -238,7 +279,7 @@ func (h *adminHandler) getSystem(w http.ResponseWriter, r *http.Request) {
 		ClientTokens: ssas.OutputCT(cts...),
 	}
 
-	systemJSON, err := json.Marshal(o)
+	systemJSON, err := h.m.Marshal(o)
 	if err != nil {
 		logger.Error("failed to marshal JSON: ", err)
 		service.JSONError(w, http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError), "")
@@ -381,7 +422,7 @@ func (h *adminHandler) createSystem(w http.ResponseWriter, r *http.Request) {
 	// Used for alerting; update alert if this line changes
 	logger.Infof("system registered in group %s with XData: %s", group.GroupID, group.XData)
 
-	credsJSON, err := json.Marshal(creds)
+	credsJSON, err := h.m.Marshal(creds)
 	if err != nil {
 		logger.Error("failed to marshal JSON: ", err)
 		service.JSONError(w, http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError), "")
@@ -415,7 +456,7 @@ func (h *adminHandler) createV2System(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	credsJSON, err := json.Marshal(creds)
+	credsJSON, err := h.m.Marshal(creds)
 	if err != nil {
 		logger.Error("failed to marshal JSON: ", err)
 		service.JSONError(w, http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError), "")
@@ -456,21 +497,24 @@ func (h *adminHandler) resetCredentials(w http.ResponseWriter, r *http.Request) 
 	systemID := chi.URLParam(r, "systemID")
 	ssas.SetCtxEntry(r, "Op", "ResetSecret")
 	logger := ssas.GetCtxLogger(r.Context())
+
 	system, err := h.sr.GetSystemByID(r.Context(), systemID)
 	if err != nil {
 		logger.Error()
 		service.JSONError(w, http.StatusNotFound, http.StatusText(http.StatusNotFound), "Invalid system ID")
 		return
 	}
+
 	xdata, err := h.gr.XDataFor(r.Context(), system)
 	if err != nil {
 		logger.Errorf("could not get group XData for clientID %s: %s", system.ClientID, err.Error())
 		service.JSONError(w, http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError), "")
 		return
 	}
-	logger.Infof("Operation Called: admin.resetCredentials()")
-	creds, err := h.sr.ResetSecret(r.Context(), system)
 
+	logger.Infof("Operation Called: admin.resetCredentials()")
+
+	creds, err := h.sr.ResetSecret(r.Context(), system)
 	if err != nil {
 		logger.Errorf("failed to reset secret: %s", err)
 		service.JSONError(w, http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError), "")
@@ -479,7 +523,7 @@ func (h *adminHandler) resetCredentials(w http.ResponseWriter, r *http.Request) 
 
 	logger.Infof("secret reset in group %s with XData: %s", system.GroupID, xdata)
 
-	credsJSON, err := json.Marshal(creds)
+	credsJSON, err := h.m.Marshal(creds)
 	if err != nil {
 		logger.Error("failed to marshal JSON: ", err)
 		service.JSONError(w, http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError), "")
@@ -488,6 +532,7 @@ func (h *adminHandler) resetCredentials(w http.ResponseWriter, r *http.Request) 
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
+
 	_, err = w.Write(credsJSON)
 	if err != nil {
 		logger.Error("failed to write response: ", err)
@@ -668,7 +713,7 @@ func (h *adminHandler) registerIP(w http.ResponseWriter, r *http.Request) {
 	}
 	logger.Info("token created for client: ", system.ClientID)
 
-	ipJson, err := json.Marshal(ip)
+	ipJson, err := h.m.Marshal(ip)
 	if err != nil {
 		logger.Error("failed to marshal JSON: ", err)
 		service.JSONError(w, http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError), "")
@@ -698,12 +743,12 @@ func (h *adminHandler) getSystemIPs(w http.ResponseWriter, r *http.Request) {
 	logger.Infof("Operation Called: admin.getSystemIPs()")
 	ips, err := h.sr.GetIps(r.Context(), system)
 	if err != nil {
-		logger.Error("Could not retrieve system ips", err)
+		logger.Error("Could not retrieve system ips: ", err)
 		service.JSONError(w, http.StatusNotFound, http.StatusText(http.StatusNotFound), "")
 		return
 	}
 
-	ipJson, err := json.Marshal(ips)
+	ipJson, err := h.m.Marshal(ips)
 	if err != nil {
 		logger.Error("unable to marshal JSON: ", err)
 		service.JSONError(w, http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError), "")
@@ -792,7 +837,7 @@ func (h *adminHandler) createToken(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := json.Unmarshal(b, &body); err != nil {
+	if err := h.m.Unmarshal(b, &body); err != nil {
 		logger.Error("unable to marshal JSON: ", err)
 		service.JSONError(w, http.StatusBadRequest, http.StatusText(http.StatusBadRequest), "")
 		return
@@ -816,7 +861,7 @@ func (h *adminHandler) createToken(w http.ResponseWriter, r *http.Request) {
 		Token:             m,
 	}
 
-	b, err = json.Marshal(response)
+	b, err = h.m.Marshal(response)
 	if err != nil {
 
 		logger.Error("failed to marshal JSON: ", err)
@@ -915,4 +960,18 @@ func (h *adminHandler) deleteKey(w http.ResponseWriter, r *http.Request) {
 
 type IPAddressInput struct {
 	Address string `json:"address"`
+}
+
+func adminInfo() map[string][]string {
+	infoMap := make(map[string][]string)
+	infoMap["banner"] = []string{fmt.Sprintf("%s server running on port %s", "public", ":3003")}
+
+	routes, err := server.ListRoutes()
+	if err != nil {
+		infoMap["routes"] = []string{"error listing routes"}
+	} else {
+		infoMap["routes"] = routes
+	}
+
+	return infoMap
 }
