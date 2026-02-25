@@ -10,6 +10,7 @@ import (
 
 func TestUpdateIpSet(t *testing.T) {
 	ctx := context.Background()
+	wafClient := &mockWAFV2Client{}
 	mock, err := pgxmock.NewConn()
 	assert.Nil(t, err)
 	defer mock.Close(ctx)
@@ -19,9 +20,7 @@ func TestUpdateIpSet(t *testing.T) {
 	rows := mock.NewRows([]string{"address"}).AddRow([]byte("127.0.0.1"))
 	mock.ExpectQuery("^SELECT DISTINCT ips.address FROM ips WHERE (.+)$").WillReturnRows(rows)
 
-	mockWaf := &mockWAFV2Client{}
-
-	addrs, err := updateIpSet(ctx, mock, mockWaf)
+	addrs, err := updateIpSet(ctx, mock, wafClient)
 	assert.Nil(t, err)
 	// has 4 entries as our WAF mock is returning specific hardcoded values
 	assert.Len(t, addrs, 4)

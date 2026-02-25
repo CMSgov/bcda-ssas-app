@@ -11,6 +11,10 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	bcdaaws "github.com/CMSgov/bcda-app/bcda/aws"
+	"github.com/CMSgov/bcda-app/bcda/constants"
+
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/service/ssm"
 )
 
 type PgxConnection interface {
@@ -76,22 +80,16 @@ func getValidIPAddresses(ctx context.Context, conn PgxConnection) ([]string, []s
 	return ipAddresses, ipv6Addresses, nil
 }
 
-func getDBURL() (string, error) {
+func getDBURL(ctx context.Context) (string, error) {
 	env := os.Getenv("ENV")
 
-	if env == "local" {
-		return os.Getenv("DATABASE_URL"), nil
-	}
-
-	bcdaSession, err := bcdaaws.NewSession("", os.Getenv("LOCAL_STACK_ENDPOINT"))
+	cfg, err := config.LoadDefaultConfig(ctx,
+		config.WithRegion(constants.DefaultRegion),
+	)
 	if err != nil {
 		return "", err
 	}
+	ssmClient := ssm.NewFromConfig(cfg)
 
-	param, err := bcdaaws.GetParameter(bcdaSession, fmt.Sprintf("/bcda/%s/api/DATABASE_URL", env))
-	if err != nil {
-		return "", err
-	}
-
-	return param, nil
+	return bcdaaws.GetParameter(ctx, ssmClient, fmt.Sprintf("/bcda/%s/sensitive/api/DATABASE_URL", env))
 }
