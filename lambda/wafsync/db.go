@@ -91,5 +91,5 @@ func getDBURL(ctx context.Context) (string, error) {
 	}
 	ssmClient := ssm.NewFromConfig(cfg)
 
-	return bcdaaws.GetParameter(ctx, ssmClient, fmt.Sprintf("/bcda/%s/api/DATABASE_URL", env))
+	return bcdaaws.GetParameter(ctx, ssmClient, fmt.Sprintf("/bcda/%s/sensitive/api/DATABASE_URL", env))
 }

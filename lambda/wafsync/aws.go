@@ -11,7 +11,7 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-func fetchAndUpdateIpAddresses(ctx context.Context, client mockWAFV2, ipSetName string, ipAddresses []string) ([]string, error) {
+func fetchAndUpdateIpAddresses(ctx context.Context, client customWAFClient, ipSetName string, ipAddresses []string) ([]string, error) {
 	listParams := &wafv2.ListIPSetsInput{
 		Scope: "REGIONAL",
 	}

@@ -8,7 +8,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/wafv2/types"
 )
 
-type mockWAFV2 interface {
+type customWAFClient interface {
 	ListIPSets(ctx context.Context, params *wafv2.ListIPSetsInput, optFns ...func(*wafv2.Options)) (*wafv2.ListIPSetsOutput, error)
 	GetIPSet(ctx context.Context, params *wafv2.GetIPSetInput, optFns ...func(*wafv2.Options)) (*wafv2.GetIPSetOutput, error)
 	UpdateIPSet(ctx context.Context, params *wafv2.UpdateIPSetInput, optFns ...func(*wafv2.Options)) (*wafv2.UpdateIPSetOutput, error)

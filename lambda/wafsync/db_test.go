@@ -46,7 +46,7 @@ func TestGetValidIPAddressesFailure(t *testing.T) {
 
 func TestGetValidIPAddresses_Integration(t *testing.T) {
 	ctx := context.Background()
-	cleanupParam := testUtils.SetParameter(t, fmt.Sprintf("/bcda/%s/api/DATABASE_URL", os.Getenv("ENV")), os.Getenv("DATABASE_URL"))
+	cleanupParam := testUtils.SetParameter(t, fmt.Sprintf("/bcda/%s/sensitive/api/DATABASE_URL", os.Getenv("ENV")), os.Getenv("DATABASE_URL"))
 	defer cleanupParam()
 
 	// insert valid and invalid ip addresses into actual DB
@@ -120,7 +120,7 @@ func TestGetValidIPAddresses_Integration(t *testing.T) {
 }
 
 func TestGetDbAddress(t *testing.T) {
-	cleanupParam := testUtils.SetParameter(t, fmt.Sprintf("/bcda/%s/api/DATABASE_URL", os.Getenv("ENV")), "test-url")
+	cleanupParam := testUtils.SetParameter(t, fmt.Sprintf("/bcda/%s/sensitive/api/DATABASE_URL", os.Getenv("ENV")), "test-url")
 	defer cleanupParam()
 
 	dbURL, err := getDBURL(context.Background())
