@@ -39,18 +39,18 @@ test-path: setup-tests
 	@docker compose -f docker-compose.test.yml run --rm tests go test -v $(TEST_PATH)
 
 load-fixtures:
+	docker compose up -d
+	sleep 40
 	docker compose -f docker-compose.migrate.yml run --rm migrate  -database "postgres://postgres:toor@db:5432/bcda?sslmode=disable" -path /go/src/github.com/CMSgov/bcda-ssas-app/db/migrations up
 	docker compose -f docker-compose.yml run ssas sh -c 'ssas --add-fixture-data'
 
 docker-build:
+	docker version
+	docker compose version
 	docker compose build
 	docker compose -f docker-compose.test.yml build
 
-docker-bootstrap:
-	$(MAKE) docker-build
-	docker compose up -d
-	sleep 40
-	$(MAKE) load-fixtures
+docker-bootstrap: docker-build load-fixtures
 
 dbdocs: start-db load-fixtures
 	docker run --rm -v $PWD:/work -w /work --network bcda-ssas-app_default ghcr.io/k1low/tbls doc --rm-dist "postgres://postgres:toor@db:5432/bcda?sslmode=disable" dbdocs/bcda
