@@ -3,8 +3,11 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
+	"os"
 	"testing"
 
+	"github.com/CMSgov/bcda-app/bcda/testUtils"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/stretchr/testify/assert"
@@ -42,12 +45,13 @@ func TestGetValidIPAddressesFailure(t *testing.T) {
 }
 
 func TestGetValidIPAddresses_Integration(t *testing.T) {
-	// insert valid and invalid ip addresses into actual DB
-	dbURL, err := getDBURL()
-	assert.Nil(t, err)
-
 	ctx := context.Background()
+	cleanupParam := testUtils.SetParameter(t, fmt.Sprintf("/bcda/%s/sensitive/api/DATABASE_URL", os.Getenv("ENV")), os.Getenv("DATABASE_URL"))
+	defer cleanupParam()
 
+	// insert valid and invalid ip addresses into actual DB
+	dbURL, err := getDBURL(context.Background())
+	assert.Nil(t, err)
 	conn, err := pgx.Connect(ctx, dbURL)
 	assert.Nil(t, err)
 	defer conn.Close(ctx)
@@ -113,4 +117,13 @@ func TestGetValidIPAddresses_Integration(t *testing.T) {
 	// cleanup
 	err = tx.Rollback(ctx)
 	assert.Nil(t, err)
+}
+
+func TestGetDbAddress(t *testing.T) {
+	cleanupParam := testUtils.SetParameter(t, fmt.Sprintf("/bcda/%s/sensitive/api/DATABASE_URL", os.Getenv("ENV")), "test-url")
+	defer cleanupParam()
+
+	dbURL, err := getDBURL(context.Background())
+	assert.Nil(t, err)
+	assert.Equal(t, "test-url", dbURL)
 }
