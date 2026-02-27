@@ -15,6 +15,7 @@ services:
       context: .
       dockerfile: Dockerfiles/Dockerfile.ssas
       target: documentation
+    platform: linux/arm64
     volumes:
       - .:/go/src/github.com/CMSgov/bcda-ssas-app
   ssas:
@@ -23,6 +24,7 @@ services:
       dockerfile: Dockerfiles/Dockerfile.ssas
       args:
         VERSION: latest
+    platform: linux/arm64
     environment:
       - DATABASE_URL=postgresql://postgres:toor@db:5432/bcda?sslmode=disable
       - ATO_PUBLIC_KEY_FILE=../shared_files/ATO_public.pem
