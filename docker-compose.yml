@@ -13,14 +13,14 @@ services:
   documentation:
     build:
       context: .
-      dockerfile: Dockerfiles/Dockerfile.ssas
+      dockerfile: docker/Dockerfile.ssas
       target: documentation
     volumes:
       - .:/go/src/github.com/CMSgov/bcda-ssas-app
   ssas:
     build:
       context: .
-      dockerfile: Dockerfiles/Dockerfile.ssas
+      dockerfile: docker/Dockerfile.ssas
       args:
         VERSION: latest
     environment:

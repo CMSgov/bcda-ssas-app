@@ -22,7 +22,7 @@ services:
   tests:
     build:
       context: .
-      dockerfile: Dockerfiles/Dockerfile.tests
+      dockerfile: docker/Dockerfile.tests
       args:
         VERSION: latest
     environment:
@@ -60,12 +60,12 @@ services:
   postman_test:
     build:
       context: .
-      dockerfile: Dockerfiles/Dockerfile.postman_test
+      dockerfile: docker/Dockerfile.postman_test
     volumes:
       - .:/go/src/github.com/CMSgov/bcda-ssas-app
   smoke_test_ssas:
     build:
       context: .
-      dockerfile: Dockerfiles/Dockerfile.postman_test
+      dockerfile: docker/Dockerfile.postman_test
     volumes:
       - .:/go/src/github.com/CMSgov/bcda-ssas-app

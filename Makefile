@@ -62,7 +62,7 @@ build-ssas:
 	$(eval ACCOUNT_ID =$(shell aws sts get-caller-identity --output text --query Account))
 	$(eval CURRENT_COMMIT=$(shell git log -n 1 --pretty=format:'%h'))
 	$(eval DOCKER_REGISTRY_URL=${ACCOUNT_ID}.dkr.ecr.us-east-1.amazonaws.com/bcda-ssas)
-	docker build -t ${DOCKER_REGISTRY_URL}:latest -t '${DOCKER_REGISTRY_URL}:${CURRENT_COMMIT}' -f Dockerfiles/Dockerfile.ssas .
+	docker build -t ${DOCKER_REGISTRY_URL}:latest -t '${DOCKER_REGISTRY_URL}:${CURRENT_COMMIT}' -f docker/Dockerfile.ssas .
 
 publish-ssas:
 	$(eval ACCOUNT_ID =$(shell aws sts get-caller-identity --output text --query Account))
