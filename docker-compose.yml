@@ -32,9 +32,6 @@ services:
       - ATO_PUBLIC_KEY_FILE=../shared_files/ATO_public.pem
       - ATO_PRIVATE_KEY_FILE=../shared_files/ATO_private.pem
       - HTTP_ONLY=true
-      - BCDA_AUTH_PROVIDER=${BCDA_AUTH_PROVIDER}
-      - BCDA_SSAS_CLIENT_ID=${BCDA_SSAS_CLIENT_ID}
-      - BCDA_SSAS_SECRET=${BCDA_SSAS_SECRET}
       - DEPLOYMENT_TARGET=local
       - LOG_TO_STD_OUT=true
       - SKIP_BOOTSTRAP=true

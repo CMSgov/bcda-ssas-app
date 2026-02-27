@@ -34,8 +34,6 @@ services:
       # other env vars
       - DB=postgresql://postgres:toor@db:5432
       - DATABASE_URL=postgresql://postgres:toor@db:5432/bcda?sslmode=disable
-      - BCDA_SSAS_CLIENT_ID=fake-client-id
-      - BCDA_SSAS_SECRET=fake-secret
       - ENV=local
       - DEPLOYMENT_TARGET=local
       - SSAS_ADMIN_SIGNING_KEY_PATH=../../../shared_files/ssas/admin_test_signing_key.pem
