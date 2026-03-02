@@ -34,7 +34,8 @@ COPY . .
 WORKDIR /go/src/github.com/CMSgov/bcda-ssas-app/ssas
 COPY --from=documentation /go/src/github.com/CMSgov/bcda-ssas-app/ssas/swaggerui ./swaggerui
 
-RUN go build -ldflags "-X github.com/CMSgov/bcda-ssas-app/ssas/constants.Version=$RELEASE_VERSION" -o ssas ./service/main
+RUN go build -ldflags "-X github.com/CMSgov/bcda-ssas-app/ssas/constants.Version=$RELEASE_VERSION" \
+        -o ssas ./service/main
 
 
 ### Final image
@@ -51,7 +52,7 @@ WORKDIR /go/src/github.com/CMSgov/bcda-ssas-app
 COPY --from=builder /go/src/github.com/CMSgov/bcda-ssas-app/ssas/cfg/configs ssas/cfg/configs
 WORKDIR /usr/local/bin
 COPY --from=builder /go/src/github.com/CMSgov/bcda-ssas-app/ssas/ssas .
-COPY --from=builder /go/src/github.com/CMSgov/bcda-ssas-app/entrypoint.sh .
+COPY --from=builder /go/src/github.com/CMSgov/bcda-ssas-app/docker/entrypoint.sh .
 COPY --from=documentation /go/src/github.com/CMSgov/bcda-ssas-app/ssas/swaggerui ./swaggerui
 
 RUN mkdir -p /etc/sv/ssas/env \

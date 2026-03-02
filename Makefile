@@ -38,9 +38,19 @@ setup-tests:
 test-path: setup-tests
 	@docker compose -f docker-compose.test.yml run --rm tests go test -v $(TEST_PATH)
 
+reset-db:
+	# Rebuild the databases to ensure that we're starting in a fresh state
+	docker compose rm -fsv db
+
+	docker compose up -d db
+	./docker/await_service_healthy.sh db
+
+	# Initialize schemas
+	docker compose -f docker-compose.migrate.yml run --rm migrate -database "postgres://postgres:toor@db:5432/bcda?sslmode=disable" -path /go/src/github.com/CMSgov/bcda-ssas-app/db/migrations up
+
 load-fixtures:
-	docker compose -f docker-compose.migrate.yml run --rm migrate  -database "postgres://postgres:toor@db:5432/bcda?sslmode=disable" -path /go/src/github.com/CMSgov/bcda-ssas-app/db/migrations up
-	docker compose -f docker-compose.yml run ssas sh -c 'ssas --add-fixture-data'
+	$(MAKE) reset-db
+	docker compose -f docker-compose.yml run --rm ssas sh -c 'ssas --add-fixture-data'
 
 docker-build:
 	docker compose build --force-rm
@@ -49,20 +59,20 @@ docker-build:
 docker-bootstrap:
 	$(MAKE) docker-build
 	docker compose up -d
-	sleep 40
+	./docker/await_service_healthy.sh ssas
 	$(MAKE) load-fixtures
 
 dbdocs: start-db load-fixtures
 	docker run --rm -v $PWD:/work -w /work --network bcda-ssas-app_default ghcr.io/k1low/tbls doc --rm-dist "postgres://postgres:toor@db:5432/bcda?sslmode=disable" dbdocs/bcda
 
-.PHONY: docker-build docker-bootstrap load-fixtures test release smoke-test postman unit-test lint migrations-test start-db dbdocs
+.PHONY: docker-build docker-bootstrap reset-db load-fixtures test release smoke-test postman unit-test lint migrations-test start-db dbdocs
 
 # Build and publish images to ECR
 build-ssas:
 	$(eval ACCOUNT_ID =$(shell aws sts get-caller-identity --output text --query Account))
 	$(eval CURRENT_COMMIT=$(shell git log -n 1 --pretty=format:'%h'))
 	$(eval DOCKER_REGISTRY_URL=${ACCOUNT_ID}.dkr.ecr.us-east-1.amazonaws.com/bcda-ssas)
-	docker build -t ${DOCKER_REGISTRY_URL}:latest -t '${DOCKER_REGISTRY_URL}:${CURRENT_COMMIT}' -f Dockerfiles/Dockerfile.ssas .
+	docker build -t ${DOCKER_REGISTRY_URL}:latest -t '${DOCKER_REGISTRY_URL}:${CURRENT_COMMIT}' -f docker/Dockerfile.ssas .
 
 publish-ssas:
 	$(eval ACCOUNT_ID =$(shell aws sts get-caller-identity --output text --query Account))
