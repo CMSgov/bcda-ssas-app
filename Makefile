@@ -45,8 +45,6 @@ load-fixtures:
 	docker compose -f docker-compose.yml run ssas sh -c 'ssas --add-fixture-data'
 
 docker-build:
-	docker version
-	docker compose version
 	docker compose build
 	docker compose -f docker-compose.test.yml build
 
