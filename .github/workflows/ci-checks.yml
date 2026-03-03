@@ -12,11 +12,10 @@ on:
         required: true
         type: string
 
-
 jobs:
   go_mod_tidy:
     name: Modules Lint
-    runs-on: codebuild-bcda-app-${{github.run_id}}-${{github.run_attempt}}
+    runs-on: codebuild-bcda-app-arm64-${{github.run_id}}-${{github.run_attempt}}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -39,7 +38,7 @@ jobs:
 
   lint_and_test:
     name: Lint and Test
-    runs-on: codebuild-bcda-app-${{github.run_id}}-${{github.run_attempt}}
+    runs-on: codebuild-bcda-app-arm64-${{github.run_id}}-${{github.run_attempt}}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -50,12 +49,6 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version-file: 'go.mod'
-      - name: Install docker compose manually
-        run: |
-          sudo mkdir -p /usr/local/lib/docker/cli-plugins
-          sudo curl -SL https://github.com/docker/compose/releases/download/v2.32.4/docker-compose-linux-x86_64 -o /usr/local/lib/docker/cli-plugins/docker-compose
-          sudo chown root:root /usr/local/lib/docker/cli-plugins/docker-compose
-          sudo chmod +x /usr/local/lib/docker/cli-plugins/docker-compose
       - name: Build the stack
         run: make docker-bootstrap
       - name: Lint and Test

@@ -25,6 +25,7 @@ services:
       dockerfile: Dockerfiles/Dockerfile.tests
       args:
         VERSION: latest
+    platform: linux/arm64
     environment:
       # Set default values for Localstack to work
       - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID:-foobar}
