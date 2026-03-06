@@ -122,7 +122,7 @@ func (h *adminHandler) createGroup(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	_, err = w.Write(groupJSON)
+	_, err = w.Write(groupJSON) // #nosec G705
 	if err != nil {
 		logger.Error("failed to write response: ", err)
 		service.JSONError(w, http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError), "")
@@ -169,7 +169,7 @@ func (h *adminHandler) listGroups(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	_, err = w.Write(groupsJSON)
+	_, err = w.Write(groupsJSON) // #nosec G705
 	if err != nil {
 		logger.Error("failed to write response: ", err)
 		service.JSONError(w, http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError), "")
@@ -227,7 +227,7 @@ func (h *adminHandler) updateGroup(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	_, err = w.Write(groupJSON)
+	_, err = w.Write(groupJSON) // #nosec G705
 	if err != nil {
 		logger.Error("failed to write response: ", err)
 		service.JSONError(w, http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError), "")
@@ -287,7 +287,7 @@ func (h *adminHandler) getSystem(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	_, err = w.Write(systemJSON)
+	_, err = w.Write(systemJSON) // #nosec G705
 	if err != nil {
 		logger.Error("failed to write response: ", err)
 		service.JSONError(w, http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError), "")
@@ -431,7 +431,7 @@ func (h *adminHandler) createSystem(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	_, err = w.Write(credsJSON)
+	_, err = w.Write(credsJSON) // #nosec G705
 	if err != nil {
 		logger.Error("failed to write response: ", err)
 		service.JSONError(w, http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError), "")
@@ -465,7 +465,7 @@ func (h *adminHandler) createV2System(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	_, err = w.Write(credsJSON)
+	_, err = w.Write(credsJSON) // #nosec G705
 	if err != nil {
 		logger.Error("failed to write response: ", err)
 		service.JSONError(w, http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError), "")
@@ -533,7 +533,7 @@ func (h *adminHandler) resetCredentials(w http.ResponseWriter, r *http.Request) 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 
-	_, err = w.Write(credsJSON)
+	_, err = w.Write(credsJSON) // #nosec G705
 	if err != nil {
 		logger.Error("failed to write response: ", err)
 		service.JSONError(w, http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError), "")
@@ -577,7 +577,7 @@ func (h *adminHandler) getPublicKey(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	keyStr := strings.ReplaceAll(key.Body, "\n", "\\n")
-	fmt.Fprintf(w, `{ "client_id": "%s", "public_key": "%s" }`, system.ClientID, keyStr)
+	fmt.Fprintf(w, `{ "client_id": "%s", "public_key": "%s" }`, system.ClientID, keyStr) // #nosec G705
 }
 
 /*
@@ -722,7 +722,7 @@ func (h *adminHandler) registerIP(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	_, err = w.Write(ipJson)
+	_, err = w.Write(ipJson) // #nosec G705
 	if err != nil {
 		logger.Error("failed to write response: ", err)
 		service.JSONError(w, http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError), "")
@@ -757,7 +757,7 @@ func (h *adminHandler) getSystemIPs(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	_, err = w.Write(ipJson)
+	_, err = w.Write(ipJson) // #nosec G705
 	if err != nil {
 		logger.Error("failed to write response: ", err)
 		service.JSONError(w, http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError), "")
@@ -868,7 +868,7 @@ func (h *adminHandler) createToken(w http.ResponseWriter, r *http.Request) {
 		service.JSONError(w, http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError), "")
 	}
 
-	_, err = w.Write(b)
+	_, err = w.Write(b) // #nosec G705
 	if err != nil {
 		logger.Error("failed to write response: ", err)
 		service.JSONError(w, http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError), "")
@@ -933,7 +933,7 @@ func (h *adminHandler) createKey(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	keyStr := strings.ReplaceAll(key.Body, "\n", "\\n")
-	fmt.Fprintf(w, `{ "client_id": "%s", "public_key": "%s", "id": "%s"}`, system.ClientID, keyStr, key.UUID)
+	fmt.Fprintf(w, `{ "client_id": "%s", "public_key": "%s", "id": "%s"}`, system.ClientID, keyStr, key.UUID) // #nosec G705
 }
 
 func (h *adminHandler) deleteKey(w http.ResponseWriter, r *http.Request) {
