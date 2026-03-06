@@ -139,6 +139,19 @@ point your browser at one of the following ports, or use the postman test collec
 - admin server: 3104
 - forwarding server: 3105
 
+#### Benchmark Testing
+
+Benchmark tests live in *_test.go files.  They do not run as part of the normal testing suite.  In order to run them you can do the following:
+```
+docker compose -f docker-compose.test.yml run tests go test -v ./... -bench=. -benchtime=10x -run=^$ -benchmem
+```
+- `-v ./...` says to look for tests everywhere (not just current dir).
+- `-bench=.` sets to run all benchmark tests.  Alternatively you can give a specific name eg `-bench=BenchmarkToken`
+- `-benchtime=10x` means run all bunchmarks ten times each.  This would normally be 1000's+.
+- `-run=^$` means run all tests starting with `$`.  Basically an easy way to say dont run any tests, just run the benchmarks.
+- `-benchmem` means to add memory allocations per operation.
+The end result will include average time spent (nanoseconds) per operation, average bytes used per op, and number of memory allocations per op.
+
 ### Goland IDE
 
 To run a test suite inside of Goland IDE, edit its configuration from the `Run` menu and add values for all necessary
