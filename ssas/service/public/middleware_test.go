@@ -71,7 +71,7 @@ func (s *PublicMiddlewareTestSuite) TestRequireTokenAuthWithInvalidSignature() {
 
 	req.Header.Add("Authorization", "Bearer "+badToken)
 
-	resp, err := client.Do(req)
+	resp, err := client.Do(req) // #nosec G704
 	if err != nil {
 		assert.FailNow(s.T(), err.Error())
 	}
@@ -99,7 +99,7 @@ func (s *PublicMiddlewareTestSuite) TestParseTokenEmptyToken() {
 
 	req.Header.Add("Authorization", "Bearer ")
 
-	_, err = client.Do(req)
+	_, err = client.Do(req) // #nosec G704
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -134,7 +134,7 @@ func (s *PublicMiddlewareTestSuite) TestParseTokenValidToken() {
 
 	req.Header.Add("Authorization", "Bearer "+ts)
 
-	res, err := client.Do(req)
+	res, err := client.Do(req) // #nosec G704
 	if err != nil {
 		assert.FailNow(s.T(), err.Error())
 	}
@@ -214,7 +214,7 @@ func (s *PublicMiddlewareTestSuite) TestRequireRegTokenAuthEmptyToken() {
 
 	ctx := context.WithValue(context.Background(), "ts", nil) //nolint:staticcheck
 
-	resp, err := client.Do(req.WithContext(ctx))
+	resp, err := client.Do(req.WithContext(ctx)) // #nosec G704
 	if err != nil {
 		assert.FailNow(s.T(), err.Error())
 	}
@@ -265,7 +265,7 @@ func (s *PublicMiddlewareTestSuite) TestVerifySGAAuthSkip() {
 		assert.FailNow(s.T(), err.Error())
 	}
 
-	resp, err := client.Do(req)
+	resp, err := client.Do(req) // #nosec G704
 	if err != nil {
 		assert.FailNow(s.T(), err.Error())
 	}
