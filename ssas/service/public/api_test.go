@@ -1486,6 +1486,10 @@ func BenchmarkToken(b *testing.B) {
 		}
 	}()
 	creds, err := systemRepo.RegisterSystem(ctx, constants.TestSystemName, groupID, cfg.DefaultScope, pemString, []string{}, uuid.NewRandom().String())
+	if err != nil {
+		b.Log("failed to register system")
+		b.FailNow()
+	}
 
 	// set up request
 	rr := httptest.NewRecorder()
