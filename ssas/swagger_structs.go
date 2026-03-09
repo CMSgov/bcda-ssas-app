@@ -60,7 +60,7 @@ type SystemResponse struct {
 		ClientID string `json:"client_id"`
 		// The client secret for this system
 		// Required: true
-		ClientSecret string `json:"client_secret"`
+		ClientSecret string `json:"client_secret"` // #nosec G117
 		// This system's ID
 		// Required: true
 		SystemID string `json:"system_id"`

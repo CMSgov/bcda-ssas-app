@@ -65,14 +65,14 @@ type ResetRequest struct {
 
 type SystemResponse struct {
 	ClientID     string `json:"client_id"`
-	ClientSecret string `json:"client_secret"`
+	ClientSecret string `json:"client_secret"` // #nosec G117
 	ExpiresAt    int64  `json:"client_secret_expires_at"`
 	ClientName   string `json:"client_name"`
 }
 
 type TokenResponse struct {
 	Scope       string `json:"scope,omitempty"`
-	AccessToken string `json:"access_token"`
+	AccessToken string `json:"access_token"` // #nosec G117
 	TokenType   string `json:"token_type"`
 	ExpiresIn   string `json:"expires_in"`
 }
