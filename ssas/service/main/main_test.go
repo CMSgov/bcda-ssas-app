@@ -157,7 +157,7 @@ func (s *MainTestSuite) TestNewAdminSystem() {
 
 func (s *MainTestSuite) TestMainLog() {
 	main()
-	content, err := os.ReadFile(os.Getenv("SSAS_LOG"))
+	content, err := os.ReadFile(os.Getenv("SSAS_LOG")) // #nosec G703
 	assert.Nil(s.T(), err)
 	assert.Contains(s.T(), string(content), "Home of")
 }

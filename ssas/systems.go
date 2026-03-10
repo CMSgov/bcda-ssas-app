@@ -433,8 +433,8 @@ func (r *GormSystemRepository) GetIps(ctx context.Context, system System) ([]IP,
 
 type Credentials struct {
 	ClientID     string    `json:"client_id,omitempty"`
-	ClientSecret string    `json:"client_secret,omitempty"`
-	ClientToken  string    `json:"client_token,omitempty"`
+	ClientSecret string    `json:"client_secret,omitempty"` // #nosec G117
+	ClientToken  string    `json:"client_token,omitempty"`  // #nosec G117
 	SystemID     string    `json:"system_id"`
 	ClientName   string    `json:"client_name"`
 	IPs          []string  `json:"ips,omitempty"`
