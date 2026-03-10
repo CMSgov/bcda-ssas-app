@@ -1451,8 +1451,7 @@ func BenchmarkToken(b *testing.B) {
 		gormDB.Close()
 	}()
 	if err != nil {
-		b.Log("failed to create DB")
-		b.FailNow()
+		b.Fatal("failed to create DB")
 	}
 	publicHandler := NewPublicHandler(db, AccessTokenCreator{})
 	cfg.LoadEnvConfigs()
@@ -1464,13 +1463,11 @@ func BenchmarkToken(b *testing.B) {
 	systemRepo := ssas.NewSystemRepository(db)
 	_, pubKey, err := ssas.GenerateTestKeys(2048)
 	if err != nil {
-		b.Log("failed to generate test key")
-		b.FailNow()
+		b.Fatal("failed to generate test key")
 	}
 	pemString, err := ssas.ConvertPublicKeyToPEMString(&pubKey)
 	if err != nil {
-		b.Log("failed to convert public key to pem string")
-		b.FailNow()
+		b.Fatal("failed to convert public key to pem string")
 	}
 	ctx = context.WithValue(ctx, ssas.CtxLoggerKey, logEntry)
 
@@ -1481,14 +1478,12 @@ func BenchmarkToken(b *testing.B) {
 	defer func() {
 		err = ssas.CleanDatabase(group)
 		if err != nil {
-			b.Log("failed to clean DB")
-			b.FailNow()
+			b.Fatal("failed to clean DB")
 		}
 	}()
 	creds, err := systemRepo.RegisterSystem(ctx, constants.TestSystemName, groupID, cfg.DefaultScope, pemString, []string{}, uuid.NewRandom().String())
 	if err != nil {
-		b.Log("failed to register system")
-		b.FailNow()
+		b.Fatal("failed to register system")
 	}
 
 	// set up request
@@ -1509,8 +1504,7 @@ func BenchmarkIntrospect(b *testing.B) {
 	// set up generic background needs
 	db, err := ssas.CreateDB()
 	if err != nil {
-		b.Log("failed to create DB")
-		b.FailNow()
+		b.Fatal("failed to create DB")
 	}
 	publicHandler := NewPublicHandler(db, AccessTokenCreator{})
 	cfg.LoadEnvConfigs()
@@ -1523,13 +1517,11 @@ func BenchmarkIntrospect(b *testing.B) {
 	systemRepo := ssas.NewSystemRepository(db)
 	_, pubKey, err := ssas.GenerateTestKeys(2048)
 	if err != nil {
-		b.Log("failed to generate test key")
-		b.FailNow()
+		b.Fatal("failed to generate test key")
 	}
 	pemString, err := ssas.ConvertPublicKeyToPEMString(&pubKey)
 	if err != nil {
-		b.Log("failed to convert public key to pem string")
-		b.FailNow()
+		b.Fatal("failed to convert public key to pem string")
 	}
 
 	// set up db records
@@ -1539,8 +1531,7 @@ func BenchmarkIntrospect(b *testing.B) {
 	defer func() {
 		err = ssas.CleanDatabase(group)
 		if err != nil {
-			b.Log("failed to clean DB")
-			b.FailNow()
+			b.Fatal("failed to clean DB")
 		}
 	}()
 	creds, err := systemRepo.RegisterSystem(ctx, constants.TestSystemName, groupID, cfg.DefaultScope, pemString, []string{}, uuid.NewRandom().String())
