@@ -1123,7 +1123,7 @@
                   "",
 									"// Only run locally since this test won't work in environments with",
 									"// more than one SSAS instance due to the nature of the denylist cache",
-                  "const host = pm.environment.get(\"host\");",
+                  "const host = pm.variables.get(\"host\");",
                   "if (host === \"ssas\" || host.includes(\"localhost\")) {",
                   "    pm.test(\"Response is 'ok'\", function () {",
                   "        pm.response.to.have.status(200);",
