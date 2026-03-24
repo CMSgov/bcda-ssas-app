@@ -1440,3 +1440,123 @@ func MakeTestStructuredLoggerEntry(logFields logrus.Fields) *ssas.APILoggerEntry
 	newLogEntry := &ssas.APILoggerEntry{Logger: lggr.WithFields(logFields)}
 	return newLogEntry
 }
+
+// benchmark tests below
+
+func BenchmarkToken(b *testing.B) {
+	// set up generic background needs
+	db, err := ssas.CreateDB()
+	defer func() {
+		gormDB, _ := db.DB()
+		gormDB.Close()
+	}()
+	if err != nil {
+		b.Fatal("failed to create DB")
+	}
+	publicHandler := NewPublicHandler(db, AccessTokenCreator{})
+	cfg.LoadEnvConfigs()
+	server = Server()
+	service.StartDenylist()
+	logEntry := MakeTestStructuredLoggerEntry(logrus.Fields{"cms_id": "A9999", "request_id": uuid.NewUUID().String()})
+	ctx := context.WithValue(context.Background(), constants.CtxSGAKey, "test-sga")
+	ctx = context.WithValue(ctx, constants.CtxSGASkipAuthKey, "true")
+	systemRepo := ssas.NewSystemRepository(db)
+	_, pubKey, err := ssas.GenerateTestKeys(2048)
+	if err != nil {
+		b.Fatal("failed to generate test key")
+	}
+	pemString, err := ssas.ConvertPublicKeyToPEMString(&pubKey)
+	if err != nil {
+		b.Fatal("failed to convert public key to pem string")
+	}
+	ctx = context.WithValue(ctx, ssas.CtxLoggerKey, logEntry)
+
+	// set up db records
+	groupID := ssas.RandomHexID()[0:4]
+	group := ssas.Group{GroupID: groupID, XData: "x_data"}
+	err = db.Create(&group).Error
+	defer func() {
+		err = ssas.CleanDatabase(group)
+		if err != nil {
+			b.Fatal("failed to clean DB")
+		}
+	}()
+	creds, err := systemRepo.RegisterSystem(ctx, constants.TestSystemName, groupID, cfg.DefaultScope, pemString, []string{}, uuid.NewRandom().String())
+	if err != nil {
+		b.Fatal("failed to register system")
+	}
+
+	// set up request
+	rr := httptest.NewRecorder()
+	req := httptest.NewRequestWithContext(ctx, "POST", constants.TokenEndpoint, nil)
+	req.SetBasicAuth(creds.ClientID, creds.ClientSecret)
+	req.Header.Add("Accept", constants.HeaderApplicationJSON)
+	handler := service.NewCtxLogger(http.HandlerFunc(publicHandler.token))
+
+	b.ResetTimer()
+
+	for b.Loop() {
+		handler.ServeHTTP(rr, req)
+	}
+}
+
+func BenchmarkIntrospect(b *testing.B) {
+	// set up generic background needs
+	db, err := ssas.CreateDB()
+	if err != nil {
+		b.Fatal("failed to create DB")
+	}
+	publicHandler := NewPublicHandler(db, AccessTokenCreator{})
+	cfg.LoadEnvConfigs()
+	server = Server()
+	service.StartDenylist()
+	logEntry := MakeTestStructuredLoggerEntry(logrus.Fields{"cms_id": "A9999", "request_id": uuid.NewUUID().String()})
+	ctx := context.WithValue(context.Background(), constants.CtxSGAKey, "test-sga")
+	ctx = context.WithValue(ctx, constants.CtxSGASkipAuthKey, "true")
+	ctx = context.WithValue(ctx, ssas.CtxLoggerKey, logEntry)
+	systemRepo := ssas.NewSystemRepository(db)
+	_, pubKey, err := ssas.GenerateTestKeys(2048)
+	if err != nil {
+		b.Fatal("failed to generate test key")
+	}
+	pemString, err := ssas.ConvertPublicKeyToPEMString(&pubKey)
+	if err != nil {
+		b.Fatal("failed to convert public key to pem string")
+	}
+
+	// set up db records
+	groupID := ssas.RandomHexID()[0:4]
+	group := ssas.Group{GroupID: groupID, XData: "x_data"}
+	err = db.Create(&group).Error
+	defer func() {
+		err = ssas.CleanDatabase(group)
+		if err != nil {
+			b.Fatal("failed to clean DB")
+		}
+	}()
+	creds, err := systemRepo.RegisterSystem(ctx, constants.TestSystemName, groupID, cfg.DefaultScope, pemString, []string{}, uuid.NewRandom().String())
+
+	// set up valid token
+	claims := CreateCommonClaims("AccessToken", "", creds.SystemID, creds.ClientID, group.XData, "", nil)
+	_, ts, err := publicHandler.tc.GenerateToken(claims)
+
+	// set up request
+	introspectRR := httptest.NewRecorder()
+	handler := http.HandlerFunc(publicHandler.introspect)
+
+	b.ResetTimer()
+
+	for b.Loop() {
+		// reset each request while pausing benchmark timer
+		b.StopTimer()
+		body := strings.NewReader(fmt.Sprintf(`{"token":"%s"}`, ts))
+		req := httptest.NewRequestWithContext(ctx, "POST", "/introspect", body)
+		req.SetBasicAuth(creds.ClientID, creds.ClientSecret)
+		req.Header.Add("Content-Type", constants.HeaderApplicationJSON)
+		req.Header.Add("Accept", constants.HeaderApplicationJSON)
+		b.StartTimer()
+
+		handler.ServeHTTP(introspectRR, req)
+	}
+
+}

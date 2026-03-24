@@ -104,7 +104,7 @@ func testAuth(base64Creds string, statusCode int, s *AdminMiddlewareTestSuite, c
 
 	req.Header.Add("Authorization", "Basic "+base64Creds)
 
-	resp, err := client.Do(req)
+	resp, err := client.Do(req) // #nosec G704
 	if err != nil {
 		assert.FailNow(s.T(), err.Error())
 	}

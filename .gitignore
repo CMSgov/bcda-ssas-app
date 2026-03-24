@@ -3,5 +3,6 @@
 test_results/*
 .idea
 .env.sh
+.envrc
 ssas/swaggerui/swagger.json
 .localstack_volume/**

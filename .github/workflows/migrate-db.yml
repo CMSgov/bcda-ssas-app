@@ -39,7 +39,7 @@ jobs:
   migrate_db:
     environment: ${{ inputs.env || 'dev' }}
     name: Migrate DB
-    runs-on: codebuild-bcda-app-${{github.run_id}}-${{github.run_attempt}} # This is called from bcda-app deploy-all workflow
+    runs-on: codebuild-bcda-app-arm64-${{github.run_id}}-${{github.run_attempt}} # This is called from bcda-app deploy-all workflow
     steps:
       - name: Checkout BCDA SSAS
         uses: actions/checkout@v4
@@ -56,7 +56,7 @@ jobs:
           AWS_REGION: ${{ vars.AWS_REGION }}
         with:
           params: |
-            DB_URL=/bcda/${{ env.ENV }}/api/DATABASE_URL
+            DB_URL=/bcda/${{ env.ENV }}/sensitive/api/DATABASE_URL
       - name: Get Go
         uses: actions/setup-go@v5
         with:
