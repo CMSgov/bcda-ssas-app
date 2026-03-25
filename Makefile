@@ -58,7 +58,7 @@ docker-build:
 
 docker-bootstrap:
 	$(MAKE) docker-build
-	docker compose up -d
+	docker compose up -d --remove-orphans
 	./docker/await_service_healthy.sh ssas
 	$(MAKE) load-fixtures
 
