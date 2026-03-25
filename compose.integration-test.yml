@@ -1,5 +1,5 @@
 include:
-  - docker-compose.yml
+  - compose.yml
   
 services:
   postman_test:
