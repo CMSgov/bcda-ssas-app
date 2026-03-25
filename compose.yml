@@ -65,3 +65,7 @@ services:
     depends_on:
       db:
         condition: service_healthy
+
+networks:
+  default:
+    name: bcda-ssas-net

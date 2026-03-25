@@ -46,7 +46,7 @@ reset-db:
 	./docker/await_service_healthy.sh db
 
 	# Initialize schemas
-	docker compose -f docker-compose.migrate.yml run --rm migrate -database "postgres://postgres:toor@db:5432/bcda?sslmode=disable" -path /go/src/github.com/CMSgov/bcda-ssas-app/db/migrations up
+	docker run -v ./db/migrations:/migrations --network bcda-ssas-net --rm migrate/migrate -database "postgres://postgres:toor@db:5432/bcda?sslmode=disable" -path /migrations/ up
 
 load-fixtures:
 	$(MAKE) reset-db
