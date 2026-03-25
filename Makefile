@@ -58,9 +58,9 @@ docker-build:
 
 docker-bootstrap:
 	$(MAKE) docker-build
+	$(MAKE) load-fixtures
 	docker compose up -d --remove-orphans
 	./docker/await_service_healthy.sh ssas
-	$(MAKE) load-fixtures
 
 dbdocs: start-db load-fixtures
 	docker run --rm -v $PWD:/work -w /work --network bcda-ssas-app_default ghcr.io/k1low/tbls doc --rm-dist "postgres://postgres:toor@db:5432/bcda?sslmode=disable" dbdocs/bcda
