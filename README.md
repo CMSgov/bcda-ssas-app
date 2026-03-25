@@ -114,6 +114,13 @@ In a FILENAME_test.go file, there will be a green arrow to the left of the metho
 #### Integration Testing
 
 To run postman tests locally:
+Two different integration tests can be run with simple makefile recipes
+```
+make smoke-test
+make postman
+```
+
+If you want to run the tests manually:
 
 Build and startup the required containers. Building with docker compose up first will significantly improve the performance of the following steps.
 
