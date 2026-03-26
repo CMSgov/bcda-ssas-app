@@ -53,7 +53,7 @@ load-fixtures:
 	docker compose run --rm ssas sh -c 'ssas --add-fixture-data'
 
 docker-build:
-	docker compose build --force-rm
+	COMPOSE_BAKE=true docker compose build --force-rm
 	docker compose -f compose.test.yml build --force-rm
 
 docker-bootstrap:
