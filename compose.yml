@@ -1,8 +1,6 @@
-version: '3'
-
 services:
   db:
-    image: postgres:15
+    image: postgres:16
     environment:
       - POSTGRES_DB=bcda
       - POSTGRES_PASSWORD=toor
@@ -10,10 +8,16 @@ services:
       - "5430:5432"
     volumes:
       - ./db:/var/db
+    healthcheck:
+      test: ["CMD", "pg_isready", "-d", "bcda"]
+      interval: 40s
+      timeout: 15s
+      retries: 5
+      start_period: 2s
   documentation:
     build:
       context: .
-      dockerfile: Dockerfiles/Dockerfile.ssas
+      dockerfile: docker/Dockerfile.ssas
       target: documentation
     platform: linux/arm64
     volumes:
@@ -21,7 +25,7 @@ services:
   ssas:
     build:
       context: .
-      dockerfile: Dockerfiles/Dockerfile.ssas
+      dockerfile: docker/Dockerfile.ssas
       args:
         VERSION: latest
     platform: linux/arm64
@@ -30,9 +34,6 @@ services:
       - ATO_PUBLIC_KEY_FILE=../shared_files/ATO_public.pem
       - ATO_PRIVATE_KEY_FILE=../shared_files/ATO_private.pem
       - HTTP_ONLY=true
-      - BCDA_AUTH_PROVIDER=${BCDA_AUTH_PROVIDER}
-      - BCDA_SSAS_CLIENT_ID=${BCDA_SSAS_CLIENT_ID}
-      - BCDA_SSAS_SECRET=${BCDA_SSAS_SECRET}
       - DEPLOYMENT_TARGET=local
       - LOG_TO_STD_OUT=true
       - SKIP_BOOTSTRAP=true
@@ -55,5 +56,16 @@ services:
       - "3103:3003"
       - "3104:3004"
       - "3105:3005"
+    healthcheck:
+      test: ["CMD", "curl", "-k", "-s", "-f", "-o", "/dev/null", "localhost:3003/_health"]
+      interval: 40s
+      retries: 5
+      start_period: 10s
+      timeout: 10s
     depends_on:
-      - db
+      db:
+        condition: service_healthy
+
+networks:
+  default:
+    name: bcda-ssas-net

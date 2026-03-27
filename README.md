@@ -41,10 +41,7 @@ Some variables below have a note indicating their name should be changed. These 
 
 | Key                                                                  | Required | SSAS | BCDA | Purpose                                                                                                                                                                                                                                                                                    |
 | -------------------------------------------------------------------- | :------: | :--: | :--: | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| BCDA_AUTH_PROVIDER                                                   |   Yes    |      |  X   | Tells BCDA API which auth provider to use                                                                                                                                                                                                                                                  |
 | BCDA_CA_FILE                                                         |   Yes    |      |  X   | Tells BCDA API the certificate file with which to validate its TLS connection to SSAS. When setting vars for AWS envs, you must include a var for the key material                                                                                                                         |
-| BCDA_SSAS_CLIENT_ID                                                  |   Yes    |      |  X   | Tells BCDA API the client_id to use with the SSAS REST API.                                                                                                                                                                                                                                |
-| BCDA_SSAS_SECRET                                                     |   Yes    |      |  X   | Tells BCDA API the secret to use with the SSAS REST API.                                                                                                                                                                                                                                   |
 | SSAS_USE_TLS                                                         |   Yes    |      |  X   | Should be renamed to BCDA_SSAS_USE_TLS                                                                                                                                                                                                                                                     |
 | SSAS_URL                                                             |   Yes    |      |  X   | The url of the SSAS admin server. Should be renamed to BCDA_SSAS_URL                                                                                                                                                                                                                       |
 | SSAS_PUBLIC_URL                                                      |   Yes    |      |  X   | The url of the SSAS public server (auth endpoints). Should be renamed to BCDA_SSAS_URL_PUBLIC                                                                                                                                                                                              |
@@ -117,6 +114,13 @@ In a FILENAME_test.go file, there will be a green arrow to the left of the metho
 #### Integration Testing
 
 To run postman tests locally:
+Two different integration tests can be run with simple makefile recipes
+```
+make smoke-test
+make postman
+```
+
+If you want to run the tests manually:
 
 Build and startup the required containers. Building with docker compose up first will significantly improve the performance of the following steps.
 
@@ -144,7 +148,7 @@ point your browser at one of the following ports, or use the postman test collec
 Benchmark tests live in *_test.go files.  They do not run as part of the normal testing suite.  To note the existing benchmark test assumes that you have existing data in the DB (ie have run `make load-fixtures`).  In order to run them you can do the following:
 
 ```
-docker compose -f docker-compose.test.yml run tests go test -v ./... -bench=. -benchtime=10x -run=^$ -benchmem
+docker compose -f compose.test.yml run tests go test -v ./... -bench=. -benchtime=10x -run=^$ -benchmem
 ```
 
 - `-v ./...` says to look for tests everywhere (not just current dir).
@@ -159,7 +163,7 @@ The end result will include average time spent (nanoseconds) per operation, aver
 
 To analyze cpu or mem profile using pprof you can run:
 ```
-docker compose -f docker-compose.test.yml run tests go test -v ./ssas/service/public/... -bench=BenchmarkToken -benchmem -benchtime=100x -run=^$ -cpuprofile cpuprofile.out -memprofile memprofile.out && go tool pprof memprofile.out
+docker compose -f compose.test.yml run tests go test -v ./ssas/service/public/... -bench=BenchmarkToken -benchmem -benchtime=100x -run=^$ -cpuprofile cpuprofile.out -memprofile memprofile.out && go tool pprof memprofile.out
 ```
 This will single out a specific benchmark test to run in a specific package.  The command at the end `go tool pprof {cpu|mem}profile.out` is what lets you see cpu/memory utilization.  This will pull up the pprof cli, you can type `top10` to see the top 10 cpu/memory utilizers.
 

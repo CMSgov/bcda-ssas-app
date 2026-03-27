@@ -1,6 +1,6 @@
 lint:
-	docker compose -f docker-compose.test.yml run --rm tests golangci-lint --timeout 10m0s -v run --new-from-merge-base=main
-	docker compose -f docker-compose.test.yml run --rm tests gosec ./...
+	docker compose -f compose.test.yml run --rm tests golangci-lint --timeout 10m0s -v run --new-from-merge-base=main
+	docker compose -f compose.test.yml run --rm tests gosec ./...
 
 # The following vars are available to tests needing SSAS admin credentials; currently they are used in smoke-test-ssas, postman-ssas, and unit-test-ssas
 # Note that these variables should only be used for smoke tests, must be set before the api starts, and cannot be changed after the api starts
@@ -8,19 +8,19 @@ SSAS_ADMIN_CLIENT_ID ?= 31e029ef-0e97-47f8-873c-0e8b7e7f99bf
 SSAS_ADMIN_CLIENT_SECRET := $(shell docker compose run --rm ssas sh -c 'ssas --reset-secret --client-id=$(SSAS_ADMIN_CLIENT_ID)'|tail -n1)
 
 smoke-test:
-	docker compose -f docker-compose.test.yml run --rm postman_test test/postman_test/SSAS_Smoke_Test.postman_collection.json -e test/postman_test/local.postman_environment.json --global-var "token=$(token)" --global-var adminClientId=$(SSAS_ADMIN_CLIENT_ID) --global-var adminClientSecret=$(SSAS_ADMIN_CLIENT_SECRET) --global-var ssas_client_assertion_aud=$(SASS_CLIENT_ASSERTION_AUD)
+	docker compose -f compose.integration-test.yml run --rm postman_test test/postman_test/SSAS_Smoke_Test.postman_collection.json -e test/postman_test/local.postman_environment.json --global-var "token=$(token)" --global-var adminClientId=$(SSAS_ADMIN_CLIENT_ID) --global-var adminClientSecret=$(SSAS_ADMIN_CLIENT_SECRET) --global-var ssas_client_assertion_aud=$(SASS_CLIENT_ASSERTION_AUD)
 
 postman:
-	docker compose -f docker-compose.test.yml run --rm postman_test test/postman_test/SSAS.postman_collection.json -e test/postman_test/local.postman_environment.json --global-var adminClientId=$(SSAS_ADMIN_CLIENT_ID) --global-var adminClientSecret=$(SSAS_ADMIN_CLIENT_SECRET) --global-var ssas_client_assertion_aud=$(SASS_CLIENT_ASSERTION_AUD)
+	docker compose -f compose.integration-test.yml run --rm postman_test test/postman_test/SSAS.postman_collection.json -e test/postman_test/local.postman_environment.json --global-var adminClientId=$(SSAS_ADMIN_CLIENT_ID) --global-var adminClientSecret=$(SSAS_ADMIN_CLIENT_SECRET) --global-var ssas_client_assertion_aud=$(SASS_CLIENT_ASSERTION_AUD)
 
 migrations-test:
-	docker compose -f docker-compose.test.yml run --rm tests bash ops/migrations_test.sh
+	docker compose -f compose.test.yml run --rm tests bash ops/migrations_test.sh
 
 start-db:
 	docker compose up -d db
 
-unit-test: start-db
-	docker compose -f docker-compose.test.yml run --rm tests bash unit_test.sh
+unit-test:
+	docker compose -f compose.test.yml run --rm tests bash unit_test.sh
 
 test:
 	$(MAKE) lint
@@ -31,36 +31,48 @@ test:
 
 setup-tests:
 	# Clean up any existing data to ensure we spin up container in a known state.
-	docker compose -f docker-compose.test.yml rm -fsv tests
-	docker compose -f docker-compose.test.yml build tests
+	docker compose -f compose.test.yml rm -fsv tests
+	docker compose -f compose.test.yml build tests
 
 # make test-path TEST_PATH="bcdaworker/worker/*.go"
 test-path: setup-tests
-	@docker compose -f docker-compose.test.yml run --rm tests go test -v $(TEST_PATH)
+	@docker compose -f compose.test.yml run --rm tests go test -v $(TEST_PATH)
+
+reset-db:
+	# Rebuild the databases to ensure that we're starting in a fresh state
+	docker compose rm -fsv db
+
+	docker compose up -d db
+	./docker/await_service_healthy.sh db
+
+	# Initialize schemas
+	docker run -v ./db/migrations:/migrations --network bcda-ssas-net --rm migrate/migrate -database "postgres://postgres:toor@db:5432/bcda?sslmode=disable" -path /migrations/ up
 
 load-fixtures:
-	docker compose up -d
-	sleep 40
-	docker compose -f docker-compose.migrate.yml run --rm migrate  -database "postgres://postgres:toor@db:5432/bcda?sslmode=disable" -path /go/src/github.com/CMSgov/bcda-ssas-app/db/migrations up
-	docker compose -f docker-compose.yml run ssas sh -c 'ssas --add-fixture-data'
+	$(MAKE) reset-db
+	docker compose run --rm ssas sh -c 'ssas --add-fixture-data'
 
 docker-build:
-	docker compose build
-	docker compose -f docker-compose.test.yml build
+	COMPOSE_BAKE=true docker compose build --force-rm
+	docker compose -f compose.test.yml build --force-rm
 
-docker-bootstrap: docker-build load-fixtures
+docker-bootstrap:
+	$(MAKE) docker-build
+	$(MAKE) load-fixtures
+	docker compose up -d --remove-orphans
+	./docker/await_service_healthy.sh ssas
 
 dbdocs: start-db load-fixtures
 	docker run --rm -v $PWD:/work -w /work --network bcda-ssas-app_default ghcr.io/k1low/tbls doc --rm-dist "postgres://postgres:toor@db:5432/bcda?sslmode=disable" dbdocs/bcda
 
-.PHONY: docker-build docker-bootstrap load-fixtures test release smoke-test postman unit-test lint migrations-test start-db dbdocs
+.PHONY: docker-build docker-bootstrap reset-db load-fixtures test release smoke-test postman unit-test lint migrations-test start-db dbdocs
 
 # Build and publish images to ECR
 build-ssas:
 	$(eval ACCOUNT_ID =$(shell aws sts get-caller-identity --output text --query Account))
 	$(eval CURRENT_COMMIT=$(shell git log -n 1 --pretty=format:'%h'))
 	$(eval DOCKER_REGISTRY_URL=${ACCOUNT_ID}.dkr.ecr.us-east-1.amazonaws.com/bcda-ssas)
-	docker build -t ${DOCKER_REGISTRY_URL}:latest -t '${DOCKER_REGISTRY_URL}:${CURRENT_COMMIT}' -f Dockerfiles/Dockerfile.ssas .
+	docker build -t ${DOCKER_REGISTRY_URL}:latest -t '${DOCKER_REGISTRY_URL}:${CURRENT_COMMIT}' -f docker/Dockerfile.ssas .
 
 publish-ssas:
 	$(eval ACCOUNT_ID =$(shell aws sts get-caller-identity --output text --query Account))

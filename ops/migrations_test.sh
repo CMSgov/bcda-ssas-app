@@ -18,8 +18,7 @@ usql $DB_HOST_URL -c 'create database ssas_test;'
 
 echo "Running SSAS migration tests"
 
-cd db/migrations
-DATABASE_URL=$TEST_DB_URL DEBUG=true go test -tags=migrations -v
+DATABASE_URL=$TEST_DB_URL go test -tags=migrations ./db/migrations
 
 echo "Cleaning up test DB (ssas_test)..."
 usql $DB_HOST_URL -c 'drop database ssas_test;'
