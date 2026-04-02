@@ -128,10 +128,20 @@ func runPerformanceTest(target vegeta.Targeter) *plot.Plot {
 	d := time.Second * time.Duration(duration)
 	rate := vegeta.Rate{Freq: freq, Per: time.Second}
 	var metrics vegeta.Metrics
+	plotAttack(p, &metrics, target, rate, d)
 
 	return p
 }
 
+func plotAttack(p *plot.Plot, m *vegeta.Metrics, t vegeta.Targeter, r vegeta.Rate, du time.Duration) {
+	attacker := vegeta.NewAttacker()
+	for results := range attacker.Attack(t, r, du, fmt.Sprintf("%dps:", r.Freq)) {
+		if err := p.Add(results); err != nil {
+			panic(err)
+		}
+		m.Add(results)
+	}
+}
 
 func getAccessToken(cID, cSecret string) string {
 	req, err := http.NewRequest("POST", fmt.Sprintf("%s://%s/token", proto, apiHost), nil)
