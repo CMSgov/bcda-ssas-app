@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"regexp"
 	"time"
 
 	vegeta "github.com/tsenart/vegeta/v12/lib"
@@ -68,6 +69,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+	writeResults(fmt.Sprintf("%s_api_plot", endpoint), buf)
 }
 
 func makeTokenTarget() vegeta.Targeter {
@@ -147,6 +149,20 @@ func plotAttack(p *plot.Plot, m *vegeta.Metrics, t vegeta.Targeter, r vegeta.Rat
 			panic(err)
 		}
 		m.Add(results)
+	}
+}
+
+func writeResults(filename string, buf bytes.Buffer) {
+	re := regexp.MustCompile(`[^a-zA-Z0-9\.\-]`)
+	clean := re.ReplaceAllString(filename, "-")
+	data := buf.Bytes()
+	if len(data) > 0 {
+		fn := fmt.Sprintf("%s/%s.html", reportFilePath, clean)
+		fmt.Printf("Writing results: %s\n", fn)
+		err := os.WriteFile(fn, data, 0600)
+		if err != nil {
+			panic(err)
+		}
 	}
 }
 
