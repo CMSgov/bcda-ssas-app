@@ -177,7 +177,7 @@ func getAccessToken(cID, cSecret string) string {
 	req.Header.Add("Accept", "application/json")
 
 	fmt.Printf("Fetching test access token for introspect test...\n")
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := http.DefaultClient.Do(req) //nolint:gosec
 	if err != nil {
 		panic(fmt.Sprintf("failed to get token: %s", err.Error()))
 	}
