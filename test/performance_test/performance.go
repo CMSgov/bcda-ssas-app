@@ -128,6 +128,13 @@ func runPerformanceTest(target vegeta.Targeter) *plot.Plot {
 	d := time.Second * time.Duration(duration)
 	rate := vegeta.Rate{Freq: freq, Per: time.Second}
 	var metrics vegeta.Metrics
+	defer func() {
+		// Needed to compute all of the summary metrics
+		metrics.Close()
+		if err := validateMetrics(metrics); err != nil {
+			log.Printf("Validation error: %s", err.Error())
+		}
+	}()
 	plotAttack(p, &metrics, target, rate, d)
 
 	return p
@@ -175,3 +182,19 @@ func getAccessToken(cID, cSecret string) string {
 	return tokenStr
 }
 
+func validateMetrics(metrics vegeta.Metrics) error {
+	if metrics.Requests == 0 {
+		return nil
+	}
+
+	if len(metrics.Errors) > 0 {
+		return fmt.Errorf("encountered %v errors", metrics.Errors)
+	}
+
+	if metrics.Success < 1.0 {
+		return fmt.Errorf("expected success rate of 1.0, received %f",
+			metrics.Success)
+	}
+
+	return nil
+}
