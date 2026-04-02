@@ -53,10 +53,12 @@ func main() {
 	if endpoint == "token" {
 		targeter = makeTokenTarget()
 	} else if endpoint == "introspect" {
+		testToken := getAccessToken(clientID, clientSecret)
 		targeter = makeIntrospectTarget(testToken)
 	} else {
 		log.Fatalf("Unknown endpoint: %s. Use 'token' or 'introspect'", endpoint)
 	}
+
 	results := runPerformanceTest(targeter)
 }
 
@@ -108,11 +110,45 @@ func makeIntrospectTarget(accessToken string) vegeta.Targeter {
 		Body:   bodyBytes,
 	})
 }
+
 func runPerformanceTest(target vegeta.Targeter) *plot.Plot {
 	fmt.Printf("running performance test for: %s\n", endpoint)
 	title := plot.Title(fmt.Sprintf("Performance Test - %s", endpoint))
 	p := plot.New(title)
 	defer p.Close()
 	return p
+}
+
+
+func getAccessToken(cID, cSecret string) string {
+	req, err := http.NewRequest("POST", fmt.Sprintf("%s://%s/token", proto, apiHost), nil)
+	if err != nil {
+		panic(err)
+	}
+
+	req.SetBasicAuth(cID, cSecret)
+	req.Header.Add("Accept", "application/json")
+
+	fmt.Printf("Fetching test access token for introspect test...\n")
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		panic(fmt.Sprintf("failed to get token: %s", err.Error()))
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		panic(fmt.Sprintf("failed to get token: received status code %d", resp.StatusCode))
+	}
+
+	var t map[string]interface{}
+	if err = json.NewDecoder(resp.Body).Decode(&t); err != nil {
+		panic(fmt.Sprintf("unexpected token response format: %s", err.Error()))
+	}
+
+	tokenStr, ok := t["access_token"].(string)
+	if !ok {
+		panic("access_token missing or not a string in response")
+	}
+	return tokenStr
 }
 
