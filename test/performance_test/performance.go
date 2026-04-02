@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"net/url"
 	"os"
 	"regexp"
 	"time"
@@ -169,12 +168,7 @@ func writeResults(filename string, buf bytes.Buffer) {
 }
 
 func getAccessToken(cID, cSecret string) string {
-	u := &url.URL{
-		Scheme: proto,
-		Host:   apiHost,
-		Path:   "/token",
-	}
-	req, err := http.NewRequest("POST", u.String(), nil)
+	req, err := http.NewRequest("POST", fmt.Sprintf("%s://%s/token", proto, apiHost), nil)
 	if err != nil {
 		panic(err)
 	}
