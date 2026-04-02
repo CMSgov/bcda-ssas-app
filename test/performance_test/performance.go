@@ -40,7 +40,7 @@ func init() {
 
 	// create folder if doesn't exist for storing the results
 	if _, err := os.Stat(reportFilePath); os.IsNotExist(err) {
-		err := os.MkdirAll(reportFilePath, 0744)
+		err := os.MkdirAll(reportFilePath, 0750)
 		if err != nil {
 			panic(err)
 		}
@@ -54,12 +54,13 @@ func main() {
 
 	var targeter vegeta.Targeter
 
-	if endpoint == "token" {
+	switch endpoint {
+	case "token":
 		targeter = makeTokenTarget()
-	} else if endpoint == "introspect" {
+	case "introspect":
 		testToken := getAccessToken(clientID, clientSecret)
 		targeter = makeIntrospectTarget(testToken)
-	} else {
+	default:
 		log.Fatalf("Unknown endpoint: %s. Use 'token' or 'introspect'", endpoint)
 	}
 
