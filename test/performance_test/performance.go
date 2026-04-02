@@ -1,12 +1,15 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"flag"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
+	"time"
+
 	vegeta "github.com/tsenart/vegeta/v12/lib"
 	"github.com/tsenart/vegeta/v12/lib/plot"
 )
@@ -60,6 +63,11 @@ func main() {
 	}
 
 	results := runPerformanceTest(targeter)
+	var buf bytes.Buffer
+	_, err := results.WriteTo(&buf)
+	if err != nil {
+		panic(err)
+	}
 }
 
 func makeTokenTarget() vegeta.Targeter {
@@ -116,6 +124,11 @@ func runPerformanceTest(target vegeta.Targeter) *plot.Plot {
 	title := plot.Title(fmt.Sprintf("Performance Test - %s", endpoint))
 	p := plot.New(title)
 	defer p.Close()
+
+	d := time.Second * time.Duration(duration)
+	rate := vegeta.Rate{Freq: freq, Per: time.Second}
+	var metrics vegeta.Metrics
+
 	return p
 }
 
