@@ -1,8 +1,14 @@
 package main
 
 import (
+	"encoding/json"
 	"flag"
+	"fmt"
+	"log"
+	"net/http"
 	"os"
+	vegeta "github.com/tsenart/vegeta/v12/lib"
+	"github.com/tsenart/vegeta/v12/lib/plot"
 )
 
 var (
@@ -35,5 +41,78 @@ func init() {
 			panic(err)
 		}
 	}
+}
+
+func main() {
+	if clientID == "" || clientSecret == "" {
+		log.Fatal("clientID and clientSecret must be provided")
+	}
+
+	var targeter vegeta.Targeter
+
+	if endpoint == "token" {
+		targeter = makeTokenTarget()
+	} else if endpoint == "introspect" {
+		targeter = makeIntrospectTarget(testToken)
+	} else {
+		log.Fatalf("Unknown endpoint: %s. Use 'token' or 'introspect'", endpoint)
+	}
+	results := runPerformanceTest(targeter)
+}
+
+func makeTokenTarget() vegeta.Targeter {
+	url := fmt.Sprintf("%s://%s/token", proto, apiHost)
+
+	// Prepare basic auth header
+	req, _ := http.NewRequest("POST", url, nil)
+	req.SetBasicAuth(clientID, clientSecret)
+	authHeader := req.Header.Get("Authorization")
+
+	header := map[string][]string{
+		"Accept":        {"application/json"},
+		"Authorization": {authHeader},
+		"User-Agent":    {"bcda-ssas-performance-test"},
+	}
+
+	return vegeta.NewStaticTargeter(vegeta.Target{
+		Method: "POST",
+		URL:    url,
+		Header: header,
+	})
+}
+
+func makeIntrospectTarget(accessToken string) vegeta.Targeter {
+	url := fmt.Sprintf("%s://%s/introspect", proto, apiHost)
+
+	// Prepare basic auth header
+	req, _ := http.NewRequest("POST", url, nil)
+	req.SetBasicAuth(clientID, clientSecret)
+	authHeader := req.Header.Get("Authorization")
+
+	header := map[string][]string{
+		"Accept":        {"application/json"},
+		"Content-Type":  {"application/json"},
+		"Authorization": {authHeader},
+		"User-Agent":    {"bcda-ssas-performance-test"},
+	}
+
+	body := map[string]string{
+		"token": accessToken,
+	}
+	bodyBytes, _ := json.Marshal(body)
+
+	return vegeta.NewStaticTargeter(vegeta.Target{
+		Method: "POST",
+		URL:    url,
+		Header: header,
+		Body:   bodyBytes,
+	})
+}
+func runPerformanceTest(target vegeta.Targeter) *plot.Plot {
+	fmt.Printf("running performance test for: %s\n", endpoint)
+	title := plot.Title(fmt.Sprintf("Performance Test - %s", endpoint))
+	p := plot.New(title)
+	defer p.Close()
+	return p
 }
 
