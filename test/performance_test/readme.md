@@ -20,6 +20,7 @@ The directory hosts performance stress testing suite for `bcda-ssas-app` using t
 ## Usage Examples
 
 Make sure you are in `bcda-ssas-app/test/performance_test`. Then, you can run normal `go run` commands.
+Note: you can run `make credentials` from the root directory to generate a client ID and secret.
 
 ### Scenario 1: Hitting `/token`
 This stress-tests generating token grants via the `POST /token` payload aggressively:
