@@ -17,3 +17,34 @@ The directory hosts performance stress testing suite for `bcda-ssas-app` using t
    - Then, it hammers the `POST /introspect` endpoint passing `{ "token": "<access_token>" }` as the JSON payload while maintaining Basic Auth headers.
 3. Generates the response plots in `bcda-ssas-app/test_results/performance.html`.
 
+## Usage Examples
+
+Make sure you are in `bcda-ssas-app/test/performance_test`. Then, you can run normal `go run` commands.
+
+### Scenario 1: Hitting `/token`
+This stress-tests generating token grants via the `POST /token` payload aggressively:
+
+```bash
+go run performance.go \
+    -host="localhost:3104" \
+    -clientID="<YOUR_DEV_CLIENT_ID>" \
+    -clientSecret="<YOUR_DEV_CLIENT_SECRET>" \
+    -endpoint="token" \
+    -duration=60 \
+    -freq=15
+```
+
+### Scenario 2: Hitting `/introspect`
+This fetches one single access token from `/token`, encodes it in JSON, and aggressively spams the `POST /introspect` validation layer:
+
+```bash
+go run performance.go \
+    -host="localhost:3104" \
+    -clientID="<YOUR_DEV_CLIENT_ID>" \
+    -clientSecret="<YOUR_DEV_CLIENT_SECRET>" \
+    -endpoint="introspect" \
+    -duration=60 \
+    -freq=15
+```
+
+After either suite runs, a performance test artifact (`[endpoint]_api_plot.html`) will automatically appear in `bcda-ssas-app/test_results/performance/`.
