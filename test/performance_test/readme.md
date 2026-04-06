@@ -8,6 +8,7 @@ The directory hosts performance stress testing suite for `bcda-ssas-app` using t
 - `--freq`: Requests per second (default 10).
 - `--duration`: Total test duration in seconds (default 60).
 - `--endpoint`: Which endpoint to strike (`token` or `introspect`).
+- `--insecure`: Bypasses TLS certificate validation. **Critical for non-prod environments (like dev)** where certificates may be self-signed or non-compliant.
 
 **Execution Logic**:
 1. **If testing `/token`**:
@@ -21,6 +22,7 @@ The directory hosts performance stress testing suite for `bcda-ssas-app` using t
 
 Make sure you are in `bcda-ssas-app/test/performance_test`. Then, you can run normal `go run` commands.
 Note: you can run `make credentials` from the root directory to generate a client ID and secret.
+**Important**: When testing against non-prod environments (like dev) over HTTPS, ensure you include the `-insecure` flag to bypass TLS certificate validation errors.
 
 ### Scenario 1: Hitting `/token`
 This stress-tests generating token grants via the `POST /token` payload aggressively:
@@ -40,12 +42,13 @@ This fetches one single access token from `/token`, encodes it in JSON, and aggr
 
 ```bash
 go run performance.go \
-    -host="localhost:3104" \
+    -host="non-prod-instance-to-test.elb.amazonaws.com" \
     -clientID="<YOUR_DEV_CLIENT_ID>" \
     -clientSecret="<YOUR_DEV_CLIENT_SECRET>" \
     -endpoint="introspect" \
     -duration=60 \
-    -freq=15
+    -freq=15 \
+    -insecure
 ```
 
 After either suite runs, a performance test artifact (`[endpoint]_api_plot.html`) will automatically appear in `bcda-ssas-app/test_results/performance/`.
