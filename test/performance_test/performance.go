@@ -64,13 +64,25 @@ func main() {
 		log.Fatalf("Unknown endpoint: %s. Use 'token' or 'introspect'", endpoint)
 	}
 
-	results := runPerformanceTest(targeter)
+	results, metrics := runPerformanceTest(targeter)
 	var buf bytes.Buffer
 	_, err := results.WriteTo(&buf)
 	if err != nil {
 		panic(err)
 	}
-	writeResults(fmt.Sprintf("%s_api_plot", endpoint), buf)
+
+	timestamp := time.Now().Format("20060102150405")
+
+	// Write HTML results
+	writeResults(fmt.Sprintf("%s_api_plot_%s.html", endpoint, timestamp), buf.Bytes())
+
+	// Write JSON results
+	reporter := vegeta.NewJSONReporter(metrics)
+	var jsonBuf bytes.Buffer
+	if err := reporter(&jsonBuf); err != nil {
+		panic(err)
+	}
+	writeResults(fmt.Sprintf("%s_api_plot_%s.json", endpoint, timestamp), jsonBuf.Bytes())
 }
 
 func makeTokenTarget() vegeta.Targeter {
@@ -122,7 +134,7 @@ func makeIntrospectTarget(accessToken string) vegeta.Targeter {
 	})
 }
 
-func runPerformanceTest(target vegeta.Targeter) *plot.Plot {
+func runPerformanceTest(target vegeta.Targeter) (*plot.Plot, *vegeta.Metrics) {
 	fmt.Printf("running performance test for: %s\n", endpoint)
 	title := plot.Title(fmt.Sprintf("Performance Test - %s", endpoint))
 	p := plot.New(title)
@@ -140,7 +152,7 @@ func runPerformanceTest(target vegeta.Targeter) *plot.Plot {
 	}()
 	plotAttack(p, &metrics, target, rate, d)
 
-	return p
+	return p, &metrics
 }
 
 func plotAttack(p *plot.Plot, m *vegeta.Metrics, t vegeta.Targeter, r vegeta.Rate, du time.Duration) {
@@ -153,12 +165,11 @@ func plotAttack(p *plot.Plot, m *vegeta.Metrics, t vegeta.Targeter, r vegeta.Rat
 	}
 }
 
-func writeResults(filename string, buf bytes.Buffer) {
+func writeResults(filename string, data []byte) {
 	re := regexp.MustCompile(`[^a-zA-Z0-9\.\-]`)
 	clean := re.ReplaceAllString(filename, "-")
-	data := buf.Bytes()
 	if len(data) > 0 {
-		fn := fmt.Sprintf("%s/%s.html", reportFilePath, clean)
+		fn := fmt.Sprintf("%s/%s", reportFilePath, clean)
 		fmt.Printf("Writing results: %s\n", fn)
 		err := os.WriteFile(fn, data, 0600)
 		if err != nil {
