@@ -169,7 +169,7 @@ func runPerformanceTest(target vegeta.Targeter) (*plot.Plot, *vegeta.Metrics) {
 
 func plotAttack(p *plot.Plot, m *vegeta.Metrics, t vegeta.Targeter, r vegeta.Rate, du time.Duration) {
 	attacker := vegeta.NewAttacker(
-		vegeta.TLSConfig(&tls.Config{InsecureSkipVerify: insecure}), //nolint:gosec
+		vegeta.TLSConfig(&tls.Config{InsecureSkipVerify: insecure}), // #nosec G402
 	)
 	for results := range attacker.Attack(t, r, du, fmt.Sprintf("%dps:", r.Freq)) {
 		if err := p.Add(results); err != nil {
@@ -203,10 +203,10 @@ func getAccessToken(cID, cSecret string) string {
 
 	fmt.Printf("Fetching test access token for introspect test...\n")
 	tr := &http.Transport{
-		TLSClientConfig: &tls.Config{InsecureSkipVerify: insecure}, //nolint:gosec
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: insecure}, // #nosec G402
 	}
 	client := &http.Client{Transport: tr}
-	resp, err := client.Do(req) //nolint:gosec
+	resp, err := client.Do(req) // #nosec G704
 	if err != nil {
 		panic(fmt.Sprintf("failed to get token: %s", err.Error()))
 	}
