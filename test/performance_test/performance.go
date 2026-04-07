@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"crypto/tls"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -9,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"regexp"
+	"strings"
 	"time"
 
 	vegeta "github.com/tsenart/vegeta/v12/lib"
@@ -25,6 +27,7 @@ var (
 
 	freq     int
 	duration int
+	insecure bool
 )
 
 func init() {
@@ -36,6 +39,7 @@ func init() {
 	flag.StringVar(&proto, "proto", "http", "protocol to use")
 	flag.StringVar(&reportFilePath, "report_path", "../../test_results/performance", "path to write the result.html")
 	flag.StringVar(&endpoint, "endpoint", "token", "endpoint to test ('token' or 'introspect')")
+	flag.BoolVar(&insecure, "insecure", false, "ignore certificates")
 	flag.Parse()
 
 	// create folder if doesn't exist for storing the results
@@ -50,6 +54,14 @@ func init() {
 func main() {
 	if clientID == "" || clientSecret == "" {
 		log.Fatal("clientID and clientSecret must be provided")
+	}
+
+	if strings.HasPrefix(apiHost, "http://") {
+		proto = "http"
+		apiHost = strings.TrimPrefix(apiHost, "http://")
+	} else if strings.HasPrefix(apiHost, "https://") {
+		proto = "https"
+		apiHost = strings.TrimPrefix(apiHost, "https://")
 	}
 
 	var targeter vegeta.Targeter
@@ -156,7 +168,9 @@ func runPerformanceTest(target vegeta.Targeter) (*plot.Plot, *vegeta.Metrics) {
 }
 
 func plotAttack(p *plot.Plot, m *vegeta.Metrics, t vegeta.Targeter, r vegeta.Rate, du time.Duration) {
-	attacker := vegeta.NewAttacker()
+	attacker := vegeta.NewAttacker(
+		vegeta.TLSConfig(&tls.Config{InsecureSkipVerify: insecure}), // #nosec G402
+	)
 	for results := range attacker.Attack(t, r, du, fmt.Sprintf("%dps:", r.Freq)) {
 		if err := p.Add(results); err != nil {
 			panic(err)
@@ -188,7 +202,11 @@ func getAccessToken(cID, cSecret string) string {
 	req.Header.Add("Accept", "application/json")
 
 	fmt.Printf("Fetching test access token for introspect test...\n")
-	resp, err := http.DefaultClient.Do(req) //nolint:gosec
+	tr := &http.Transport{
+		TLSClientConfig: &tls.Config{InsecureSkipVerify: insecure}, // #nosec G402
+	}
+	client := &http.Client{Transport: tr}
+	resp, err := client.Do(req) // #nosec G704
 	if err != nil {
 		panic(fmt.Sprintf("failed to get token: %s", err.Error()))
 	}
