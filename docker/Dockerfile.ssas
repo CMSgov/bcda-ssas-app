@@ -1,7 +1,7 @@
 ### OpenAPI docs
 FROM arm64v8/golang:1.26.0-alpine3.23 AS documentation
 
-RUN apk update upgrade --no-cache  && apk add \
+RUN apk add --no-cache \
     binutils-gold \
     build-base \
     gcc \
