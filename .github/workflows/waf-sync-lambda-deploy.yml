@@ -52,7 +52,7 @@ jobs:
         run: |
           env GOOS=linux GOARCH=amd64 go build -o bootstrap main.go db.go aws.go mock_wafv2.go
           zip function.zip bootstrap
-      - uses: aws-actions/configure-aws-credentials@ec61189d14ec14c8efccab744f656cffd0e33f37 # v6.1.0@v4
+      - uses: aws-actions/configure-aws-credentials@ec61189d14ec14c8efccab744f656cffd0e33f37 # v6.1.0
         with:
           aws-region: ${{ vars.AWS_REGION }}
           role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/delegatedadmin/developer/bcda-${{ env.DEPLOY_ENV }}-github-actions
