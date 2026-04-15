@@ -26,8 +26,8 @@ import (
 
 type publicHandler struct {
 	db *gorm.DB
-	sr *ssas.SystemRepository
-	gr *ssas.GroupRepository
+	sr ssas.SystemRepository
+	gr ssas.GroupRepository
 	tc TokenCreator
 }
 
@@ -65,16 +65,38 @@ type ResetRequest struct {
 
 type SystemResponse struct {
 	ClientID     string `json:"client_id"`
-	ClientSecret string `json:"client_secret"`
+	ClientSecret string `json:"client_secret"` // #nosec G117
 	ExpiresAt    int64  `json:"client_secret_expires_at"`
 	ClientName   string `json:"client_name"`
 }
 
 type TokenResponse struct {
 	Scope       string `json:"scope,omitempty"`
-	AccessToken string `json:"access_token"`
+	AccessToken string `json:"access_token"` // #nosec G117
 	TokenType   string `json:"token_type"`
 	ExpiresIn   string `json:"expires_in"`
+}
+
+func (h *publicHandler) getInfo(w http.ResponseWriter, r *http.Request) {
+	render.JSON(w, r, publicInfo())
+}
+
+func (h *publicHandler) getVersion(w http.ResponseWriter, r *http.Request) {
+	respMap := make(map[string]string)
+	respMap["version"] = fmt.Sprintf("%v", constants.Version)
+	render.JSON(w, r, respMap)
+}
+
+func (h *publicHandler) getHealthCheck(w http.ResponseWriter, r *http.Request) {
+	m := make(map[string]string)
+	if service.DoHealthCheck(r.Context(), h.db) {
+		m["database"] = "ok"
+		w.WriteHeader(http.StatusOK)
+	} else {
+		m["database"] = "error"
+		w.WriteHeader(http.StatusBadGateway)
+	}
+	render.JSON(w, r, m)
 }
 
 /*
@@ -552,4 +574,18 @@ func (h *publicHandler) validateAndParseToken(w http.ResponseWriter, r *http.Req
 	}
 	w.Header().Set("Content-Type", "application/json")
 	render.JSON(w, r, response)
+}
+
+func publicInfo() map[string][]string {
+	infoMap := make(map[string][]string)
+	infoMap["banner"] = []string{fmt.Sprintf("%s server running on port %s", "public", ":3003")}
+
+	routes, err := server.ListRoutes()
+	if err != nil {
+		infoMap["routes"] = []string{"error listing routes"}
+	} else {
+		infoMap["routes"] = routes
+	}
+
+	return infoMap
 }

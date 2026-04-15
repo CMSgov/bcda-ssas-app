@@ -5,6 +5,7 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/CMSgov/bcda-app/conf"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/stretchr/testify/assert"
@@ -42,12 +43,10 @@ func TestGetValidIPAddressesFailure(t *testing.T) {
 }
 
 func TestGetValidIPAddresses_Integration(t *testing.T) {
-	// insert valid and invalid ip addresses into actual DB
-	dbURL, err := getDBURL()
-	assert.Nil(t, err)
-
 	ctx := context.Background()
 
+	// insert valid and invalid ip addresses into actual DB
+	dbURL := conf.GetEnv("DATABASE_URL")
 	conn, err := pgx.Connect(ctx, dbURL)
 	assert.Nil(t, err)
 	defer conn.Close(ctx)

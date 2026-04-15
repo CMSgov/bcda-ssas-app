@@ -4,24 +4,21 @@ on:
   push:
   workflow_dispatch:
     inputs:
-      ssas_release_version:
-        description: 'Release version (or branch name)'
+      ref:
+        description: 'Ref of ssas-app to checkout (tag, branch name, or full SHA)'
         required: true
         type: string
-
-env:
-  RELEASE_VERSION: ${{ inputs.ssas_release_version || github.sha }}
 
 jobs:
   go_mod_tidy:
     name: Modules Lint
-    runs-on: codebuild-bcda-ssas-app-${{github.run_id}}-${{github.run_attempt}}
+    runs-on: codebuild-bcda-ssas-app-non-prod-${{github.run_id}}-${{github.run_attempt}}
     steps:
       - name: Checkout code
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.3.0
         with:
           repository: CMSgov/bcda-ssas-app
-          ref: ${{ env.RELEASE_VERSION }}
+          ref: ${{ inputs.ref }}
       - name: Get Go
         uses: actions/setup-go@v5
         with:
@@ -38,29 +35,23 @@ jobs:
 
   lint_and_test:
     name: Lint and Test
-    runs-on: codebuild-bcda-ssas-app-${{github.run_id}}-${{github.run_attempt}}
+    runs-on: codebuild-bcda-ssas-app-non-prod-${{github.run_id}}-${{github.run_attempt}}
     steps:
       - name: Checkout code
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.3.0
         with:
           repository: CMSgov/bcda-ssas-app 
-          ref: ${{ env.RELEASE_VERSION }}
+          ref: ${{ inputs.ref }}
       - name: Get Go
         uses: actions/setup-go@v5
         with:
           go-version-file: 'go.mod'
-      - name: Install docker compose manually
-        run: |
-          sudo mkdir -p /usr/local/lib/docker/cli-plugins
-          sudo curl -SL https://github.com/docker/compose/releases/download/v2.32.4/docker-compose-linux-x86_64 -o /usr/local/lib/docker/cli-plugins/docker-compose
-          sudo chown root:root /usr/local/lib/docker/cli-plugins/docker-compose
-          sudo chmod +x /usr/local/lib/docker/cli-plugins/docker-compose
       - name: Build the stack
         run: make docker-bootstrap
       - name: Lint and Test
         run: make test
       - name: Archive code coverage results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: code-coverage-report-ssas
           path: ./test_results/latest/testcoverage-ssas.out
@@ -84,7 +75,7 @@ jobs:
           repository: CMSgov/bcda-ssas-app
           fetch-depth: 0
       - name: Download code coverage
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: code-coverage-report-ssas
       - name: Run quality gate scan
@@ -95,8 +86,8 @@ jobs:
             -Dsonar.sources=.
             -Dsonar.working.directory=./sonar_workspace
             -Dsonar.go.coverage.reportPaths=./testcoverage-ssas.out
-            -Dsonar.coverage.exclusions=**/*test.go,**/test/**/*,**/testUtils/*,**/scripts/*,**/ops/*,**/mock*.go,**/mock/**/*
-            -Dsonar.branch.name=${{ env.RELEASE_VERSION }}
+            -Dsonar.coverage.exclusions=**/*test.go,**/test/**/*,**/testUtils/*,**/scripts/*,**/ops/*,**/mock*.go,**/mock/**/*,**/*_mock.go,**/testutils.go
+            -Dsonar.branch.name=${{ inputs.ref }}
             -Dsonar.projectVersion=${{ github.sha }}
             -Dsonar.qualitygate.wait=true
             -Dsonar.ci.autoconfig.disabled=true 

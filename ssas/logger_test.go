@@ -32,7 +32,7 @@ func TestSetupLogger(t *testing.T) {
 	old := os.Getenv("SSAS_LOG")
 	os.Setenv("SSAS_LOG", logFile.Name())
 	t.Cleanup(func() {
-		assert.NoError(t, os.Remove(logFile.Name()))
+		assert.NoError(t, os.Remove(logFile.Name())) // #nosec G703
 		assert.NoError(t, os.Setenv("SSAS_LOG", old))
 	})
 

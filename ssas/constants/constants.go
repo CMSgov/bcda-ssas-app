@@ -1,6 +1,6 @@
 package constants
 
-// This is set during compilation.  See build_and_package.sh in the /ops directory
+// This is set during compilation. See dockerfiles for usage
 var Version = "latest"
 
 //const ApplicationJson = ""

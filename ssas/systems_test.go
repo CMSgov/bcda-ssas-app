@@ -30,7 +30,7 @@ type SystemsTestSuite struct {
 	suite.Suite
 	db       *gorm.DB
 	logEntry *APILoggerEntry
-	r        *SystemRepository
+	r        *GormSystemRepository
 }
 
 func (s *SystemsTestSuite) SetupSuite() {

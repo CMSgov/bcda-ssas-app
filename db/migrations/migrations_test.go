@@ -22,7 +22,7 @@ import (
 var (
 	db    *gorm.DB
 	dbURL string
-	r     *ssas.GroupRepository
+	r     *ssas.GormGroupRepository
 )
 
 // skipAuthContext returns a context that skips SGA authorization for tests

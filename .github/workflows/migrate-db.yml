@@ -3,8 +3,8 @@ name: Migrate DB
 on:
   workflow_call:
     inputs:
-      ssas_release_version:
-        description: 'Release version (or branch name)'
+      ref:
+        description: 'Ref of ssas-app to checkout (tag, branch name, or full SHA)'
         required: true
         type: string
       env:
@@ -13,8 +13,8 @@ on:
         type: string
   workflow_dispatch:
     inputs:
-      ssas_release_version:
-        description: 'Release version (or branch name)'
+      ref:
+        description: 'Ref of ssas-app to checkout (tag, branch name, or full SHA)'
         required: true
         type: string
       env:
@@ -39,13 +39,12 @@ jobs:
   migrate_db:
     environment: ${{ inputs.env || 'dev' }}
     name: Migrate DB
-    runs-on: codebuild-bcda-app-${{github.run_id}}-${{github.run_attempt}} # This is called from bcda-app deploy-all workflow
+    runs-on: codebuild-bcda-ssas-app-${{ contains(fromJSON('["prod", "sandbox"]'), inputs.env) && 'prod' || 'non-prod'}}-${{github.run_id}}-${{github.run_attempt}} # This is called from bcda-app deploy-all workflow
     steps:
       - name: Checkout BCDA SSAS
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.3.0
         with:
-          repository: CMSgov/bcda-ssas-app
-          ref: ${{ inputs.ssas_release_version }}
+          ref: ${{ inputs.ref }}
       - uses: aws-actions/configure-aws-credentials@ec61189d14ec14c8efccab744f656cffd0e33f37 # v6.1.0@v4
         with:
           aws-region: ${{ vars.AWS_REGION }}
@@ -56,7 +55,7 @@ jobs:
           AWS_REGION: ${{ vars.AWS_REGION }}
         with:
           params: |
-            DB_URL=/bcda/${{ env.ENV }}/api/DATABASE_URL
+            DB_URL=/bcda/${{ env.ENV }}/sensitive/api/DATABASE_URL
       - name: Get Go
         uses: actions/setup-go@v5
         with:

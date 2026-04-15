@@ -104,7 +104,7 @@ func testAuth(base64Creds string, statusCode int, s *AdminMiddlewareTestSuite, c
 
 	req.Header.Add("Authorization", "Basic "+base64Creds)
 
-	resp, err := client.Do(req)
+	resp, err := client.Do(req) // #nosec G704
 	if err != nil {
 		assert.FailNow(s.T(), err.Error())
 	}
@@ -150,7 +150,7 @@ func verifyNoContext(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		sgaKey := r.Context().Value(constants.CtxSGAKey)
 		skipAuth := r.Context().Value(constants.CtxSGASkipAuthKey)
-		fmt.Printf("\n--- vals found: %+v, %+v\n", sgaKey, skipAuth)
+
 		if sgaKey != "test-sga" {
 			w.WriteHeader(http.StatusNotFound)
 		}

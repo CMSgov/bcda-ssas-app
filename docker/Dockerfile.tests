@@ -1,0 +1,21 @@
+FROM arm64v8/golang:1.26.0-alpine3.23
+
+RUN apk update upgrade --no-cache && \
+    apk add --no-cache \
+        bash \
+        build-base \
+        curl
+
+RUN curl -sSfL --proto-default https --proto https \
+    https://raw.githubusercontent.com/golangci/golangci-lint/HEAD/install.sh \
+    | sh -s -- -b $(go env GOPATH)/bin v2.10.1
+
+RUN go install github.com/xo/usql@v0.17.5 && \
+    go install github.com/securego/gosec/v2/cmd/gosec@v2.22.5 && \
+    go install gotest.tools/gotestsum@v1.13.0 && \
+    go install -tags 'postgres' github.com/golang-migrate/migrate/v4/cmd/migrate@v4.15.2
+
+WORKDIR /go/src/github.com/CMSgov/bcda-ssas-app
+COPY . .
+
+ENTRYPOINT []

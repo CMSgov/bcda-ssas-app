@@ -8,10 +8,6 @@ on:
         description: 'Release version/tag (or branch name)'
         required: true
         type: string
-      ops_release_version:
-        description: 'Release version/tag for bcda-ssas-ops (or branch name)'
-        required: true
-        type: string
       next_release_version:
         description: 'Next version (tag or branch name) (OPTIONAL - If not set tag versions will be automatically figured out)'
         type: string
@@ -26,7 +22,6 @@ permissions:
 env:
   GPG_KEY_FILE_NAME: "bcda_ci_github_gpg.key"
   RELEASE_VERSION: ${{ inputs.release_version || 'main' }}
-  OPS_RELEASE_VERSION: ${{ inputs.ops_release_version || 'main' }}
   NEXT_RELEASE_VERSION: ${{ inputs.next_release_version || '' }}
   PREVIOUS_RELEASE_VERSION: ${{ inputs.previous_release_version || '' }}
   RELEASE_GITHUB_USER: carlpartridge
@@ -36,7 +31,7 @@ env:
 jobs:
   tag_and_release:
     name: Tag and Release
-    runs-on: codebuild-bcda-ssas-app-${{github.run_id}}-${{github.run_attempt}}
+    runs-on: codebuild-bcda-ssas-app-non-prod-${{github.run_id}}-${{github.run_attempt}}
     steps:
       - name: Get AWS params
         uses: cmsgov/cdap/actions/aws-params-env-action@main
@@ -57,7 +52,7 @@ jobs:
           repository: CMSgov/bcda-ops
           token: ${{ env.OPS_GITHUB_TOKEN }}
       - name: Upload release scripts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: release-scripts
           path: |
@@ -69,7 +64,7 @@ jobs:
           repository: CMSgov/bcda-ssas-app 
           ref: ${{ env.RELEASE_VERSION }}
       - name: Download release scripts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: release-scripts
           path: scripts/tag_and_release
@@ -77,24 +72,9 @@ jobs:
         run: |
           echo "${{ env.BCDA_GPG_PUB_KEY }}" > ./${{ env.GPG_KEY_FILE_NAME }}
           GITHUB_REPO_PATH='/CMSgov/bcda-ssas-app' GITHUB_ACCESS_TOKEN=${{ secrets.GITHUB_TOKEN }} GITHUB_USER='${{ env.RELEASE_GITHUB_USER }}' GITHUB_EMAIL='${{ env.RELEASE_GITHUB_EMAIL }}' GITHUB_GPG_KEY_FILE=${{ env.GPG_KEY_FILE_NAME }} bash scripts/tag_and_release/release.sh ${{ env.MANUAL_TAG_ARGS }}
-      - name: Checkout BCDA-SSAS-OPS
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.3.0
-        with:
-          repository: CMSgov/bcda-ssas-ops
-          ref: ${{ env.OPS_RELEASE_VERSION }}
-          token: ${{ env.OPS_GITHUB_TOKEN }}
-      - name: Download release scripts
-        uses: actions/download-artifact@v4
-        with:
-          name: release-scripts
-          path: scripts/tag_and_release
-      - name: Run release for SSAS-Ops
-        run: |
-          echo "${{ env.BCDA_GPG_PUB_KEY }}" > ./${{ env.GPG_KEY_FILE_NAME }}
-          GITHUB_REPO_PATH='/CMSgov/bcda-ssas-ops' GITHUB_ACCESS_TOKEN=${{ env.OPS_GITHUB_TOKEN }} GITHUB_USER='${{ env.RELEASE_GITHUB_USER }}' GITHUB_EMAIL='${{ env.RELEASE_GITHUB_EMAIL }}' GITHUB_GPG_KEY_FILE=${{ env.GPG_KEY_FILE_NAME }} bash scripts/tag_and_release/release.sh ${{ env.MANUAL_TAG_ARGS }}
       - name: Success Alert
         if: ${{ success() }}
-        uses: slackapi/slack-github-action@v2.0.0
+        uses: slackapi/slack-github-action@af78098f536edbc4de71162a307590698245be95 # v3.0.1
         with:
           method: chat.postMessage
           token: ${{ secrets.SLACK_BOT_TOKEN }}
@@ -103,12 +83,12 @@ jobs:
             channel: "C03S23MJFJS"
             attachments:
               - color: good
-                text: "SUCCESS: Tag and Release SSAS (${{ env.RELEASE_VERSION }}) and SSAS-OPS (${{ env.OPS_RELEASE_VERSION }}).  Run: <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|${{ github.run_id }}>"
+                text: "SUCCESS: Tag and Release SSAS (${{ env.RELEASE_VERSION }}). Run: <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|${{ github.run_id }}>"
                 mrkdown_in:
                   - text
       - name: Failure Alert
         if: ${{ failure() }}
-        uses: slackapi/slack-github-action@v2.0.0
+        uses: slackapi/slack-github-action@af78098f536edbc4de71162a307590698245be95 # v3.0.1
         with:
           method: chat.postMessage
           token: ${{ secrets.SLACK_BOT_TOKEN }}
@@ -116,7 +96,7 @@ jobs:
             channel: "C03S23MJFJS"
             attachments:
               - color: danger
-                text: "FAILURE: Tag and Release SSAS (${{ env.RELEASE_VERSION }}) and SSAS-OPS (${{ env.OPS_RELEASE_VERSION }}).  Run: <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|${{ github.run_id }}>"
+                text: "FAILURE: Tag and Release SSAS (${{ env.RELEASE_VERSION }}). Run: <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|${{ github.run_id }}>"
                 mrkdown_in:
                   - text
 

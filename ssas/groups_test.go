@@ -52,7 +52,7 @@ const SampleXdata string = `"{\"cms_ids\":[\"T67890\",\"T54321\"]}"`
 type GroupsTestSuite struct {
 	suite.Suite
 	db *gorm.DB
-	r  *GroupRepository
+	r  *GormGroupRepository
 }
 
 func (s *GroupsTestSuite) SetupTest() {
