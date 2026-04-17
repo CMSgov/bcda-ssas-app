@@ -59,7 +59,7 @@ jobs:
   sonar-quality-gate:
     name: Sonarqube Quality Gate
     needs: lint_and_test
-    runs-on: codebuild-bcda-ssas-app-${{github.run_id}}-${{github.run_attempt}}
+    runs-on: codebuild-bcda-ssas-app-non-prod-${{github.run_id}}-${{github.run_attempt}}
     steps:
       - name: Set env vars from AWS params
         uses: cmsgov/cdap/actions/aws-params-env-action@main
@@ -82,6 +82,7 @@ jobs:
         uses: sonarsource/sonarqube-scan-action@master
         with:
           args:
+            -Dsonar.scanner.arch=aarch64
             -Dsonar.projectKey=bcda-ssas-api
             -Dsonar.sources=.
             -Dsonar.working.directory=./sonar_workspace
