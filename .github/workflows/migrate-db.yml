@@ -44,6 +44,7 @@ jobs:
       - name: Checkout BCDA SSAS
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.3.0
         with:
+          repository: CMSgov/bcda-ssas-app
           ref: ${{ inputs.ref }}
       - uses: aws-actions/configure-aws-credentials@ec61189d14ec14c8efccab744f656cffd0e33f37 # v6.1.0
         with:
@@ -69,7 +70,7 @@ jobs:
         run: |
           HOST=$(aws rds describe-db-cluster-endpoints --db-cluster-identifier bcda-${{ env.ENV }}-aurora 2>&1 | jq -r '.DBClusterEndpoints[0].Endpoint' 2>&1)
           CONNECTION_URL=$(echo $DB_URL 2>&1 | sed -E "s/@.*\/bcda/\@$HOST\/bcda/" 2>&1)
-          migrate -database ${CONNECTION_URL}?x-migrations-table=schema_migrations_ssas -path db/migrations up
+          migrate -database ${CONNECTION_URL}?x-migrations-table=schema_migrations_ssas -path ./db/migrations up
       - name: Success Alert
         if: ${{ success() }}
         uses: slackapi/slack-github-action@v2.0.0
