@@ -85,6 +85,7 @@ jobs:
         uses: sonarsource/sonarqube-scan-action@master
         with:
           args:
+            -Dsonar.scanner.arch=arm64
             -Dsonar.projectKey=bcda-ssas-api
             -Dsonar.sources=.
             -Dsonar.working.directory=./sonar_workspace
