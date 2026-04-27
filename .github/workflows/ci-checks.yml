@@ -86,7 +86,7 @@ jobs:
         with:
           node-version: 24
       - name: Run quality gate scan
-        uses: sonarsource/sonarqube-scan-action@v7.1.0
+        uses: sonarsource/sonarqube-scan-action@299e4b7
         with:
           args:
             -Dsonar.scanner.arch=aarch64
