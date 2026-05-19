@@ -46,10 +46,10 @@ jobs:
         run: |
           export MANUAL_TAG_ARGS="-t ${{ env.PREVIOUS_RELEASE_VERSION }} ${{ env.NEXT_RELEASE_VERSION }}"
           echo "MANUAL_TAG_ARGS=$MANUAL_TAG_ARGS" >> $GITHUB_ENV
-      - name: Checkout BCDA-OPS
+      - name: Checkout BCDA-APP
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.3.0
         with:
-          repository: CMSgov/bcda-ops
+          repository: CMSgov/bcda-app
           token: ${{ env.OPS_GITHUB_TOKEN }}
       - name: Upload release scripts
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
