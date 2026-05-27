@@ -45,10 +45,8 @@ func Server() *service.Server {
 
 func routes(db *gorm.DB) *chi.Mux {
 	r := chi.NewRouter()
-	// m := monitoring.GetMonitor()
 	sr := ssas.NewSystemRepository(db)
 	gr := ssas.NewGroupRepository(db)
-
 	h := NewAdminHandler(sr, gr, db, JsonMarshaler{})
 	mh := NewAdminMiddlewareHandler(db)
 
@@ -65,16 +63,6 @@ func routes(db *gorm.DB) *chi.Mux {
 	r.With(render.SetContentType((render.ContentTypeJSON))).Get("/_health", h.getHealthCheck)
 	r.With(render.SetContentType((render.ContentTypeJSON))).Get("/_info", h.getInfo)
 
-	// v1 routes
-	// r.With(mh.requireBasicAuth).Post(m.WrapHandler("/group", h.createGroup))
-	// r.With(mh.requireBasicAuth).Get(m.WrapHandler("/group", h.listGroups))
-	// r.With(mh.requireBasicAuth).Put(m.WrapHandler("/group/{id}", h.updateGroup))
-	// r.With(mh.requireBasicAuth).Delete(m.WrapHandler("/group/{id}", h.deleteGroup))
-	// r.With(mh.requireBasicAuth).Post(m.WrapHandler("/system", h.createSystem))
-	// r.With(mh.requireBasicAuth).Put(m.WrapHandler("/system/{systemID}/credentials", h.resetCredentials))
-	// r.With(mh.requireBasicAuth).Get(m.WrapHandler("/system/{systemID}/key", h.getPublicKey))
-	// r.With(mh.requireBasicAuth).Delete(m.WrapHandler("/system/{systemID}/credentials", h.deactivateSystemCredentials))
-	// r.With(mh.requireBasicAuth).Delete(m.WrapHandler("/token/{tokenID}", h.revokeToken))
 	r.With(mh.requireBasicAuth).Post("/group", h.createGroup)
 	r.With(mh.requireBasicAuth).Get("/group", h.listGroups)
 	r.With(mh.requireBasicAuth).Put("/group/{id}", h.updateGroup)
@@ -86,19 +74,6 @@ func routes(db *gorm.DB) *chi.Mux {
 	r.With(mh.requireBasicAuth).Delete("/token/{tokenID}", h.revokeToken)
 
 	r.Route("/v2", func(r chi.Router) {
-		// r.With(mh.requireBasicAuth).Post(m.WrapHandler("/system", h.createV2System))
-		// r.With(mh.requireBasicAuth).Post(m.WrapHandler("/group", h.createGroup))
-		// r.With(mh.requireBasicAuth).Get(m.WrapHandler("/group", h.listGroups))
-		// r.With(mh.requireBasicAuth).Patch(m.WrapHandler("/group/{id}", h.updateGroup))
-		// r.With(mh.requireBasicAuth).Patch(m.WrapHandler("/system/{id}", h.updateSystem))
-		// r.With(mh.requireBasicAuth).Get(m.WrapHandler("/system/{id}", h.getSystem))
-		// r.With(mh.requireBasicAuth).Post(m.WrapHandler("/system/{systemID}/ip", h.registerIP))
-		// r.With(mh.requireBasicAuth).Get(m.WrapHandler("/system/{systemID}/ip", h.getSystemIPs))
-		// r.With(mh.requireBasicAuth).Delete(m.WrapHandler("/system/{systemID}/ip/{id}", h.deleteSystemIP))
-		// r.With(mh.requireBasicAuth).Post(m.WrapHandler("/system/{systemID}/token", h.createToken))
-		// r.With(mh.requireBasicAuth).Delete(m.WrapHandler("/system/{systemID}/token/{id}", h.deleteToken))
-		// r.With(mh.requireBasicAuth).Post(m.WrapHandler("/system/{systemID}/key", h.createKey))
-		// r.With(mh.requireBasicAuth).Delete(m.WrapHandler("/system/{systemID}/key/{id}", h.deleteKey))
 		r.With(mh.requireBasicAuth).Post("/system", h.createV2System)
 		r.With(mh.requireBasicAuth).Post("/group", h.createGroup)
 		r.With(mh.requireBasicAuth).Get("/group", h.listGroups)

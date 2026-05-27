@@ -67,27 +67,11 @@ type Flags struct {
 
 var output io.Writer
 
-// func NewNewRelicApp() {
-// 	output = os.Stdout
-
-// 	appName := os.Getenv("NEW_RELIC_APP_NAME")
-// 	licenseKey := os.Getenv("NEW_RELIC_LICENSE_KEY")
-// 	_, err := newrelic.NewApplication(
-// 		newrelic.ConfigAppName(appName),
-// 		newrelic.ConfigLicense(licenseKey),
-// 	)
-// 	if nil != err {
-// 		ssas.Logger.Warnf("New Relic integration is disabled: %s", err)
-// 	}
-
-// }
-
 // We provide some simple commands for bootstrapping the system into place. Commands cannot be combined.
 func main() {
 	ssas.SetupLogger()
 	ssas.Logger.Info("Home of the System-to-System Authentication Service")
 	var config = parseFlags()
-	// NewNewRelicApp()
 	cfg.LoadEnvConfigs()
 	handleFlags(config)
 }
