@@ -65,7 +65,7 @@ type Flags struct {
 	systemName       string
 }
 
-var output io.Writer
+var output io.Writer = os.Stdout
 
 // We provide some simple commands for bootstrapping the system into place. Commands cannot be combined.
 func main() {
@@ -287,7 +287,7 @@ func resetSecret(clientID string) {
 	if c, err = r.ResetSecret(context.Background(), s); err != nil {
 		ssas.Logger.Warn(err)
 	} else {
-		_, _ = fmt.Fprintf(output, "%s\n", c.ClientSecret)
+		fmt.Fprintf(output, "%s\n", c.ClientSecret)
 	}
 }
 
