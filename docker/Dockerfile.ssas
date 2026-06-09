@@ -34,7 +34,9 @@ COPY . .
 WORKDIR /go/src/github.com/CMSgov/bcda-ssas-app/ssas
 COPY --from=documentation /go/src/github.com/CMSgov/bcda-ssas-app/ssas/swaggerui ./swaggerui
 
-RUN go build -ldflags "-X github.com/CMSgov/bcda-ssas-app/ssas/constants.Version=$RELEASE_VERSION" \
+RUN go install github.com/DataDog/orchestrion@49ad05fbcde841361e6bcc953f78bb7e72b1ca69
+
+RUN orchestrion go build -ldflags "-X github.com/CMSgov/bcda-ssas-app/ssas/constants.Version=$RELEASE_VERSION" \
         -o ssas ./service/main
 
 

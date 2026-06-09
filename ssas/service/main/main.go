@@ -42,11 +42,14 @@ import (
 	"strings"
 	"time"
 
+	"github.com/CMSgov/bcda-app/log"
 	"github.com/CMSgov/bcda-ssas-app/ssas"
 	"github.com/CMSgov/bcda-ssas-app/ssas/cfg"
+	"github.com/CMSgov/bcda-ssas-app/ssas/constants"
 	"github.com/CMSgov/bcda-ssas-app/ssas/service"
 	"github.com/CMSgov/bcda-ssas-app/ssas/service/admin"
 	"github.com/CMSgov/bcda-ssas-app/ssas/service/public"
+	"github.com/DataDog/dd-trace-go/v2/profiler"
 	"github.com/go-chi/chi/v5"
 	gcmw "github.com/go-chi/chi/v5/middleware"
 	"gorm.io/gorm"
@@ -175,6 +178,16 @@ func createServers() (*service.Server, *service.Server, *http.Server) {
 
 func start(ps *service.Server, as *service.Server, forwarder *http.Server) {
 	ssas.Logger.Infof("%s", "Starting ssas...")
+
+	err := profiler.Start(
+		profiler.WithService("BCDA"),
+		profiler.WithEnv(os.Getenv("ENV")),
+		profiler.WithVersion(constants.Version),
+	)
+	if err != nil {
+		log.API.Fatal(err)
+	}
+	defer profiler.Stop()
 
 	ps.Serve()
 	as.Serve()

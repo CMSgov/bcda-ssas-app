@@ -41,16 +41,20 @@ jobs:
     environment: ${{ inputs.deploy_env || 'dev' }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.3.0
+        with:
+            ref: carl-10120-add-datadog
       - uses: actions/setup-go@v5
         with:
           go-version-file: 'go.mod'
+      - name: Install Datadog Orchestrion APM
+        run: go install github.com/DataDog/orchestrion@49ad05fbcde841361e6bcc953f78bb7e72b1ca69 # v1.10.0
       - name: Build WAF Sync Lambda zip file
         env:
           CGO_ENABLED: 0
         # Build for amd64 on arm64 runner since lambda infra has not been updated
         # todo: Change while/after working on BCDA-9939
         run: |
-          env GOOS=linux GOARCH=amd64 go build -o bootstrap main.go db.go aws.go mock_wafv2.go
+          env GOOS=linux GOARCH=amd64 orchestrion go build -o bootstrap main.go db.go aws.go mock_wafv2.go
           zip function.zip bootstrap
       - uses: aws-actions/configure-aws-credentials@ec61189d14ec14c8efccab744f656cffd0e33f37 # v6.1.0
         with:
