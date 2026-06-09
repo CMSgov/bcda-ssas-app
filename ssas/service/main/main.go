@@ -180,7 +180,7 @@ func start(ps *service.Server, as *service.Server, forwarder *http.Server) {
 	ssas.Logger.Infof("%s", "Starting ssas...")
 
 	err := profiler.Start(
-		profiler.WithService("BCDA"),
+		profiler.WithService("SSAS"),
 		profiler.WithEnv(os.Getenv("ENV")),
 		profiler.WithVersion(constants.Version),
 	)
