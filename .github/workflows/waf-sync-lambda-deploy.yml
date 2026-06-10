@@ -26,6 +26,10 @@ on:
       - lambda/wafsync/**
       - .github/workflows/waf-sync-lambda-deploy.yml
 
+permissions:
+  contents: read
+  id-token: write
+
 env:
   RELEASE_ENV: ${{ inputs.deploy_env || 'dev' }}
 
@@ -64,9 +68,6 @@ jobs:
   deploy_function:
     environment: ${{ inputs.deploy_env || 'dev' }}
     needs: [deploy_tf]
-    permissions:
-      contents: read
-      id-token: write
     runs-on: codebuild-bcda-ssas-app-${{ contains(fromJSON('["prod", "sandbox"]'), inputs.deploy_env) && 'prod' || 'non-prod'}}-${{github.run_id}}-${{github.run_attempt}}
     defaults:
       run:
