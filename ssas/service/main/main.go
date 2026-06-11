@@ -42,14 +42,16 @@ import (
 	"strings"
 	"time"
 
+	"github.com/CMSgov/bcda-app/log"
 	"github.com/CMSgov/bcda-ssas-app/ssas"
 	"github.com/CMSgov/bcda-ssas-app/ssas/cfg"
+	"github.com/CMSgov/bcda-ssas-app/ssas/constants"
 	"github.com/CMSgov/bcda-ssas-app/ssas/service"
 	"github.com/CMSgov/bcda-ssas-app/ssas/service/admin"
 	"github.com/CMSgov/bcda-ssas-app/ssas/service/public"
+	"github.com/DataDog/dd-trace-go/v2/profiler"
 	"github.com/go-chi/chi/v5"
 	gcmw "github.com/go-chi/chi/v5/middleware"
-	"github.com/newrelic/go-agent/v3/newrelic"
 	"gorm.io/gorm"
 )
 
@@ -66,29 +68,13 @@ type Flags struct {
 	systemName       string
 }
 
-var output io.Writer
-
-func NewNewRelicApp() {
-	output = os.Stdout
-
-	appName := os.Getenv("NEW_RELIC_APP_NAME")
-	licenseKey := os.Getenv("NEW_RELIC_LICENSE_KEY")
-	_, err := newrelic.NewApplication(
-		newrelic.ConfigAppName(appName),
-		newrelic.ConfigLicense(licenseKey),
-	)
-	if nil != err {
-		ssas.Logger.Warnf("New Relic integration is disabled: %s", err)
-	}
-
-}
+var output io.Writer = os.Stdout
 
 // We provide some simple commands for bootstrapping the system into place. Commands cannot be combined.
 func main() {
 	ssas.SetupLogger()
 	ssas.Logger.Info("Home of the System-to-System Authentication Service")
 	var config = parseFlags()
-	NewNewRelicApp()
 	cfg.LoadEnvConfigs()
 	handleFlags(config)
 }
@@ -192,6 +178,16 @@ func createServers() (*service.Server, *service.Server, *http.Server) {
 
 func start(ps *service.Server, as *service.Server, forwarder *http.Server) {
 	ssas.Logger.Infof("%s", "Starting ssas...")
+
+	err := profiler.Start(
+		profiler.WithService("SSAS"),
+		profiler.WithEnv(os.Getenv("ENV")),
+		profiler.WithVersion(constants.Version),
+	)
+	if err != nil {
+		log.API.Fatal(err)
+	}
+	defer profiler.Stop()
 
 	ps.Serve()
 	as.Serve()
@@ -304,7 +300,7 @@ func resetSecret(clientID string) {
 	if c, err = r.ResetSecret(context.Background(), s); err != nil {
 		ssas.Logger.Warn(err)
 	} else {
-		_, _ = fmt.Fprintf(output, "%s\n", c.ClientSecret)
+		fmt.Fprintf(output, "%s\n", c.ClientSecret)
 	}
 }
 
