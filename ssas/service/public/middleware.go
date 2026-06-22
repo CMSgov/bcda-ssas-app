@@ -2,13 +2,19 @@ package public
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"regexp"
+	"strconv"
+	"sync"
+	"time"
 
 	"github.com/CMSgov/bcda-ssas-app/ssas"
+	"github.com/CMSgov/bcda-ssas-app/ssas/cfg"
 	"github.com/CMSgov/bcda-ssas-app/ssas/constants"
 	"github.com/CMSgov/bcda-ssas-app/ssas/service"
+	"github.com/patrickmn/go-cache"
 	"github.com/sirupsen/logrus"
 	"gorm.io/gorm"
 )
@@ -180,4 +186,111 @@ func contains(list []string, target string) bool {
 		}
 	}
 	return false
+}
+
+var (
+	rateLimitOnce        sync.Once
+	clientIDToACOIDCache *cache.Cache
+	rateLimitCache       *cache.Cache
+)
+
+func initRateLimitCaches() {
+	// reduce db queries with this cache, expires in 20 minutes
+	clientIDToACOIDCache = cache.New(20*time.Minute, 5*time.Minute)
+	duration := time.Duration(cfg.RateLimitDurationMinutes) * time.Minute
+	// cache for rate limiting each aco based on aco ID
+	rateLimitCache = cache.New(duration, 1*time.Minute)
+}
+
+type groupXData struct {
+	CMSIDs []string `json:"cms_ids"`
+}
+
+func getACOIDFromSystem(ctx context.Context, system ssas.System, gr ssas.GroupRepository) (string, error) {
+	xdata, err := gr.XDataFor(ctx, system)
+	if err != nil {
+		return "", err
+	}
+
+	if xdata == "" {
+		return "", fmt.Errorf("group XData is empty")
+	}
+
+	// Unquote if quoted
+	if u, err := strconv.Unquote(xdata); err == nil {
+		xdata = u
+	}
+
+	var data groupXData
+	if err := json.Unmarshal([]byte(xdata), &data); err != nil {
+		return "", err
+	}
+
+	if len(data.CMSIDs) == 0 {
+		return "", fmt.Errorf("no CMS IDs found in group XData")
+	}
+
+	return data.CMSIDs[0], nil
+}
+
+func (h *publicMiddlewareHandler) TokenRateLimitMiddleware(next http.Handler) http.Handler {
+	rateLimitOnce.Do(initRateLimitCaches)
+
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		logger := ssas.GetCtxLogger(r.Context()).WithField("Op", "TokenRateLimit")
+
+		clientID, _, ok := r.BasicAuth()
+		if !ok || clientID == "" {
+			// Basic auth not present, let the actual auth handler handle and reject the request
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		// Retrieve ACO ID (with caching)
+		var acoID string
+		if cached, found := clientIDToACOIDCache.Get(clientID); found {
+			acoID = cached.(string)
+		} else {
+			// Query DB via SystemRepository
+			system, err := h.sr.GetSystemByClientID(r.Context(), clientID)
+			if err != nil {
+				// If system doesn't exist, just pass through and let Validate/Authenticate handle it
+				next.ServeHTTP(w, r)
+				return
+			}
+
+			// Parse ACO ID from Group's XData
+			acoID, err = getACOIDFromSystem(r.Context(), system, h.gr)
+			if err != nil {
+				// If we can't extract the ACO ID, log it and pass through
+				logger.Warnf("Failed to extract ACO ID for client %s: %s", clientID, err.Error())
+				next.ServeHTTP(w, r)
+				return
+			}
+
+			// Store in cache
+			clientIDToACOIDCache.Set(clientID, acoID, cache.DefaultExpiration)
+		}
+
+		// Rate limit check
+		duration := time.Duration(cfg.RateLimitDurationMinutes) * time.Minute
+
+		// We use IncrementInt to atomically increment the counter.
+		// If key doesn't exist (returns error), we Set it to 1.
+		newVal, err := rateLimitCache.IncrementInt(acoID, 1)
+		if err != nil {
+			// Key not found in cache (first request in window). Initialize to 1.
+			rateLimitCache.Set(acoID, 1, duration)
+			newVal = 1
+		}
+
+		if newVal > cfg.RateLimitThreshold {
+			logger.Warnf("Rate limit exceeded for ACO %s (Client %s): %d requests in %v", acoID, clientID, newVal, duration)
+			w.Header().Set("Retry-After", "300") // 5 minutes retry recommendation
+			http.Error(w, "Too Many Requests", http.StatusTooManyRequests)
+			return
+		}
+
+		next.ServeHTTP(w, r)
+	})
 }
