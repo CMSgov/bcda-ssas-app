@@ -306,10 +306,6 @@ func (s *PublicMiddlewareTestSuite) TestTokenRateLimitMiddleware() {
 	})
 	rateLimitedHandler := s.h.TokenRateLimitMiddleware(dummyHandler)
 
-	// Clear local cache before running the test to ensure isolation
-	rateLimitOnce.Do(initRateLimitCaches)
-	rateLimitCache.Flush()
-	clientIDToACOIDCache.Flush()
 
 	// Make 3 requests (should all succeed as limit is 3)
 	for i := 1; i <= 3; i++ {
@@ -350,11 +346,6 @@ func (s *PublicMiddlewareTestSuite) TestTokenRateLimitMiddleware() {
 }
 
 func (s *PublicMiddlewareTestSuite) TestTokenRateLimitMiddleware_NegativeCaching() {
-	// Initialize caches
-	rateLimitOnce.Do(initRateLimitCaches)
-	rateLimitCache.Flush()
-	clientIDToACOIDCache.Flush()
-
 	dummyHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte("ok"))
@@ -374,7 +365,7 @@ func (s *PublicMiddlewareTestSuite) TestTokenRateLimitMiddleware_NegativeCaching
 	assert.Equal(s.T(), http.StatusOK, rr.Code)
 
 	// The clientID should be negative cached
-	val, found := clientIDToACOIDCache.Get(invalidClientID)
+	val, found := s.h.clientIDToACOIDCache.Get(invalidClientID)
 	assert.True(s.T(), found)
 	assert.Equal(s.T(), invalidACOIDSentinel, val.(string))
 }
@@ -402,9 +393,6 @@ func (s *PublicMiddlewareTestSuite) TestTokenRateLimitMiddleware_DynamicRetryAft
 	})
 	rateLimitedHandler := s.h.TokenRateLimitMiddleware(dummyHandler)
 
-	rateLimitOnce.Do(initRateLimitCaches)
-	rateLimitCache.Flush()
-	clientIDToACOIDCache.Flush()
 
 	// 1st request -> success
 	req1 := httptest.NewRequest("POST", "/token", nil)

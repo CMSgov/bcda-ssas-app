@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"regexp"
 	"strconv"
-	"sync"
 	"time"
 
 	"github.com/CMSgov/bcda-ssas-app/ssas"
@@ -20,16 +19,21 @@ import (
 )
 
 type publicMiddlewareHandler struct {
-	db *gorm.DB
-	sr ssas.SystemRepository
-	gr ssas.GroupRepository
+	db                   *gorm.DB
+	sr                   ssas.SystemRepository
+	gr                   ssas.GroupRepository
+	clientIDToACOIDCache *cache.Cache
+	rateLimitCache       *cache.Cache
 }
 
 func NewPublicMiddlewareHandler(db *gorm.DB) *publicMiddlewareHandler {
+	duration := time.Duration(cfg.RateLimitDurationMinutes) * time.Minute
 	return &publicMiddlewareHandler{
-		sr: ssas.NewSystemRepository(db),
-		gr: ssas.NewGroupRepository(db),
-		db: db,
+		sr:                   ssas.NewSystemRepository(db),
+		gr:                   ssas.NewGroupRepository(db),
+		db:                   db,
+		clientIDToACOIDCache: cache.New(20*time.Minute, 5*time.Minute),
+		rateLimitCache:       cache.New(duration, 1*time.Minute),
 	}
 }
 
@@ -190,20 +194,6 @@ func contains(list []string, target string) bool {
 
 const invalidACOIDSentinel = "__INVALID_ACO_ID__"
 
-var (
-	rateLimitOnce        sync.Once
-	clientIDToACOIDCache *cache.Cache
-	rateLimitCache       *cache.Cache
-)
-
-func initRateLimitCaches() {
-	// reduce db queries with this cache, expires in 20 minutes
-	clientIDToACOIDCache = cache.New(20*time.Minute, 5*time.Minute)
-	duration := time.Duration(cfg.RateLimitDurationMinutes) * time.Minute
-	// cache for rate limiting each aco based on aco ID
-	rateLimitCache = cache.New(duration, 1*time.Minute)
-}
-
 type groupXData struct {
 	CMSIDs []string `json:"cms_ids"`
 }
@@ -236,8 +226,6 @@ func getACOIDFromSystem(ctx context.Context, system ssas.System, gr ssas.GroupRe
 }
 
 func (h *publicMiddlewareHandler) TokenRateLimitMiddleware(next http.Handler) http.Handler {
-	rateLimitOnce.Do(initRateLimitCaches)
-
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		logger := ssas.GetCtxLogger(r.Context()).WithField("Op", "TokenRateLimit")
 
@@ -250,7 +238,7 @@ func (h *publicMiddlewareHandler) TokenRateLimitMiddleware(next http.Handler) ht
 
 		// Retrieve ACO ID (with caching)
 		var acoID string
-		if cached, found := clientIDToACOIDCache.Get(clientID); found {
+		if cached, found := h.clientIDToACOIDCache.Get(clientID); found {
 			acoID = cached.(string)
 			if acoID == invalidACOIDSentinel {
 				// Pass through directly to normal auth handler
@@ -262,7 +250,7 @@ func (h *publicMiddlewareHandler) TokenRateLimitMiddleware(next http.Handler) ht
 			system, err := h.sr.GetSystemByClientID(r.Context(), clientID)
 			if err != nil {
 				// Cache the lookup failure (negative caching) for 1 minute
-				clientIDToACOIDCache.Set(clientID, invalidACOIDSentinel, time.Minute)
+				h.clientIDToACOIDCache.Set(clientID, invalidACOIDSentinel, time.Minute)
 				// If system doesn't exist, just pass through and let Validate/Authenticate handle it
 				next.ServeHTTP(w, r)
 				return
@@ -272,7 +260,7 @@ func (h *publicMiddlewareHandler) TokenRateLimitMiddleware(next http.Handler) ht
 			acoID, err = getACOIDFromSystem(r.Context(), system, h.gr)
 			if err != nil {
 				// Cache the lookup failure (negative caching) for 1 minute
-				clientIDToACOIDCache.Set(clientID, invalidACOIDSentinel, time.Minute)
+				h.clientIDToACOIDCache.Set(clientID, invalidACOIDSentinel, time.Minute)
 				// If we can't extract the ACO ID, log it and pass through
 				logger.Warnf("Failed to extract ACO ID for client %s: %s", clientID, err.Error())
 				next.ServeHTTP(w, r)
@@ -280,7 +268,7 @@ func (h *publicMiddlewareHandler) TokenRateLimitMiddleware(next http.Handler) ht
 			}
 
 			// Store in cache
-			clientIDToACOIDCache.Set(clientID, acoID, cache.DefaultExpiration)
+			h.clientIDToACOIDCache.Set(clientID, acoID, cache.DefaultExpiration)
 		}
 
 		// Rate limit check
@@ -288,14 +276,14 @@ func (h *publicMiddlewareHandler) TokenRateLimitMiddleware(next http.Handler) ht
 
 		// We use IncrementInt to atomically increment the counter.
 		// If key doesn't exist (returns error), we attempt to Add it with value 1 atomically.
-		newVal, err := rateLimitCache.IncrementInt(acoID, 1)
+		newVal, err := h.rateLimitCache.IncrementInt(acoID, 1)
 		if err != nil {
 			// Key not found in cache (first request in window). Initialize to 1 atomically.
-			if err = rateLimitCache.Add(acoID, 1, duration); err == nil {
+			if err = h.rateLimitCache.Add(acoID, 1, duration); err == nil {
 				newVal = 1
 			} else {
 				// Another concurrent request added it in the meantime, retry incrementing.
-				newVal, err = rateLimitCache.IncrementInt(acoID, 1)
+				newVal, err = h.rateLimitCache.IncrementInt(acoID, 1)
 				if err != nil {
 					// Fallback warning if something went wrong
 					logger.Warnf("Failed to increment rate limit counter for ACO %s: %s", acoID, err.Error())
