@@ -348,3 +348,78 @@ func (s *PublicMiddlewareTestSuite) TestTokenRateLimitMiddleware() {
 	rateLimitedHandler.ServeHTTP(rrDiff, reqDiff)
 	assert.Equal(s.T(), http.StatusOK, rrDiff.Code, "Request for a different ACO should succeed")
 }
+
+func (s *PublicMiddlewareTestSuite) TestTokenRateLimitMiddleware_NegativeCaching() {
+	// Initialize caches
+	rateLimitOnce.Do(initRateLimitCaches)
+	rateLimitCache.Flush()
+	clientIDToACOIDCache.Flush()
+
+	dummyHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("ok"))
+	})
+	rateLimitedHandler := s.h.TokenRateLimitMiddleware(dummyHandler)
+
+	// Use a non-existent client ID
+	invalidClientID := "non-existent-client-id"
+
+	req := httptest.NewRequest("POST", "/token", nil)
+	req.SetBasicAuth(invalidClientID, "secret")
+	rr := httptest.NewRecorder()
+
+	rateLimitedHandler.ServeHTTP(rr, req)
+
+	// It should pass through because system doesn't exist (auth handler will reject it later)
+	assert.Equal(s.T(), http.StatusOK, rr.Code)
+
+	// The clientID should be negative cached
+	val, found := clientIDToACOIDCache.Get(invalidClientID)
+	assert.True(s.T(), found)
+	assert.Equal(s.T(), invalidACOIDSentinel, val.(string))
+}
+
+func (s *PublicMiddlewareTestSuite) TestTokenRateLimitMiddleware_DynamicRetryAfter() {
+	// Configure test limits
+	cfg.RateLimitThreshold = 1
+	cfg.RateLimitDurationMinutes = 3 // 3 minutes window
+
+	// Create a test group and system in DB
+	groupID := ssas.RandomHexID()[0:4]
+	group := ssas.Group{GroupID: groupID, XData: `{"cms_ids":["A7777"]}`}
+	err := s.h.db.Create(&group).Error
+	require.Nil(s.T(), err)
+	defer func() {
+		assert.NoError(s.T(), ssas.CleanDatabase(group))
+	}()
+
+	creds, err := s.h.sr.RegisterSystem(context.Background(), "Retry Test", groupID, cfg.DefaultScope, "", []string{}, "tracking-retry-id")
+	require.Nil(s.T(), err)
+
+	dummyHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("ok"))
+	})
+	rateLimitedHandler := s.h.TokenRateLimitMiddleware(dummyHandler)
+
+	rateLimitOnce.Do(initRateLimitCaches)
+	rateLimitCache.Flush()
+	clientIDToACOIDCache.Flush()
+
+	// 1st request -> success
+	req1 := httptest.NewRequest("POST", "/token", nil)
+	req1.SetBasicAuth(creds.ClientID, creds.ClientSecret)
+	rr1 := httptest.NewRecorder()
+	rateLimitedHandler.ServeHTTP(rr1, req1)
+	assert.Equal(s.T(), http.StatusOK, rr1.Code)
+
+	// 2nd request -> 429 and Retry-After header
+	req2 := httptest.NewRequest("POST", "/token", nil)
+	req2.SetBasicAuth(creds.ClientID, creds.ClientSecret)
+	rr2 := httptest.NewRecorder()
+	rateLimitedHandler.ServeHTTP(rr2, req2)
+	assert.Equal(s.T(), http.StatusTooManyRequests, rr2.Code)
+
+	// Retry-After should be 3 minutes * 60 = 180 seconds
+	assert.Equal(s.T(), "180", rr2.Header().Get("Retry-After"))
+}
