@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/CMSgov/bcda-ssas-app/ssas"
+	"github.com/CMSgov/bcda-ssas-app/ssas/cfg"
 	"github.com/CMSgov/bcda-ssas-app/ssas/constants"
 	"github.com/CMSgov/bcda-ssas-app/ssas/service"
 	"github.com/go-chi/chi/v5"
@@ -278,4 +279,133 @@ func (s *PublicMiddlewareTestSuite) TestContains() {
 	assert.True(s.T(), contains(list, "def"))
 	assert.True(s.T(), contains(list, "hij"))
 	assert.False(s.T(), contains(list, "lmn"))
+}
+
+func (s *PublicMiddlewareTestSuite) TestTokenRateLimitMiddleware() {
+	// Configure test limits
+	cfg.RateLimitThreshold = 3
+	cfg.RateLimitDurationMinutes = 1
+
+	// Create a test group and system in DB
+	groupID := ssas.RandomHexID()[0:4]
+	// XData format: {"cms_ids": ["A9999"]}
+	group := ssas.Group{GroupID: groupID, XData: `{"cms_ids":["A9999"]}`}
+	err := s.h.db.Create(&group).Error
+	require.Nil(s.T(), err)
+	defer func() {
+		assert.NoError(s.T(), ssas.CleanDatabase(group))
+	}()
+
+	creds, err := s.h.sr.RegisterSystem(context.Background(), "Limit Test", groupID, cfg.DefaultScope, "", []string{}, "tracking-limit-id")
+	require.Nil(s.T(), err)
+
+	// Create test handler and wrap it with middleware
+	dummyHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("ok"))
+	})
+	rateLimitedHandler := s.h.TokenRateLimitMiddleware(dummyHandler)
+
+	// Make 3 requests (should all succeed as limit is 3)
+	for i := 1; i <= 3; i++ {
+		req := httptest.NewRequest("POST", "/token", nil)
+		req.SetBasicAuth(creds.ClientID, creds.ClientSecret)
+		rr := httptest.NewRecorder()
+
+		rateLimitedHandler.ServeHTTP(rr, req)
+		assert.Equal(s.T(), http.StatusOK, rr.Code, "Expected request %d to succeed", i)
+	}
+
+	// The 4th request should get a 429
+	req4 := httptest.NewRequest("POST", "/token", nil)
+	req4.SetBasicAuth(creds.ClientID, creds.ClientSecret)
+	rr4 := httptest.NewRecorder()
+
+	rateLimitedHandler.ServeHTTP(rr4, req4)
+	assert.Equal(s.T(), http.StatusTooManyRequests, rr4.Code, "Expected request 4 to be rate limited (429)")
+
+	// Request with a different Client ID (mapped to a different ACO) should NOT be rate limited
+	groupID2 := ssas.RandomHexID()[0:4]
+	group2 := ssas.Group{GroupID: groupID2, XData: `{"cms_ids":["A8888"]}`}
+	err = s.h.db.Create(&group2).Error
+	require.Nil(s.T(), err)
+	defer func() {
+		assert.NoError(s.T(), ssas.CleanDatabase(group2))
+	}()
+
+	creds2, err := s.h.sr.RegisterSystem(context.Background(), "Limit Test 2", groupID2, cfg.DefaultScope, "", []string{}, "tracking-limit-id-2")
+	require.Nil(s.T(), err)
+
+	reqDiff := httptest.NewRequest("POST", "/token", nil)
+	reqDiff.SetBasicAuth(creds2.ClientID, creds2.ClientSecret)
+	rrDiff := httptest.NewRecorder()
+
+	rateLimitedHandler.ServeHTTP(rrDiff, reqDiff)
+	assert.Equal(s.T(), http.StatusOK, rrDiff.Code, "Request for a different ACO should succeed")
+}
+
+func (s *PublicMiddlewareTestSuite) TestTokenRateLimitMiddleware_NegativeCaching() {
+	dummyHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("ok"))
+	})
+	rateLimitedHandler := s.h.TokenRateLimitMiddleware(dummyHandler)
+
+	// Use a non-existent client ID
+	invalidClientID := "non-existent-client-id"
+
+	req := httptest.NewRequest("POST", "/token", nil)
+	req.SetBasicAuth(invalidClientID, "secret")
+	rr := httptest.NewRecorder()
+
+	rateLimitedHandler.ServeHTTP(rr, req)
+
+	// It should pass through because system doesn't exist (auth handler will reject it later)
+	assert.Equal(s.T(), http.StatusOK, rr.Code)
+
+	// The clientID should be negative cached
+	val, found := s.h.clientIDToACOIDCache.Get(invalidClientID)
+	assert.True(s.T(), found)
+	assert.Equal(s.T(), invalidACOIDSentinel, val.(string))
+}
+
+func (s *PublicMiddlewareTestSuite) TestTokenRateLimitMiddleware_DynamicRetryAfter() {
+	// Configure test limits
+	cfg.RateLimitThreshold = 1
+	cfg.RateLimitDurationMinutes = 3 // 3 minutes window
+
+	// Create a test group and system in DB
+	groupID := ssas.RandomHexID()[0:4]
+	group := ssas.Group{GroupID: groupID, XData: `{"cms_ids":["A7777"]}`}
+	err := s.h.db.Create(&group).Error
+	require.Nil(s.T(), err)
+	defer func() {
+		assert.NoError(s.T(), ssas.CleanDatabase(group))
+	}()
+
+	creds, err := s.h.sr.RegisterSystem(context.Background(), "Retry Test", groupID, cfg.DefaultScope, "", []string{}, "tracking-retry-id")
+	require.Nil(s.T(), err)
+
+	dummyHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("ok"))
+	})
+	rateLimitedHandler := s.h.TokenRateLimitMiddleware(dummyHandler)
+
+	// 1st request -> success
+	req1 := httptest.NewRequest("POST", "/token", nil)
+	req1.SetBasicAuth(creds.ClientID, creds.ClientSecret)
+	rr1 := httptest.NewRecorder()
+	rateLimitedHandler.ServeHTTP(rr1, req1)
+	assert.Equal(s.T(), http.StatusOK, rr1.Code)
+
+	// 2nd request -> 429 and Retry-After header
+	req2 := httptest.NewRequest("POST", "/token", nil)
+	req2.SetBasicAuth(creds.ClientID, creds.ClientSecret)
+	rr2 := httptest.NewRecorder()
+	rateLimitedHandler.ServeHTTP(rr2, req2)
+	assert.Equal(s.T(), http.StatusTooManyRequests, rr2.Code)
+
+	// Retry-After should be 3 minutes * 60 = 180 seconds
+	assert.Equal(s.T(), "180", rr2.Header().Get("Retry-After"))
 }

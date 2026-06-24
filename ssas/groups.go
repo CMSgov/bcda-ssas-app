@@ -285,3 +285,34 @@ func (g *GormGroupRepository) XDataFor(ctx context.Context, system System) (stri
 	}
 	return group.XData, nil
 }
+
+type GroupXData struct {
+	CMSIDs []string `json:"cms_ids"`
+}
+
+func GetACOIDFromSystem(ctx context.Context, system System, gr GroupRepository) (string, error) {
+	xdata, err := gr.XDataFor(ctx, system)
+	if err != nil {
+		return "", err
+	}
+
+	if xdata == "" {
+		return "", fmt.Errorf("group XData is empty")
+	}
+
+	// Unquote if quoted
+	if u, err := strconv.Unquote(xdata); err == nil {
+		xdata = u
+	}
+
+	var data GroupXData
+	if err := json.Unmarshal([]byte(xdata), &data); err != nil {
+		return "", err
+	}
+
+	if len(data.CMSIDs) == 0 {
+		return "", fmt.Errorf("no CMS IDs found in group XData")
+	}
+
+	return data.CMSIDs[0], nil
+}

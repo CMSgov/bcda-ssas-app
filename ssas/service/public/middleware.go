@@ -5,25 +5,34 @@ import (
 	"fmt"
 	"net/http"
 	"regexp"
+	"strconv"
+	"time"
 
 	"github.com/CMSgov/bcda-ssas-app/ssas"
+	"github.com/CMSgov/bcda-ssas-app/ssas/cfg"
 	"github.com/CMSgov/bcda-ssas-app/ssas/constants"
 	"github.com/CMSgov/bcda-ssas-app/ssas/service"
+	"github.com/patrickmn/go-cache"
 	"github.com/sirupsen/logrus"
 	"gorm.io/gorm"
 )
 
 type publicMiddlewareHandler struct {
-	db *gorm.DB
-	sr ssas.SystemRepository
-	gr ssas.GroupRepository
+	db                   *gorm.DB
+	sr                   ssas.SystemRepository
+	gr                   ssas.GroupRepository
+	clientIDToACOIDCache *cache.Cache
+	rateLimitCache       *cache.Cache
 }
 
 func NewPublicMiddlewareHandler(db *gorm.DB) *publicMiddlewareHandler {
+	duration := time.Duration(cfg.RateLimitDurationMinutes) * time.Minute
 	return &publicMiddlewareHandler{
-		sr: ssas.NewSystemRepository(db),
-		gr: ssas.NewGroupRepository(db),
-		db: db,
+		sr:                   ssas.NewSystemRepository(db),
+		gr:                   ssas.NewGroupRepository(db),
+		db:                   db,
+		clientIDToACOIDCache: cache.New(20*time.Minute, 5*time.Minute),
+		rateLimitCache:       cache.New(duration, 1*time.Minute),
 	}
 }
 
@@ -180,4 +189,85 @@ func contains(list []string, target string) bool {
 		}
 	}
 	return false
+}
+
+const invalidACOIDSentinel = "__INVALID_ACO_ID__"
+
+func (h *publicMiddlewareHandler) TokenRateLimitMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		logger := ssas.GetCtxLogger(r.Context()).WithField("Op", "TokenRateLimit")
+
+		clientID, _, ok := r.BasicAuth()
+		if !ok || clientID == "" {
+			// Basic auth not present, let the actual auth handler handle and reject the request
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		// Retrieve ACO ID (with caching)
+		var acoID string
+		if cached, found := h.clientIDToACOIDCache.Get(clientID); found {
+			acoID = cached.(string)
+			if acoID == invalidACOIDSentinel {
+				// Pass through directly to normal auth handler
+				next.ServeHTTP(w, r)
+				return
+			}
+		} else {
+			// Query DB via SystemRepository
+			system, err := h.sr.GetSystemByClientID(r.Context(), clientID)
+			if err != nil {
+				// Cache the lookup failure (negative caching) for 1 minute
+				h.clientIDToACOIDCache.Set(clientID, invalidACOIDSentinel, time.Minute)
+				// If system doesn't exist, just pass through and let Validate/Authenticate handle it
+				next.ServeHTTP(w, r)
+				return
+			}
+
+			// Parse ACO ID from Group's XData
+			acoID, err = ssas.GetACOIDFromSystem(r.Context(), system, h.gr)
+			if err != nil {
+				// Cache the lookup failure (negative caching) for 1 minute
+				h.clientIDToACOIDCache.Set(clientID, invalidACOIDSentinel, time.Minute)
+				// If we can't extract the ACO ID, log it and pass through
+				logger.Warnf("Failed to extract ACO ID for client %s: %s", clientID, err.Error())
+				next.ServeHTTP(w, r)
+				return
+			}
+
+			// Store in cache
+			h.clientIDToACOIDCache.Set(clientID, acoID, cache.DefaultExpiration)
+		}
+
+		// Rate limit check
+		duration := time.Duration(cfg.RateLimitDurationMinutes) * time.Minute
+
+		// We use IncrementInt to atomically increment the counter.
+		// If key doesn't exist (returns error), we attempt to Add it with value 1 atomically.
+		newVal, err := h.rateLimitCache.IncrementInt(acoID, 1)
+		if err != nil {
+			// Key not found in cache (first request in window). Initialize to 1 atomically.
+			if err = h.rateLimitCache.Add(acoID, 1, duration); err == nil {
+				newVal = 1
+			} else {
+				// Another concurrent request added it in the meantime, retry incrementing.
+				newVal, err = h.rateLimitCache.IncrementInt(acoID, 1)
+				if err != nil {
+					// Fallback warning if something went wrong
+					logger.Warnf("Failed to increment rate limit counter for ACO %s: %s", acoID, err.Error())
+					newVal = 1
+				}
+			}
+		}
+
+		if newVal > cfg.RateLimitThreshold {
+			logger.Warnf("Rate limit exceeded for ACO %s (Client %s): %d requests in %v", acoID, clientID, newVal, duration)
+			retryAfterSeconds := strconv.Itoa(cfg.RateLimitDurationMinutes * 60)
+			w.Header().Set("Retry-After", retryAfterSeconds)
+			http.Error(w, "Too Many Requests", http.StatusTooManyRequests)
+			return
+		}
+
+		next.ServeHTTP(w, r)
+	})
 }

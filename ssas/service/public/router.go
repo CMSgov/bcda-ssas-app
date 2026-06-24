@@ -65,7 +65,7 @@ func routes(db *gorm.DB) *chi.Mux {
 	router.With(render.SetContentType((render.ContentTypeJSON))).Get("/_info", h.getInfo)
 
 	// v1 Routes
-	router.Post("/token", h.token)
+	router.With(mh.TokenRateLimitMiddleware).Post("/token", h.token)
 	router.Post("/introspect", h.introspect)
 	router.With(mh.parseToken, mh.requireRegTokenAuth, mh.readGroupID).Post("/register", h.RegisterSystem)
 	router.With(mh.parseToken, mh.requireRegTokenAuth, mh.readGroupID).Post("/reset", h.ResetSecret)

@@ -18,6 +18,8 @@ var (
 	HashKeyLen                    int
 	SaltSize                      int
 	SelfRegistrationTokenDuration time.Duration
+	RateLimitThreshold            int
+	RateLimitDurationMinutes      int
 )
 
 // Get configuration/environment variables for Hashes and Systems.
@@ -71,4 +73,7 @@ func LoadEnvConfigs() {
 
 	minutes := GetEnvInt("SSAS_MFA_TOKEN_TIMEOUT_MINUTES", 60)
 	SelfRegistrationTokenDuration = time.Duration(int64(time.Minute) * int64(minutes))
+
+	RateLimitThreshold = GetEnvInt("SSAS_RATE_LIMIT_THRESHOLD", 100)
+	RateLimitDurationMinutes = GetEnvInt("SSAS_RATE_LIMIT_DURATION_MINUTES", 5)
 }
