@@ -257,7 +257,7 @@ func (s *GroupsTestSuite) TestDeleteGroup() {
 }
 
 func (s *GroupsTestSuite) TestGetACOIDFromSystem() {
-	ctx := context.Background()
+	ctx := s.skipAuthContext()
 
 	// 1. Success - Valid JSON
 	group1 := Group{GroupID: "group-1", XData: `{"cms_ids":["A9999"]}`}
