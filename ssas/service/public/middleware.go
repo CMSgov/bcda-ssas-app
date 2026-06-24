@@ -2,7 +2,6 @@ package public
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"regexp"
@@ -194,37 +193,6 @@ func contains(list []string, target string) bool {
 
 const invalidACOIDSentinel = "__INVALID_ACO_ID__"
 
-type groupXData struct {
-	CMSIDs []string `json:"cms_ids"`
-}
-
-func getACOIDFromSystem(ctx context.Context, system ssas.System, gr ssas.GroupRepository) (string, error) {
-	xdata, err := gr.XDataFor(ctx, system)
-	if err != nil {
-		return "", err
-	}
-
-	if xdata == "" {
-		return "", fmt.Errorf("group XData is empty")
-	}
-
-	// Unquote if quoted
-	if u, err := strconv.Unquote(xdata); err == nil {
-		xdata = u
-	}
-
-	var data groupXData
-	if err := json.Unmarshal([]byte(xdata), &data); err != nil {
-		return "", err
-	}
-
-	if len(data.CMSIDs) == 0 {
-		return "", fmt.Errorf("no CMS IDs found in group XData")
-	}
-
-	return data.CMSIDs[0], nil
-}
-
 func (h *publicMiddlewareHandler) TokenRateLimitMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		logger := ssas.GetCtxLogger(r.Context()).WithField("Op", "TokenRateLimit")
@@ -257,7 +225,7 @@ func (h *publicMiddlewareHandler) TokenRateLimitMiddleware(next http.Handler) ht
 			}
 
 			// Parse ACO ID from Group's XData
-			acoID, err = getACOIDFromSystem(r.Context(), system, h.gr)
+			acoID, err = ssas.GetACOIDFromSystem(r.Context(), system, h.gr)
 			if err != nil {
 				// Cache the lookup failure (negative caching) for 1 minute
 				h.clientIDToACOIDCache.Set(clientID, invalidACOIDSentinel, time.Minute)

@@ -255,3 +255,84 @@ func (s *GroupsTestSuite) TestDeleteGroup() {
 	err = CleanDatabase(group)
 	assert.Nil(s.T(), err)
 }
+
+func (s *GroupsTestSuite) TestGetACOIDFromSystem() {
+	ctx := context.Background()
+
+	// 1. Success - Valid JSON
+	group1 := Group{GroupID: "group-1", XData: `{"cms_ids":["A9999"]}`}
+	err := s.db.Create(&group1).Error
+	require.Nil(s.T(), err)
+	defer func() {
+		assert.NoError(s.T(), CleanDatabase(group1))
+	}()
+
+	system1 := System{GID: group1.ID, ClientID: "client-1"}
+	err = s.db.Create(&system1).Error
+	require.Nil(s.T(), err)
+
+	acoID, err := GetACOIDFromSystem(ctx, system1, s.r)
+	assert.Nil(s.T(), err)
+	assert.Equal(s.T(), "A9999", acoID)
+
+	// 2. Success - Quoted JSON string
+	group2 := Group{GroupID: "group-2", XData: `"{\"cms_ids\":[\"A8888\"]}"`}
+	err = s.db.Create(&group2).Error
+	require.Nil(s.T(), err)
+	defer func() {
+		assert.NoError(s.T(), CleanDatabase(group2))
+	}()
+
+	system2 := System{GID: group2.ID, ClientID: "client-2"}
+	err = s.db.Create(&system2).Error
+	require.Nil(s.T(), err)
+
+	acoID, err = GetACOIDFromSystem(ctx, system2, s.r)
+	assert.Nil(s.T(), err)
+	assert.Equal(s.T(), "A8888", acoID)
+
+	// 3. Failure - Empty XData
+	group3 := Group{GroupID: "group-3", XData: ""}
+	err = s.db.Create(&group3).Error
+	require.Nil(s.T(), err)
+	defer func() {
+		assert.NoError(s.T(), CleanDatabase(group3))
+	}()
+
+	system3 := System{GID: group3.ID, ClientID: "client-3"}
+	err = s.db.Create(&system3).Error
+	require.Nil(s.T(), err)
+
+	_, err = GetACOIDFromSystem(ctx, system3, s.r)
+	assert.NotNil(s.T(), err)
+
+	// 4. Failure - Invalid JSON
+	group4 := Group{GroupID: "group-4", XData: `invalid-json`}
+	err = s.db.Create(&group4).Error
+	require.Nil(s.T(), err)
+	defer func() {
+		assert.NoError(s.T(), CleanDatabase(group4))
+	}()
+
+	system4 := System{GID: group4.ID, ClientID: "client-4"}
+	err = s.db.Create(&system4).Error
+	require.Nil(s.T(), err)
+
+	_, err = GetACOIDFromSystem(ctx, system4, s.r)
+	assert.NotNil(s.T(), err)
+
+	// 5. Failure - No cms_ids
+	group5 := Group{GroupID: "group-5", XData: `{"cms_ids":[]}`}
+	err = s.db.Create(&group5).Error
+	require.Nil(s.T(), err)
+	defer func() {
+		assert.NoError(s.T(), CleanDatabase(group5))
+	}()
+
+	system5 := System{GID: group5.ID, ClientID: "client-5"}
+	err = s.db.Create(&system5).Error
+	require.Nil(s.T(), err)
+
+	_, err = GetACOIDFromSystem(ctx, system5, s.r)
+	assert.NotNil(s.T(), err)
+}
