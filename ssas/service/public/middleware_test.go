@@ -306,7 +306,6 @@ func (s *PublicMiddlewareTestSuite) TestTokenRateLimitMiddleware() {
 	})
 	rateLimitedHandler := s.h.TokenRateLimitMiddleware(dummyHandler)
 
-
 	// Make 3 requests (should all succeed as limit is 3)
 	for i := 1; i <= 3; i++ {
 		req := httptest.NewRequest("POST", "/token", nil)
@@ -392,7 +391,6 @@ func (s *PublicMiddlewareTestSuite) TestTokenRateLimitMiddleware_DynamicRetryAft
 		_, _ = w.Write([]byte("ok"))
 	})
 	rateLimitedHandler := s.h.TokenRateLimitMiddleware(dummyHandler)
-
 
 	// 1st request -> success
 	req1 := httptest.NewRequest("POST", "/token", nil)
