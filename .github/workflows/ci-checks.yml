@@ -51,6 +51,9 @@ jobs:
           go-version-file: 'go.mod'
       - name: Build the stack
         run: make docker-bootstrap
+      - name: Pause for Debugging
+        run: |
+          sleep 1800
       - name: Lint and Test
         run: make test
       - name: Archive code coverage results
