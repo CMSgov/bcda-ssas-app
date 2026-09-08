@@ -46,3 +46,7 @@ services:
     depends_on:
       db-unit-test:
         condition: service_healthy
+
+networks:
+  default:
+    name: bcda-ssas-test-net
