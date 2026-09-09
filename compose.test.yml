@@ -49,4 +49,4 @@ services:
 
 networks:
   default:
-    name: bcda-ssas-test-net
+    name: bcda-ssas-net
