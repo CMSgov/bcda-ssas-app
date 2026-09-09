@@ -1,6 +1,6 @@
 module github.com/CMSgov/bcda-ssas-app
 
-go 1.26.2
+go 1.26.8
 
 require (
 	github.com/aws/aws-lambda-go v1.50.0

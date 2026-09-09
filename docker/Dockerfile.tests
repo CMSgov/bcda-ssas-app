@@ -1,4 +1,4 @@
-FROM arm64v8/golang:1.26.2-alpine3.23
+FROM arm64v8/golang:1.26.8-alpine3.24
 
 RUN apk update upgrade --no-cache && \
     apk add --no-cache \

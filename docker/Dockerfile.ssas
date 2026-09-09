@@ -1,5 +1,5 @@
 ### OpenAPI docs
-FROM arm64v8/golang:1.26.2-alpine3.23 AS documentation
+FROM arm64v8/golang:1.26.8-alpine3.24 AS documentation
 
 RUN apk add --no-cache \
     binutils-gold \
@@ -22,7 +22,7 @@ RUN swagger generate spec -i ../../swaggerui/tags.yml -o ../../swaggerui/swagger
 
 
 ### Builder/compilation
-FROM arm64v8/golang:1.26.2-alpine3.23 AS builder
+FROM arm64v8/golang:1.26.8-alpine3.24 AS builder
 
 ARG RELEASE_VERSION=main
 
@@ -41,7 +41,7 @@ RUN orchestrion go build -ldflags "-X github.com/CMSgov/bcda-ssas-app/ssas/const
 
 
 ### Final image
-FROM arm64v8/golang:1.26.2-alpine3.23
+FROM arm64v8/golang:1.26.8-alpine3.24
 
 RUN addgroup -S ssas-group && adduser -S ssas-user -G ssas-group && \
     apk update upgrade --no-cache && \

@@ -7,5 +7,5 @@ repos:
     rev: v2.10.1
     hooks:
       - id: golangci-lint
-        language_version: 1.26.2
+        language_version: 1.26.8
         args: ['-v']
