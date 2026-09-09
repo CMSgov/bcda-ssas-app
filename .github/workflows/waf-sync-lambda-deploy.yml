@@ -77,7 +77,7 @@ jobs:
         with:
           go-version-file: 'go.mod'
       - name: Install Datadog Orchestrion APM
-        run: go install github.com/DataDog/orchestrion@18b1ba94ba133f1dd6978e988deb7965118d0332 # v1.11.0
+        run: go install github.com/DataDog/orchestrion@4293dbca06e8450c41a1603805e6479f428a3e36 # v1.13.0
       - name: Build WAF Sync Lambda zip file
         env:
           CGO_ENABLED: 0
