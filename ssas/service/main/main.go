@@ -186,7 +186,7 @@ func start(ps *service.Server, as *service.Server, forwarder *http.Server) {
 		profiler.WithVersion(constants.Version),
 	)
 	if err != nil {
-		log.API.Fatal(err)
+		log.SSAS.Fatal(err)
 	}
 	defer profiler.Stop()
 
@@ -196,6 +196,7 @@ func start(ps *service.Server, as *service.Server, forwarder *http.Server) {
 	ssas.Logger.Fatal(forwarder.ListenAndServe())
 }
 
+// To-Do: remove this HTTP router
 func newForwardingRouter() http.Handler {
 	r := chi.NewRouter()
 	r.Use(gcmw.RequestID, service.GetTransactionID, service.NewAPILogger(), service.ConnectionClose, service.NewCtxLogger)
@@ -203,7 +204,7 @@ func newForwardingRouter() http.Handler {
 		// TODO only forward requests for paths in our own host or resource server
 		url := "https://" + req.Host + req.URL.String()
 		ssas.Logger.Infof("forwarding from %s to %s", req.Host+req.URL.String(), url)
-		http.Redirect(w, req, url, http.StatusMovedPermanently)
+		http.Redirect(w, req, url, http.StatusMovedPermanently) // #nosec G710 -- Ticket created to remove this server
 	}))
 	return r
 }
