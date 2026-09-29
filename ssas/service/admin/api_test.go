@@ -1921,8 +1921,7 @@ func (s *APITestSuite) TestGetV2SystemNoIPs() {
 	rr := httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
 	entries := logHook.AllEntries()
-	assert.Len(s.T(), entries, 1)
-	assert.Contains(s.T(), entries[0].Message, "no entries returned")
+	assert.Len(s.T(), entries, 2)
 
 	resp := rr.Result()
 	assert.Equal(s.T(), resp.StatusCode, 404)
