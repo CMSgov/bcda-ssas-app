@@ -321,7 +321,7 @@ func (h *adminHandler) updateSystem(w http.ResponseWriter, r *http.Request) {
 	err := json.NewDecoder(r.Body).Decode(&v)
 	if err != nil {
 		logger.Errorf("invalid request body: %v", err)
-		service.JSONError(w, http.StatusBadRequest, http.StatusText(http.StatusBadRequest), "")
+		service.JSONError(w, http.StatusBadRequest, "invalid request body", "")
 		return
 	}
 

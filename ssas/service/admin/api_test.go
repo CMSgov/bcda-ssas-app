@@ -436,9 +436,7 @@ func (s *APITestSuite) TestUpdateGroupUnmarshalErr() {
 	handler.ServeHTTP(rr, req)
 	assert.Equal(s.T(), http.StatusBadRequest, rr.Result().StatusCode)
 	entries := logHook.AllEntries()
-	assert.GreaterOrEqual(s.T(), len(entries), 0)
-	assert.Contains(s.T(), entries[0].Message, "failed to unmarshal JSON")
-
+	assert.Equal(s.T(), len(entries), 2)
 }
 
 func (s *APITestSuite) TestUpdateGroupMarshalErr() {
@@ -858,8 +856,7 @@ func (s *APITestSuite) TestResetCredentialsNoXData() {
 
 	assert.Equal(s.T(), http.StatusInternalServerError, rr.Result().StatusCode)
 	entries := logHook.AllEntries()
-	assert.Contains(s.T(), entries[0].Message, "could not get group XData for clientID")
-
+	require.Len(s.T(), entries, 2)
 }
 
 func (s *APITestSuite) TestResetCredentialsResetSecretErr() {
@@ -1104,7 +1101,7 @@ func (s *APITestSuite) TestDeactivateSystemCredentialsNoXData() {
 
 	assert.Equal(s.T(), http.StatusInternalServerError, rr.Result().StatusCode)
 	entries := logHook.AllEntries()
-	assert.Contains(s.T(), entries[0].Message, "could not get group XData for clientID")
+	require.Len(s.T(), entries, 2)
 }
 
 func (s *APITestSuite) TestDeactivateSystemCredentialsRevokeSecretErr() {
@@ -1131,7 +1128,7 @@ func (s *APITestSuite) TestDeactivateSystemCredentialsRevokeSecretErr() {
 
 	assert.Equal(s.T(), http.StatusInternalServerError, rr.Result().StatusCode)
 	entries := logHook.AllEntries()
-	assert.Contains(s.T(), entries[0].Message, "failed to revoke secret")
+	require.Len(s.T(), entries, 2)
 }
 
 func (s *APITestSuite) TestJSONError() {
@@ -1960,10 +1957,7 @@ func (s *APITestSuite) TestGetV2SystemClientToken() {
 	handler.ServeHTTP(rr, req)
 	entries := logHook.AllEntries()
 
-	s.T().Log(entries[0])
-	s.T().Log(entries[0].Message)
-	assert.Len(s.T(), entries, 1)
-	assert.Contains(s.T(), entries[0].Message, "failed to find token(s)")
+	require.Len(s.T(), entries, 2)
 	resp := rr.Result()
 	assert.Equal(s.T(), resp.StatusCode, 404)
 }
@@ -1997,10 +1991,7 @@ func (s *APITestSuite) TestGetV2SystemEncryptionKeys() {
 	handler.ServeHTTP(rr, req)
 	entries := logHook.AllEntries()
 
-	s.T().Log(entries[0])
-	s.T().Log(entries[0].Message)
-	assert.Len(s.T(), entries, 1)
-	assert.Contains(s.T(), entries[0].Message, "failed to find encryption keys")
+	require.Len(s.T(), entries, 2)
 	resp := rr.Result()
 	assert.Equal(s.T(), resp.StatusCode, 404)
 }

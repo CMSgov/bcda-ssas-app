@@ -89,7 +89,7 @@ func (s *SystemsTestSuite) TestFindEncryptionKeyNotFound() {
 
 	_, err := s.r.FindEncryptionKey(s.skipAuthContext(), sys, "", uuid.NewRandom().String())
 	assert.NotNil(err)
-	assert.Contains(err.Error(), "cannot find key for systemId")
+	assert.Contains(err.Error(), "error finding key for systemId")
 
 	err = CleanDatabase(group)
 	assert.Nil(err)
@@ -103,7 +103,7 @@ func (s *SystemsTestSuite) TestFindEncryptionKeyForAnotherSystem() {
 	_, err := s.r.FindEncryptionKey(context.Background(), sys1, "", kid2)
 
 	assert.NotNil(err)
-	assert.Contains(err.Error(), "cannot find key for systemId")
+	assert.Contains(err.Error(), "error finding key for systemId")
 
 	err = CleanDatabase(group1)
 	assert.Nil(err)
@@ -274,14 +274,14 @@ func (s *SystemsTestSuite) TestSystemPublicKeyEmpty() {
 	assert.EqualError(err, fmt.Sprintf("invalid public key for clientID %s: not able to decode PEM-formatted public key", clientID))
 
 	k, err := s.r.GetEncryptionKey(s.skipAuthContext(), system)
-	assert.EqualError(err, fmt.Sprintf("cannot find key for clientID %s: record not found", clientID))
+	assert.EqualError(err, fmt.Sprintf("error finding key for clientID %s: record not found", clientID))
 	assert.Empty(k, "Empty string does not yield empty encryption key!")
 
 	_, err = s.r.SavePublicKey(s.db, system, strings.NewReader(emptyPEM), "", true)
 	assert.EqualError(err, fmt.Sprintf("invalid public key for clientID %s: not able to decode PEM-formatted public key", clientID))
 
 	k, err = s.r.GetEncryptionKey(s.skipAuthContext(), system)
-	assert.EqualError(err, fmt.Sprintf("cannot find key for clientID %s: record not found", clientID))
+	assert.EqualError(err, fmt.Sprintf("error finding key for clientID %s: record not found", clientID))
 	assert.Empty(k, "Empty PEM key does not yield empty encryption key!")
 
 	_, err = s.r.SavePublicKey(s.db, system, strings.NewReader(validPEM), "", true)
@@ -479,7 +479,7 @@ func (s *SystemsTestSuite) TestUpdateNonExistingSystem() {
 	var input = map[string]string{"client_name": "updated client name"}
 	_, err := s.r.UpdateSystem(s.skipAuthContext(), "non-existing-system-id", input)
 	assert.NotNil(err)
-	assert.Equal("record not found for id=non-existing-system-id", err.Error())
+	assert.Contains(err.Error(), "invalid input ID non-existing-system-id")
 }
 
 func (s *SystemsTestSuite) TestRegisterSystemMissingData() {

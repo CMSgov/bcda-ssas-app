@@ -92,7 +92,7 @@ func (s *MainTestSuite) TestShowXDataSystemGroupIDDoesNotExist() {
 	flags.doShowXData = true
 	flags.clientID = creds.ClientID
 	output := captureLog(func() { handleFlags(flags) })
-	assert.Contains(s.T(), output, "no Group record found for groupID")
+	assert.Contains(s.T(), output, "unable to find group with id")
 }
 
 func (s *MainTestSuite) TestShowXDataWithAuth() {
