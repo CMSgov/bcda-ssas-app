@@ -2028,7 +2028,7 @@ func (s *APITestSuite) TestGetV2SystemInactive() {
 	var error ssas.ErrorResponse
 	_ = json.Unmarshal(b, &error)
 
-	assert.Equal(s.T(), fmt.Sprintf("could not find system %s", creds.SystemID), error.ErrorDescription)
+	assert.Equal(s.T(), "could not find system", error.ErrorDescription)
 }
 
 func (s *APITestSuite) TestCreateAndDeleteAdditionalV2SystemToken() {
