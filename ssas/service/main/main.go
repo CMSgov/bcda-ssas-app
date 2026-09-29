@@ -196,7 +196,6 @@ func start(ps *service.Server, as *service.Server, forwarder *http.Server) {
 	ssas.Logger.Fatal(forwarder.ListenAndServe())
 }
 
-// To-Do: remove this HTTP router
 func newForwardingRouter() http.Handler {
 	r := chi.NewRouter()
 	r.Use(gcmw.RequestID, service.GetTransactionID, service.NewAPILogger(), service.ConnectionClose, service.NewCtxLogger)
