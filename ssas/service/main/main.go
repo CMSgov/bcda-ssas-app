@@ -42,7 +42,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/CMSgov/bcda-app/log"
 	"github.com/CMSgov/bcda-ssas-app/ssas"
 	"github.com/CMSgov/bcda-ssas-app/ssas/cfg"
 	"github.com/CMSgov/bcda-ssas-app/ssas/constants"
@@ -186,7 +185,7 @@ func start(ps *service.Server, as *service.Server, forwarder *http.Server) {
 		profiler.WithVersion(constants.Version),
 	)
 	if err != nil {
-		log.SSAS.Fatal(err)
+		ssas.Logger.Fatal(err)
 	}
 	defer profiler.Stop()
 
