@@ -42,7 +42,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/CMSgov/bcda-app/log"
 	"github.com/CMSgov/bcda-ssas-app/ssas"
 	"github.com/CMSgov/bcda-ssas-app/ssas/cfg"
 	"github.com/CMSgov/bcda-ssas-app/ssas/constants"
@@ -186,7 +185,7 @@ func start(ps *service.Server, as *service.Server, forwarder *http.Server) {
 		profiler.WithVersion(constants.Version),
 	)
 	if err != nil {
-		log.API.Fatal(err)
+		ssas.Logger.Fatal(err)
 	}
 	defer profiler.Stop()
 
@@ -203,7 +202,7 @@ func newForwardingRouter() http.Handler {
 		// TODO only forward requests for paths in our own host or resource server
 		url := "https://" + req.Host + req.URL.String()
 		ssas.Logger.Infof("forwarding from %s to %s", req.Host+req.URL.String(), url)
-		http.Redirect(w, req, url, http.StatusMovedPermanently)
+		http.Redirect(w, req, url, http.StatusMovedPermanently) // #nosec G710 -- Ticket created to remove this server
 	}))
 	return r
 }
