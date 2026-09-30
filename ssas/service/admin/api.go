@@ -122,7 +122,7 @@ func (h *adminHandler) createGroup(w http.ResponseWriter, r *http.Request) {
 
 	groupJSON, err := h.m.Marshal(g)
 	if err != nil {
-		logger.Error("failed to marshal JSON: %v", err)
+		logger.Errorf("failed to marshal JSON: %v", err)
 		service.JSONError(w, http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError), "")
 		return
 	}
@@ -131,7 +131,7 @@ func (h *adminHandler) createGroup(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusCreated)
 	_, err = w.Write(groupJSON) // #nosec G705
 	if err != nil {
-		logger.Error("failed to write response: %v", err)
+		logger.Errorf("failed to write response: %v", err)
 		service.JSONError(w, http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError), "")
 	}
 }
@@ -163,14 +163,14 @@ func (h *adminHandler) listGroups(w http.ResponseWriter, r *http.Request) {
 
 	groups, err := h.gr.ListGroups(r.Context())
 	if err != nil {
-		logger.Error("failed to list groups: %v", err)
+		logger.Errorf("failed to list groups: %v", err)
 		service.JSONError(w, http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError), "")
 		return
 	}
 
 	groupsJSON, err := h.m.Marshal(groups)
 	if err != nil {
-		logger.Error("failed to marshal JSON: %v", err)
+		logger.Errorf("failed to marshal JSON: %v", err)
 		service.JSONError(w, http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError), "")
 		return
 	}
@@ -179,7 +179,7 @@ func (h *adminHandler) listGroups(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	_, err = w.Write(groupsJSON) // #nosec G705
 	if err != nil {
-		logger.Error("failed to write response: %v", err)
+		logger.Errorf("failed to write response: %v", err)
 		service.JSONError(w, http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError), "")
 	}
 }
@@ -214,7 +214,7 @@ func (h *adminHandler) updateGroup(w http.ResponseWriter, r *http.Request) {
 
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
-		logger.Error("failed to read request body: %v", err)
+		logger.Errorf("failed to read request body: %v", err)
 		service.JSONError(w, http.StatusBadRequest, http.StatusText(http.StatusBadRequest), "")
 		return
 	}
@@ -222,7 +222,7 @@ func (h *adminHandler) updateGroup(w http.ResponseWriter, r *http.Request) {
 
 	err = h.m.Unmarshal(body, &gd)
 	if err != nil {
-		logger.Error("failed to unmarshal JSON: %v", err)
+		logger.Errorf("failed to unmarshal JSON: %v", err)
 		service.JSONError(w, http.StatusBadRequest, http.StatusText(http.StatusBadRequest), "")
 		return
 	}
@@ -236,7 +236,7 @@ func (h *adminHandler) updateGroup(w http.ResponseWriter, r *http.Request) {
 
 	groupJSON, err := h.m.Marshal(g)
 	if err != nil {
-		logger.Error("failed to marshal JSON: %v", err)
+		logger.Errorf("failed to marshal JSON: %v", err)
 		service.JSONError(w, http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError), "")
 	}
 
@@ -244,7 +244,7 @@ func (h *adminHandler) updateGroup(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	_, err = w.Write(groupJSON) // #nosec G705
 	if err != nil {
-		logger.Error("failed to write response: %v", err)
+		logger.Errorf("failed to write response: %v", err)
 		service.JSONError(w, http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError), "")
 	}
 }
@@ -297,7 +297,7 @@ func (h *adminHandler) getSystem(w http.ResponseWriter, r *http.Request) {
 
 	systemJSON, err := h.m.Marshal(o)
 	if err != nil {
-		logger.Error("failed to marshal JSON: %v", err)
+		logger.Errorf("failed to marshal JSON: %v", err)
 		service.JSONError(w, http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError), "")
 		return
 	}
@@ -305,7 +305,7 @@ func (h *adminHandler) getSystem(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	_, err = w.Write(systemJSON) // #nosec G705
 	if err != nil {
-		logger.Error("failed to write response: ", err)
+		logger.Errorf("failed to write response: %v", err)
 		service.JSONError(w, http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError), "")
 	}
 }
@@ -418,7 +418,7 @@ func (h *adminHandler) createSystem(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 
 	if err := json.NewDecoder(r.Body).Decode(&sys); err != nil {
-		logger.Error("failed to decode body: %v", err)
+		logger.Errorf("failed to decode body: %v", err)
 		service.JSONError(w, http.StatusBadRequest, http.StatusText(http.StatusBadRequest), "")
 		return
 	}
@@ -442,7 +442,7 @@ func (h *adminHandler) createSystem(w http.ResponseWriter, r *http.Request) {
 
 	credsJSON, err := h.m.Marshal(creds)
 	if err != nil {
-		logger.Error("failed to marshal JSON: %v", err)
+		logger.Errorf("failed to marshal JSON: %v", err)
 		service.JSONError(w, http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError), "")
 		return
 	}
@@ -451,7 +451,7 @@ func (h *adminHandler) createSystem(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusCreated)
 	_, err = w.Write(credsJSON) // #nosec G705
 	if err != nil {
-		logger.Error("failed to write response: %v", err)
+		logger.Errorf("failed to write response: %v", err)
 		service.JSONError(w, http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError), "")
 	}
 }
@@ -464,7 +464,7 @@ func (h *adminHandler) createV2System(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 
 	if err := json.NewDecoder(r.Body).Decode(&sys); err != nil {
-		logger.Error("failed to decode body, err: %v", err)
+		logger.Errorf("failed to decode body, err: %v", err)
 		service.JSONError(w, http.StatusBadRequest, http.StatusText(http.StatusBadRequest), "")
 		return
 	}
@@ -478,7 +478,7 @@ func (h *adminHandler) createV2System(w http.ResponseWriter, r *http.Request) {
 
 	credsJSON, err := h.m.Marshal(creds)
 	if err != nil {
-		logger.Error("failed to marshal JSON: %v", err)
+		logger.Errorf("failed to marshal JSON: %v", err)
 		service.JSONError(w, http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError), "")
 		return
 	}
@@ -487,7 +487,7 @@ func (h *adminHandler) createV2System(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusCreated)
 	_, err = w.Write(credsJSON) // #nosec G705
 	if err != nil {
-		logger.Error("failed to write response: %v", err)
+		logger.Errorf("failed to write response: %v", err)
 		service.JSONError(w, http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError), "")
 	}
 }
@@ -521,7 +521,7 @@ func (h *adminHandler) resetCredentials(w http.ResponseWriter, r *http.Request) 
 
 	system, err := h.sr.GetSystemByID(r.Context(), systemID)
 	if err != nil {
-		logger.Error("failed to get system by ID %s, err: %v", systemID, err)
+		logger.Errorf("failed to get system by ID %s, err: %v", systemID, err)
 		service.JSONError(w, http.StatusNotFound, http.StatusText(http.StatusNotFound), "Invalid system ID")
 		return
 	}
@@ -544,7 +544,7 @@ func (h *adminHandler) resetCredentials(w http.ResponseWriter, r *http.Request) 
 
 	credsJSON, err := h.m.Marshal(creds)
 	if err != nil {
-		logger.Error("failed to marshal JSON: %v", err)
+		logger.Errorf("failed to marshal JSON: %v", err)
 		service.JSONError(w, http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError), "")
 		return
 	}
@@ -554,7 +554,7 @@ func (h *adminHandler) resetCredentials(w http.ResponseWriter, r *http.Request) 
 
 	_, err = w.Write(credsJSON) // #nosec G705
 	if err != nil {
-		logger.Error("failed to write response: %v", err)
+		logger.Errorf("failed to write response: %v", err)
 		service.JSONError(w, http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError), "")
 	}
 }
@@ -587,7 +587,7 @@ func (h *adminHandler) getPublicKey(w http.ResponseWriter, r *http.Request) {
 
 	system, err := h.sr.GetSystemByID(r.Context(), systemID)
 	if err != nil {
-		logger.Error("invalid system ID: %v", err)
+		logger.Errorf("invalid system ID: %v", err)
 		service.JSONError(w, http.StatusNotFound, http.StatusText(http.StatusNotFound), "invalid system ID")
 		return
 	}

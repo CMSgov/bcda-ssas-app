@@ -144,7 +144,7 @@ func (g *GormGroupRepository) CreateGroup(ctx context.Context, gd GroupData) (Gr
 	}
 	err := g.db.WithContext(ctx).Save(&group).Error
 	if err != nil {
-		return group, fmt.Errorf("error creating group with ID %s: %w", gd.GroupID, err)
+		return Group{}, fmt.Errorf("error creating group with ID %s: %w", gd.GroupID, err)
 	}
 
 	return group, nil
@@ -183,7 +183,7 @@ func (g *GormGroupRepository) ListGroups(ctx context.Context) (list GroupList, e
 func (g *GormGroupRepository) UpdateGroup(ctx context.Context, id string, gd GroupData) (Group, error) {
 	group, err := g.GetGroupByID(ctx, id)
 	if err != nil {
-		return group, err
+		return Group{}, err
 	}
 
 	gd.GroupID = group.Data.GroupID
@@ -191,7 +191,7 @@ func (g *GormGroupRepository) UpdateGroup(ctx context.Context, id string, gd Gro
 	group.Data = gd
 	err = g.db.WithContext(ctx).Save(&group).Error
 	if err != nil {
-		return group, fmt.Errorf("error updating group with ID %s: %w", id, err)
+		return Group{}, fmt.Errorf("error updating group with ID %s: %w", id, err)
 	}
 
 	return group, nil
@@ -234,7 +234,7 @@ func (g *GormGroupRepository) cascadeDeleteGroup(ctx context.Context, group Grou
 
 	err := tx.Commit().Error
 	if err != nil {
-		return fmt.Errorf("error deleting group and related records: %s", err.Error())
+		return fmt.Errorf("error deleting group and related records: %v", err)
 	}
 
 	return nil
@@ -243,7 +243,7 @@ func (g *GormGroupRepository) cascadeDeleteGroup(ctx context.Context, group Grou
 func (g *GormGroupRepository) GetGroupByGroupID(ctx context.Context, groupID string) (group Group, err error) {
 	err = g.db.WithContext(ctx).First(&group, "group_id = ?", groupID).Error
 	if err != nil {
-		return group, fmt.Errorf("error finding group with group_id %s: %w", groupID, err)
+		return Group{}, fmt.Errorf("error finding group with group_id %s: %w", groupID, err)
 	}
 
 	return group, nil
@@ -253,12 +253,12 @@ func (g *GormGroupRepository) GetGroupByGroupID(ctx context.Context, groupID str
 func (g *GormGroupRepository) GetGroupByID(ctx context.Context, id string) (group Group, err error) {
 	id1, err := strconv.ParseUint(id, 10, 64)
 	if err != nil {
-		return group, fmt.Errorf("invalid input %s; %s", id, err)
+		return Group{}, fmt.Errorf("invalid input %s; %s", id, err)
 	}
 
 	err = g.db.WithContext(ctx).First(&group, id1).Error
 	if err != nil {
-		return group, fmt.Errorf("error finding group with ID %s, err: %w", id, err)
+		return Group{}, fmt.Errorf("error finding group with ID %s, err: %w", id, err)
 	}
 
 	skipSGAAuthCheck := fmt.Sprintf("%v", ctx.Value(constants.CtxSGASkipAuthKey))

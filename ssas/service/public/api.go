@@ -483,7 +483,7 @@ func (h *publicHandler) validateAndParseToken(w http.ResponseWriter, r *http.Req
 
 	var reqV map[string]string
 	if err := json.NewDecoder(r.Body).Decode(&reqV); err != nil {
-		logger.Error("failed to decode json: ", err)
+		logger.Errorf("failed to decode json: %v", err)
 		service.JSONError(w, http.StatusBadRequest, http.StatusText(http.StatusBadRequest), "invalid request body")
 		return
 	}
