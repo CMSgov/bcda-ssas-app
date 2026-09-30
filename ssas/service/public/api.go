@@ -160,7 +160,7 @@ func (h *publicHandler) ResetSecret(w http.ResponseWriter, r *http.Request) {
 		ExpiresAt:    credentials.ExpiresAt.Unix(),
 		ClientName:   credentials.ClientName,
 	}
-	body, err := json.Marshal(response)
+	body, err := json.Marshal(response) // #nosec G117 -- Secret is included intentionally
 	if err != nil {
 		logger.Error("failed to marshal JSON: ", err)
 		service.JSONError(w, http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError), "")
@@ -251,7 +251,7 @@ func (h *publicHandler) RegisterSystem(w http.ResponseWriter, r *http.Request) {
 		ExpiresAt:    credentials.ExpiresAt.Unix(),
 		ClientName:   credentials.ClientName,
 	}
-	body, err := json.Marshal(response)
+	body, err := json.Marshal(response) // #nosec G117 -- Secret is included intentionally
 	if err != nil {
 		logger.WithField("resp_status", http.StatusInternalServerError).Error("failed to marshal JSON: ", err)
 		service.JSONError(w, http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError), "")
