@@ -234,7 +234,7 @@ func (g *GormGroupRepository) cascadeDeleteGroup(ctx context.Context, group Grou
 
 	err := tx.Commit().Error
 	if err != nil {
-		return fmt.Errorf("error deleting group and related records: %v", err)
+		return fmt.Errorf("error deleting group and related records: %w", err)
 	}
 
 	return nil
@@ -253,12 +253,12 @@ func (g *GormGroupRepository) GetGroupByGroupID(ctx context.Context, groupID str
 func (g *GormGroupRepository) GetGroupByID(ctx context.Context, id string) (group Group, err error) {
 	id1, err := strconv.ParseUint(id, 10, 64)
 	if err != nil {
-		return Group{}, fmt.Errorf("invalid input %s; %s", id, err)
+		return Group{}, fmt.Errorf("invalid input %s: %w", id, err)
 	}
 
 	err = g.db.WithContext(ctx).First(&group, id1).Error
 	if err != nil {
-		return Group{}, fmt.Errorf("error finding group with ID %s, err: %w", id, err)
+		return Group{}, fmt.Errorf("error finding group with ID %s: %w", id, err)
 	}
 
 	skipSGAAuthCheck := fmt.Sprintf("%v", ctx.Value(constants.CtxSGASkipAuthKey))
@@ -267,7 +267,7 @@ func (g *GormGroupRepository) GetGroupByID(ctx context.Context, id string) (grou
 		requesterSGAKey := fmt.Sprintf("%v", ctx.Value(constants.CtxSGAKey))
 
 		if err != nil || sgaKeyFromGroupID != requesterSGAKey {
-			return group, fmt.Errorf("error authorizing requesting system (%+v) to group with groupID: %v, err: %+v", requesterSGAKey, group.GroupID, err)
+			return group, fmt.Errorf("error authorizing requesting system (%+v) to group with groupID: %v: %+v", requesterSGAKey, group.GroupID, err)
 		}
 	}
 

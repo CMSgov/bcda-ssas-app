@@ -207,7 +207,7 @@ Responses:
 */
 func (h *adminHandler) updateGroup(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
-	ssas.SetCtxEntry(r, "Op", "ListGroup")
+	ssas.SetCtxEntry(r, "Op", "updateGroup")
 	logger := ssas.GetCtxLogger(r.Context())
 	logger.Infof("Operation Called: admin.updateGroup()")
 	defer r.Body.Close()
@@ -515,7 +515,7 @@ Responses:
 */
 func (h *adminHandler) resetCredentials(w http.ResponseWriter, r *http.Request) {
 	systemID := chi.URLParam(r, "systemID")
-	ssas.SetCtxEntry(r, "Op", "ResetSecret")
+	ssas.SetCtxEntry(r, "Op", "ResetCredentials")
 	logger := ssas.GetCtxLogger(r.Context())
 	logger.Infof("Operation Called: admin.resetCredentials()")
 
@@ -670,7 +670,7 @@ func (h *adminHandler) deactivateSystemCredentials(w http.ResponseWriter, r *htt
 			500: serverError
 */
 func (h *adminHandler) revokeToken(w http.ResponseWriter, r *http.Request) {
-	ssas.SetCtxEntry(r, "Op", "TokenDenylist")
+	ssas.SetCtxEntry(r, "Op", "RevokeToken")
 	logger := ssas.GetCtxLogger(r.Context())
 	logger.Infof("Operation Called: admin.revokeToken()")
 
@@ -711,7 +711,7 @@ func (h *adminHandler) registerIP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if !ssas.ValidAddress(input.Address) {
-		logger.Errorf("invalid ip address, err: %v", err)
+		logger.Errorf("invalid ip address: %s", input.Address)
 		service.JSONError(w, http.StatusBadRequest, http.StatusText(http.StatusBadRequest), "invalid ip address")
 		return
 	}
@@ -812,7 +812,7 @@ Responses:
 func (h *adminHandler) deleteSystemIP(w http.ResponseWriter, r *http.Request) {
 	systemID := chi.URLParam(r, "systemID")
 	ipID := chi.URLParam(r, "id")
-	ssas.SetCtxEntry(r, "Op", "deleteSystemIPs")
+	ssas.SetCtxEntry(r, "Op", "DeleteSystemIP")
 	logger := ssas.GetCtxLogger(r.Context())
 	logger.Infof("Operation Called: admin.deleteSystemIP()")
 
@@ -863,7 +863,7 @@ func (h *adminHandler) createToken(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.m.Unmarshal(b, &body); err != nil {
-		logger.Errorf("failed to marshal JSON: %v", err)
+		logger.Errorf("failed to unmarshal JSON: %v", err)
 		service.JSONError(w, http.StatusBadRequest, http.StatusText(http.StatusBadRequest), "")
 		return
 	}
@@ -905,7 +905,7 @@ func (h *adminHandler) createToken(w http.ResponseWriter, r *http.Request) {
 func (h *adminHandler) deleteToken(w http.ResponseWriter, r *http.Request) {
 	systemID := chi.URLParam(r, "systemID")
 	tokenID := chi.URLParam(r, "id")
-	ssas.SetCtxEntry(r, "Op", "GetSystemIPs")
+	ssas.SetCtxEntry(r, "Op", "DeleteToken")
 	logger := ssas.GetCtxLogger(r.Context())
 	logger.Infof("Operation Called: admin.deleteToken()")
 
@@ -930,7 +930,7 @@ func (h *adminHandler) createKey(w http.ResponseWriter, r *http.Request) {
 	systemID := chi.URLParam(r, "systemID")
 	ssas.SetCtxEntry(r, "Op", "CreateKey")
 	logger := ssas.GetCtxLogger(r.Context())
-	logger.Infof("Operation Called: admin.CreateKey()")
+	logger.Infof("Operation Called: admin.createKey()")
 	defer r.Body.Close()
 
 	system, err := h.sr.GetSystemByID(r.Context(), systemID)
@@ -970,7 +970,7 @@ func (h *adminHandler) deleteKey(w http.ResponseWriter, r *http.Request) {
 	keyID := chi.URLParam(r, "id")
 	ssas.SetCtxEntry(r, "Op", "DeleteKey")
 	logger := ssas.GetCtxLogger(r.Context())
-	logger.Infof("Operation Called: admin.DeleteKey()")
+	logger.Infof("Operation Called: admin.deleteKey()")
 
 	system, err := h.sr.GetSystemByID(r.Context(), systemID)
 	if err != nil {

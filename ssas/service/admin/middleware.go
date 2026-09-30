@@ -26,8 +26,7 @@ func NewAdminMiddlewareHandler(db *gorm.DB) *adminMiddlewareHandler {
 
 func (h *adminMiddlewareHandler) requireBasicAuth(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ssas.SetCtxEntry(r, "Op", "CreateGroup")
-		logger := ssas.GetCtxLogger(r.Context())
+		ctx, logger := ssas.SetCtxEntry(r, "Op", "AdminAuth")
 
 		clientID, secret, ok := r.BasicAuth()
 		if !ok {
@@ -36,21 +35,21 @@ func (h *adminMiddlewareHandler) requireBasicAuth(next http.Handler) http.Handle
 			return
 		}
 
-		system, err := h.sr.GetSystemByClientID(r.Context(), clientID)
+		system, err := h.sr.GetSystemByClientID(ctx, clientID)
 		if err != nil {
 			logger.Errorf("failed to get system by client ID %s, err: %v", clientID, err)
 			service.JSONError(w, http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized), "invalid client id")
 			return
 		}
 
-		r = r.WithContext(context.WithValue(r.Context(), constants.CtxSGAKey, system.SGAKey))
+		r = r.WithContext(context.WithValue(ctx, constants.CtxSGAKey, system.SGAKey))
 
 		// skip auth checks if requester is us
 		if system.SGAKey == "bcda" {
-			r = r.WithContext(context.WithValue(r.Context(), constants.CtxSGASkipAuthKey, "true"))
+			r = r.WithContext(context.WithValue(ctx, constants.CtxSGASkipAuthKey, "true"))
 		}
 
-		savedSecret, err := h.sr.GetSecret(r.Context(), system)
+		savedSecret, err := h.sr.GetSecret(ctx, system)
 		if err != nil || !ssas.Hash(savedSecret.Hash).IsHashOf(secret) {
 			logger.Warningf("failed to validate client secret for client ID %s, err: %v", clientID, err)
 			service.JSONError(w, http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized), "invalid client secret")
