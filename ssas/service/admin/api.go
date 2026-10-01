@@ -59,8 +59,9 @@ func (h *adminHandler) getVersion(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *adminHandler) getHealthCheck(w http.ResponseWriter, r *http.Request) {
+	ctx, _ := ssas.SetCtxEntry(r, "Op", "getHealthCheck")
 	m := make(map[string]string)
-	if service.DoHealthCheck(r.Context(), h.db) {
+	if service.DoHealthCheck(ctx, h.db) {
 		m["database"] = "ok"
 		w.WriteHeader(http.StatusOK)
 	} else {
@@ -93,14 +94,12 @@ Responses:
 	500: serverError
 */
 func (h *adminHandler) createGroup(w http.ResponseWriter, r *http.Request) {
-	ssas.SetCtxEntry(r, "Op", "CreateGroup")
-	logger := ssas.GetCtxLogger(r.Context())
-	logger.Infof("Operation Called: admin.createGroup()")
+	ctx, logger := ssas.SetCtxEntry(r, "Op", "createGroup")
 	defer r.Body.Close()
 
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
-		logger.Errorf("error reading request body: %v", err)
+		logger.Errorf("failed to read request body: %v", err)
 		service.JSONError(w, http.StatusBadRequest, http.StatusText(http.StatusBadRequest), "")
 		return
 	}
@@ -108,12 +107,12 @@ func (h *adminHandler) createGroup(w http.ResponseWriter, r *http.Request) {
 	gd := ssas.GroupData{}
 	err = h.m.Unmarshal(body, &gd)
 	if err != nil {
-		logger.Errorf("error in request to create group: %v", err)
+		logger.Errorf("failed to unmarshal request to create group: %v", err)
 		service.JSONError(w, http.StatusBadRequest, http.StatusText(http.StatusBadRequest), "")
 		return
 	}
 
-	g, err := h.gr.CreateGroup(r.Context(), gd)
+	g, err := h.gr.CreateGroup(ctx, gd)
 	if err != nil {
 		logger.Errorf("failed to create group: %v", err)
 		service.JSONError(w, http.StatusBadRequest, http.StatusText(http.StatusBadRequest), "failed to create group")
@@ -157,11 +156,10 @@ Responses:
 	500: serverError
 */
 func (h *adminHandler) listGroups(w http.ResponseWriter, r *http.Request) {
-	ssas.SetCtxEntry(r, "Op", "ListGroups")
-	logger := ssas.GetCtxLogger(r.Context())
+	ctx, logger := ssas.SetCtxEntry(r, "Op", "listGroups")
 	logger.Info("Operation Called: admin.listGroups()")
 
-	groups, err := h.gr.ListGroups(r.Context())
+	groups, err := h.gr.ListGroups(ctx)
 	if err != nil {
 		logger.Errorf("failed to list groups: %v", err)
 		service.JSONError(w, http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError), "")
@@ -207,9 +205,7 @@ Responses:
 */
 func (h *adminHandler) updateGroup(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
-	ssas.SetCtxEntry(r, "Op", "updateGroup")
-	logger := ssas.GetCtxLogger(r.Context())
-	logger.Infof("Operation Called: admin.updateGroup()")
+	ctx, logger := ssas.SetCtxEntry(r, "Op", "updateGroup")
 	defer r.Body.Close()
 
 	body, err := io.ReadAll(r.Body)
@@ -227,7 +223,7 @@ func (h *adminHandler) updateGroup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	g, err := h.gr.UpdateGroup(r.Context(), id, gd)
+	g, err := h.gr.UpdateGroup(ctx, id, gd)
 	if err != nil {
 		logger.Errorf("failed to update group, err: %v", err)
 		service.JSONError(w, http.StatusBadRequest, http.StatusText(http.StatusBadRequest), "failed to update group")
@@ -251,30 +247,28 @@ func (h *adminHandler) updateGroup(w http.ResponseWriter, r *http.Request) {
 
 func (h *adminHandler) getSystem(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
-	ssas.SetCtxEntry(r, "Op", "GetSystem")
-	logger := ssas.GetCtxLogger(r.Context())
-	logger.Infof("Operation Called: admin.getSystem()")
+	ctx, logger := ssas.SetCtxEntry(r, "Op", "getSystem")
 
-	s, err := h.sr.GetSystemByID(r.Context(), id)
+	s, err := h.sr.GetSystemByID(ctx, id)
 	if err != nil {
 		logger.Errorf("failed to get system by ID %s, err: %v", id, err)
 		service.JSONError(w, http.StatusNotFound, http.StatusText(http.StatusNotFound), "could not find system")
 		return
 	}
 
-	ips, err := h.sr.GetIPsData(r.Context(), s)
+	ips, err := h.sr.GetIPsData(ctx, s)
 	if err != nil {
 		logger.Errorf("failed to find IPs for system ID %s, err: %v", id, err)
 		service.JSONError(w, http.StatusNotFound, http.StatusText(http.StatusNotFound), "")
 		return
 	}
-	cts, err := h.sr.GetClientTokens(r.Context(), s)
+	cts, err := h.sr.GetClientTokens(ctx, s)
 	if err != nil {
 		logger.Errorf("failed to find token(s): %v", err)
 		service.JSONError(w, http.StatusNotFound, http.StatusText(http.StatusNotFound), "")
 		return
 	}
-	eks, err := h.sr.GetEncryptionKeys(r.Context(), s)
+	eks, err := h.sr.GetEncryptionKeys(ctx, s)
 	if err != nil {
 		logger.Errorf("failed to find encryption keys: %v", err)
 		service.JSONError(w, http.StatusNotFound, http.StatusText(http.StatusNotFound), "")
@@ -312,8 +306,7 @@ func (h *adminHandler) getSystem(w http.ResponseWriter, r *http.Request) {
 
 func (h *adminHandler) updateSystem(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
-	ssas.SetCtxEntry(r, "Op", "UpdateSystem")
-	logger := ssas.GetCtxLogger(r.Context())
+	ctx, logger := ssas.SetCtxEntry(r, "Op", "updateSystem")
 	logger.Info("Operation Called: admin.updateSystem()")
 	defer r.Body.Close()
 
@@ -341,7 +334,7 @@ func (h *adminHandler) updateSystem(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	_, err = h.sr.UpdateSystem(r.Context(), id, v)
+	_, err = h.sr.UpdateSystem(ctx, id, v)
 	if err != nil {
 		logger.Errorf("failed to update system: %v", err)
 		service.JSONError(w, http.StatusNotFound, http.StatusText(http.StatusNotFound), "failed to update system")
@@ -374,11 +367,10 @@ Responses:
 */
 func (h *adminHandler) deleteGroup(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
-	ssas.SetCtxEntry(r, "Op", "DeleteGroup")
-	logger := ssas.GetCtxLogger(r.Context())
+	ctx, logger := ssas.SetCtxEntry(r, "Op", "deleteGroup")
 	logger.Info("Operation Called: admin.deleteGroup()")
 
-	err := h.gr.DeleteGroup(r.Context(), id)
+	err := h.gr.DeleteGroup(ctx, id)
 	if err != nil {
 		logger.Errorf("failed to delete group, err: %s", err)
 		service.JSONError(w, http.StatusNotFound, http.StatusText(http.StatusNotFound), "failed to delete group")
@@ -412,9 +404,7 @@ Responses:
 */
 func (h *adminHandler) createSystem(w http.ResponseWriter, r *http.Request) {
 	sys := ssas.SystemInput{}
-	ssas.SetCtxEntry(r, "Op", "CreateSystem")
-	logger := ssas.GetCtxLogger(r.Context())
-	logger.Infof("Operation Called: admin.createSystem()")
+	ctx, logger := ssas.SetCtxEntry(r, "Op", "createSystem")
 	defer r.Body.Close()
 
 	if err := json.NewDecoder(r.Body).Decode(&sys); err != nil {
@@ -423,14 +413,14 @@ func (h *adminHandler) createSystem(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	creds, err := h.sr.RegisterSystem(r.Context(), sys.ClientName, sys.GroupID, sys.Scope, sys.PublicKey, sys.IPs, sys.TrackingID)
+	creds, err := h.sr.RegisterSystem(ctx, sys.ClientName, sys.GroupID, sys.Scope, sys.PublicKey, sys.IPs, sys.TrackingID)
 	if err != nil {
 		logger.Errorf("failed to create system: %v", err)
 		service.JSONError(w, http.StatusBadRequest, http.StatusText(http.StatusBadRequest), "failed to create system")
 		return
 	}
 
-	group, err := h.gr.GetGroupByGroupID(r.Context(), sys.GroupID)
+	group, err := h.gr.GetGroupByGroupID(ctx, sys.GroupID)
 	if err != nil {
 		logger.Errorf("failed to get group for clientID %s: %v", creds.ClientID, err)
 		service.JSONError(w, http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError), "")
@@ -458,9 +448,7 @@ func (h *adminHandler) createSystem(w http.ResponseWriter, r *http.Request) {
 
 func (h *adminHandler) createV2System(w http.ResponseWriter, r *http.Request) {
 	sys := ssas.SystemInput{}
-	ssas.SetCtxEntry(r, "Op", "CreateV2System")
-	logger := ssas.GetCtxLogger(r.Context())
-	logger.Infof("Operation Called: admin.createV2System()")
+	ctx, logger := ssas.SetCtxEntry(r, "Op", "createV2System")
 	defer r.Body.Close()
 
 	if err := json.NewDecoder(r.Body).Decode(&sys); err != nil {
@@ -469,7 +457,7 @@ func (h *adminHandler) createV2System(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	creds, err := h.sr.RegisterV2System(r.Context(), sys)
+	creds, err := h.sr.RegisterV2System(ctx, sys)
 	if err != nil {
 		logger.Errorf("failed to create v2 system: %v", err)
 		service.JSONError(w, http.StatusBadRequest, http.StatusText(http.StatusBadRequest), "could not create system")
@@ -515,25 +503,23 @@ Responses:
 */
 func (h *adminHandler) resetCredentials(w http.ResponseWriter, r *http.Request) {
 	systemID := chi.URLParam(r, "systemID")
-	ssas.SetCtxEntry(r, "Op", "ResetCredentials")
-	logger := ssas.GetCtxLogger(r.Context())
-	logger.Infof("Operation Called: admin.resetCredentials()")
+	ctx, logger := ssas.SetCtxEntry(r, "Op", "resetCredentials")
 
-	system, err := h.sr.GetSystemByID(r.Context(), systemID)
+	system, err := h.sr.GetSystemByID(ctx, systemID)
 	if err != nil {
 		logger.Errorf("failed to get system by ID %s, err: %v", systemID, err)
 		service.JSONError(w, http.StatusNotFound, http.StatusText(http.StatusNotFound), "Invalid system ID")
 		return
 	}
 
-	xdata, err := h.gr.XDataFor(r.Context(), system)
+	xdata, err := h.gr.XDataFor(ctx, system)
 	if err != nil {
 		logger.Errorf("could not get group XData for clientID %s, err: %v", system.ClientID, err)
 		service.JSONError(w, http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError), "")
 		return
 	}
 
-	creds, err := h.sr.ResetSecret(r.Context(), system)
+	creds, err := h.sr.ResetSecret(ctx, system)
 	if err != nil {
 		logger.Errorf("failed to reset secret: %v", err)
 		service.JSONError(w, http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError), "")
@@ -581,18 +567,16 @@ Responses:
 */
 func (h *adminHandler) getPublicKey(w http.ResponseWriter, r *http.Request) {
 	systemID := chi.URLParam(r, "systemID")
-	ssas.SetCtxEntry(r, "Op", "GetPublicKey")
-	logger := ssas.GetCtxLogger(r.Context())
-	logger.Infof("Operation Called: admin.getPublicKey()")
+	ctx, logger := ssas.SetCtxEntry(r, "Op", "getPublicKey")
 
-	system, err := h.sr.GetSystemByID(r.Context(), systemID)
+	system, err := h.sr.GetSystemByID(ctx, systemID)
 	if err != nil {
 		logger.Errorf("invalid system ID: %v", err)
 		service.JSONError(w, http.StatusNotFound, http.StatusText(http.StatusNotFound), "invalid system ID")
 		return
 	}
 
-	key, _ := h.sr.GetEncryptionKey(r.Context(), system)
+	key, _ := h.sr.GetEncryptionKey(ctx, system)
 	w.Header().Set("Content-Type", "application/json")
 	keyStr := strings.ReplaceAll(key.Body, "\n", "\\n")
 	fmt.Fprintf(w, `{ "client_id": "%s", "public_key": "%s" }`, system.ClientID, keyStr) // #nosec G705
@@ -621,24 +605,23 @@ Responses:
 */
 func (h *adminHandler) deactivateSystemCredentials(w http.ResponseWriter, r *http.Request) {
 	systemID := chi.URLParam(r, "systemID")
-	logger := ssas.GetCtxLogger(r.Context())
-	logger.Infof("Operation Called: admin.deactivateSystemCredentials()")
+	ctx, logger := ssas.SetCtxEntry(r, "Op", "deactivateSystemCredentials")
 
-	system, err := h.sr.GetSystemByID(r.Context(), systemID)
+	system, err := h.sr.GetSystemByID(ctx, systemID)
 	if err != nil {
 		logger.Errorf("failed to get system by ID %s, err: %v", systemID, err)
 		service.JSONError(w, http.StatusNotFound, http.StatusText(http.StatusNotFound), "invalid system ID")
 		return
 	}
 
-	xdata, err := h.gr.XDataFor(r.Context(), system)
+	xdata, err := h.gr.XDataFor(ctx, system)
 	if err != nil {
-		logger.Errorf("could not get group XData for clientID %s, err: %v", system.ClientID, err)
+		logger.Errorf("failed to get group XData for clientID %s, err: %v", system.ClientID, err)
 		service.JSONError(w, http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError), "")
 		return
 	}
 
-	err = h.sr.RevokeSecret(r.Context(), system)
+	err = h.sr.RevokeSecret(ctx, system)
 	if err != nil {
 		logger.Errorf("failed to revoke secret: %v", err)
 		service.JSONError(w, http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError), "")
@@ -670,9 +653,7 @@ func (h *adminHandler) deactivateSystemCredentials(w http.ResponseWriter, r *htt
 			500: serverError
 */
 func (h *adminHandler) revokeToken(w http.ResponseWriter, r *http.Request) {
-	ssas.SetCtxEntry(r, "Op", "RevokeToken")
-	logger := ssas.GetCtxLogger(r.Context())
-	logger.Infof("Operation Called: admin.revokeToken()")
+	ctx, logger := ssas.SetCtxEntry(r, "Op", "revokeToken")
 
 	tokenID := chi.URLParam(r, "tokenID")
 	if tokenID == "" {
@@ -680,7 +661,7 @@ func (h *adminHandler) revokeToken(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := service.TokenDenylist.DenylistToken(r.Context(), tokenID, service.TokenCacheLifetime); err != nil {
+	if err := service.TokenDenylist.DenylistToken(ctx, tokenID, service.TokenCacheLifetime); err != nil {
 		logger.Errorf("failed to denylist token: %v", err)
 		service.JSONError(w, http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError), "")
 	}
@@ -691,9 +672,7 @@ func (h *adminHandler) revokeToken(w http.ResponseWriter, r *http.Request) {
 
 func (h *adminHandler) registerIP(w http.ResponseWriter, r *http.Request) {
 	systemID := chi.URLParam(r, "systemID")
-	ssas.SetCtxEntry(r, "Op", "RegisterIP")
-	logger := ssas.GetCtxLogger(r.Context())
-	logger.Infof("Operation Called: admin.registerIP()")
+	ctx, logger := ssas.SetCtxEntry(r, "Op", "registerIP")
 	defer r.Body.Close()
 
 	input := IPAddressInput{}
@@ -703,7 +682,7 @@ func (h *adminHandler) registerIP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	system, err := h.sr.GetSystemByID(r.Context(), systemID)
+	system, err := h.sr.GetSystemByID(ctx, systemID)
 	if err != nil {
 		logger.Errorf("failed to retrieve system: %v", err)
 		service.JSONError(w, http.StatusNotFound, http.StatusText(http.StatusNotFound), "Invalid system ID")
@@ -716,7 +695,7 @@ func (h *adminHandler) registerIP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ip, err := h.sr.RegisterIP(r.Context(), system, input.Address)
+	ip, err := h.sr.RegisterIP(ctx, system, input.Address)
 	if err != nil {
 		// TODO there is another case where the IP address may be invalid
 		if strings.Contains(err.Error(), "can not create duplicate IP address") {
@@ -754,18 +733,16 @@ func (h *adminHandler) registerIP(w http.ResponseWriter, r *http.Request) {
 
 func (h *adminHandler) getSystemIPs(w http.ResponseWriter, r *http.Request) {
 	systemID := chi.URLParam(r, "systemID")
-	ssas.SetCtxEntry(r, "Op", "GetSystemIPs")
-	logger := ssas.GetCtxLogger(r.Context())
-	logger.Infof("Operation Called: admin.getSystemIPs()")
+	ctx, logger := ssas.SetCtxEntry(r, "Op", "getSystemIPs")
 
-	system, err := h.sr.GetSystemByID(r.Context(), systemID)
+	system, err := h.sr.GetSystemByID(ctx, systemID)
 	if err != nil {
 		logger.Errorf("failed to get system by ID %s, err: %v", systemID, err)
 		service.JSONError(w, http.StatusNotFound, http.StatusText(http.StatusNotFound), "Invalid system ID")
 		return
 	}
 
-	ips, err := h.sr.GetIps(r.Context(), system)
+	ips, err := h.sr.GetIps(ctx, system)
 	if err != nil {
 		logger.Errorf("Could not retrieve system ips: %v", err)
 		service.JSONError(w, http.StatusNotFound, http.StatusText(http.StatusNotFound), "")
@@ -812,18 +789,16 @@ Responses:
 func (h *adminHandler) deleteSystemIP(w http.ResponseWriter, r *http.Request) {
 	systemID := chi.URLParam(r, "systemID")
 	ipID := chi.URLParam(r, "id")
-	ssas.SetCtxEntry(r, "Op", "DeleteSystemIP")
-	logger := ssas.GetCtxLogger(r.Context())
-	logger.Infof("Operation Called: admin.deleteSystemIP()")
+	ctx, logger := ssas.SetCtxEntry(r, "Op", "deleteSystemIP")
 
-	system, err := h.sr.GetSystemByID(r.Context(), systemID)
+	system, err := h.sr.GetSystemByID(ctx, systemID)
 	if err != nil {
 		logger.Errorf("failed to get system by ID %s, err: %v", systemID, err)
 		service.JSONError(w, http.StatusNotFound, http.StatusText(http.StatusNotFound), "Invalid system ID")
 		return
 	}
 
-	err = h.sr.DeleteIP(r.Context(), system, ipID)
+	err = h.sr.DeleteIP(ctx, system, ipID)
 	if err != nil {
 		logger.Errorf("failed to delete IP: %v", err)
 		service.JSONError(w, http.StatusNotFound, http.StatusText(http.StatusNotFound), "failed to delete IP")
@@ -835,19 +810,17 @@ func (h *adminHandler) deleteSystemIP(w http.ResponseWriter, r *http.Request) {
 
 func (h *adminHandler) createToken(w http.ResponseWriter, r *http.Request) {
 	systemID := chi.URLParam(r, "systemID")
-	ssas.SetCtxEntry(r, "Op", "CreateToken")
-	logger := ssas.GetCtxLogger(r.Context())
-	logger.Infof("Operation Called: admin.createToken()")
+	ctx, logger := ssas.SetCtxEntry(r, "Op", "createToken")
 	defer r.Body.Close()
 
-	system, err := h.sr.GetSystemByID(r.Context(), systemID)
+	system, err := h.sr.GetSystemByID(ctx, systemID)
 	if err != nil {
 		logger.Errorf("failed to retrieve system: %v", err)
 		service.JSONError(w, http.StatusNotFound, http.StatusText(http.StatusNotFound), "Invalid system ID")
 		return
 	}
 
-	group, err := h.gr.GetGroupByGroupID(r.Context(), system.GroupID)
+	group, err := h.gr.GetGroupByGroupID(ctx, system.GroupID)
 	if err != nil {
 		logger.Errorf("failed to get group: %v", err)
 		service.JSONError(w, http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError), "")
@@ -875,7 +848,7 @@ func (h *adminHandler) createToken(w http.ResponseWriter, r *http.Request) {
 	}
 
 	expiration := time.Now().Add(cfg.MacaroonExpiration)
-	ct, m, err := h.sr.SaveClientToken(r.Context(), system, body["label"], group.XData, expiration)
+	ct, m, err := h.sr.SaveClientToken(ctx, system, body["label"], group.XData, expiration)
 	if err != nil {
 		logger.Errorf("failed to save client token: %v", err)
 		service.JSONError(w, http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError), "")
@@ -905,18 +878,16 @@ func (h *adminHandler) createToken(w http.ResponseWriter, r *http.Request) {
 func (h *adminHandler) deleteToken(w http.ResponseWriter, r *http.Request) {
 	systemID := chi.URLParam(r, "systemID")
 	tokenID := chi.URLParam(r, "id")
-	ssas.SetCtxEntry(r, "Op", "DeleteToken")
-	logger := ssas.GetCtxLogger(r.Context())
-	logger.Infof("Operation Called: admin.deleteToken()")
+	ctx, logger := ssas.SetCtxEntry(r, "Op", "deleteToken")
 
-	system, err := h.sr.GetSystemByID(r.Context(), systemID)
+	system, err := h.sr.GetSystemByID(ctx, systemID)
 	if err != nil {
 		logger.Errorf("failed to get system by ID: %s, err: %v", systemID, err)
 		service.JSONError(w, http.StatusNotFound, "Invalid system ID", "")
 		return
 	}
 
-	err = h.sr.DeleteClientToken(r.Context(), system, tokenID)
+	err = h.sr.DeleteClientToken(ctx, system, tokenID)
 	if err != nil {
 		logger.Errorf("failed to delete client token: %v", err)
 		service.JSONError(w, http.StatusInternalServerError, "Failed to delete client token", "")
@@ -928,12 +899,10 @@ func (h *adminHandler) deleteToken(w http.ResponseWriter, r *http.Request) {
 
 func (h *adminHandler) createKey(w http.ResponseWriter, r *http.Request) {
 	systemID := chi.URLParam(r, "systemID")
-	ssas.SetCtxEntry(r, "Op", "CreateKey")
-	logger := ssas.GetCtxLogger(r.Context())
-	logger.Infof("Operation Called: admin.createKey()")
+	ctx, logger := ssas.SetCtxEntry(r, "Op", "createKey")
 	defer r.Body.Close()
 
-	system, err := h.sr.GetSystemByID(r.Context(), systemID)
+	system, err := h.sr.GetSystemByID(ctx, systemID)
 	if err != nil {
 		logger.Errorf("failed to get system by ID: %s, err: %v", systemID, err)
 		service.JSONError(w, http.StatusNotFound, http.StatusText(http.StatusNotFound), "Invalid system ID")
@@ -968,18 +937,16 @@ func (h *adminHandler) createKey(w http.ResponseWriter, r *http.Request) {
 func (h *adminHandler) deleteKey(w http.ResponseWriter, r *http.Request) {
 	systemID := chi.URLParam(r, "systemID")
 	keyID := chi.URLParam(r, "id")
-	ssas.SetCtxEntry(r, "Op", "DeleteKey")
-	logger := ssas.GetCtxLogger(r.Context())
-	logger.Infof("Operation Called: admin.deleteKey()")
+	ctx, logger := ssas.SetCtxEntry(r, "Op", "deleteKey")
 
-	system, err := h.sr.GetSystemByID(r.Context(), systemID)
+	system, err := h.sr.GetSystemByID(ctx, systemID)
 	if err != nil {
 		logger.Errorf("failed to get system by ID: %s, err: %v", systemID, err)
 		service.JSONError(w, http.StatusNotFound, http.StatusText(http.StatusNotFound), "Invalid system ID")
 		return
 	}
 
-	if err := h.sr.DeleteEncryptionKey(r.Context(), system, keyID); err != nil {
+	if err := h.sr.DeleteEncryptionKey(ctx, system, keyID); err != nil {
 		logger.Errorf("failed to delete key: %v", err)
 		service.JSONError(w, http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError), "")
 		return

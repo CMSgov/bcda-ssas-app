@@ -88,8 +88,9 @@ func (h *publicHandler) getVersion(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *publicHandler) getHealthCheck(w http.ResponseWriter, r *http.Request) {
+	ctx, _ := ssas.SetCtxEntry(r, "Op", "getHealthCheck")
 	m := make(map[string]string)
-	if service.DoHealthCheck(r.Context(), h.db) {
+	if service.DoHealthCheck(ctx, h.db) {
 		m["database"] = "ok"
 		w.WriteHeader(http.StatusOK)
 	} else {
@@ -112,9 +113,7 @@ func (h *publicHandler) ResetSecret(w http.ResponseWriter, r *http.Request) {
 		credentials ssas.Credentials
 	)
 
-	ssas.SetCtxEntry(r, "Op", "ResetSecret")
-	logger := ssas.GetCtxLogger(r.Context())
-	logger.Info("Operation Called: public.ResetSecret()")
+	ctx, logger := ssas.SetCtxEntry(r, "Op", "ResetSecret")
 	defer r.Body.Close()
 	setHeaders(w)
 
@@ -136,7 +135,7 @@ func (h *publicHandler) ResetSecret(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if sys, err = h.sr.GetSystemByClientID(r.Context(), req.ClientID); err != nil {
+	if sys, err = h.sr.GetSystemByClientID(ctx, req.ClientID); err != nil {
 		logger.Errorf("failed to get system by client id %s, err: %v", req.ClientID, err)
 		service.JSONError(w, http.StatusBadRequest, http.StatusText(http.StatusNotFound), "client not found")
 		return
@@ -148,7 +147,7 @@ func (h *publicHandler) ResetSecret(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if credentials, err = h.sr.ResetSecret(r.Context(), sys); err != nil {
+	if credentials, err = h.sr.ResetSecret(ctx, sys); err != nil {
 		logger.Errorf("failed to reset secret: %v", err)
 		service.JSONError(w, http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError), "")
 		return
@@ -167,7 +166,7 @@ func (h *publicHandler) ResetSecret(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if _, err = w.Write(body); err != nil {
-		logger.Errorf("failure writing response body: %v", err)
+		logger.Errorf("failed to write response body: %v", err)
 		service.JSONError(w, http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError), "")
 		return
 	}
@@ -188,9 +187,7 @@ func (h *publicHandler) RegisterSystem(w http.ResponseWriter, r *http.Request) {
 		trackingID     string
 	)
 
-	ssas.SetCtxEntry(r, "Op", "RegisterSystem")
-	logger := ssas.GetCtxLogger(r.Context())
-	logger.Info("Operation Called: public.RegisterSystem()")
+	ctx, logger := ssas.SetCtxEntry(r, "Op", "RegisterSystem")
 	defer r.Body.Close()
 	setHeaders(w)
 
@@ -238,7 +235,7 @@ func (h *publicHandler) RegisterSystem(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	credentials, err := h.sr.RegisterSystem(r.Context(), reg.ClientName, rd.GroupID, reg.Scope, publicKeyPEM, reg.IPs, trackingID)
+	credentials, err := h.sr.RegisterSystem(ctx, reg.ClientName, rd.GroupID, reg.Scope, publicKeyPEM, reg.IPs, trackingID)
 	if err != nil {
 		logger.Errorf("failed to register system %v", err)
 		service.JSONError(w, http.StatusBadRequest, "invalid_client_metadata", "")
@@ -253,7 +250,7 @@ func (h *publicHandler) RegisterSystem(w http.ResponseWriter, r *http.Request) {
 	}
 	body, err := json.Marshal(response) // #nosec G117 -- Secret is included intentionally
 	if err != nil {
-		logger.WithField("resp_status", http.StatusInternalServerError).Errorf("failed to marshal JSON: %v", err)
+		logger.Errorf("failed to marshal JSON: %v", err)
 		service.JSONError(w, http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError), "")
 		return
 	}
@@ -268,8 +265,7 @@ func (h *publicHandler) RegisterSystem(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *publicHandler) token(w http.ResponseWriter, r *http.Request) {
-	ssas.SetCtxEntry(r, "Op", "token")
-	logger := ssas.GetCtxLogger(r.Context())
+	ctx, logger := ssas.SetCtxEntry(r, "Op", "token")
 	logger.Info("Calling Operation: public.token()")
 
 	clientID, secret, ok := r.BasicAuth()
@@ -279,20 +275,20 @@ func (h *publicHandler) token(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	system, err := h.sr.GetSystemByClientID(r.Context(), clientID)
+	system, err := h.sr.GetSystemByClientID(ctx, clientID)
 	if err != nil {
 		logger.Errorf("failed to get system by client id: %s, %v", clientID, err)
 		service.JSONError(w, http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized), "invalid client id")
 		return
 	}
-	err = h.ValidateSecret(system, secret, r)
+	err = h.ValidateSecret(ctx, system, secret, r)
 	if err != nil {
 		logger.Errorf("failed to validate client/secret: %v", err)
 		service.JSONError(w, http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized), err.Error())
 		return
 	}
 
-	data, err := h.gr.XDataFor(r.Context(), system)
+	data, err := h.gr.XDataFor(ctx, system)
 	if err != nil {
 		logger.Errorf("failed to get xdata for system %s: %v", system.ClientID, err)
 		service.JSONError(w, http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized), "no group for system")
@@ -302,12 +298,12 @@ func (h *publicHandler) token(w http.ResponseWriter, r *http.Request) {
 	claims := CreateCommonClaims("AccessToken", "", fmt.Sprintf("%d", system.ID), system.ClientID, data, "", nil)
 	token, ts, err := h.tc.GenerateToken(claims)
 	if err != nil {
-		logger.Errorf("failure minting token, %v", err)
+		logger.Errorf("failed to mint token, %v", err)
 		service.JSONError(w, http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized), "failure minting token")
 		return
 	}
 
-	err = h.sr.SaveTokenTime(r.Context(), system)
+	err = h.sr.SaveTokenTime(ctx, system)
 	if err != nil {
 		logger.Errorf("failed to save token time for %s", system.ClientID)
 	}
@@ -323,8 +319,8 @@ func (h *publicHandler) token(w http.ResponseWriter, r *http.Request) {
 	render.JSON(w, r, m)
 }
 
-func (h *publicHandler) ValidateSecret(system ssas.System, secret string, r *http.Request) (err error) {
-	savedSecret, err := h.sr.GetSecret(r.Context(), system)
+func (h *publicHandler) ValidateSecret(ctx context.Context, system ssas.System, secret string, r *http.Request) (err error) {
+	savedSecret, err := h.sr.GetSecret(ctx, system)
 	if !ssas.Hash(savedSecret.Hash).IsHashOf(secret) {
 		return errors.New(constants.InvalidClientSecret)
 	}
@@ -337,9 +333,7 @@ func (h *publicHandler) ValidateSecret(system ssas.System, secret string, r *htt
 
 func (h *publicHandler) tokenV2(w http.ResponseWriter, r *http.Request) {
 	trackingID := uuid.NewRandom().String()
-	ssas.SetCtxEntry(r, "Op", "token")
-	logger := ssas.GetCtxLogger(r.Context())
-	logger.Info("Operation Called: public.tokenV2()")
+	ctx, logger := ssas.SetCtxEntry(r, "Op", "tokenV2")
 	valError := validateClientAssertionParams(r)
 	if valError != "" {
 		logger.Error(valError)
@@ -348,7 +342,7 @@ func (h *publicHandler) tokenV2(w http.ResponseWriter, r *http.Request) {
 	}
 
 	tokenString := r.Form.Get("client_assertion")
-	token, err := parseClientSignedToken(r.Context(), tokenString, trackingID)
+	token, err := parseClientSignedToken(ctx, tokenString, trackingID)
 	if err != nil {
 		service.JSONError(w, http.StatusBadRequest, err.Error(), "")
 		return
@@ -387,13 +381,13 @@ func (h *publicHandler) tokenV2(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	system, err := h.sr.GetSystemByID(r.Context(), systemID)
+	system, err := h.sr.GetSystemByID(ctx, systemID)
 	if err != nil {
 		service.JSONError(w, http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized), "invalid issuer (iss) claim. system not found")
 		return
 	}
 
-	data, err := h.gr.XDataFor(r.Context(), system)
+	data, err := h.gr.XDataFor(ctx, system)
 	logger.Infof("public.api.token: XDataFor(%d) returned '%s'", system.ID, data)
 	if err != nil {
 		service.JSONError(w, http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized), "no group for system")
@@ -409,7 +403,7 @@ func (h *publicHandler) tokenV2(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = h.sr.SaveTokenTime(r.Context(), system)
+	err = h.sr.SaveTokenTime(ctx, system)
 	if err != nil {
 		logger.Error(err)
 	}
@@ -425,8 +419,7 @@ func (h *publicHandler) tokenV2(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *publicHandler) introspect(w http.ResponseWriter, r *http.Request) {
-	logger := ssas.GetCtxLogger(r.Context())
-
+	ctx, logger := ssas.SetCtxEntry(r, "Op", "introspect")
 	clientID, secret, ok := r.BasicAuth()
 
 	if !ok {
@@ -439,13 +432,13 @@ func (h *publicHandler) introspect(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	system, err := h.sr.GetSystemByClientID(r.Context(), clientID)
+	system, err := h.sr.GetSystemByClientID(ctx, clientID)
 	if err != nil {
 		service.JSONError(w, http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized), fmt.Sprintf("invalid client id; %s", err))
 		return
 	}
 
-	savedSecret, err := h.sr.GetSecret(r.Context(), system)
+	savedSecret, err := h.sr.GetSecret(ctx, system)
 	if err != nil {
 		service.JSONError(w, http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized), fmt.Sprintf("can't get secret; %s", err))
 		return
@@ -465,7 +458,7 @@ func (h *publicHandler) introspect(w http.ResponseWriter, r *http.Request) {
 	}
 	var answer = make(map[string]bool)
 	answer["active"] = true
-	if err = tokenValidity(r.Context(), reqV["token"], "AccessToken"); err != nil {
+	if err = tokenValidity(ctx, reqV["token"], "AccessToken"); err != nil {
 		logger.Infof("token failed tokenValidity, err: %+v", err)
 		answer["active"] = false
 	}
@@ -478,7 +471,7 @@ func (h *publicHandler) introspect(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *publicHandler) validateAndParseToken(w http.ResponseWriter, r *http.Request) {
-	logger := ssas.GetCtxLogger(r.Context())
+	ctx, logger := ssas.SetCtxEntry(r, "Op", "validateAndParseToken")
 	defer r.Body.Close()
 
 	var reqV map[string]string
@@ -494,7 +487,7 @@ func (h *publicHandler) validateAndParseToken(w http.ResponseWriter, r *http.Req
 	}
 	var response = make(map[string]interface{})
 
-	if err := tokenValidity(r.Context(), tokenS, "AccessToken"); err != nil {
+	if err := tokenValidity(ctx, tokenS, "AccessToken"); err != nil {
 		logger.Infof("token failed tokenValidity")
 		response["valid"] = false
 	} else {
@@ -507,7 +500,7 @@ func (h *publicHandler) validateAndParseToken(w http.ResponseWriter, r *http.Req
 		response["valid"] = true
 		response["data"] = claims["dat"]
 		response["system_data"] = claims["system_data"]
-		sys, err := h.sr.GetSystemByID(r.Context(), claims["sys"].(string))
+		sys, err := h.sr.GetSystemByID(ctx, claims["sys"].(string))
 		if err != nil {
 			logger.Error("could not get system id")
 			service.JSONError(w, http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError), "internal server error")

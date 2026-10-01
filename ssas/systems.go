@@ -141,7 +141,7 @@ func (r *GormSystemRepository) SaveClientToken(ctx context.Context, system Syste
 		ExpiresAt: rk.ExpiresAt,
 	}
 	if err := r.db.WithContext(ctx).Create(&ct).Error; err != nil {
-		return nil, "", fmt.Errorf("error saving client token for clientID %s: %w", system.ClientID, err)
+		return nil, "", err
 	}
 
 	return &ct, token, nil
@@ -190,7 +190,7 @@ func (r *GormSystemRepository) SaveSecret(ctx context.Context, system System, ha
 	}
 
 	if err := r.db.WithContext(ctx).Create(&secret).Error; err != nil {
-		return fmt.Errorf("error creating secret for clientID %s: %w", system.ClientID, err)
+		return err
 	}
 
 	return nil
@@ -202,11 +202,11 @@ func (r *GormSystemRepository) GetSecret(ctx context.Context, system System) (Se
 
 	err := r.db.WithContext(ctx).Where("system_id = ?", system.ID).First(&secret).Error
 	if err != nil {
-		return secret, fmt.Errorf("error getting secret for clientID %s: %w", system.ClientID, err)
+		return Secret{}, err
 	}
 
 	if strings.TrimSpace(secret.Hash) == "" {
-		return secret, fmt.Errorf("stored hash of secret for clientID %s is blank", system.ClientID)
+		return Secret{}, fmt.Errorf("stored hash of secret for clientID %s is blank", system.ClientID)
 	}
 
 	return secret, nil
@@ -226,7 +226,7 @@ func (r *GormSystemRepository) SaveTokenTime(ctx context.Context, system System)
 func (r *GormSystemRepository) RevokeSecret(ctx context.Context, system System) error {
 	err := r.deactivateSecrets(ctx, system)
 	if err != nil {
-		return fmt.Errorf("error revoking credentials for clientID %s: %w", system.ClientID, err)
+		return err
 	}
 	return nil
 }
@@ -235,7 +235,7 @@ func (r *GormSystemRepository) RevokeSecret(ctx context.Context, system System) 
 func (r *GormSystemRepository) deactivateSecrets(ctx context.Context, system System) error {
 	err := r.db.WithContext(ctx).Where("system_id = ?", system.ID).Delete(&Secret{}).Error
 	if err != nil {
-		return fmt.Errorf("error soft deleting previous secrets for clientID %s: %w", system.ClientID, err)
+		return err
 	}
 	return nil
 }
@@ -246,7 +246,7 @@ func (r *GormSystemRepository) GetEncryptionKey(ctx context.Context, system Syst
 
 	err := r.db.WithContext(ctx).First(&encryptionKey, "system_id = ?", system.ID).Error
 	if err != nil {
-		return encryptionKey, fmt.Errorf("error finding key for clientID %s: %w", system.ClientID, err)
+		return EncryptionKey{}, err
 	}
 
 	return encryptionKey, nil
@@ -258,7 +258,7 @@ func (r *GormSystemRepository) FindEncryptionKey(ctx context.Context, system Sys
 
 	err := r.db.WithContext(ctx).First(&encryptionKey, "system_id = ? AND uuid=?", system.ID, keyId).Error
 	if err != nil {
-		return encryptionKey, fmt.Errorf("error finding key for systemId %d and keyId %s: %w", system.ID, keyId, err)
+		return EncryptionKey{}, err
 	}
 
 	return encryptionKey, nil
@@ -270,7 +270,7 @@ func (r *GormSystemRepository) GetEncryptionKeys(ctx context.Context, system Sys
 
 	err := r.db.WithContext(ctx).Where("system_id = ?", system.ID).Find(&encryptionKeys).Error
 	if err != nil {
-		return encryptionKeys, fmt.Errorf("error finding keys for clientID %s: %w", system.ClientID, err)
+		return []EncryptionKey{}, err
 	}
 
 	return encryptionKeys, nil
@@ -285,7 +285,7 @@ func (r *GormSystemRepository) DeleteEncryptionKey(ctx context.Context, system S
 	var encryptionKey EncryptionKey
 	err := r.db.WithContext(ctx).Where("system_id = ? AND uuid = ?", system.ID, keyID).Delete(&encryptionKey).Error
 	if err != nil {
-		return fmt.Errorf("error finding key to delete for clientID %s: %w", system.ClientID, err)
+		return err
 	}
 
 	return nil
@@ -300,7 +300,7 @@ func (r *GormSystemRepository) SavePublicKey(tx *gorm.DB, system System, publicK
 
 	key, err := ReadPublicKey(string(k))
 	if err != nil {
-		return nil, fmt.Errorf("invalid public key for clientID %s: %w", system.ClientID, err)
+		return nil, err
 	}
 	if key == nil {
 		return nil, fmt.Errorf("invalid public key for clientID %s", system.ClientID)
@@ -322,13 +322,13 @@ func (r *GormSystemRepository) SavePublicKey(tx *gorm.DB, system System, publicK
 		// Only one key should be valid per system.  Soft delete the currently active key, if any.
 		err = tx.Where("system_id = ?", system.ID).Delete(&EncryptionKey{}).Error
 		if err != nil {
-			return nil, fmt.Errorf("error soft deleting previous encryption keys for clientID %s: %w", system.ClientID, err)
+			return nil, err
 		}
 	}
 
 	err = tx.Create(&encryptionKey).Error
 	if err != nil {
-		return nil, fmt.Errorf("error saving public key for clientID %s: %w", system.ClientID, err)
+		return nil, err
 	}
 
 	return &encryptionKey, nil
@@ -340,12 +340,12 @@ func (r *GormSystemRepository) DeleteIP(ctx context.Context, system System, ipID
 
 	err := r.db.WithContext(ctx).First(&ip, "system_id = ? AND id = ?", system.ID, ipID).Error
 	if err != nil {
-		return fmt.Errorf("error finding IP address with ID %s: %w", ipID, err)
+		return err
 	}
 
 	err = r.db.WithContext(ctx).Delete(&ip).Error
 	if err != nil {
-		return fmt.Errorf("error soft deleting IP address with ID %s: %w", ipID, err)
+		return err
 	}
 
 	return nil
@@ -355,7 +355,7 @@ func (r *GormSystemRepository) GetIPs(system System) ([]string, error) {
 	var ips []string
 
 	if err := r.db.Model(&IP{}).Where("system_id = ? AND deleted_at IS NULL", system.ID).Pluck("address", &ips).Error; err != nil {
-		return ips, fmt.Errorf("error finding IP's with system_id %d: %w", system.ID, err)
+		return ips, err
 	}
 
 	return ips, nil
@@ -365,7 +365,7 @@ func (r *GormSystemRepository) GetIPsData(ctx context.Context, system System) ([
 	var ips []IP
 
 	if err := r.db.WithContext(ctx).Find(&ips, "system_id = ? AND deleted_at IS NULL", system.ID).Error; err != nil {
-		return ips, fmt.Errorf("error finding IP's with system_id %d: %w", system.ID, err)
+		return ips, err
 	}
 
 	return ips, nil
@@ -422,7 +422,7 @@ func (r *GormSystemRepository) RegisterIP(ctx context.Context, system System, ad
 
 	err := r.db.WithContext(ctx).Create(&ip).Error
 	if err != nil {
-		return IP{}, fmt.Errorf("error saving IP %s: %w", address, err)
+		return IP{}, err
 	}
 	return ip, nil
 }
@@ -432,7 +432,7 @@ func (r *GormSystemRepository) GetIps(ctx context.Context, system System) ([]IP,
 
 	err := r.db.WithContext(ctx).Find(&ips, "system_id=? AND deleted_at IS NULL", system.ID).Error
 	if err != nil {
-		return ips, fmt.Errorf("error getting IPs for system_id %d: %w", system.ID, err)
+		return ips, err
 	}
 
 	return ips, nil
@@ -503,7 +503,7 @@ func (r *GormSystemRepository) registerSystem(ctx context.Context, input SystemI
 	var group Group
 	err = tx.WithContext(ctx).First(&group, "group_id = ?", input.GroupID).Error
 	if err != nil && errors.Is(err, gorm.ErrRecordNotFound) {
-		return creds, fmt.Errorf("error finding group with ID %s: %w", input.GroupID, err)
+		return creds, err
 	}
 
 	system := System{
@@ -517,7 +517,7 @@ func (r *GormSystemRepository) registerSystem(ctx context.Context, input SystemI
 	}
 	err = tx.Create(&system).Error
 	if err != nil {
-		return creds, fmt.Errorf("error creating system for clientID %s, groupID %s: %w", clientID, input.GroupID, err)
+		return creds, err
 	}
 
 	for _, address := range input.IPs {
@@ -534,7 +534,7 @@ func (r *GormSystemRepository) registerSystem(ctx context.Context, input SystemI
 		err = tx.Create(&ip).Error
 		if err != nil {
 			tx.Rollback()
-			return creds, fmt.Errorf("error creating IP %s: %w", address, err)
+			return creds, err
 		}
 	}
 
@@ -577,7 +577,7 @@ func (r *GormSystemRepository) registerSystem(ctx context.Context, input SystemI
 		err = tx.Create(&secret).Error
 		if err != nil {
 			tx.Rollback()
-			return creds, fmt.Errorf("error saving secret for clientID %s: %w", system.ClientID, err)
+			return creds, err
 		}
 
 		creds.ClientSecret = clientSecret
@@ -586,7 +586,7 @@ func (r *GormSystemRepository) registerSystem(ctx context.Context, input SystemI
 
 	err = tx.Commit().Error
 	if err != nil {
-		return creds, fmt.Errorf("error committing transaction for registering new system with groupID %s: %w", input.GroupID, err)
+		return creds, err
 	}
 
 	creds.SystemID = fmt.Sprint(system.ID)
@@ -602,13 +602,13 @@ func VerifySignature(pubKey *rsa.PublicKey, signatureStr string) error {
 
 	signature, err := base64.StdEncoding.DecodeString(signatureStr)
 	if err != nil {
-		return fmt.Errorf("error decoding signature string: %w", err)
+		return err
 	}
 
 	hash := sha256.Sum256([]byte(snippet))
 	err = rsa.VerifyPKCS1v15(pubKey, crypto.SHA256, hash[:], signature)
 	if err != nil {
-		return fmt.Errorf("error verifying signature: %w", err)
+		return err
 	}
 
 	return nil
@@ -618,18 +618,18 @@ func VerifySignature(pubKey *rsa.PublicKey, signatureStr string) error {
 func GetSystemsByGroupIDString(ctx context.Context, groupId string) ([]System, error) {
 	db, err := CreateDB()
 	if err != nil {
-		return nil, fmt.Errorf("error connecting to DB: %w", err)
+		return nil, err
 	}
 
 	conn, err := db.DB()
 	if err != nil {
-		return nil, fmt.Errorf("error getting DB connection: %w", err)
+		return nil, err
 	}
 	defer conn.Close()
 
 	var systems []System
 	if err = db.WithContext(ctx).Where("group_id = ? AND deleted_at IS NULL", groupId).Find(&systems).Error; err != nil {
-		err = fmt.Errorf("error finding systems with group_id %s: %w", groupId, err)
+		return nil, err
 	}
 
 	return systems, err
@@ -643,7 +643,7 @@ func GetSGAKeyByGroupID(ctx context.Context, db *gorm.DB, groupID string) (strin
 	)
 
 	if err = db.WithContext(ctx).Where("group_id = ? AND deleted_at IS NULL", groupID).Find(&systems).Error; err != nil {
-		err = fmt.Errorf("error finding systems with group_id %s: %w", groupID, err)
+		return "", err
 	}
 
 	if len(systems) > 0 {
@@ -718,7 +718,7 @@ func (r *GormSystemRepository) UpdateSystem(ctx context.Context, id string, v ma
 
 	err = r.db.WithContext(ctx).Save(&sys).Error
 	if err != nil {
-		return System{}, fmt.Errorf("error updating system with ID %s: %w", id, err)
+		return System{}, err
 	}
 
 	return sys, nil

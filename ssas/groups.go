@@ -144,7 +144,7 @@ func (g *GormGroupRepository) CreateGroup(ctx context.Context, gd GroupData) (Gr
 	}
 	err := g.db.WithContext(ctx).Save(&group).Error
 	if err != nil {
-		return Group{}, fmt.Errorf("error creating group with ID %s: %w", gd.GroupID, err)
+		return Group{}, err
 	}
 
 	return group, nil
@@ -154,7 +154,7 @@ func (g *GormGroupRepository) ListGroups(ctx context.Context) (list GroupList, e
 	groups := []GroupSummary{}
 	err = g.db.WithContext(ctx).Table("groups").Where("deleted_at IS NULL").Preload("Systems").Find(&groups).Error
 	if err != nil {
-		return list, fmt.Errorf("error finding groups: %w", err)
+		return GroupList{}, err
 	}
 
 	list.Count = len(groups)
@@ -191,7 +191,7 @@ func (g *GormGroupRepository) UpdateGroup(ctx context.Context, id string, gd Gro
 	group.Data = gd
 	err = g.db.WithContext(ctx).Save(&group).Error
 	if err != nil {
-		return Group{}, fmt.Errorf("error updating group with ID %s: %w", id, err)
+		return Group{}, err
 	}
 
 	return group, nil
@@ -234,7 +234,7 @@ func (g *GormGroupRepository) cascadeDeleteGroup(ctx context.Context, group Grou
 
 	err := tx.Commit().Error
 	if err != nil {
-		return fmt.Errorf("error deleting group and related records: %w", err)
+		return err
 	}
 
 	return nil
@@ -243,7 +243,7 @@ func (g *GormGroupRepository) cascadeDeleteGroup(ctx context.Context, group Grou
 func (g *GormGroupRepository) GetGroupByGroupID(ctx context.Context, groupID string) (group Group, err error) {
 	err = g.db.WithContext(ctx).First(&group, "group_id = ?", groupID).Error
 	if err != nil {
-		return Group{}, fmt.Errorf("error finding group with group_id %s: %w", groupID, err)
+		return Group{}, err
 	}
 
 	return group, nil
@@ -253,12 +253,12 @@ func (g *GormGroupRepository) GetGroupByGroupID(ctx context.Context, groupID str
 func (g *GormGroupRepository) GetGroupByID(ctx context.Context, id string) (group Group, err error) {
 	id1, err := strconv.ParseUint(id, 10, 64)
 	if err != nil {
-		return Group{}, fmt.Errorf("invalid input %s: %w", id, err)
+		return Group{}, err
 	}
 
 	err = g.db.WithContext(ctx).First(&group, id1).Error
 	if err != nil {
-		return Group{}, fmt.Errorf("error finding group with ID %s: %w", id, err)
+		return Group{}, err
 	}
 
 	skipSGAAuthCheck := fmt.Sprintf("%v", ctx.Value(constants.CtxSGASkipAuthKey))
@@ -277,7 +277,7 @@ func (g *GormGroupRepository) GetGroupByID(ctx context.Context, id string) (grou
 // DataForSystem returns the group extra data associated with this system
 func (g *GormGroupRepository) XDataFor(ctx context.Context, system System) (string, error) {
 	if system.GID > math.MaxInt {
-		return "", fmt.Errorf("group id uint overflow converting to int")
+		return "", fmt.Errorf("group id %v uint overflow converting to int", system.GID)
 	}
 	group, err := g.GetGroupByID(ctx, strconv.Itoa(int(system.GID)))
 	if err != nil {
