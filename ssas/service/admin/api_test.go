@@ -161,6 +161,7 @@ func (s *APITestSuite) TestCreateGroup() {
 	handler.ServeHTTP(rr, req)
 	entries := logHook.AllEntries()
 
+	require.Len(s.T(), entries, 1)
 	assert.Contains(s.T(), entries[0].Data, "Op")
 	assert.Contains(s.T(), entries[0].Data, "transaction_id")
 
@@ -251,7 +252,7 @@ func (s *APITestSuite) TestCreateGroupMarshalErr() {
 	if len(entries) == 0 {
 		s.T().FailNow()
 	}
-	assert.GreaterOrEqual(s.T(), len(entries), 0)
+	require.Len(s.T(), entries, 2)
 	assert.Contains(s.T(), entries[1].Message, "failed to marshal JSON")
 }
 
@@ -436,7 +437,7 @@ func (s *APITestSuite) TestUpdateGroupUnmarshalErr() {
 	handler.ServeHTTP(rr, req)
 	assert.Equal(s.T(), http.StatusBadRequest, rr.Result().StatusCode)
 	entries := logHook.AllEntries()
-	assert.Equal(s.T(), len(entries), 2)
+	assert.Equal(s.T(), 1, len(entries))
 }
 
 func (s *APITestSuite) TestUpdateGroupMarshalErr() {
@@ -464,7 +465,7 @@ func (s *APITestSuite) TestUpdateGroupMarshalErr() {
 
 	assert.Equal(s.T(), http.StatusInternalServerError, rr.Result().StatusCode)
 	entries := logHook.AllEntries()
-	assert.GreaterOrEqual(s.T(), len(entries), 0)
+	require.Len(s.T(), entries, 2)
 	assert.Contains(s.T(), entries[1].Message, "failed to marshal JSON")
 }
 
@@ -599,6 +600,7 @@ func (s *APITestSuite) TestCreateSystemNoGroup() {
 
 	assert.Equal(s.T(), http.StatusInternalServerError, rr.Result().StatusCode)
 	entries := logHook.AllEntries()
+	require.Len(s.T(), entries, 2)
 	assert.Contains(s.T(), entries[1].Message, "could not get group XData")
 }
 
@@ -621,8 +623,8 @@ func (s *APITestSuite) TestCreateSystemMarshalErr() {
 
 	assert.Equal(s.T(), http.StatusInternalServerError, rr.Result().StatusCode)
 	entries := logHook.AllEntries()
-	assert.GreaterOrEqual(s.T(), len(entries), 0)
-	assert.Contains(s.T(), entries[2].Message, "failed to marshal JSON")
+	require.Len(s.T(), entries, 1)
+	assert.Contains(s.T(), entries[0].Message, "failed to marshal JSON")
 }
 
 func (s *APITestSuite) TestCreateSystemMultipleIps() {
@@ -828,7 +830,7 @@ func (s *APITestSuite) TestResetCredentialsMarshalErr() {
 
 	assert.Equal(s.T(), http.StatusInternalServerError, rr.Result().StatusCode)
 	entries := logHook.AllEntries()
-	assert.GreaterOrEqual(s.T(), len(entries), 0)
+	require.Len(s.T(), entries, 3)
 	assert.Contains(s.T(), entries[2].Message, "failed to marshal JSON")
 }
 
@@ -886,6 +888,7 @@ func (s *APITestSuite) TestResetCredentialsResetSecretErr() {
 	assert.Equal(s.T(), http.StatusInternalServerError, rr.Result().StatusCode)
 
 	entries := logHook.AllEntries()
+	require.Len(s.T(), entries, 2)
 	assert.Contains(s.T(), entries[1].Message, "failed to reset secret:")
 
 }
@@ -1128,7 +1131,7 @@ func (s *APITestSuite) TestDeactivateSystemCredentialsRevokeSecretErr() {
 
 	assert.Equal(s.T(), http.StatusInternalServerError, rr.Result().StatusCode)
 	entries := logHook.AllEntries()
-	require.Len(s.T(), entries, 2)
+	require.Len(s.T(), entries, 1)
 }
 
 func (s *APITestSuite) TestJSONError() {
@@ -1237,6 +1240,7 @@ func (s *APITestSuite) TestGetSystemIPsGetIpsErr() {
 	assert.Equal(s.T(), http.StatusNotFound, rr.Result().StatusCode)
 
 	entries := logHook.AllEntries()
+	require.Len(s.T(), entries, 2)
 	assert.Contains(s.T(), entries[1].Message, "Could not retrieve system ips")
 }
 
@@ -1306,7 +1310,7 @@ func (s *APITestSuite) TestRegisterSystemIPRegisterIPErr() {
 	handler.ServeHTTP(rr, req)
 	assert.Equal(s.T(), http.StatusInternalServerError, rr.Result().StatusCode)
 	entries := logHook.AllEntries()
-	assert.GreaterOrEqual(s.T(), len(entries), 0)
+	require.Len(s.T(), entries, 2)
 	assert.Contains(s.T(), entries[1].Message, "foo")
 }
 
@@ -1336,6 +1340,7 @@ func (s *APITestSuite) TestRegisterSystemIPMarshalErr() {
 	assert.Equal(s.T(), http.StatusInternalServerError, rr.Result().StatusCode)
 	entries := logHook.AllEntries()
 	assert.GreaterOrEqual(s.T(), len(entries), 0)
+	require.Len(s.T(), entries, 3)
 	assert.Contains(s.T(), entries[2].Message, "failed to marshal JSON")
 }
 
@@ -1725,8 +1730,8 @@ func (s *APITestSuite) TestCreateV2SystemMarshalErr() {
 
 	assert.Equal(s.T(), http.StatusInternalServerError, rr.Result().StatusCode)
 	entries := logHook.AllEntries()
-	assert.GreaterOrEqual(s.T(), len(entries), 0)
-	assert.Contains(s.T(), entries[1].Message, "failed to marshal JSON")
+	require.Len(s.T(), entries, 1)
+	assert.Contains(s.T(), entries[0].Message, "failed to marshal JSON")
 }
 
 func (s *APITestSuite) TestCreateV2SystemWithMissingPublicKey() {
@@ -1921,7 +1926,7 @@ func (s *APITestSuite) TestGetV2SystemNoIPs() {
 	rr := httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
 	entries := logHook.AllEntries()
-	assert.Len(s.T(), entries, 2)
+	assert.Len(s.T(), entries, 1)
 
 	resp := rr.Result()
 	assert.Equal(s.T(), resp.StatusCode, 404)
@@ -1956,7 +1961,7 @@ func (s *APITestSuite) TestGetV2SystemClientToken() {
 	handler.ServeHTTP(rr, req)
 	entries := logHook.AllEntries()
 
-	require.Len(s.T(), entries, 2)
+	require.Len(s.T(), entries, 1)
 	resp := rr.Result()
 	assert.Equal(s.T(), resp.StatusCode, 404)
 }
@@ -1990,7 +1995,7 @@ func (s *APITestSuite) TestGetV2SystemEncryptionKeys() {
 	handler.ServeHTTP(rr, req)
 	entries := logHook.AllEntries()
 
-	require.Len(s.T(), entries, 2)
+	require.Len(s.T(), entries, 1)
 	resp := rr.Result()
 	assert.Equal(s.T(), resp.StatusCode, 404)
 }

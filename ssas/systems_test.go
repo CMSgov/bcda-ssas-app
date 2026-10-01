@@ -89,7 +89,7 @@ func (s *SystemsTestSuite) TestFindEncryptionKeyNotFound() {
 
 	_, err := s.r.FindEncryptionKey(s.skipAuthContext(), sys, "", uuid.NewRandom().String())
 	assert.NotNil(err)
-	assert.Contains(err.Error(), "error finding key for systemId")
+	assert.Contains(err.Error(), "record not found")
 
 	err = CleanDatabase(group)
 	assert.Nil(err)
@@ -103,7 +103,7 @@ func (s *SystemsTestSuite) TestFindEncryptionKeyForAnotherSystem() {
 	_, err := s.r.FindEncryptionKey(context.Background(), sys1, "", kid2)
 
 	assert.NotNil(err)
-	assert.Contains(err.Error(), "error finding key for systemId")
+	assert.Contains(err.Error(), "record not found")
 
 	err = CleanDatabase(group1)
 	assert.Nil(err)
@@ -271,17 +271,17 @@ func (s *SystemsTestSuite) TestSystemPublicKeyEmpty() {
 	assert.Nil(err)
 
 	_, err = s.r.SavePublicKey(s.db, system, strings.NewReader(""), "", true)
-	assert.EqualError(err, fmt.Sprintf("invalid public key for clientID %s: not able to decode PEM-formatted public key", clientID))
+	assert.EqualError(err, "not able to decode PEM-formatted public key")
 
 	k, err := s.r.GetEncryptionKey(s.skipAuthContext(), system)
-	assert.EqualError(err, fmt.Sprintf("error finding key for clientID %s: record not found", clientID))
+	assert.EqualError(err, "record not found")
 	assert.Empty(k, "Empty string does not yield empty encryption key!")
 
 	_, err = s.r.SavePublicKey(s.db, system, strings.NewReader(emptyPEM), "", true)
-	assert.EqualError(err, fmt.Sprintf("invalid public key for clientID %s: not able to decode PEM-formatted public key", clientID))
+	assert.EqualError(err, "not able to decode PEM-formatted public key")
 
 	k, err = s.r.GetEncryptionKey(s.skipAuthContext(), system)
-	assert.EqualError(err, fmt.Sprintf("error finding key for clientID %s: record not found", clientID))
+	assert.EqualError(err, "record not found")
 	assert.Empty(k, "Empty PEM key does not yield empty encryption key!")
 
 	_, err = s.r.SavePublicKey(s.db, system, strings.NewReader(validPEM), "", true)
@@ -621,7 +621,7 @@ func (s *SystemsTestSuite) TestRegisterSystemBadKey() {
 			assert.NotEmpty(creds)
 		}
 		if tc.err {
-			assert.ErrorContains(err, "invalid public key for clientID")
+			assert.ErrorContains(err, "error saving public key for clientID")
 		} else {
 			assert.Nil(err)
 		}
