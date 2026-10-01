@@ -104,7 +104,7 @@ func (s *APITestSuite) SetupSuite() {
 }
 
 func (s *APITestSuite) SetupTest() {
-	fieldLogger := ssas.GetCtxLogger(s.T().Context())
+	fieldLogger := ssas.GetCtxLogger(s.ctx)
 	s.logger = ssas.GetLogger(fieldLogger)
 }
 
@@ -1278,7 +1278,6 @@ func (s *APITestSuite) TestRegisterSystemIP() {
 }
 
 func (s *APITestSuite) TestRegisterSystemIPRegisterIPErr() {
-
 	sr := new(ssas.SystemRepositoryMock)
 	m := new(MarshalerMock)
 	h := NewAdminHandler(sr, s.gr, s.db, m)
@@ -1304,7 +1303,6 @@ func (s *APITestSuite) TestRegisterSystemIPRegisterIPErr() {
 }
 
 func (s *APITestSuite) TestRegisterSystemIPMarshalErr() {
-
 	sr := new(ssas.SystemRepositoryMock)
 	m := new(MarshalerMock)
 	h := NewAdminHandler(sr, s.gr, s.db, m)

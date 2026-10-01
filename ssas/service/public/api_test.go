@@ -1,7 +1,6 @@
 package public
 
 import (
-	"bytes"
 	"context"
 	"crypto/rsa"
 	"encoding/json"
@@ -58,9 +57,6 @@ func (s *APITestSuite) SetupSuite() {
 	s.assertAud = "http://local.testing.cms.gov/api/v2/Token/auth"
 	service.StartDenylist()
 	s.logEntry = MakeTestStructuredLoggerEntry(logrus.Fields{"cms_id": "A9999", "request_id": uuid.NewUUID().String()})
-
-	s.ctx = context.WithValue(context.Background(), constants.CtxSGAKey, "test-sga")
-	s.ctx = context.WithValue(context.Background(), constants.CtxSGASkipAuthKey, "true")
 }
 
 func (s *APITestSuite) SetupTest() {
@@ -70,6 +66,8 @@ func (s *APITestSuite) SetupTest() {
 	s.gr = ssas.NewGroupRepository(s.db)
 	s.sr = ssas.NewSystemRepository(s.db)
 	s.rr = httptest.NewRecorder()
+	s.ctx = context.WithValue(s.T().Context(), constants.CtxSGAKey, "test-sga")
+	s.ctx = context.WithValue(s.T().Context(), constants.CtxSGASkipAuthKey, "true")
 }
 
 func (s *APITestSuite) TearDownTest() {
@@ -591,18 +589,10 @@ func (s *APITestSuite) TestTokenEmptyClientIdProduces401() {
 }
 
 func (s *APITestSuite) testIntrospectFlaw(flaw service.TokenFlaw, errorText string) {
-	var (
-		signingKeyPath string
-		origLog        io.Writer
-		buf            bytes.Buffer
-	)
+	var signingKeyPath string
 	fieldLogger := ssas.GetCtxLogger(s.ctx)
 	logger := ssas.GetLogger(fieldLogger)
-	origLog = logger.Out
-	logger.SetOutput(&buf)
-	defer func() {
-		logger.SetOutput(origLog)
-	}()
+	logHook := test.NewLocal(logger)
 
 	if flaw == service.BadSigner {
 		signingKeyPath = s.badSigningKeyPath
@@ -640,11 +630,14 @@ func (s *APITestSuite) testIntrospectFlaw(flaw service.TokenFlaw, errorText stri
 	handler.ServeHTTP(s.rr, req)
 	assert.Equal(s.T(), http.StatusOK, s.rr.Code)
 
+	entries := logHook.AllEntries()
+	require.Len(s.T(), entries, 1)
+
 	var v map[string]bool
 	assert.NoError(s.T(), json.NewDecoder(s.rr.Body).Decode(&v))
 	assert.NotEmpty(s.T(), v)
 	assert.False(s.T(), v["active"], fmt.Sprintf("Unexpected success using bad token with flaw %v", flaw))
-	assert.Regexpf(s.T(), regexp.MustCompile(errorText), buf.String(), fmt.Sprintf("Unable to find evidence of flaw %v in logs", flaw))
+	assert.Regexpf(s.T(), regexp.MustCompile(errorText), entries[0].Message, fmt.Sprintf("Unable to find evidence of flaw %v in logs", flaw))
 	assert.NoError(s.T(), ssas.CleanDatabase(group))
 }
 
