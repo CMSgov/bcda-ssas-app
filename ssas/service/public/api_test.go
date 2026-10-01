@@ -596,7 +596,7 @@ func (s *APITestSuite) testIntrospectFlaw(flaw service.TokenFlaw, errorText stri
 		origLog        io.Writer
 		buf            bytes.Buffer
 	)
-	fieldLogger := ssas.GetCtxLogger(s.T().Context())
+	fieldLogger := ssas.GetCtxLogger(s.ctx)
 	logger := ssas.GetLogger(fieldLogger)
 	origLog = logger.Out
 	logger.SetOutput(&buf)

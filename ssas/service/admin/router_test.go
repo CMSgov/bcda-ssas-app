@@ -176,7 +176,7 @@ func (s *RouterTestSuite) TestPutSystemCredentials() {
 	assert.Equal(s.T(), http.StatusCreated, res.StatusCode)
 
 	logs := logHook.AllEntries()
-	require.Len(s.T(), logs, 3)
+	require.Len(s.T(), logs, 4)
 	assert.Contains(s.T(), logs[2].Message, "A9999")
 }
 

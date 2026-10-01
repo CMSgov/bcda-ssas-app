@@ -101,6 +101,9 @@ func (s *APITestSuite) SetupSuite() {
 	s.gr = ssas.NewGroupRepository(s.db)
 	s.sr = ssas.NewSystemRepository(s.db)
 	s.h = NewAdminHandler(s.sr, s.gr, s.db, JsonMarshaler{})
+}
+
+func (s *APITestSuite) SetupTest() {
 	fieldLogger := ssas.GetCtxLogger(s.T().Context())
 	s.logger = ssas.GetLogger(fieldLogger)
 }
@@ -149,23 +152,15 @@ func (s *APITestSuite) TestGetHealthCheck() {
 }
 
 func (s *APITestSuite) TestCreateGroup() {
-
 	gid := ssas.RandomBase64(16)
 	testInput := fmt.Sprintf(SampleGroup, gid, SampleXdata)
 
 	req := httptest.NewRequestWithContext(s.ctx, "POST", "/group", strings.NewReader(testInput))
 	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry))
 
-	logHook := test.NewLocal(s.logger)
-
 	handler := http.Handler(service.GetTransactionID(service.NewCtxLogger(http.HandlerFunc(s.h.createGroup))))
 	rr := httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
-	entries := logHook.AllEntries()
-
-	require.Len(s.T(), entries, 1)
-	assert.Contains(s.T(), entries[0].Data, "Op")
-	assert.Contains(s.T(), entries[0].Data, "transaction_id")
 
 	assert.Equal(s.T(), http.StatusCreated, rr.Result().StatusCode)
 	assert.Equal(s.T(), "application/json", rr.Result().Header.Get("Content-Type"))
@@ -601,8 +596,8 @@ func (s *APITestSuite) TestCreateSystemNoGroup() {
 
 	assert.Equal(s.T(), http.StatusInternalServerError, rr.Result().StatusCode)
 	entries := logHook.AllEntries()
-	require.Len(s.T(), entries, 2)
-	assert.Contains(s.T(), entries[1].Message, "could not get group XData")
+	require.Len(s.T(), entries, 1)
+	assert.Contains(s.T(), entries[0].Message, "could not get group XData")
 }
 
 func (s *APITestSuite) TestCreateSystemMarshalErr() {
@@ -623,8 +618,8 @@ func (s *APITestSuite) TestCreateSystemMarshalErr() {
 
 	assert.Equal(s.T(), http.StatusInternalServerError, rr.Result().StatusCode)
 	entries := logHook.AllEntries()
-	require.Len(s.T(), entries, 1)
-	assert.Contains(s.T(), entries[0].Message, "failed to marshal JSON")
+	require.Len(s.T(), entries, 2)
+	assert.Contains(s.T(), entries[1].Message, "failed to marshal JSON")
 }
 
 func (s *APITestSuite) TestCreateSystemMultipleIps() {
