@@ -367,6 +367,8 @@ func (s *Server) VerifyToken(tokenString string) (*jwt.Token, error) {
 	return jwt.ParseWithClaims(tokenString, &CommonClaims{}, keyFunc, jwt.WithIssuedAt(), jwt.WithExpirationRequired())
 }
 
+// VerifyClientSignedToken verifies a client-signed JWT using the public key associated with the system.
+// The errors returned here need to be fairly generic as they are returned as part of the http response to clients
 func (s *Server) VerifyClientSignedToken(ctx context.Context, tokenString string, trackingId string) (*jwt.Token, error) {
 	keyFunc := func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodRSA); !ok {

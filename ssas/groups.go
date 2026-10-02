@@ -267,7 +267,7 @@ func (g *GormGroupRepository) GetGroupByID(ctx context.Context, id string) (grou
 		requesterSGAKey := fmt.Sprintf("%v", ctx.Value(constants.CtxSGAKey))
 
 		if err != nil || sgaKeyFromGroupID != requesterSGAKey {
-			return group, fmt.Errorf("error authorizing requesting system (%+v) to group with groupID: %v: %+v", requesterSGAKey, group.GroupID, err)
+			return Group{}, fmt.Errorf("error authorizing requesting system (%+v) to group with groupID: %v: %+v", requesterSGAKey, group.GroupID, err)
 		}
 	}
 

@@ -713,7 +713,7 @@ func (h *adminHandler) registerIP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	logger.Infof("token created for client: %s", system.ClientID)
+	logger.Infof("IP registered for client: %s", system.ClientID)
 
 	ipJson, err := h.m.Marshal(ip)
 	if err != nil {

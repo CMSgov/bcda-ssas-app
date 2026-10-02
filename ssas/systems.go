@@ -502,7 +502,7 @@ func (r *GormSystemRepository) registerSystem(ctx context.Context, input SystemI
 
 	var group Group
 	err = tx.WithContext(ctx).First(&group, "group_id = ?", input.GroupID).Error
-	if err != nil && errors.Is(err, gorm.ErrRecordNotFound) {
+	if err != nil {
 		return creds, err
 	}
 

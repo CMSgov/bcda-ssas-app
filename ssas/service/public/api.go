@@ -344,6 +344,7 @@ func (h *publicHandler) tokenV2(w http.ResponseWriter, r *http.Request) {
 	tokenString := r.Form.Get("client_assertion")
 	token, err := parseClientSignedToken(ctx, tokenString, trackingID)
 	if err != nil {
+		// the errors returned here are fairly generic so ok to pass through to clients, see server.VerifyClientSignedToken for details
 		service.JSONError(w, http.StatusBadRequest, err.Error(), "")
 		return
 	}
@@ -434,13 +435,13 @@ func (h *publicHandler) introspect(w http.ResponseWriter, r *http.Request) {
 
 	system, err := h.sr.GetSystemByClientID(ctx, clientID)
 	if err != nil {
-		service.JSONError(w, http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized), fmt.Sprintf("invalid client id; %s", err))
+		service.JSONError(w, http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized), "invalid client id")
 		return
 	}
 
 	savedSecret, err := h.sr.GetSecret(ctx, system)
 	if err != nil {
-		service.JSONError(w, http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized), fmt.Sprintf("can't get secret; %s", err))
+		service.JSONError(w, http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized), "can't get secret")
 		return
 	}
 

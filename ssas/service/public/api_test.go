@@ -67,7 +67,7 @@ func (s *APITestSuite) SetupTest() {
 	s.sr = ssas.NewSystemRepository(s.db)
 	s.rr = httptest.NewRecorder()
 	s.ctx = context.WithValue(s.T().Context(), constants.CtxSGAKey, "test-sga")
-	s.ctx = context.WithValue(s.T().Context(), constants.CtxSGASkipAuthKey, "true")
+	s.ctx = context.WithValue(s.ctx, constants.CtxSGASkipAuthKey, "true")
 }
 
 func (s *APITestSuite) TearDownTest() {
