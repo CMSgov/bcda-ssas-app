@@ -94,6 +94,7 @@ func (s *AdminMiddlewareTestSuite) TestRequireBasicAuthExpired() {
 func testAuth(base64Creds string, statusCode int, s *AdminMiddlewareTestSuite, customHandlers ...func(http.Handler) http.Handler) *http.Response {
 	handlers := append([]func(http.Handler) http.Handler{s.h.requireBasicAuth}, customHandlers...)
 	s.server = httptest.NewServer(s.CreateRouter(handlers...))
+	defer s.server.Close()
 	client := s.server.Client()
 
 	// Valid credentials should return a 200 response

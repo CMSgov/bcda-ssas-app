@@ -67,7 +67,7 @@ func empty(arr []string) bool {
 }
 
 func tokenValidity(ctx context.Context, tokenString string, requiredTokenType string) error {
-	logger := ssas.GetCtxLogger(ctx)
+	_, logger := ssas.GetCtxLogger(ctx)
 
 	t, err := server.VerifyToken(tokenString)
 	if err != nil {

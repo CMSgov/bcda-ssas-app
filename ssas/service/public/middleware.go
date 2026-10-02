@@ -13,7 +13,6 @@ import (
 	"github.com/CMSgov/bcda-ssas-app/ssas/constants"
 	"github.com/CMSgov/bcda-ssas-app/ssas/service"
 	"github.com/patrickmn/go-cache"
-	"github.com/sirupsen/logrus"
 	"gorm.io/gorm"
 )
 
@@ -43,7 +42,7 @@ func (h *publicMiddlewareHandler) readGroupID(next http.Handler) http.Handler {
 			err error
 		)
 
-		logger := ssas.GetCtxLogger(r.Context())
+		ctx, logger := ssas.GetCtxLogger(r.Context())
 
 		if rd, err = readRegData(r); err != nil {
 			logger.Println("no data from token about allowed groups")
@@ -63,12 +62,13 @@ func (h *publicMiddlewareHandler) readGroupID(next http.Handler) http.Handler {
 			return
 		}
 
-		ctx := context.WithValue(r.Context(), "rd", rd) //nolint:staticcheck
+		ctx = context.WithValue(ctx, "rd", rd) //nolint:staticcheck
 		ssas.SetCtxEntry(r, "rd", rd)
 
 		sgaKey, err := ssas.GetSGAKeyByGroupID(r.Context(), h.db, rd.GroupID)
 		if err == nil {
-			r = r.WithContext(context.WithValue(r.Context(), constants.CtxSGAKey, sgaKey))
+			r = r.WithContext(context.WithValue(ctx, constants.CtxSGAKey, sgaKey))
+			ctx = r.Context()
 		}
 
 		next.ServeHTTP(w, r.WithContext(ctx))
@@ -80,8 +80,8 @@ func (h *publicMiddlewareHandler) readGroupID(next http.Handler) http.Handler {
 // occurs in requireRegTokenAuth() or requireMFATokenAuth().
 func (h *publicMiddlewareHandler) parseToken(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		event := logrus.Fields{"Op": "ParseToken"}
-		logger := ssas.GetCtxLogger(r.Context()).WithFields(event)
+		ctx, logger := ssas.SetCtxEntry(r, "Op", "ParseToken")
+
 		authHeader := r.Header.Get("Authorization")
 		if authHeader == "" {
 			helpMsg := "no authorization header found"
@@ -120,8 +120,8 @@ func (h *publicMiddlewareHandler) parseToken(next http.Handler) http.Handler {
 			rd.AllowedGroupIDs = claims.GroupIDs
 			rd.OktaID = claims.OktaID
 		}
-		ctx := context.WithValue(r.Context(), "ts", tokenString) //nolint:staticcheck
-		ctx = context.WithValue(ctx, "rd", rd)                   //nolint:staticcheck
+		ctx = context.WithValue(ctx, "ts", tokenString) //nolint:staticcheck
+		ctx = context.WithValue(ctx, "rd", rd)          //nolint:staticcheck
 		ssas.SetCtxEntry(r, "rd", rd)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
@@ -195,7 +195,7 @@ const invalidACOIDSentinel = "__INVALID_ACO_ID__"
 
 func (h *publicMiddlewareHandler) TokenRateLimitMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		logger := ssas.GetCtxLogger(r.Context()).WithField("Op", "TokenRateLimit")
+		ctx, logger := ssas.SetCtxEntry(r, "Op", "TokenRateLimit")
 
 		clientID, _, ok := r.BasicAuth()
 		if !ok || clientID == "" {
@@ -215,7 +215,7 @@ func (h *publicMiddlewareHandler) TokenRateLimitMiddleware(next http.Handler) ht
 			}
 		} else {
 			// Query DB via SystemRepository
-			system, err := h.sr.GetSystemByClientID(r.Context(), clientID)
+			system, err := h.sr.GetSystemByClientID(ctx, clientID)
 			if err != nil {
 				// Cache the lookup failure (negative caching) for 1 minute
 				h.clientIDToACOIDCache.Set(clientID, invalidACOIDSentinel, time.Minute)
@@ -225,7 +225,7 @@ func (h *publicMiddlewareHandler) TokenRateLimitMiddleware(next http.Handler) ht
 			}
 
 			// Parse ACO ID from Group's XData
-			acoID, err = ssas.GetACOIDFromSystem(r.Context(), system, h.gr)
+			acoID, err = ssas.GetACOIDFromSystem(ctx, system, h.gr)
 			if err != nil {
 				// Cache the lookup failure (negative caching) for 1 minute
 				h.clientIDToACOIDCache.Set(clientID, invalidACOIDSentinel, time.Minute)

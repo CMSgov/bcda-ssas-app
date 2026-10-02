@@ -11,14 +11,12 @@ import (
 func WriteHTTPSError(w http.ResponseWriter, e ssas.ErrorResponse, errorStatus int) {
 	fallbackMessage := fmt.Sprintf(`{"error": "%s", "error_description": "%s"}`, http.StatusText(http.StatusInternalServerError), http.StatusText(http.StatusInternalServerError))
 	body, err := json.Marshal(e)
-
 	if err != nil {
 		http.Error(w, fallbackMessage, http.StatusInternalServerError)
 	}
 
 	w.WriteHeader(errorStatus)
 	_, err = w.Write(body)
-
 	if err != nil {
 		http.Error(w, fallbackMessage, http.StatusInternalServerError)
 	}
@@ -29,5 +27,4 @@ func JSONError(w http.ResponseWriter, errorStatus int, statusText string, status
 	e := ssas.ErrorResponse{Error: statusText, ErrorDescription: statusDescription}
 
 	WriteHTTPSError(w, e, errorStatus)
-
 }

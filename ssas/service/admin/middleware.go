@@ -46,10 +46,10 @@ func (h *adminMiddlewareHandler) requireBasicAuth(next http.Handler) http.Handle
 
 		// skip auth checks if requester is us
 		if system.SGAKey == "bcda" {
-			r = r.WithContext(context.WithValue(ctx, constants.CtxSGASkipAuthKey, "true"))
+			r = r.WithContext(context.WithValue(r.Context(), constants.CtxSGASkipAuthKey, "true"))
 		}
 
-		savedSecret, err := h.sr.GetSecret(ctx, system)
+		savedSecret, err := h.sr.GetSecret(r.Context(), system)
 		if err != nil || !ssas.Hash(savedSecret.Hash).IsHashOf(secret) {
 			logger.Warningf("failed to validate client secret for client ID %s, err: %v", clientID, err)
 			service.JSONError(w, http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized), "invalid client secret")

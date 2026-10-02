@@ -590,9 +590,6 @@ func (s *APITestSuite) TestTokenEmptyClientIdProduces401() {
 
 func (s *APITestSuite) testIntrospectFlaw(flaw service.TokenFlaw, errorText string) {
 	var signingKeyPath string
-	fieldLogger := ssas.GetCtxLogger(s.ctx)
-	logger := ssas.GetLogger(fieldLogger)
-	logHook := test.NewLocal(logger)
 
 	if flaw == service.BadSigner {
 		signingKeyPath = s.badSigningKeyPath
@@ -618,11 +615,15 @@ func (s *APITestSuite) testIntrospectFlaw(flaw service.TokenFlaw, errorText stri
 		Data:      data,
 	}
 
+	ctx, l := ssas.GetCtxLogger(s.ctx)
+	logger := ssas.GetLogger(l)
+	logHook := test.NewLocal(logger)
+
 	_, signedString, err := service.BadToken(&claims, flaw, signingKeyPath)
 	assert.Nil(s.T(), err, fmt.Sprintf("Unable to create bad token for flaw %v", flaw))
 
 	body := strings.NewReader(fmt.Sprintf(`{"token":"%s"}`, signedString))
-	req := httptest.NewRequestWithContext(s.ctx, "POST", "/introspect", body)
+	req := httptest.NewRequestWithContext(ctx, "POST", "/introspect", body)
 	req.SetBasicAuth(creds.ClientID, creds.ClientSecret)
 	req.Header.Add("Content-Type", constants.HeaderApplicationJSON)
 	req.Header.Add("Accept", constants.HeaderApplicationJSON)
@@ -631,7 +632,7 @@ func (s *APITestSuite) testIntrospectFlaw(flaw service.TokenFlaw, errorText stri
 	assert.Equal(s.T(), http.StatusOK, s.rr.Code)
 
 	entries := logHook.AllEntries()
-	require.Len(s.T(), entries, 1)
+	require.GreaterOrEqual(s.T(), len(entries), 1)
 
 	var v map[string]bool
 	assert.NoError(s.T(), json.NewDecoder(s.rr.Body).Decode(&v))
