@@ -26,19 +26,23 @@ func NewAdminMiddlewareHandler(db *gorm.DB) *adminMiddlewareHandler {
 
 func (h *adminMiddlewareHandler) requireBasicAuth(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx, logger := ssas.SetCtxEntry(r, "Op", "AdminAuth")
+
 		clientID, secret, ok := r.BasicAuth()
 		if !ok {
+			logger.Error("failed to get basic auth creds")
 			service.JSONError(w, http.StatusBadRequest, http.StatusText(http.StatusBadRequest), "")
 			return
 		}
 
-		system, err := h.sr.GetSystemByClientID(r.Context(), clientID)
+		system, err := h.sr.GetSystemByClientID(ctx, clientID)
 		if err != nil {
+			logger.Errorf("failed to get system by client ID %s, err: %v", clientID, err)
 			service.JSONError(w, http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized), "invalid client id")
 			return
 		}
 
-		r = r.WithContext(context.WithValue(r.Context(), constants.CtxSGAKey, system.SGAKey))
+		r = r.WithContext(context.WithValue(ctx, constants.CtxSGAKey, system.SGAKey))
 
 		// skip auth checks if requester is us
 		if system.SGAKey == "bcda" {
@@ -47,11 +51,13 @@ func (h *adminMiddlewareHandler) requireBasicAuth(next http.Handler) http.Handle
 
 		savedSecret, err := h.sr.GetSecret(r.Context(), system)
 		if err != nil || !ssas.Hash(savedSecret.Hash).IsHashOf(secret) {
+			logger.Warningf("failed to validate client secret for client ID %s, err: %v", clientID, err)
 			service.JSONError(w, http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized), "invalid client secret")
 			return
 		}
 
 		if savedSecret.IsExpired() {
+			logger.Warningf("client secret for client ID %s has expired", clientID)
 			service.JSONError(w, http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized), "credentials expired")
 			return
 		}

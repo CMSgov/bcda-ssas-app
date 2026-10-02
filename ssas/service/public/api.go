@@ -88,8 +88,9 @@ func (h *publicHandler) getVersion(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *publicHandler) getHealthCheck(w http.ResponseWriter, r *http.Request) {
+	ctx, _ := ssas.SetCtxEntry(r, "Op", "getHealthCheck")
 	m := make(map[string]string)
-	if service.DoHealthCheck(r.Context(), h.db) {
+	if service.DoHealthCheck(ctx, h.db) {
 		m["database"] = "ok"
 		w.WriteHeader(http.StatusOK)
 	} else {
@@ -110,11 +111,11 @@ func (h *publicHandler) ResetSecret(w http.ResponseWriter, r *http.Request) {
 		sys         ssas.System
 		bodyStr     []byte
 		credentials ssas.Credentials
-		//event       ssas.Event
 	)
-	setHeaders(w)
 
-	logger := ssas.GetCtxLogger(r.Context())
+	ctx, logger := ssas.SetCtxEntry(r, "Op", "ResetSecret")
+	defer r.Body.Close()
+	setHeaders(w)
 
 	if rd, err = readRegData(r); err != nil || rd.GroupID == "" {
 		logger.Error("missing or invalid GroupID")
@@ -123,19 +124,19 @@ func (h *publicHandler) ResetSecret(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if bodyStr, err = io.ReadAll(r.Body); err != nil {
-		logger.Error("invalid_client_metadata: request body cannot be read")
+		logger.Errorf("failed to read request body: %v", err)
 		service.JSONError(w, http.StatusBadRequest, "invalid_client_metadata", "Request body cannot be read")
 		return
 	}
 
 	if err = json.Unmarshal(bodyStr, &req); err != nil {
-		ssas.SetCtxEntry(r, "bodyStr", bodyStr)
+		logger.Errorf("failed to unmarshal request body: %v", err)
 		service.JSONError(w, http.StatusBadRequest, "invalid_client_metadata", "Request body cannot be parsed")
 		return
 	}
 
-	if sys, err = h.sr.GetSystemByClientID(r.Context(), req.ClientID); err != nil {
-		logger.Error("failed to get retrieve system by client id: client not found")
+	if sys, err = h.sr.GetSystemByClientID(ctx, req.ClientID); err != nil {
+		logger.Errorf("failed to get system by client id %s, err: %v", req.ClientID, err)
 		service.JSONError(w, http.StatusBadRequest, http.StatusText(http.StatusNotFound), "client not found")
 		return
 	}
@@ -146,10 +147,8 @@ func (h *publicHandler) ResetSecret(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ssas.SetCtxEntry(r, "Op", "ResetSecret")
-	logger.Info("Operation Called: public.ResetSecret()")
-	if credentials, err = h.sr.ResetSecret(r.Context(), sys); err != nil {
-		logger.Error("failed to reset secret")
+	if credentials, err = h.sr.ResetSecret(ctx, sys); err != nil {
+		logger.Errorf("failed to reset secret: %v", err)
 		service.JSONError(w, http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError), "")
 		return
 	}
@@ -162,12 +161,12 @@ func (h *publicHandler) ResetSecret(w http.ResponseWriter, r *http.Request) {
 	}
 	body, err := json.Marshal(response) // #nosec G117 -- Secret is included intentionally
 	if err != nil {
-		logger.Error("failed to marshal JSON: ", err)
+		logger.Errorf("failed to marshal JSON: %v", err)
 		service.JSONError(w, http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError), "")
 		return
 	}
 	if _, err = w.Write(body); err != nil {
-		logger.Error("failure writing response body: " + err.Error())
+		logger.Errorf("failed to write response body: %v", err)
 		service.JSONError(w, http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError), "")
 		return
 	}
@@ -188,8 +187,9 @@ func (h *publicHandler) RegisterSystem(w http.ResponseWriter, r *http.Request) {
 		trackingID     string
 	)
 
+	ctx, logger := ssas.SetCtxEntry(r, "Op", "RegisterSystem")
+	defer r.Body.Close()
 	setHeaders(w)
-	logger := ssas.GetCtxLogger(r.Context())
 
 	if rd, err = readRegData(r); err != nil || rd.GroupID == "" {
 		logger.Error("missing or invalid GroupID")
@@ -200,7 +200,7 @@ func (h *publicHandler) RegisterSystem(w http.ResponseWriter, r *http.Request) {
 
 	bodyStr, err := io.ReadAll(r.Body)
 	if err != nil {
-		logger.Error("invalid_client_metadata: request body cannot be read")
+		logger.Errorf("failed to read request body: %v", err)
 		// Response types and format specified in RFC 7591 https://tools.ietf.org/html/rfc7591#section-3.2.2
 		service.JSONError(w, http.StatusBadRequest, "invalid_client_metadata", "Request body cannot be read")
 		return
@@ -208,7 +208,7 @@ func (h *publicHandler) RegisterSystem(w http.ResponseWriter, r *http.Request) {
 
 	err = json.Unmarshal(bodyStr, &reg)
 	if err != nil {
-		logger.Error("invalid_client_metadata: request body cannot be parsed")
+		logger.Errorf("failed to parse request body: %v", err)
 		service.JSONError(w, http.StatusBadRequest, "invalid_client_metadata", "Request body cannot be parsed")
 		return
 	}
@@ -222,25 +222,22 @@ func (h *publicHandler) RegisterSystem(w http.ResponseWriter, r *http.Request) {
 
 		publicKeyBytes, err = json.Marshal(reg.JSONWebKeys.Keys[0])
 		if err != nil {
-			logger.Error("failed to marshal JSON: ", err)
+			logger.Errorf("failed to marshal JSON: %v", err)
 			service.JSONError(w, http.StatusBadRequest, "invalid_client_metadata", "Unable to read JWK")
 			return
 		}
 
 		publicKeyPEM, err = ssas.ConvertJWKToPEM(string(publicKeyBytes))
 		if err != nil {
-			logger.Error("invalid_client_metadata: Unable to process JWK")
+			logger.Errorf("failed to process JWK: %v", err)
 			service.JSONError(w, http.StatusBadRequest, "invalid_client_metadata", "Unable to process JWK")
 			return
 		}
 	}
 
-	// Log the source of the call for this operation.  Remaining logging will be in ssas.RegisterSystem() below.
-	ssas.SetCtxEntry(r, "Op", "RegisterSystem")
-	logger.Info("Operation Called: public.RegisterSystem()")
-	credentials, err := h.sr.RegisterSystem(r.Context(), reg.ClientName, rd.GroupID, reg.Scope, publicKeyPEM, reg.IPs, trackingID)
+	credentials, err := h.sr.RegisterSystem(ctx, reg.ClientName, rd.GroupID, reg.Scope, publicKeyPEM, reg.IPs, trackingID)
 	if err != nil {
-		logger.Error("failed to register system")
+		logger.Errorf("failed to register system %v", err)
 		service.JSONError(w, http.StatusBadRequest, "invalid_client_metadata", "")
 		return
 	}
@@ -253,7 +250,7 @@ func (h *publicHandler) RegisterSystem(w http.ResponseWriter, r *http.Request) {
 	}
 	body, err := json.Marshal(response) // #nosec G117 -- Secret is included intentionally
 	if err != nil {
-		logger.WithField("resp_status", http.StatusInternalServerError).Error("failed to marshal JSON: ", err)
+		logger.Errorf("failed to marshal JSON: %v", err)
 		service.JSONError(w, http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError), "")
 		return
 	}
@@ -261,28 +258,15 @@ func (h *publicHandler) RegisterSystem(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusCreated)
 	_, err = w.Write(body)
 	if err != nil {
+		logger.Errorf("failed to write response body: %v", err)
 		service.JSONError(w, http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError), "")
 		return
 	}
 }
 
-func readRegData(r *http.Request) (data ssas.AuthRegData, err error) {
-	var ok bool
-	data, ok = r.Context().Value("rd").(ssas.AuthRegData)
-	if !ok {
-		err = errors.New("no registration data in context")
-	}
-	return
-}
-
-func setHeaders(w http.ResponseWriter) {
-	w.Header().Set("Content-Type", "application/json")
-	w.Header().Set("Cache-Control", "no-store")
-	w.Header().Set("Pragma", "no-cache")
-}
-
 func (h *publicHandler) token(w http.ResponseWriter, r *http.Request) {
-	logger := ssas.GetCtxLogger(r.Context())
+	ctx, logger := ssas.SetCtxEntry(r, "Op", "token")
+	logger.Info("Calling Operation: public.token()")
 
 	clientID, secret, ok := r.BasicAuth()
 	if !ok {
@@ -291,44 +275,39 @@ func (h *publicHandler) token(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	system, err := h.sr.GetSystemByClientID(r.Context(), clientID)
+	system, err := h.sr.GetSystemByClientID(ctx, clientID)
 	if err != nil {
-		logger.Errorf("The client id %s is invalid", err.Error())
+		logger.Errorf("failed to get system by client id: %s, %v", clientID, err)
 		service.JSONError(w, http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized), "invalid client id")
 		return
 	}
-	err = h.ValidateSecret(system, secret, r)
+	err = h.ValidateSecret(ctx, system, secret, r)
 	if err != nil {
-		logger.Error("The client id and secret cannot be validated: ", err.Error())
+		logger.Errorf("failed to validate client/secret: %v", err)
 		service.JSONError(w, http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized), err.Error())
 		return
 	}
 
-	data, err := h.gr.XDataFor(r.Context(), system)
-	logger.Infof("public.api.token: XDataFor(%d) returned '%s'", system.ID, data)
+	data, err := h.gr.XDataFor(ctx, system)
 	if err != nil {
-		logger.Error("no group for system: ", err.Error())
+		logger.Errorf("failed to get xdata for system %s: %v", system.ClientID, err)
 		service.JSONError(w, http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized), "no group for system")
 		return
 	}
 
-	ssas.SetCtxEntry(r, "Op", "token")
-	logger.Info("Calling Operation: public.token()")
-
 	claims := CreateCommonClaims("AccessToken", "", fmt.Sprintf("%d", system.ID), system.ClientID, data, "", nil)
-
 	token, ts, err := h.tc.GenerateToken(claims)
 	if err != nil {
-		logger.Error("failure minting token")
+		logger.Errorf("failed to mint token, %v", err)
 		service.JSONError(w, http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized), "failure minting token")
 		return
 	}
 
-	err = h.sr.SaveTokenTime(r.Context(), system)
+	err = h.sr.SaveTokenTime(ctx, system)
 	if err != nil {
-		logger.Error("failed to save token time for ", system.ClientID)
+		logger.Errorf("failed to save token time for %s", system.ClientID)
 	}
-	logger.Info("token created in group %s with XData: %s", system.GroupID, data)
+	logger.Infof("token created in group %s with XData: %s", system.GroupID, data)
 
 	// https://tools.ietf.org/html/rfc6749#section-5.1
 	// expires_in is duration in seconds
@@ -340,8 +319,8 @@ func (h *publicHandler) token(w http.ResponseWriter, r *http.Request) {
 	render.JSON(w, r, m)
 }
 
-func (h *publicHandler) ValidateSecret(system ssas.System, secret string, r *http.Request) (err error) {
-	savedSecret, err := h.sr.GetSecret(r.Context(), system)
+func (h *publicHandler) ValidateSecret(ctx context.Context, system ssas.System, secret string, r *http.Request) (err error) {
+	savedSecret, err := h.sr.GetSecret(ctx, system)
 	if !ssas.Hash(savedSecret.Hash).IsHashOf(secret) {
 		return errors.New(constants.InvalidClientSecret)
 	}
@@ -354,9 +333,7 @@ func (h *publicHandler) ValidateSecret(system ssas.System, secret string, r *htt
 
 func (h *publicHandler) tokenV2(w http.ResponseWriter, r *http.Request) {
 	trackingID := uuid.NewRandom().String()
-	ssas.SetCtxEntry(r, "Op", "token")
-	logger := ssas.GetCtxLogger(r.Context())
-	logger.Info("Operation Called: public.tokenV2()")
+	ctx, logger := ssas.SetCtxEntry(r, "Op", "tokenV2")
 	valError := validateClientAssertionParams(r)
 	if valError != "" {
 		logger.Error(valError)
@@ -365,8 +342,9 @@ func (h *publicHandler) tokenV2(w http.ResponseWriter, r *http.Request) {
 	}
 
 	tokenString := r.Form.Get("client_assertion")
-	token, err := parseClientSignedToken(r.Context(), tokenString, trackingID)
+	token, err := parseClientSignedToken(ctx, tokenString, trackingID)
 	if err != nil {
+		// the errors returned here are fairly generic so ok to pass through to clients, see server.VerifyClientSignedToken for details
 		service.JSONError(w, http.StatusBadRequest, err.Error(), "")
 		return
 	}
@@ -404,13 +382,13 @@ func (h *publicHandler) tokenV2(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	system, err := h.sr.GetSystemByID(r.Context(), systemID)
+	system, err := h.sr.GetSystemByID(ctx, systemID)
 	if err != nil {
 		service.JSONError(w, http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized), "invalid issuer (iss) claim. system not found")
 		return
 	}
 
-	data, err := h.gr.XDataFor(r.Context(), system)
+	data, err := h.gr.XDataFor(ctx, system)
 	logger.Infof("public.api.token: XDataFor(%d) returned '%s'", system.ID, data)
 	if err != nil {
 		service.JSONError(w, http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized), "no group for system")
@@ -426,7 +404,7 @@ func (h *publicHandler) tokenV2(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = h.sr.SaveTokenTime(r.Context(), system)
+	err = h.sr.SaveTokenTime(ctx, system)
 	if err != nil {
 		logger.Error(err)
 	}
@@ -439,6 +417,129 @@ func (h *publicHandler) tokenV2(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "no-store")
 	w.Header().Set("Pragma", "no-cache")
 	render.JSON(w, r, m)
+}
+
+func (h *publicHandler) introspect(w http.ResponseWriter, r *http.Request) {
+	ctx, logger := ssas.SetCtxEntry(r, "Op", "introspect")
+	clientID, secret, ok := r.BasicAuth()
+
+	if !ok {
+		service.JSONError(w, http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized), "invalid auth header")
+		return
+	}
+
+	if clientID == "" || secret == "" {
+		service.JSONError(w, http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized), "empty value in clientID and/or secret")
+		return
+	}
+
+	system, err := h.sr.GetSystemByClientID(ctx, clientID)
+	if err != nil {
+		service.JSONError(w, http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized), "invalid client id")
+		return
+	}
+
+	savedSecret, err := h.sr.GetSecret(ctx, system)
+	if err != nil {
+		service.JSONError(w, http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized), "can't get secret")
+		return
+	}
+
+	if !ssas.Hash(savedSecret.Hash).IsHashOf(secret) {
+		service.JSONError(w, http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized), "invalid client secret")
+		return
+	}
+
+	defer r.Body.Close()
+
+	var reqV map[string]string
+	if err = json.NewDecoder(r.Body).Decode(&reqV); err != nil {
+		service.JSONError(w, http.StatusBadRequest, http.StatusText(http.StatusBadRequest), "invalid body")
+		return
+	}
+	var answer = make(map[string]bool)
+	answer["active"] = true
+	if err = tokenValidity(ctx, reqV["token"], "AccessToken"); err != nil {
+		logger.Infof("token failed tokenValidity, err: %+v", err)
+		answer["active"] = false
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Cache-Control", "no-store")
+	w.Header().Set("Pragma", "no-cache")
+
+	render.JSON(w, r, answer)
+}
+
+func (h *publicHandler) validateAndParseToken(w http.ResponseWriter, r *http.Request) {
+	ctx, logger := ssas.SetCtxEntry(r, "Op", "validateAndParseToken")
+	defer r.Body.Close()
+
+	var reqV map[string]string
+	if err := json.NewDecoder(r.Body).Decode(&reqV); err != nil {
+		logger.Errorf("failed to decode json: %v", err)
+		service.JSONError(w, http.StatusBadRequest, http.StatusText(http.StatusBadRequest), "invalid request body")
+		return
+	}
+	tokenS := reqV["token"]
+	if tokenS == "" {
+		service.JSONError(w, http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized), `missing "token" field in body`)
+		return
+	}
+	var response = make(map[string]interface{})
+
+	if err := tokenValidity(ctx, tokenS, "AccessToken"); err != nil {
+		logger.Infof("token failed tokenValidity")
+		response["valid"] = false
+	} else {
+		claims := jwt.MapClaims{}
+		if _, _, err := new(jwt.Parser).ParseUnverified(tokenS, claims); err != nil {
+			logger.Error("could not unmarshal access token")
+			service.JSONError(w, http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError), "internal server error")
+			return
+		}
+		response["valid"] = true
+		response["data"] = claims["dat"]
+		response["system_data"] = claims["system_data"]
+		sys, err := h.sr.GetSystemByID(ctx, claims["sys"].(string))
+		if err != nil {
+			logger.Error("could not get system id")
+			service.JSONError(w, http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError), "internal server error")
+			return
+		}
+		response["scope"] = sys.APIScope
+	}
+	w.Header().Set("Content-Type", "application/json")
+	render.JSON(w, r, response)
+}
+
+func publicInfo() map[string][]string {
+	infoMap := make(map[string][]string)
+	infoMap["banner"] = []string{fmt.Sprintf("%s server running on port %s", "public", ":3003")}
+
+	routes, err := server.ListRoutes()
+	if err != nil {
+		infoMap["routes"] = []string{"error listing routes"}
+	} else {
+		infoMap["routes"] = routes
+	}
+
+	return infoMap
+}
+
+func readRegData(r *http.Request) (data ssas.AuthRegData, err error) {
+	var ok bool
+	data, ok = r.Context().Value("rd").(ssas.AuthRegData)
+	if !ok {
+		err = errors.New("no registration data in context")
+	}
+	return
+}
+
+func setHeaders(w http.ResponseWriter) {
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Cache-Control", "no-store")
+	w.Header().Set("Pragma", "no-cache")
 }
 
 func validateClientAssertionParams(r *http.Request) string {
@@ -478,114 +579,4 @@ func validateClientAssertionParams(r *http.Request) string {
 
 func parseClientSignedToken(ctx context.Context, jwt string, trackingID string) (*jwt.Token, error) {
 	return server.VerifyClientSignedToken(ctx, jwt, trackingID)
-}
-
-func (h *publicHandler) introspect(w http.ResponseWriter, r *http.Request) {
-	logger := ssas.GetCtxLogger(r.Context())
-
-	clientID, secret, ok := r.BasicAuth()
-
-	if !ok {
-		service.JSONError(w, http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized), "invalid auth header")
-		return
-	}
-
-	if clientID == "" || secret == "" {
-		msg := "empty value in clientID and/or secret"
-		service.JSONError(w, http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized), msg)
-		return
-	}
-
-	system, err := h.sr.GetSystemByClientID(r.Context(), clientID)
-	if err != nil {
-		service.JSONError(w, http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized), fmt.Sprintf("invalid client id; %s", err))
-		return
-	}
-
-	savedSecret, err := h.sr.GetSecret(r.Context(), system)
-	if err != nil {
-		service.JSONError(w, http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized), fmt.Sprintf("can't get secret; %s", err))
-		return
-	}
-
-	if !ssas.Hash(savedSecret.Hash).IsHashOf(secret) {
-		service.JSONError(w, http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized), "invalid client secret")
-		return
-	}
-
-	defer r.Body.Close()
-
-	var reqV map[string]string
-	if err = json.NewDecoder(r.Body).Decode(&reqV); err != nil {
-		service.JSONError(w, http.StatusBadRequest, http.StatusText(http.StatusBadRequest), "invalid body")
-		return
-	}
-	var answer = make(map[string]bool)
-	answer["active"] = true
-	if err = tokenValidity(r.Context(), reqV["token"], "AccessToken"); err != nil {
-		logger.Infof("token failed tokenValidity, err: %+v", err)
-		answer["active"] = false
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	w.Header().Set("Cache-Control", "no-store")
-	w.Header().Set("Pragma", "no-cache")
-
-	render.JSON(w, r, answer)
-}
-
-func (h *publicHandler) validateAndParseToken(w http.ResponseWriter, r *http.Request) {
-	logger := ssas.GetCtxLogger(r.Context())
-	defer r.Body.Close()
-
-	var reqV map[string]string
-	if err := json.NewDecoder(r.Body).Decode(&reqV); err != nil {
-		logger.Error("failed to decode json: ", err)
-		service.JSONError(w, http.StatusBadRequest, http.StatusText(http.StatusBadRequest), "invalid request body")
-		return
-	}
-	tokenS := reqV["token"]
-	if tokenS == "" {
-		service.JSONError(w, http.StatusUnauthorized, http.StatusText(http.StatusUnauthorized), `missing "token" field in body`)
-		return
-	}
-	var response = make(map[string]interface{})
-
-	if err := tokenValidity(r.Context(), tokenS, "AccessToken"); err != nil {
-		logger.Infof("token failed tokenValidity")
-		response["valid"] = false
-	} else {
-		claims := jwt.MapClaims{}
-		if _, _, err := new(jwt.Parser).ParseUnverified(tokenS, claims); err != nil {
-			logger.Error("could not unmarshal access token")
-			service.JSONError(w, http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError), "internal server error")
-			return
-		}
-		response["valid"] = true
-		response["data"] = claims["dat"]
-		response["system_data"] = claims["system_data"]
-		sys, err := h.sr.GetSystemByID(r.Context(), claims["sys"].(string))
-		if err != nil {
-			logger.Error("could not get system id")
-			service.JSONError(w, http.StatusInternalServerError, http.StatusText(http.StatusInternalServerError), "internal server error")
-			return
-		}
-		response["scope"] = sys.APIScope
-	}
-	w.Header().Set("Content-Type", "application/json")
-	render.JSON(w, r, response)
-}
-
-func publicInfo() map[string][]string {
-	infoMap := make(map[string][]string)
-	infoMap["banner"] = []string{fmt.Sprintf("%s server running on port %s", "public", ":3003")}
-
-	routes, err := server.ListRoutes()
-	if err != nil {
-		infoMap["routes"] = []string{"error listing routes"}
-	} else {
-		infoMap["routes"] = routes
-	}
-
-	return infoMap
 }

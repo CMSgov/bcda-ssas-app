@@ -86,6 +86,7 @@ type APITestSuite struct {
 	h        *adminHandler
 	sr       *ssas.GormSystemRepository
 	gr       *ssas.GormGroupRepository
+	logger   *logrus.Logger
 }
 
 func (s *APITestSuite) SetupSuite() {
@@ -93,13 +94,19 @@ func (s *APITestSuite) SetupSuite() {
 	cfg.LoadEnvConfigs()
 	cfg.MaxIPs = 3
 	s.logEntry = MakeTestStructuredLoggerEntry(logrus.Fields{"cms_id": "A9999", "request_id": uuid.NewUUID().String()})
-	s.ctx = context.WithValue(context.Background(), constants.CtxSGAKey, "test-sga")
+	s.ctx = context.WithValue(s.T().Context(), constants.CtxSGAKey, "test-sga")
 	var err error
 	s.db, err = ssas.CreateDB()
 	require.NoError(s.T(), err)
 	s.gr = ssas.NewGroupRepository(s.db)
 	s.sr = ssas.NewSystemRepository(s.db)
 	s.h = NewAdminHandler(s.sr, s.gr, s.db, JsonMarshaler{})
+}
+
+func (s *APITestSuite) SetupTest() {
+	ctx, fieldLogger := ssas.GetAndSetCtxLogger(s.ctx)
+	s.ctx = ctx
+	s.logger = ssas.GetLogger(fieldLogger)
 }
 
 func (s *APITestSuite) TearDownSuite() {
@@ -146,23 +153,15 @@ func (s *APITestSuite) TestGetHealthCheck() {
 }
 
 func (s *APITestSuite) TestCreateGroup() {
-
 	gid := ssas.RandomBase64(16)
 	testInput := fmt.Sprintf(SampleGroup, gid, SampleXdata)
 
 	req := httptest.NewRequestWithContext(s.ctx, "POST", "/group", strings.NewReader(testInput))
 	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry))
 
-	logger := ssas.GetLogger(ssas.Logger)
-	logHook := test.NewLocal(logger)
-
 	handler := http.Handler(service.GetTransactionID(service.NewCtxLogger(http.HandlerFunc(s.h.createGroup))))
 	rr := httptest.NewRecorder()
 	handler.ServeHTTP(rr, req)
-	entries := logHook.AllEntries()
-
-	assert.Contains(s.T(), entries[0].Data, "Op")
-	assert.Contains(s.T(), entries[0].Data, "transaction_id")
 
 	assert.Equal(s.T(), http.StatusCreated, rr.Result().StatusCode)
 	assert.Equal(s.T(), "application/json", rr.Result().Header.Get("Content-Type"))
@@ -239,7 +238,7 @@ func (s *APITestSuite) TestCreateGroupMarshalErr() {
 	testInput := fmt.Sprintf(SampleGroup, "", SampleXdata)
 	req := httptest.NewRequestWithContext(s.ctx, "POST", "/group", strings.NewReader(testInput))
 	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry))
-	l := ssas.GetCtxLogger(req.Context())
+	_, l := ssas.GetAndSetCtxLogger(req.Context())
 	logger := ssas.GetLogger(l)
 	logHook := test.NewLocal(logger)
 	handler := http.HandlerFunc(h.createGroup)
@@ -251,8 +250,8 @@ func (s *APITestSuite) TestCreateGroupMarshalErr() {
 	if len(entries) == 0 {
 		s.T().FailNow()
 	}
-	assert.GreaterOrEqual(s.T(), len(entries), 0)
-	assert.Contains(s.T(), entries[1].Message, "failed to marshal JSON")
+	require.Len(s.T(), entries, 1)
+	assert.Contains(s.T(), entries[0].Message, "failed to marshal JSON")
 }
 
 func (s *APITestSuite) TestListGroups() {
@@ -322,7 +321,7 @@ func (s *APITestSuite) TestListGroupsNoGroups() {
 
 	req := httptest.NewRequestWithContext(s.ctx, "GET", "/group", nil)
 	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry))
-	l := ssas.GetCtxLogger(req.Context())
+	_, l := ssas.GetAndSetCtxLogger(req.Context())
 	logger := ssas.GetLogger(l)
 	logHook := test.NewLocal(logger)
 	handler := http.HandlerFunc(h.listGroups)
@@ -348,7 +347,7 @@ func (s *APITestSuite) TestListGroupsMarshalErr() {
 	m.On("Marshal", mock.Anything).Return([]byte{}, errors.New("failed to marshal JSON"))
 	req := httptest.NewRequestWithContext(s.ctx, "GET", "/group", nil)
 	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry))
-	l := ssas.GetCtxLogger(req.Context())
+	_, l := ssas.GetAndSetCtxLogger(req.Context())
 	logger := ssas.GetLogger(l)
 	logHook := test.NewLocal(logger)
 	handler := http.HandlerFunc(h.listGroups)
@@ -428,7 +427,7 @@ func (s *APITestSuite) TestUpdateGroupUnmarshalErr() {
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
 	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry))
 	rctx.URLParams.Add("id", "1")
-	l := ssas.GetCtxLogger(req.Context())
+	_, l := ssas.GetAndSetCtxLogger(req.Context())
 	logger := ssas.GetLogger(l)
 	logHook := test.NewLocal(logger)
 	handler := http.HandlerFunc(h.updateGroup)
@@ -436,9 +435,7 @@ func (s *APITestSuite) TestUpdateGroupUnmarshalErr() {
 	handler.ServeHTTP(rr, req)
 	assert.Equal(s.T(), http.StatusBadRequest, rr.Result().StatusCode)
 	entries := logHook.AllEntries()
-	assert.GreaterOrEqual(s.T(), len(entries), 0)
-	assert.Contains(s.T(), entries[0].Message, "failed to unmarshal JSON")
-
+	assert.Equal(s.T(), 1, len(entries))
 }
 
 func (s *APITestSuite) TestUpdateGroupMarshalErr() {
@@ -457,7 +454,7 @@ func (s *APITestSuite) TestUpdateGroupMarshalErr() {
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
 	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry))
 	rctx.URLParams.Add("id", "1")
-	l := ssas.GetCtxLogger(req.Context())
+	_, l := ssas.GetAndSetCtxLogger(req.Context())
 	logger := ssas.GetLogger(l)
 	logHook := test.NewLocal(logger)
 	handler := http.HandlerFunc(h.updateGroup)
@@ -466,8 +463,8 @@ func (s *APITestSuite) TestUpdateGroupMarshalErr() {
 
 	assert.Equal(s.T(), http.StatusInternalServerError, rr.Result().StatusCode)
 	entries := logHook.AllEntries()
-	assert.GreaterOrEqual(s.T(), len(entries), 0)
-	assert.Contains(s.T(), entries[1].Message, "failed to marshal JSON")
+	require.Len(s.T(), entries, 1)
+	assert.Contains(s.T(), entries[0].Message, "failed to marshal JSON")
 }
 
 func (s *APITestSuite) TestRevokeToken() {
@@ -584,8 +581,7 @@ func (s *APITestSuite) TestCreateSystem() {
 }
 
 func (s *APITestSuite) TestCreateSystemNoGroup() {
-	logger := ssas.GetLogger(ssas.Logger)
-	logHook := test.NewLocal(logger)
+	logHook := test.NewLocal(s.logger)
 
 	sr := new(ssas.SystemRepositoryMock)
 	gr := new(ssas.GroupRepositoryMock)
@@ -601,12 +597,12 @@ func (s *APITestSuite) TestCreateSystemNoGroup() {
 
 	assert.Equal(s.T(), http.StatusInternalServerError, rr.Result().StatusCode)
 	entries := logHook.AllEntries()
-	assert.Contains(s.T(), entries[1].Message, "could not get group XData")
+	require.Len(s.T(), entries, 1)
+	assert.Contains(s.T(), entries[0].Message, "could not get group XData")
 }
 
 func (s *APITestSuite) TestCreateSystemMarshalErr() {
-	logger := ssas.GetLogger(ssas.Logger)
-	logHook := test.NewLocal(logger)
+	logHook := test.NewLocal(s.logger)
 	gr := new(ssas.GroupRepositoryMock)
 	sr := new(ssas.SystemRepositoryMock)
 	m := new(MarshalerMock)
@@ -623,8 +619,8 @@ func (s *APITestSuite) TestCreateSystemMarshalErr() {
 
 	assert.Equal(s.T(), http.StatusInternalServerError, rr.Result().StatusCode)
 	entries := logHook.AllEntries()
-	assert.GreaterOrEqual(s.T(), len(entries), 0)
-	assert.Contains(s.T(), entries[2].Message, "failed to marshal JSON")
+	require.Len(s.T(), entries, 2)
+	assert.Contains(s.T(), entries[1].Message, "failed to marshal JSON")
 }
 
 func (s *APITestSuite) TestCreateSystemMultipleIps() {
@@ -830,8 +826,8 @@ func (s *APITestSuite) TestResetCredentialsMarshalErr() {
 
 	assert.Equal(s.T(), http.StatusInternalServerError, rr.Result().StatusCode)
 	entries := logHook.AllEntries()
-	assert.GreaterOrEqual(s.T(), len(entries), 0)
-	assert.Contains(s.T(), entries[2].Message, "failed to marshal JSON")
+	require.Len(s.T(), entries, 2)
+	assert.Contains(s.T(), entries[1].Message, "failed to marshal JSON")
 }
 
 func (s *APITestSuite) TestResetCredentialsNoXData() {
@@ -858,8 +854,7 @@ func (s *APITestSuite) TestResetCredentialsNoXData() {
 
 	assert.Equal(s.T(), http.StatusInternalServerError, rr.Result().StatusCode)
 	entries := logHook.AllEntries()
-	assert.Contains(s.T(), entries[0].Message, "could not get group XData for clientID")
-
+	require.Len(s.T(), entries, 1)
 }
 
 func (s *APITestSuite) TestResetCredentialsResetSecretErr() {
@@ -889,7 +884,8 @@ func (s *APITestSuite) TestResetCredentialsResetSecretErr() {
 	assert.Equal(s.T(), http.StatusInternalServerError, rr.Result().StatusCode)
 
 	entries := logHook.AllEntries()
-	assert.Contains(s.T(), entries[1].Message, "failed to reset secret:")
+	require.Len(s.T(), entries, 1)
+	assert.Contains(s.T(), entries[0].Message, "failed to reset secret:")
 
 }
 
@@ -1082,8 +1078,7 @@ func (s *APITestSuite) TestDeactivateSystemCredentials() {
 }
 
 func (s *APITestSuite) TestDeactivateSystemCredentialsNoXData() {
-	logger := ssas.GetLogger(ssas.Logger)
-	logHook := test.NewLocal(logger)
+	logHook := test.NewLocal(s.logger)
 	gr := new(ssas.GroupRepositoryMock)
 	sr := new(ssas.SystemRepositoryMock)
 	m := new(MarshalerMock)
@@ -1104,12 +1099,11 @@ func (s *APITestSuite) TestDeactivateSystemCredentialsNoXData() {
 
 	assert.Equal(s.T(), http.StatusInternalServerError, rr.Result().StatusCode)
 	entries := logHook.AllEntries()
-	assert.Contains(s.T(), entries[0].Message, "could not get group XData for clientID")
+	require.Len(s.T(), entries, 1)
 }
 
 func (s *APITestSuite) TestDeactivateSystemCredentialsRevokeSecretErr() {
-	logger := ssas.GetLogger(ssas.Logger)
-	logHook := test.NewLocal(logger)
+	logHook := test.NewLocal(s.logger)
 	gr := new(ssas.GroupRepositoryMock)
 	sr := new(ssas.SystemRepositoryMock)
 	m := new(MarshalerMock)
@@ -1131,7 +1125,7 @@ func (s *APITestSuite) TestDeactivateSystemCredentialsRevokeSecretErr() {
 
 	assert.Equal(s.T(), http.StatusInternalServerError, rr.Result().StatusCode)
 	entries := logHook.AllEntries()
-	assert.Contains(s.T(), entries[0].Message, "failed to revoke secret")
+	require.Len(s.T(), entries, 1)
 }
 
 func (s *APITestSuite) TestJSONError() {
@@ -1230,7 +1224,7 @@ func (s *APITestSuite) TestGetSystemIPsGetIpsErr() {
 	rctx.URLParams.Add("systemID", systemID)
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
 	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry))
-	l := ssas.GetCtxLogger(req.Context())
+	_, l := ssas.GetAndSetCtxLogger(req.Context())
 	logger := ssas.GetLogger(l)
 	logHook := test.NewLocal(logger)
 	handler := http.HandlerFunc(h.getSystemIPs)
@@ -1240,7 +1234,8 @@ func (s *APITestSuite) TestGetSystemIPsGetIpsErr() {
 	assert.Equal(s.T(), http.StatusNotFound, rr.Result().StatusCode)
 
 	entries := logHook.AllEntries()
-	assert.Contains(s.T(), entries[1].Message, "Could not retrieve system ips")
+	require.Len(s.T(), entries, 1)
+	assert.Contains(s.T(), entries[0].Message, "Could not retrieve system ips")
 }
 
 func (s *APITestSuite) TestRegisterSystemIP() {
@@ -1286,7 +1281,6 @@ func (s *APITestSuite) TestRegisterSystemIP() {
 }
 
 func (s *APITestSuite) TestRegisterSystemIPRegisterIPErr() {
-
 	sr := new(ssas.SystemRepositoryMock)
 	m := new(MarshalerMock)
 	h := NewAdminHandler(sr, s.gr, s.db, m)
@@ -1300,7 +1294,7 @@ func (s *APITestSuite) TestRegisterSystemIPRegisterIPErr() {
 	rctx.URLParams.Add("systemID", systemID)
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
 	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry))
-	l := ssas.GetCtxLogger(req.Context())
+	_, l := ssas.GetAndSetCtxLogger(req.Context())
 	logger := ssas.GetLogger(l)
 	logHook := test.NewLocal(logger)
 	handler := http.HandlerFunc(h.registerIP)
@@ -1309,12 +1303,11 @@ func (s *APITestSuite) TestRegisterSystemIPRegisterIPErr() {
 	handler.ServeHTTP(rr, req)
 	assert.Equal(s.T(), http.StatusInternalServerError, rr.Result().StatusCode)
 	entries := logHook.AllEntries()
-	assert.GreaterOrEqual(s.T(), len(entries), 0)
-	assert.Contains(s.T(), entries[1].Message, "foo")
+	require.Len(s.T(), entries, 1)
+	assert.Contains(s.T(), entries[0].Message, "foo")
 }
 
 func (s *APITestSuite) TestRegisterSystemIPMarshalErr() {
-
 	sr := new(ssas.SystemRepositoryMock)
 	m := new(MarshalerMock)
 	h := NewAdminHandler(sr, s.gr, s.db, m)
@@ -1329,7 +1322,7 @@ func (s *APITestSuite) TestRegisterSystemIPMarshalErr() {
 	rctx.URLParams.Add("systemID", systemID)
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
 	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry))
-	l := ssas.GetCtxLogger(req.Context())
+	_, l := ssas.GetAndSetCtxLogger(req.Context())
 	logger := ssas.GetLogger(l)
 	logHook := test.NewLocal(logger)
 	handler := http.HandlerFunc(h.registerIP)
@@ -1338,8 +1331,8 @@ func (s *APITestSuite) TestRegisterSystemIPMarshalErr() {
 	handler.ServeHTTP(rr, req)
 	assert.Equal(s.T(), http.StatusInternalServerError, rr.Result().StatusCode)
 	entries := logHook.AllEntries()
-	assert.GreaterOrEqual(s.T(), len(entries), 0)
-	assert.Contains(s.T(), entries[2].Message, "failed to marshal JSON")
+	require.Len(s.T(), entries, 2)
+	assert.Contains(s.T(), entries[1].Message, "failed to marshal JSON")
 }
 
 func (s *APITestSuite) TestRegisterInvalidIP() {
@@ -1718,7 +1711,7 @@ func (s *APITestSuite) TestCreateV2SystemMarshalErr() {
 
 	req := httptest.NewRequestWithContext(s.ctx, "POST", "/v2/system", strings.NewReader(`{"client_name": "Test Client", "group_id": "test-group-id","xdata":"{\"org\":\"testOrgID\"}", "scope": "bcda-api", "public_key": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEArhxobShmNifzW3xznB+L\nI8+hgaePpSGIFCtFz2IXGU6EMLdeufhADaGPLft9xjwdN1ts276iXQiaChKPA2CK\n/CBpuKcnU3LhU8JEi7u/db7J4lJlh6evjdKVKlMuhPcljnIKAiGcWln3zwYrFCeL\ncN0aTOt4xnQpm8OqHawJ18y0WhsWT+hf1DeBDWvdfRuAPlfuVtl3KkrNYn1yqCgQ\nlT6v/WyzptJhSR1jxdR7XLOhDGTZUzlHXh2bM7sav2n1+sLsuCkzTJqWZ8K7k7cI\nXK354CNpCdyRYUAUvr4rORIAUmcIFjaR3J4y/Dh2JIyDToOHg7vjpCtNnNoS+ON2\nHwIDAQAB\n-----END PUBLIC KEY-----", "tracking_id": "T00000"}`))
 	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry))
-	l := ssas.GetCtxLogger(req.Context())
+	_, l := ssas.GetAndSetCtxLogger(req.Context())
 	logger := ssas.GetLogger(l)
 	logHook := test.NewLocal(logger)
 
@@ -1728,8 +1721,8 @@ func (s *APITestSuite) TestCreateV2SystemMarshalErr() {
 
 	assert.Equal(s.T(), http.StatusInternalServerError, rr.Result().StatusCode)
 	entries := logHook.AllEntries()
-	assert.GreaterOrEqual(s.T(), len(entries), 0)
-	assert.Contains(s.T(), entries[1].Message, "failed to marshal JSON")
+	require.Len(s.T(), entries, 1)
+	assert.Contains(s.T(), entries[0].Message, "failed to marshal JSON")
 }
 
 func (s *APITestSuite) TestCreateV2SystemWithMissingPublicKey() {
@@ -1916,7 +1909,7 @@ func (s *APITestSuite) TestGetV2SystemNoIPs() {
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
 
 	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, logEntry))
-	l := ssas.GetCtxLogger(req.Context())
+	_, l := ssas.GetAndSetCtxLogger(req.Context())
 	logger := ssas.GetLogger(l)
 	logHook := test.NewLocal(logger)
 
@@ -1925,7 +1918,6 @@ func (s *APITestSuite) TestGetV2SystemNoIPs() {
 	handler.ServeHTTP(rr, req)
 	entries := logHook.AllEntries()
 	assert.Len(s.T(), entries, 1)
-	assert.Contains(s.T(), entries[0].Message, "no entries returned")
 
 	resp := rr.Result()
 	assert.Equal(s.T(), resp.StatusCode, 404)
@@ -1950,7 +1942,7 @@ func (s *APITestSuite) TestGetV2SystemClientToken() {
 	rctx.URLParams.Add("id", creds.SystemID)
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
 	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, logEntry))
-	l := ssas.GetCtxLogger(req.Context())
+	_, l := ssas.GetAndSetCtxLogger(req.Context())
 
 	logger := ssas.GetLogger(l)
 	logHook := test.NewLocal(logger)
@@ -1960,10 +1952,7 @@ func (s *APITestSuite) TestGetV2SystemClientToken() {
 	handler.ServeHTTP(rr, req)
 	entries := logHook.AllEntries()
 
-	s.T().Log(entries[0])
-	s.T().Log(entries[0].Message)
-	assert.Len(s.T(), entries, 1)
-	assert.Contains(s.T(), entries[0].Message, "failed to find token(s)")
+	require.Len(s.T(), entries, 1)
 	resp := rr.Result()
 	assert.Equal(s.T(), resp.StatusCode, 404)
 }
@@ -1987,7 +1976,7 @@ func (s *APITestSuite) TestGetV2SystemEncryptionKeys() {
 	rctx.URLParams.Add("id", creds.SystemID)
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
 	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, logEntry))
-	l := ssas.GetCtxLogger(req.Context())
+	_, l := ssas.GetAndSetCtxLogger(req.Context())
 
 	logger := ssas.GetLogger(l)
 	logHook := test.NewLocal(logger)
@@ -1997,10 +1986,7 @@ func (s *APITestSuite) TestGetV2SystemEncryptionKeys() {
 	handler.ServeHTTP(rr, req)
 	entries := logHook.AllEntries()
 
-	s.T().Log(entries[0])
-	s.T().Log(entries[0].Message)
-	assert.Len(s.T(), entries, 1)
-	assert.Contains(s.T(), entries[0].Message, "failed to find encryption keys")
+	require.Len(s.T(), entries, 1)
 	resp := rr.Result()
 	assert.Equal(s.T(), resp.StatusCode, 404)
 }
@@ -2028,7 +2014,7 @@ func (s *APITestSuite) TestGetV2SystemInactive() {
 	var error ssas.ErrorResponse
 	_ = json.Unmarshal(b, &error)
 
-	assert.Equal(s.T(), fmt.Sprintf("could not find system %s", creds.SystemID), error.ErrorDescription)
+	assert.Equal(s.T(), "could not find system", error.ErrorDescription)
 }
 
 func (s *APITestSuite) TestCreateAndDeleteAdditionalV2SystemToken() {

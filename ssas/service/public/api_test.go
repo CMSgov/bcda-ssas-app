@@ -1,7 +1,6 @@
 package public
 
 import (
-	"bytes"
 	"context"
 	"crypto/rsa"
 	"encoding/json"
@@ -58,9 +57,6 @@ func (s *APITestSuite) SetupSuite() {
 	s.assertAud = "http://local.testing.cms.gov/api/v2/Token/auth"
 	service.StartDenylist()
 	s.logEntry = MakeTestStructuredLoggerEntry(logrus.Fields{"cms_id": "A9999", "request_id": uuid.NewUUID().String()})
-
-	s.ctx = context.WithValue(context.Background(), constants.CtxSGAKey, "test-sga")
-	s.ctx = context.WithValue(context.Background(), constants.CtxSGASkipAuthKey, "true")
 }
 
 func (s *APITestSuite) SetupTest() {
@@ -70,6 +66,8 @@ func (s *APITestSuite) SetupTest() {
 	s.gr = ssas.NewGroupRepository(s.db)
 	s.sr = ssas.NewSystemRepository(s.db)
 	s.rr = httptest.NewRecorder()
+	s.ctx = context.WithValue(s.T().Context(), constants.CtxSGAKey, "test-sga")
+	s.ctx = context.WithValue(s.ctx, constants.CtxSGASkipAuthKey, "true")
 }
 
 func (s *APITestSuite) TearDownTest() {
@@ -591,17 +589,7 @@ func (s *APITestSuite) TestTokenEmptyClientIdProduces401() {
 }
 
 func (s *APITestSuite) testIntrospectFlaw(flaw service.TokenFlaw, errorText string) {
-	var (
-		signingKeyPath string
-		origLog        io.Writer
-		buf            bytes.Buffer
-	)
-	logger := ssas.GetLogger(ssas.Logger)
-	origLog = logger.Out
-	logger.SetOutput(&buf)
-	defer func() {
-		logger.SetOutput(origLog)
-	}()
+	var signingKeyPath string
 
 	if flaw == service.BadSigner {
 		signingKeyPath = s.badSigningKeyPath
@@ -627,11 +615,15 @@ func (s *APITestSuite) testIntrospectFlaw(flaw service.TokenFlaw, errorText stri
 		Data:      data,
 	}
 
+	ctx, l := ssas.GetAndSetCtxLogger(s.ctx)
+	logger := ssas.GetLogger(l)
+	logHook := test.NewLocal(logger)
+
 	_, signedString, err := service.BadToken(&claims, flaw, signingKeyPath)
 	assert.Nil(s.T(), err, fmt.Sprintf("Unable to create bad token for flaw %v", flaw))
 
 	body := strings.NewReader(fmt.Sprintf(`{"token":"%s"}`, signedString))
-	req := httptest.NewRequestWithContext(s.ctx, "POST", "/introspect", body)
+	req := httptest.NewRequestWithContext(ctx, "POST", "/introspect", body)
 	req.SetBasicAuth(creds.ClientID, creds.ClientSecret)
 	req.Header.Add("Content-Type", constants.HeaderApplicationJSON)
 	req.Header.Add("Accept", constants.HeaderApplicationJSON)
@@ -639,11 +631,14 @@ func (s *APITestSuite) testIntrospectFlaw(flaw service.TokenFlaw, errorText stri
 	handler.ServeHTTP(s.rr, req)
 	assert.Equal(s.T(), http.StatusOK, s.rr.Code)
 
+	entries := logHook.AllEntries()
+	require.GreaterOrEqual(s.T(), len(entries), 1)
+
 	var v map[string]bool
 	assert.NoError(s.T(), json.NewDecoder(s.rr.Body).Decode(&v))
 	assert.NotEmpty(s.T(), v)
 	assert.False(s.T(), v["active"], fmt.Sprintf("Unexpected success using bad token with flaw %v", flaw))
-	assert.Regexpf(s.T(), regexp.MustCompile(errorText), buf.String(), fmt.Sprintf("Unable to find evidence of flaw %v in logs", flaw))
+	assert.Regexpf(s.T(), regexp.MustCompile(errorText), entries[0].Message, fmt.Sprintf("Unable to find evidence of flaw %v in logs", flaw))
 	assert.NoError(s.T(), ssas.CleanDatabase(group))
 }
 
