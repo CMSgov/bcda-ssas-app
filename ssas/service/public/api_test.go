@@ -615,7 +615,7 @@ func (s *APITestSuite) testIntrospectFlaw(flaw service.TokenFlaw, errorText stri
 		Data:      data,
 	}
 
-	ctx, l := ssas.GetCtxLogger(s.ctx)
+	ctx, l := ssas.GetAndSetCtxLogger(s.ctx)
 	logger := ssas.GetLogger(l)
 	logHook := test.NewLocal(logger)
 

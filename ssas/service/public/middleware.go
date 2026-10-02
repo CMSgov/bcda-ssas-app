@@ -42,7 +42,7 @@ func (h *publicMiddlewareHandler) readGroupID(next http.Handler) http.Handler {
 			err error
 		)
 
-		ctx, logger := ssas.GetCtxLogger(r.Context())
+		ctx, logger := ssas.GetAndSetCtxLogger(r.Context())
 
 		if rd, err = readRegData(r); err != nil {
 			logger.Println("no data from token about allowed groups")

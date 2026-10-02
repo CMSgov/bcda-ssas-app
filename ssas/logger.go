@@ -84,7 +84,7 @@ const CtxLoggerKey CtxLoggerKeyType = "ctxLogger"
 // context.Context key to set/get logrus.FieldLogger value within request context
 
 // Gets the logrus.FieldLogger from a context
-func GetCtxLogger(ctx context.Context) (context.Context, logrus.FieldLogger) {
+func GetAndSetCtxLogger(ctx context.Context) (context.Context, logrus.FieldLogger) {
 	var logger logrus.FieldLogger
 
 	entry := ctx.Value(CtxLoggerKey)
@@ -117,5 +117,8 @@ func SetCtxEntry(r *http.Request, key string, value interface{}) (context.Contex
 	var lggr logrus.Logger
 	newLogEntry := &APILoggerEntry{Logger: lggr.WithField(key, value)}
 	nCtx := context.WithValue(ctx, CtxLoggerKey, newLogEntry)
+
+	*r = *r.WithContext(nCtx)
+
 	return nCtx, newLogEntry.Logger
 }

@@ -104,7 +104,7 @@ func (s *APITestSuite) SetupSuite() {
 }
 
 func (s *APITestSuite) SetupTest() {
-	ctx, fieldLogger := ssas.GetCtxLogger(s.ctx)
+	ctx, fieldLogger := ssas.GetAndSetCtxLogger(s.ctx)
 	s.ctx = ctx
 	s.logger = ssas.GetLogger(fieldLogger)
 }
@@ -238,7 +238,7 @@ func (s *APITestSuite) TestCreateGroupMarshalErr() {
 	testInput := fmt.Sprintf(SampleGroup, "", SampleXdata)
 	req := httptest.NewRequestWithContext(s.ctx, "POST", "/group", strings.NewReader(testInput))
 	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry))
-	_, l := ssas.GetCtxLogger(req.Context())
+	_, l := ssas.GetAndSetCtxLogger(req.Context())
 	logger := ssas.GetLogger(l)
 	logHook := test.NewLocal(logger)
 	handler := http.HandlerFunc(h.createGroup)
@@ -321,7 +321,7 @@ func (s *APITestSuite) TestListGroupsNoGroups() {
 
 	req := httptest.NewRequestWithContext(s.ctx, "GET", "/group", nil)
 	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry))
-	_, l := ssas.GetCtxLogger(req.Context())
+	_, l := ssas.GetAndSetCtxLogger(req.Context())
 	logger := ssas.GetLogger(l)
 	logHook := test.NewLocal(logger)
 	handler := http.HandlerFunc(h.listGroups)
@@ -347,7 +347,7 @@ func (s *APITestSuite) TestListGroupsMarshalErr() {
 	m.On("Marshal", mock.Anything).Return([]byte{}, errors.New("failed to marshal JSON"))
 	req := httptest.NewRequestWithContext(s.ctx, "GET", "/group", nil)
 	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry))
-	_, l := ssas.GetCtxLogger(req.Context())
+	_, l := ssas.GetAndSetCtxLogger(req.Context())
 	logger := ssas.GetLogger(l)
 	logHook := test.NewLocal(logger)
 	handler := http.HandlerFunc(h.listGroups)
@@ -427,7 +427,7 @@ func (s *APITestSuite) TestUpdateGroupUnmarshalErr() {
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
 	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry))
 	rctx.URLParams.Add("id", "1")
-	_, l := ssas.GetCtxLogger(req.Context())
+	_, l := ssas.GetAndSetCtxLogger(req.Context())
 	logger := ssas.GetLogger(l)
 	logHook := test.NewLocal(logger)
 	handler := http.HandlerFunc(h.updateGroup)
@@ -454,7 +454,7 @@ func (s *APITestSuite) TestUpdateGroupMarshalErr() {
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
 	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry))
 	rctx.URLParams.Add("id", "1")
-	_, l := ssas.GetCtxLogger(req.Context())
+	_, l := ssas.GetAndSetCtxLogger(req.Context())
 	logger := ssas.GetLogger(l)
 	logHook := test.NewLocal(logger)
 	handler := http.HandlerFunc(h.updateGroup)
@@ -1224,7 +1224,7 @@ func (s *APITestSuite) TestGetSystemIPsGetIpsErr() {
 	rctx.URLParams.Add("systemID", systemID)
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
 	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry))
-	_, l := ssas.GetCtxLogger(req.Context())
+	_, l := ssas.GetAndSetCtxLogger(req.Context())
 	logger := ssas.GetLogger(l)
 	logHook := test.NewLocal(logger)
 	handler := http.HandlerFunc(h.getSystemIPs)
@@ -1294,7 +1294,7 @@ func (s *APITestSuite) TestRegisterSystemIPRegisterIPErr() {
 	rctx.URLParams.Add("systemID", systemID)
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
 	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry))
-	_, l := ssas.GetCtxLogger(req.Context())
+	_, l := ssas.GetAndSetCtxLogger(req.Context())
 	logger := ssas.GetLogger(l)
 	logHook := test.NewLocal(logger)
 	handler := http.HandlerFunc(h.registerIP)
@@ -1322,7 +1322,7 @@ func (s *APITestSuite) TestRegisterSystemIPMarshalErr() {
 	rctx.URLParams.Add("systemID", systemID)
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
 	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry))
-	_, l := ssas.GetCtxLogger(req.Context())
+	_, l := ssas.GetAndSetCtxLogger(req.Context())
 	logger := ssas.GetLogger(l)
 	logHook := test.NewLocal(logger)
 	handler := http.HandlerFunc(h.registerIP)
@@ -1711,7 +1711,7 @@ func (s *APITestSuite) TestCreateV2SystemMarshalErr() {
 
 	req := httptest.NewRequestWithContext(s.ctx, "POST", "/v2/system", strings.NewReader(`{"client_name": "Test Client", "group_id": "test-group-id","xdata":"{\"org\":\"testOrgID\"}", "scope": "bcda-api", "public_key": "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEArhxobShmNifzW3xznB+L\nI8+hgaePpSGIFCtFz2IXGU6EMLdeufhADaGPLft9xjwdN1ts276iXQiaChKPA2CK\n/CBpuKcnU3LhU8JEi7u/db7J4lJlh6evjdKVKlMuhPcljnIKAiGcWln3zwYrFCeL\ncN0aTOt4xnQpm8OqHawJ18y0WhsWT+hf1DeBDWvdfRuAPlfuVtl3KkrNYn1yqCgQ\nlT6v/WyzptJhSR1jxdR7XLOhDGTZUzlHXh2bM7sav2n1+sLsuCkzTJqWZ8K7k7cI\nXK354CNpCdyRYUAUvr4rORIAUmcIFjaR3J4y/Dh2JIyDToOHg7vjpCtNnNoS+ON2\nHwIDAQAB\n-----END PUBLIC KEY-----", "tracking_id": "T00000"}`))
 	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, s.logEntry))
-	_, l := ssas.GetCtxLogger(req.Context())
+	_, l := ssas.GetAndSetCtxLogger(req.Context())
 	logger := ssas.GetLogger(l)
 	logHook := test.NewLocal(logger)
 
@@ -1909,7 +1909,7 @@ func (s *APITestSuite) TestGetV2SystemNoIPs() {
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
 
 	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, logEntry))
-	_, l := ssas.GetCtxLogger(req.Context())
+	_, l := ssas.GetAndSetCtxLogger(req.Context())
 	logger := ssas.GetLogger(l)
 	logHook := test.NewLocal(logger)
 
@@ -1942,7 +1942,7 @@ func (s *APITestSuite) TestGetV2SystemClientToken() {
 	rctx.URLParams.Add("id", creds.SystemID)
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
 	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, logEntry))
-	_, l := ssas.GetCtxLogger(req.Context())
+	_, l := ssas.GetAndSetCtxLogger(req.Context())
 
 	logger := ssas.GetLogger(l)
 	logHook := test.NewLocal(logger)
@@ -1976,7 +1976,7 @@ func (s *APITestSuite) TestGetV2SystemEncryptionKeys() {
 	rctx.URLParams.Add("id", creds.SystemID)
 	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, rctx))
 	req = req.WithContext(context.WithValue(req.Context(), ssas.CtxLoggerKey, logEntry))
-	_, l := ssas.GetCtxLogger(req.Context())
+	_, l := ssas.GetAndSetCtxLogger(req.Context())
 
 	logger := ssas.GetLogger(l)
 	logHook := test.NewLocal(logger)

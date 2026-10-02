@@ -427,7 +427,7 @@ func (h *adminHandler) createSystem(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Used for alerting; update alert if this line changes
+	// Used for alerting; update ACO credential registration alert if this line changes
 	logger.Infof("system registered in group %s with XData: %s", group.GroupID, group.XData)
 
 	credsJSON, err := h.m.Marshal(creds)
@@ -526,6 +526,7 @@ func (h *adminHandler) resetCredentials(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	// Used for alerting; update ACO credential registration alert if this line changes
 	logger.Infof("secret reset in group %s with XData: %s", system.GroupID, xdata)
 
 	credsJSON, err := h.m.Marshal(creds)
@@ -628,7 +629,7 @@ func (h *adminHandler) deactivateSystemCredentials(w http.ResponseWriter, r *htt
 		return
 	}
 
-	// Used for alerting; update alert if this line changes
+	// Used for alerting; update ACO credential registration alert if this line changes
 	logger.Infof("secret revoked in group %s with XData: %s", system.GroupID, xdata)
 
 	w.WriteHeader(http.StatusOK)
