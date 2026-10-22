@@ -1,6 +1,6 @@
 module github.com/CMSgov/bcda-ssas-app
 
-go 1.27.1
+go 1.27.3
 
 require (
 	github.com/CMSgov/bcda-app v0.0.0-20260527212738-4cc088a06ee6
