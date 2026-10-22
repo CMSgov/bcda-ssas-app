@@ -1,5 +1,5 @@
 ### OpenAPI docs
-FROM arm64v8/golang:1.27.1-alpine3.24 AS documentation
+FROM arm64v8/golang:1.27.3-alpine3.24 AS documentation
 
 RUN apk add --no-cache \
     binutils-gold \
@@ -22,7 +22,7 @@ RUN swagger generate spec -i ../../swaggerui/tags.yml -o ../../swaggerui/swagger
 
 
 ### Builder/compilation
-FROM arm64v8/golang:1.27.1-alpine3.24 AS builder
+FROM arm64v8/golang:1.27.3-alpine3.24 AS builder
 
 ARG RELEASE_VERSION=main
 
@@ -34,14 +34,14 @@ COPY . .
 WORKDIR /go/src/github.com/CMSgov/bcda-ssas-app/ssas
 COPY --from=documentation /go/src/github.com/CMSgov/bcda-ssas-app/ssas/swaggerui ./swaggerui
 
-RUN go install github.com/DataDog/orchestrion@4293dbca06e8450c41a1603805e6479f428a3e36
+RUN go install github.com/DataDog/orchestrion@e487e3a9d7f1e32fccd6f34b291d39e9183b0200
 
 RUN orchestrion go build -ldflags "-X github.com/CMSgov/bcda-ssas-app/ssas/constants.Version=$RELEASE_VERSION" \
         -o ssas ./service/main
 
 
 ### Final image
-FROM arm64v8/golang:1.27.1-alpine3.24
+FROM arm64v8/golang:1.27.3-alpine3.24
 
 RUN addgroup -S ssas-group && adduser -S ssas-user -G ssas-group && \
     apk update upgrade --no-cache && \
