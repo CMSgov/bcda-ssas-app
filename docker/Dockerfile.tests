@@ -17,7 +17,7 @@ RUN go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@25c5369a93
 
 # this gosec ref is not an official release and may not be stable.  see above notes about issues with golang 1.27.3
 RUN go install github.com/xo/usql@v0.17.5 && \
-    go install github.com/securego/gosec/v2/cmd/gosec@v14ef84f6feccf40be7f5092fd2db119bf3f5f836 && \
+    go install github.com/securego/gosec/v2/cmd/gosec@14ef84f6feccf40be7f5092fd2db119bf3f5f836 && \
     go install gotest.tools/gotestsum@v1.13.0 && \
     go install -tags 'postgres' github.com/golang-migrate/migrate/v4/cmd/migrate@v4.15.2
 
