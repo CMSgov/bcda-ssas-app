@@ -1,5 +1,5 @@
 lint:
-	docker compose -f compose.test.yml run tests golangci-lint --version
+	docker compose -f compose.test.yml run --rm tests golangci-lint --version
 	docker compose -f compose.test.yml run --rm tests golangci-lint --timeout 10m0s -v run --new-from-merge-base=main
 	docker compose -f compose.test.yml run --rm tests gosec ./...
 
