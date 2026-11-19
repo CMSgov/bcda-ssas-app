@@ -5,3 +5,7 @@ test_results/*
 .env.sh
 .envrc
 ssas/swaggerui/swagger.json
+
+# tf
+*tfplan*
+*tfstate*
